@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+.mypy_cache/
+.migrations/
+.migrations/*
+migrations/
+.idea/
+.vscode/
+dist/
+build/

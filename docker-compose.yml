@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    container_name: gym_directory_api
+    env_file: .env
+    ports:
+      - "${APP_PORT}:8000"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    image: postgres:16-alpine
+    container_name: gym_directory_db
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer:4
+    container_name: gym_directory_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
