@@ -9,3 +9,6 @@ migrations/
 .vscode/
 dist/
 build/
+
+# venv
+venv/

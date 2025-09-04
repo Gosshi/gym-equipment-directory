@@ -18,3 +18,6 @@ migrate:
 
 rev:
 	docker compose exec api alembic revision --autogenerate -m "$(m)"
+
+freshness:
+	docker compose exec api python -m scripts.update_freshness
