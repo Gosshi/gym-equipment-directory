@@ -36,6 +36,11 @@ _DESC = (
     response_model=GymSearchResponse,
     summary="ジム検索（設備フィルタ  ページング）",
     description=_DESC,
+    examples={"basic":{"summary":"基本検索","value":{"pref":"chiba","city":"funabashi","per_page":10}}},
+    responses={
+        400: {"model": ErrorResponse, "description": "不正なクエリ（例: invalid page, equipment_match）"},
+        404: {"model": ErrorResponse, "description": "見つからない場合（将来の拡張で使用）"},
+    },
 )
 async def search_gyms(
     request: Request,

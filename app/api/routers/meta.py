@@ -9,7 +9,7 @@ router = APIRouter(prefix="/meta", tags=["meta"])
 
 @router.get("/prefs", summary="都道府県の一覧（件数付き）", response_model=List[Dict])
 async def list_prefs(session: AsyncSession = Depends(get_async_session)):
-    stmt = select(Gym.pref, func.count(Gym.id)).group_by(Gym.pref).order_by(Gym.pref.asc())
+    stmt = select(Gym.prefecture, func.count(Gym.id)).group_by(Gym.prefecture).order_by(Gym.prefecture.asc())
     rows = await session.execute(stmt)
     return [{"pref": r[0], "count": r[1]} for r in rows]
 
@@ -20,7 +20,7 @@ async def list_cities(
 ):
     stmt = (
         select(Gym.city, func.count(Gym.id))
-        .where(Gym.pref == pref)
+        .where(Gym.prefecture == pref)
         .group_by(Gym.city)
         .order_by(Gym.city.asc())
     )
