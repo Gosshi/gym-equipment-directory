@@ -68,10 +68,9 @@ async def search_gyms(
 
     # 並び順: last_verified_at_cached DESC NULLS LAST, id ASC
     order_cols = [
-        nulls_last(desc(Gym.last_verified_at_cached)),
+        Gym.last_verified_at_cached.desc().nulls_last(),
         Gym.id.asc(),
     ]
-
     offset = (page - 1) * per_page
     page_ids_stmt = (
         select(Gym.id)
