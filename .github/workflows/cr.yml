@@ -1,24 +1,19 @@
 name: Code Review
-
 permissions:
   contents: read
   pull-requests: write
-
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-
 jobs:
-  test:
+  review:
     runs-on: ubuntu-latest
     steps:
-      - uses: anc95/ChatGPT-CodeReview@main
+      - uses: anc95/ChatGPT-CodeReview@v1.0.22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # Optional
-          LANGUAGE: Japanese # 言語
           OPENAI_API_ENDPOINT: https://api.openai.com/v1
-          MODEL: gpt-4 # 使用するモデル
-          top_p: 1
-          temperature: 1
+          MODEL: gpt-4o-mini
+          LANGUAGE: Japanese
+          PROMPT: "すべて日本語で、重要度(P0/P1/P2)と根拠コード位置を明記。"
