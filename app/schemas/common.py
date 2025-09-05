@@ -2,4 +2,10 @@
 from pydantic import BaseModel, Field
 
 class ErrorResponse(BaseModel):
-    detail: str = Field(..., description="エラーメッセージ")
+    detail: str = Field(description="エラーメッセージ")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"detail": "Not Found"}
+        }
+    }

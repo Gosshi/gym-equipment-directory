@@ -24,20 +24,45 @@ class GymBasic(BaseModel):
     prefecture: Optional[str] = None
     city: Optional[str] = None
 
+class GymEquipmentLine(BaseModel):
+    equipment_slug: str = Field(description="設備スラッグ")
+    equipment_name: str = Field(description="設備名")
+    count: Optional[int] = Field(default=None, description="台数（任意）")
+    max_weight_kg: Optional[int] = Field(default=None, description="最大重量（任意）")
+ 
+
 class GymDetailResponse(BaseModel):
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "gym": {"id": 101, "slug": "gold-gym-funabashi", "name": "Gold Gym Funabashi", "prefecture": "chiba", "city": "funabashi"},
-            "equipments": [
-                {"equipment_slug": "dumbbell", "equipment_name": "Dumbbell", "category": "free-weights",
-                 "availability": "present", "count": 20, "max_weight_kg": 50,
-                 "verification_status": "verified", "last_verified_at": "2025-09-01T12:34:56Z"}
-            ],
-            "sources": [],
-            "updated_at": "2025-09-01T12:34:56Z"
+    id: int = Field(description="ジムID")
+    slug: str = Field(description="ジムスラッグ")
+    name: str = Field(description="名称")
+    city: str = Field(description="市区町村スラッグ")
+    pref: str = Field(description="都道府県スラッグ")
+    equipments: List[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
+    updated_at: Optional[str] = Field(default=None, description="設備情報の最終更新（= last_verified_at の最大）")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "id": 1,
+                "slug": "awesome-gym",
+                "name": "Awesome Gym",
+                "city": "funabashi",
+                "pref": "chiba",
+                "equipments": [
+                    {
+                        "equipment_slug": "squat-rack",
+                        "equipment_name": "スクワットラック",
+                        "count": 2,
+                        "max_weight_kg": 180
+                    },
+                    {
+                        "equipment_slug": "dumbbell",
+                        "equipment_name": "ダンベル",
+                        "count": 1,
+                        "max_weight_kg": 50
+                    }
+                ],
+                "updated_at": "2025-09-01T12:34:56Z"
+            }
         }
-    })
-    gym: GymBasic
-    equipments: List[EquipmentRow]
-    sources: List[SourceRow]
-    updated_at: Optional[datetime] = None
+    }
