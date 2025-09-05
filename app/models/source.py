@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Enum
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
-from app.db import Base
+from app.models.base import Base
 
 class SourceType(PyEnum):
     official_site = "official_site"
