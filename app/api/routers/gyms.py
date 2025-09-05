@@ -134,6 +134,7 @@ async def search_gyms(
     return GymSearchResponse(items=items, page=page, per_page=per_page, total=total, has_next=has_next)
 
 
+# app/api/routers/gyms.py の get_gym_detail を置き換え
 @router.get(
     "/{slug}",
     response_model=GymDetailResponse,
@@ -145,5 +146,44 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
     gym = await session.scalar(select(Gym).where(Gym.slug == slug))
     if not gym:
         raise HTTPException(status_code=404, detail="gym not found")
-    # TODO: ここで equipments/sources を組み立てて GymDetailResponse を返す（既存実装を流用）
-    ...
+
+    rows = (await session.execute(
+        select(
+            Equipment.slug.label("equipment_slug"),
+            Equipment.name.label("equipment_name"),
+            Equipment.category,
+            GymEquipment.count,
+            GymEquipment.max_weight_kg,
+            GymEquipment.last_verified_at,
+        )
+        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
+        .where(GymEquipment.gym_id == gym.id)
+        .order_by(Equipment.category, Equipment.name)
+    )).all()
+
+    equipments = [
+        {
+            "equipment_slug": r.equipment_slug,
+            "equipment_name": r.equipment_name,
+            "category": r.category,
+            "count": r.count,
+            "max_weight_kg": r.max_weight_kg,
+            "verification_status": "verified",  # フィールド必須なら暫定値（実データに合わせて後で拡張）
+            "last_verified_at": r.last_verified_at,
+        }
+        for r in rows
+    ]
+    updated_at = max((r.last_verified_at for r in rows if r.last_verified_at), default=None)
+
+    return {
+        "gym": {
+            "id": gym.id,
+            "name": gym.name,
+            "slug": gym.slug,
+            "prefecture": gym.prefecture,
+            "city": gym.city,
+        },
+        "equipments": equipments,
+        "sources": [],
+        "updated_at": updated_at,
+    }
