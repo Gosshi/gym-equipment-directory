@@ -1,7 +1,7 @@
 # app/api/main.py
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from app.api.routers import gyms,healthz, equipments
+from app.api.routers import gyms,healthz, equipments, meta
 
 # もし起動時のDB初期化やCORS設定などがあればこの上で import / 設定してください
 
@@ -32,6 +32,7 @@ app.openapi_tags = tags_metadata
 app.include_router(gyms.router, tags=["gyms"])
 app.include_router(equipments.router, tags=["equipments"])
 app.include_router(healthz.router, tags=["health"])
+app.include_router(meta.router, tags=["meta"])
 
 def custom_openapi():
     if app.openapi_schema:

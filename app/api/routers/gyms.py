@@ -2,6 +2,7 @@
 from typing import Literal, Optional, List
 from typing_extensions import Annotated
 from datetime import datetime
+import base64, json
 
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from sqlalchemy import select, func
@@ -16,6 +17,12 @@ from app.api.deps import get_equipment_slugs_from_query
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
+def _encode_page_token(k: tuple, sort: str) -> str:
+    payload = {"k": list(k), "sort": sort}
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+def _decode_page_token(token: str) -> dict:
+    return json.loads(base64.urlsafe_b64decode(token.encode()).decode())
 
 _DESC = (
     "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n"
@@ -128,8 +135,8 @@ async def search_gyms(
     # 4) total
     total = (await session.scalar(select(func.count()).select_from(base_ids.subquery()))) or 0
     if total == 0:
-        return GymSearchResponse(items=[], page=page, per_page=per_page, total=0, has_next=False)
-
+        return GymSearchResponse(items=[], total=0, has_next=False)
+    
     offset = (page - 1) * per_page
 
     # 5) 並びと取得
@@ -245,7 +252,6 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
             "category": r.category,
             "count": r.count,
             "max_weight_kg": r.max_weight_kg,
-            "verification_status": "verified",  # フィールド必須なら暫定値（実データに合わせて後で拡張）
             "last_verified_at": r.last_verified_at,
         }
         for r in rows
