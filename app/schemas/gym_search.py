@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 __all__ = ["GymSummary", "GymSearchResponse"]
 
@@ -23,12 +23,28 @@ class GymSummary(BaseModel):
 
 
 class GymSearchResponse(BaseModel):
-    """
-    /gyms/search のレスポンス本体。
-    items は GymSummary の配列、ページング情報と合計件数を含む。
-    """
-    items: List[GymSummary] = Field(..., description="検索結果リスト")
-    page: int = Field(..., ge=1, description="現在ページ（1始まり）", examples=[1])
-    per_page: int = Field(..., ge=1, le=100, description="1ページ件数（最大100）", examples=[20])
-    total: int = Field(..., ge=0, description="総件数", examples=[123])
-    has_next: bool = Field(..., description="次ページが存在するか", examples=[True])
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "items": [
+                {
+                    "id": 101,
+                    "name": "Gold Gym Funabashi",
+                    "last_verified_at_cached": "2025-09-01T12:34:56Z"
+                },
+                {
+                    "id": 205,
+                    "name": "Anytime Chiba",
+                    "last_verified_at_cached": None
+                }
+            ],
+            "page": 1,
+            "per_page": 20,
+            "total": 123,
+            "has_next": True
+        }
+    })
+    items: List[GymSummary] = Field(..., description="検索結果（サマリー）")
+    page: int = Field(1, ge=1, description="ページ番号（1始まり）")
+    per_page: int = Field(20, ge=1, le=50, description="1ページ件数（最大50）")
+    total: int = Field(..., description="総件数")
+    has_next: bool = Field(..., description="次ページが存在するか")

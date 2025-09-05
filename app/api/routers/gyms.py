@@ -1,13 +1,16 @@
 # app/api/routers/gyms.py
 from typing import Optional, List, Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from app.schemas.common import ErrorResponse
+from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models import Gym, Equipment, GymEquipment
 from app.schemas.gym_search import GymSummary, GymSearchResponse
+from app.schemas.gym_detail import GymDetailResponse
+from app.schemas.common import ErrorResponse
 from app.api.deps import get_equipment_slugs_from_query
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
@@ -25,13 +28,13 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 )
 async def search_gyms(
     request: Request,
-    pref: Optional[str] = Query(None, description="都道府県スラッグ（例: chiba）"),
-    city: Optional[str] = Query(None, description="市区町村スラッグ（例: funabashi）"),
-    equipments: Optional[str] = Query(None, description="CSV: squat-rack,dumbbell"),
-    equipment_match: Literal["all", "any"] = Query("all", description="設備の一致条件"),
-    sort: Literal["freshness", "richness"] = Query("freshness"),
-    page: int = Query(1, ge=1, le=50),
-    per_page: int = Query(20, ge=1, le=50),
+    pref: Optional[str] = Query(None, description="都道府県スラッグ", examples={"ex": {"value": "chiba"}}),
+    city: Optional[str] = Query(None, description="市区町村スラッグ", examples={"ex": {"value": "funabashi"}}),
+    equipments: Optional[str] = Query(None, description="CSV: squat-rack,dumbbell", examples={"ex": {"value": "squat-rack,dumbbell"}}),
+    equipment_match: Literal["all","any"] = Query("all", description="設備一致条件（all|any）"),
+    sort: Literal["freshness","richness"] = Query("freshness", description="並び替え（freshness|richness）"),
+    page: int = Query(1, ge=1, le=50, description="ページ番号（1始まり）"),
+    per_page: int = Query(20, ge=1, le=50, description="1ページ件数（最大50）"),
     session: AsyncSession = Depends(get_async_session),
 ):
     # 1) クエリパラメータから設備スラッグ配列を取得
@@ -113,3 +116,15 @@ async def search_gyms(
     has_next = (page * per_page) < total
 
     return GymSearchResponse(items=items, page=page, per_page=per_page, total=total, has_next=has_next)
+
+@router.get(
+    "/{slug}",
+    response_model=GymDetailResponse,
+    summary="ジム詳細を取得",
+    description="ジムスラッグで詳細情報（設備一覧・最新更新時刻）を返します。",
+    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
+)
+async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_session)):
+    gym = await session.scalar(select(Gym).where(Gym.slug == slug))
+    if not gym:
+        raise HTTPException(status_code=404, detail="gym not found")
