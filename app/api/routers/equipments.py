@@ -9,7 +9,7 @@ from app.models import Equipment
 from app.schemas.common import ErrorResponse
 from pydantic import BaseModel, Field
 
-router = APIRouter(prefix="/equipments")
+router = APIRouter(prefix="/equipments", tags=["equipments"])
 
 
 class EquipmentMaster(BaseModel):
@@ -38,22 +38,17 @@ class EquipmentMaster(BaseModel):
     description="設備マスタを name/slug の部分一致で検索します（最大20件）。",
 )
 async def list_equipments(
-    q: Annotated[
-        Optional[str],
-        Query(
-            description="部分一致キーワード（未指定なら全件上限20件）",
-            examples={
-                "by-name": {"value": "スクワット"},
-                "by-slug": {"value": "dumb"},
-            },
-        ),
-    ] = None,
+    q: Optional[str] = Query(None, description="部分一致（ILIKE風）"),
+    limit: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_async_session),
-) -> List[EquipmentMaster]:
-    stmt = select(Equipment.id, Equipment.slug, Equipment.name, Equipment.category)
+):
+    stmt = select(Equipment)
     if q:
-        like = f"%{q}%"
-        stmt = stmt.where(or_(Equipment.name.ilike(like), Equipment.slug.ilike(like)))
-    stmt = stmt.order_by(func.lower(Equipment.slug)).limit(20)
-    rows = (await session.execute(stmt)).all()
-    return [EquipmentMaster.model_validate(dict(r._mapping)) for r in rows]
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            func.lower(Equipment.name).like(func.lower(pattern)) |
+            func.lower(Equipment.slug).like(func.lower(pattern))
+        )
+    stmt = stmt.order_by(Equipment.name.asc()).limit(limit)
+    rows = (await session.execute(stmt)).scalars().all()
+    return rows
