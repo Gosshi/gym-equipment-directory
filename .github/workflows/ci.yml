@@ -1,0 +1,70 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # ⇩ ここで要件の環境変数を一元管理
+    env:
+      # Postgres
+      POSTGRES_DB: gym_directory
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_PORT: 5432
+
+      # App
+      APP_PORT: 8000
+
+      # DB URLs
+      DATABASE_URL_ASYNC: postgresql+asyncpg://appuser:apppass@localhost:5432/gym_directory
+      DATABASE_URL_SYNC:  postgresql+psycopg2://appuser:apppass@localhost:5432/gym_directory
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        ports:
+          - "${{ env.POSTGRES_PORT }}:5432"
+        # ヘルスチェックで起動待ち
+        options: >-
+          --health-cmd="pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip wheel setuptools
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: DB migrate (sync driver for Alembic)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_SYNC }}
+        run: alembic upgrade head
+
+      - name: Run tests (async driver)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_ASYNC }}
+        run: pytest -q
