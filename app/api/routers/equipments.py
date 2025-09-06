@@ -42,13 +42,10 @@ async def list_equipments(
     limit: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_async_session),
 ):
-    stmt = select(Equipment)
+    stmt = select(Equipment.id, Equipment.slug, Equipment.name, Equipment.category)
     if q:
-        pattern = f"%{q}%"
-        stmt = stmt.where(
-            func.lower(Equipment.name).like(func.lower(pattern)) |
-            func.lower(Equipment.slug).like(func.lower(pattern))
-        )
-    stmt = stmt.order_by(Equipment.name.asc()).limit(limit)
-    rows = (await session.execute(stmt)).scalars().all()
-    return rows
+        ilike = f"%{q}%"
+        stmt = stmt.where(or_(Equipment.slug.ilike(ilike), Equipment.name.ilike(ilike)))
+    stmt = stmt.order_by(Equipment.slug.asc()).limit(limit)
+    rows = await session.execute(stmt)
+    return [dict(r) for r in rows.mappings()]

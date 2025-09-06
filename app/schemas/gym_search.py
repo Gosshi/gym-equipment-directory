@@ -25,6 +25,7 @@ class GymSearchResponse(BaseModel):
     items: List[GymSummary] = Field(description="検索結果")
     total: int = Field(description="総件数")
     has_next: bool = Field(description="次ページ有無")
+    page_token: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {
@@ -41,6 +42,7 @@ class GymSearchResponse(BaseModel):
                 ],
                 "total": 12,
                 "has_next": True,
+                "page_token": "abc123",
             }
         }
     }

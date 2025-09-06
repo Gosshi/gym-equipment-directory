@@ -2,10 +2,12 @@
 from typing import Literal, Optional, List
 from typing_extensions import Annotated
 from datetime import datetime
+import base64, json
 
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case, literal, and_, or_, tuple_, asc, desc,cast
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.types import Numeric
 
 from app.db import get_async_session
 from app.models import Gym, Equipment, GymEquipment
@@ -16,11 +18,17 @@ from app.api.deps import get_equipment_slugs_from_query
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
+def _encode_page_token(k: tuple, sort: str) -> str:
+    payload = {"k": list(k), "sort": sort}
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+def _decode_page_token(token: str) -> dict:
+    return json.loads(base64.urlsafe_b64decode(token.encode()).decode())
 
 _DESC = (
     "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n"
     "- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n"
-    "- sort=richness: GymEquipment をスコア合算し降順（1.0  min(count,5)*0.1  min(max_weight_kg/60,1.0)*0.1）\n"
+    "- sort=richness: GymEquipment をスコア合算し降順（1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
     "- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n"
 )
 
@@ -29,6 +37,10 @@ _DESC = (
     response_model=GymSearchResponse,
     summary="ジム検索（設備フィルタ  ページング）",
     description=_DESC,
+    responses={
+        400: {"model": ErrorResponse, "description": "不正なクエリ（例: invalid page, equipment_match）"},
+        404: {"model": ErrorResponse, "description": "見つからない場合（将来の拡張で使用）"},
+    },
 )
 async def search_gyms(
     request: Request,
@@ -70,14 +82,6 @@ async def search_gyms(
             examples={"freshness": {"value": "freshness"}, "richness": {"value": "richness"}},
         ),
     ] = "freshness",
-    page: Annotated[
-        int,
-        Query(
-            ge=1,
-            description="ページ番号（1〜）",
-            examples={"first": {"value": 1}},
-        ),
-    ] = 1,
     per_page: Annotated[
         int,
         Query(
@@ -86,6 +90,7 @@ async def search_gyms(
             examples={"ten": {"value": 10}},
         ),
     ] = 20,
+    page_token: Optional[str] = Query(None, description="前回レスポンスの page_token"),
     session: AsyncSession = Depends(get_async_session),
 ):
     # 1) 設備スラッグの取得
@@ -128,24 +133,59 @@ async def search_gyms(
     # 4) total
     total = (await session.scalar(select(func.count()).select_from(base_ids.subquery()))) or 0
     if total == 0:
-        return GymSearchResponse(items=[], page=page, per_page=per_page, total=0, has_next=False)
+        return GymSearchResponse(items=[], total=0, has_next=False, page_token=None)
+    
+    # Keyset: ペイロードの復元（あれば）
+    last_key = None
+    if page_token:
+        try:
+            payload = _decode_page_token(page_token)
+            if payload.get("sort") != sort:
+                raise ValueError("sort mismatch")
+            last_key = tuple(payload["k"])
+        except Exception:
+            raise HTTPException(status_code=400, detail="invalid page_token")
 
-    offset = (page - 1) * per_page
 
     # 5) 並びと取得
     if sort == "freshness":
-        # last_verified_at_cached DESC NULLS LAST, id ASC
-        gyms_stmt = (
-            select(Gym)
-            .where(Gym.id.in_(base_ids.subquery()))
-            .order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc())
-            .limit(per_page)
-            .offset(offset)
+        # 合成キー式を変数に切り出して、SELECT と WHERE の双方で同一式を利用
+        nf_expr = case(
+            
+                (Gym.last_verified_at_cached.is_(None), 1),
+                (func.extract('epoch', Gym.last_verified_at_cached) < 0, 1),
+            
+            else_=0
         )
-        gyms = (await session.scalars(gyms_stmt)).all()
+        neg_ep_expr = func.coalesce(-func.extract('epoch', Gym.last_verified_at_cached), literal(10**18))
+
+        stmt = select(Gym, nf_expr.label("nf"), neg_ep_expr.label("neg_ep")).where(
+            Gym.id.in_(base_ids.subquery())
+        )
+        if page_token:
+            payload = _decode_page_token(page_token)
+            if payload.get("sort") != "freshness":
+                raise HTTPException(status_code=400, detail="invalid page_token")
+            lk_nf, lk_neg_ep, lk_id = payload["k"]
+            stmt = stmt.where(
+                tuple_(nf_expr, neg_ep_expr, Gym.id) >
+                tuple_(literal(lk_nf), literal(lk_neg_ep), literal(lk_id))
+            )
+
+        rows = await session.execute(
+            stmt.order_by("nf", "neg_ep", Gym.id).limit(per_page + 1)
+        )
+        recs = rows.all()
+        gyms = [r[0] for r in recs[:per_page]]
+        next_token = None
+        if len(recs) > per_page:
+            last_row = recs[per_page - 1]
+            last_nf = int(last_row[1])
+            last_neg_ep = float(last_row[2])
+            next_token = _encode_page_token((last_nf, last_neg_ep, last_row[0].id), "freshness")
 
     else:  # richness
-        # 各設備行のスコア：1.0  min(count,5)*0.1  min(max_weight_kg/60,1)*0.1
+        # スコア式とサブクエリの定義が抜けていたので追加
         score_expr = (
             1.0
             + func.least(func.coalesce(GymEquipment.count, 0), 5) * 0.1
@@ -163,52 +203,62 @@ async def search_gyms(
             score_subq = score_subq.where(Equipment.slug.in_(required_slugs))
         score_subq = score_subq.group_by(GymEquipment.gym_id).subquery()
 
-        gyms_stmt = (
-            select(Gym)
+        score = score_subq.c.score
+        nf_expr = case((score.is_(None), 1), else_=0)
+
+        # ★ 丸めを固定（小数6桁）。NULLは大きい値で末尾送り。
+        neg_sc_expr = cast(func.coalesce(-score, literal(10**9)), Numeric(18, 6))
+        stmt = (
+            select(
+                Gym,
+                nf_expr.label("nf"),
+                neg_sc_expr.label("neg_sc"),
+            )
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
             .where(Gym.id.in_(base_ids.subquery()))
-            .order_by(score_subq.c.score.desc().nulls_last(), Gym.id.asc())
-            .limit(per_page)
-            .offset(offset)
         )
-        gyms = (await session.scalars(gyms_stmt)).all()
+        if page_token:
+            payload = _decode_page_token(page_token)
+            if payload.get("sort") != "richness":
+                raise HTTPException(status_code=400, detail="invalid page_token")
+            lk_nf, lk_neg_sc, lk_id = payload["k"]
+            stmt = stmt.where(
+                tuple_(nf_expr, neg_sc_expr, Gym.id) >
+                tuple_(literal(int(lk_nf)), literal(float(lk_neg_sc)), literal(int(lk_id)))
+            )
 
-    # 6) 整形
-    items = [
-        GymSummary(
-            id=g.id,
-            name=g.name,
-            slug=g.slug,
-            city=g.city,
-            pref=g.prefecture,
-            last_verified_at_cached=g.last_verified_at_cached.isoformat() if g.last_verified_at_cached else None,
-    )
-        for g in gyms
-    ]
+        rows = await session.execute(
+            stmt.order_by("nf", "neg_sc", Gym.id).limit(per_page + 1)
+        )
+        recs = rows.all()
+        gyms = [r[0] for r in recs[:per_page]]
+        next_token = None
+        if len(recs) > per_page:
+            last_row = recs[per_page - 1]
+            next_token = _encode_page_token(
+                (int(last_row[1]), float(last_row[2]), last_row[0].id), "richness"
+            )
     def _lv(dt: Optional[datetime]):
-        # 0001-01-01 等の番兵値を None として返す（必要なら）
+        # SQL 側の “epoch<0 は NULL扱い” と合わせる
         if not dt:
             return None
         if dt.year < 1970:
             return None
         return dt.isoformat()
 
-    items: List[GymSummary] = []
-    for g in gyms:
-        # GymSummary に必須の slug / city / pref を **忘れずに** 詰める
-        items.append(
-            GymSummary(
-                id=g.id,
-                slug=g.slug,
-                name=g.name,
-                city=g.city,             # モデル: Gym.city
-                pref=g.prefecture,       # モデル: Gym.prefecture
-                last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
-            )
+    items: List[GymSummary] = [
+        GymSummary(
+            id=g.id,
+            slug=g.slug,
+            name=g.name,
+            city=g.city,
+            pref=g.prefecture,
+            last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
         )
-
-    has_next = (page * per_page) < total
-    return GymSearchResponse(items=items, total=total, has_next=has_next)
+        for g in gyms
+    ]
+    has_next = len(items) == per_page and (total > 0) and (next_token is not None)
+    return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
 
 
 # app/api/routers/gyms.py の get_gym_detail を置き換え
@@ -245,8 +295,7 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
             "category": r.category,
             "count": r.count,
             "max_weight_kg": r.max_weight_kg,
-            "verification_status": "verified",  # フィールド必須なら暫定値（実データに合わせて後で拡張）
-            "last_verified_at": r.last_verified_at,
+            "last_verified_at": r.last_verified_at.isoformat() if r.last_verified_at else None,
         }
         for r in rows
     ]
