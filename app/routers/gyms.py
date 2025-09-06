@@ -11,12 +11,29 @@ from app.models import (
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
-@router.get("/search", response_model=schemas.SearchResponse)
+
+@router.get("/search", response_model=schemas.SearchResponse,
+            responses={
+                400: {
+                    "description": "Invalid page_token",
+                    "content": {
+                        "application/json": {
+                            "example": {"detail": "invalid page_token"}
+                        }
+                    },
+                }
+            },)
 async def search_gyms(
     pref: Optional[str] = Query(None, description="都道府県スラッグ（例: chiba）"),
     city: Optional[str] = Query(None, description="市区町村スラッグ（例: funabashi）"),
-    equipments: Optional[str] = Query(None, description="CSV: squat-rack,dumbbell"),
+    equipments: Optional[str] = Query(
+        None, description="CSV: squat-rack,dumbbell"),
     sort: str = Query("freshness", pattern="^(richness|freshness)$"),
+    page_token: str | None = Query(
+        None,
+        example="v1:freshness:nf=0,ts=1725555555,id=42",
+        description="Keysetの継続トークン。sortと整合しない値は400を返す。",
+    ),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
@@ -67,10 +84,12 @@ async def search_gyms(
     for row in ge_rows:
         hi = schemas.EquipmentHighlight(
             equipment_slug=row.equipment_slug,
-            availability=row.availability.value if hasattr(row.availability, "value") else str(row.availability),
+            availability=row.availability.value if hasattr(
+                row.availability, "value") else str(row.availability),
             count=row.count,
             max_weight_kg=row.max_weight_kg,
-            verification_status=row.verification_status.value if hasattr(row.verification_status, "value") else str(row.verification_status),
+            verification_status=row.verification_status.value if hasattr(
+                row.verification_status, "value") else str(row.verification_status),
             last_verified_at=row.last_verified_at
         )
         by_gym.setdefault(row.gym_id, []).append(hi)
@@ -101,7 +120,8 @@ async def search_gyms(
         items.append(item)
 
     if sort == "freshness":
-        items.sort(key=lambda i: (i.last_verified_at is None, i.last_verified_at), reverse=True)
+        items.sort(key=lambda i: (i.last_verified_at is None,
+                   i.last_verified_at), reverse=True)
     elif sort == "richness":
         items.sort(key=lambda i: i.score, reverse=True)
 
@@ -136,10 +156,12 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
             equipment_slug=r.equipment_slug,
             equipment_name=r.equipment_name,
             category=r.category,
-            availability=r.availability.value if hasattr(r.availability, "value") else str(r.availability),
+            availability=r.availability.value if hasattr(
+                r.availability, "value") else str(r.availability),
             count=r.count,
             max_weight_kg=r.max_weight_kg,
-            verification_status=r.verification_status.value if hasattr(r.verification_status, "value") else str(r.verification_status),
+            verification_status=r.verification_status.value if hasattr(
+                r.verification_status, "value") else str(r.verification_status),
             last_verified_at=r.last_verified_at,
         )
         for r in ge_rows
