@@ -32,7 +32,7 @@ def _decode_page_token(token: str) -> dict:
         raise HTTPException(status_code=400, detail="invalid page_token")
 
 # page_tokenの検証とデコード
-def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple | None:
+def _validate_and_decode_page_token(page_token: str, sort: str) -> Optional[tuple]:
     if not page_token:
         return None
     try:
