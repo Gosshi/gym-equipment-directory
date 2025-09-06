@@ -1,12 +1,11 @@
 # app/api/routers/gyms.py
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Tuple
 from typing_extensions import Annotated
 from datetime import datetime
-import base64
-import json
+import base64, json
 
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
-from sqlalchemy import select, func, case, literal, and_, or_, tuple_, asc, desc, cast
+from sqlalchemy import select, func, case, literal, and_, or_, tuple_, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Numeric
 
@@ -20,53 +19,49 @@ from app.api.deps import get_equipment_slugs_from_query
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
 
-def _encode_page_token(k: tuple, sort: str) -> str:
-    payload = {"k": list(k), "sort": sort}
-    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+# ---------- Token helpers ----------
+def _b64e(obj: dict) -> str:
+    return base64.urlsafe_b64encode(json.dumps(obj).encode()).decode()
 
-
-def _decode_page_token(token: str) -> dict:
+def _b64d(token: str) -> dict:
     try:
         return json.loads(base64.urlsafe_b64decode(token.encode()).decode())
     except Exception:
         raise HTTPException(status_code=400, detail="invalid page_token")
 
-# page_tokenの検証とデコード
-def _validate_and_decode_page_token(page_token: str, sort: str) -> Optional[tuple]:
-    if not page_token:
-        return None
-    try:
-        payload = _decode_page_token(page_token)
-        if payload.get("sort") != sort:
-            raise HTTPException(status_code=400, detail="invalid page_token")
-        return tuple(payload["k"])
-    except Exception:
-        raise HTTPException(status_code=400, detail="invalid page_token")
+def _encode_page_token_for_freshness(ts_iso_or_none: Optional[str], last_id: int) -> str:
+    # {sort:'freshness', k:[ts_iso_or_null, id]}
+    return _b64e({"sort": "freshness", "k": [ts_iso_or_none, last_id]})
 
-# GymSummary生成の共通化
-def _get_value(val, name=None):
-    # SQLAlchemy Column型ならインスタンスから値を取得
-    from sqlalchemy.orm.attributes import InstrumentedAttribute
-    if isinstance(val, InstrumentedAttribute) and name:
-        # g.id などがColumn型の場合、g.__getattribute__('id') で値を取得
-        return val.parent.__getattribute__(name)
-    if hasattr(val, 'value'):
-        return val.value
-    if callable(val):
-        return val()
-    return val
+def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
+    # {sort:'richness', k:[nf, neg_sc, id]}
+    return _b64e({"sort": "richness", "k": [nf, neg_sc, last_id]})
+
+def _validate_and_decode_page_token(page_token: str, sort: str) -> Tuple:
+    payload = _b64d(page_token)
+    if payload.get("sort") != sort or "k" not in payload:
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    k = payload["k"]
+    if sort == "freshness" and not (isinstance(k, list) and len(k) == 2):
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    if sort == "richness" and not (isinstance(k, list) and len(k) == 3):
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    return tuple(k)  # type: ignore[return-value]
+
+
+# ---------- DTO helpers ----------
+def _lv(dt: Optional[datetime]) -> Optional[str]:
+    if not dt or (hasattr(dt, "year") and dt.year < 1970):
+        return None
+    return dt.isoformat()
 
 def _gym_summary_from_gym(g: Gym) -> GymSummary:
-    def _lv(dt: Optional[datetime]):
-        if not dt or (hasattr(dt, 'year') and dt.year < 1970):
-            return None
-        return dt.isoformat()
     return GymSummary(
-        id=int(getattr(g, 'id', 0)),
-        slug=str(getattr(g, 'slug', '')),
-        name=str(getattr(g, 'name', '')),
-        city=str(getattr(g, 'city', '')),
-        pref=str(getattr(g, 'pref', '')),
+        id=int(getattr(g, "id", 0)),
+        slug=str(getattr(g, "slug", "")),
+        name=str(getattr(g, "name", "")),
+        city=str(getattr(g, "city", "")),
+        pref=str(getattr(g, "pref", "")),
         last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
     )
 
@@ -82,89 +77,69 @@ _DESC = (
 @router.get(
     "/search",
     response_model=GymSearchResponse,
-    summary="ジム検索（設備フィルタ  ページング）",
+    summary="ジム検索（設備フィルタ + Keysetページング）",
     description=_DESC,
     responses={
         400: {
             "description": "Invalid page_token",
             "content": {"application/json": {"example": {"detail": "invalid page_token"}}},
         }
-    }
+    },
 )
 async def search_gyms(
     request: Request,
     pref: Annotated[
         Optional[str],
-        Query(
-            description="都道府県スラッグ（lower）例: chiba",
-            example="chiba",
-        ),
+        Query(description="都道府県スラッグ（lower）例: chiba", example="chiba"),
     ] = None,
     city: Annotated[
         Optional[str],
-        Query(
-            description="市区町村スラッグ（lower）例: funabashi",
-            example="funabashi",
-        ),
+        Query(description="市区町村スラッグ（lower）例: funabashi", example="funabashi"),
     ] = None,
     equipments: Annotated[
         Optional[str],
-        Query(
-            description="設備スラッグCSV。例: `squat-rack,dumbbell`",
-            example="squat-rack,dumbbell",
-        ),
+        Query(description="設備スラッグCSV。例: `squat-rack,dumbbell`", example="squat-rack,dumbbell"),
     ] = None,
     equipment_match: Annotated[
         Literal["all", "any"],
-        Query(
-            description="equipments の一致条件",
-            example="all",
-        ),
+        Query(description="equipments の一致条件", example="all"),
     ] = "all",
     sort: Annotated[
         Literal["freshness", "richness"],
-        Query(
-            description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。",
-            example="freshness",
-        ),
+        Query(description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。", example="freshness"),
     ] = "freshness",
     per_page: Annotated[
         int,
-        Query(
-            ge=1, le=50,
-            description="1ページ件数（≤50）",
-            example=10,
-        ),
+        Query(ge=1, le=50, description="1ページ件数（≤50）", example=10),
     ] = 20,
     page_token: str | None = Query(
         None,
         description="前ページから受け取ったKeyset継続トークン（sortと整合しない場合は400）。",
-        example="v1:freshness:nf=0,ts=1725555555,id=42",
+        # 例: {"sort":"freshness","k":[null,42]} のBase64
+        example="eyJzb3J0IjoiZnJlc2huZXNzIiwiayI6W251bGwsNDJdfQ==",
     ),
     session: AsyncSession = Depends(get_async_session),
 ):
-    # page_tokenの整合性チェックとデコード
-    last_key = _validate_and_decode_page_token(page_token, sort) if page_token else None
-
-    # 1) 設備スラッグの取得
-    required_slugs: List[str] = get_equipment_slugs_from_query(
-        request, equipments)
-
+    # ---- 1) 設備スラッグの取得 ----
+    required_slugs: List[str] = get_equipment_slugs_from_query(request, equipments)
     if equipments and not required_slugs:
-        required_slugs = [s.strip()
-                          for s in equipments.split(",") if s.strip()]
+        required_slugs = [s.strip() for s in equipments.split(",") if s.strip()]
 
-    # 2) ベース: Gym.id（pref/city を反映）
+    # ---- 2) ベース: Gym.id（pref/city を反映） ----
+    if pref:
+        pref = pref.lower()
+    if city:
+        city = city.lower()
+
     base_ids = select(Gym.id)
     if pref:
-        base_ids = base_ids.where(func.lower(Gym.pref) == func.lower(pref))
+        base_ids = base_ids.where(Gym.pref == pref)
     if city:
-        base_ids = base_ids.where(func.lower(Gym.city) == func.lower(city))
+        base_ids = base_ids.where(Gym.city == city)
 
-    # 3) 設備フィルタ（all/any）
+    # ---- 3) 設備フィルタ（all/any）----
     if required_slugs:
-        eq_ids_stmt = select(Equipment.id).where(
-            Equipment.slug.in_(required_slugs))
+        eq_ids_stmt = select(Equipment.id).where(Equipment.slug.in_(required_slugs))
 
         if equipment_match == "any":
             base_ids = (
@@ -181,48 +156,52 @@ async def search_gyms(
                 .group_by(GymEquipment.gym_id)
                 .having(func.count(func.distinct(GymEquipment.equipment_id)) == len(required_slugs))
             )
-            base_ids = (
-                select(Gym.id)
-                .where(Gym.id.in_(ge_grouped_stmt))
-                .where(Gym.id.in_(base_ids))
-            )
+            base_ids = select(Gym.id).where(Gym.id.in_(ge_grouped_stmt)).where(Gym.id.in_(base_ids))
 
-    # 4) total
+    # ---- 4) total ----
     total = (await session.scalar(select(func.count()).select_from(base_ids.subquery()))) or 0
     if total == 0:
         return GymSearchResponse(items=[], total=0, has_next=False, page_token=None)
 
-    # last_keyは上記で取得済み
-
-    # 5) 並びと取得
+    # ---- 5) 並びと取得 ----
     if sort == "freshness":
-        nf_expr = case(
-            (Gym.last_verified_at_cached.is_(None), 1),
-            (func.extract('epoch', Gym.last_verified_at_cached) < 0, 1),
-            else_=0
-        )
-        neg_ep_expr = func.coalesce(-func.extract('epoch', Gym.last_verified_at_cached), literal(10**18))
-        stmt = select(Gym, nf_expr.label("nf"), neg_ep_expr.label("neg_ep")).where(
-            Gym.id.in_(select(base_ids.subquery().c.id))
-        )
-        if last_key:
-            lk_nf, lk_neg_ep, lk_id = last_key
-            stmt = stmt.where(
-                tuple_(nf_expr, neg_ep_expr, Gym.id) >
-                tuple_(literal(lk_nf), literal(lk_neg_ep), literal(lk_id))
-            )
-        rows = await session.execute(
-            stmt.order_by("nf", "neg_ep", Gym.id).limit(per_page + 1)
-        )
-        recs = rows.all()
-        gyms = [r[0] for r in recs[:per_page]]
+        # 列ベースの ORDER（index: pref, city, last_verified_at_cached DESC NULLS LAST, id ASC）
+        stmt = select(Gym).where(Gym.id.in_(base_ids.subquery()))
+        # token: [ts_iso_or_null, id]
+        lk_ts_iso, lk_id = (None, None)
+        if page_token:
+            lk_ts_iso, lk_id = _validate_and_decode_page_token(page_token, "freshness")  # type: ignore[misc]
+            # 次ページ条件（ts DESC, id ASC）:
+            # ts < last_ts OR (ts = last_ts AND id > last_id)
+            if lk_ts_iso is None:
+                stmt = stmt.where(Gym.last_verified_at_cached.is_(None), Gym.id > int(lk_id))  # type: ignore[arg-type]
+            else:
+                try:
+                    lk_ts = datetime.fromisoformat(lk_ts_iso)  # naive想定
+                except Exception:
+                    raise HTTPException(status_code=400, detail="invalid page_token")
+                stmt = stmt.where(
+                    or_(
+                        Gym.last_verified_at_cached < lk_ts,
+                        and_(Gym.last_verified_at_cached == lk_ts, Gym.id > int(lk_id)),  # type: ignore[arg-type]
+                    )
+                )
+
+        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(per_page + 1)
+
+        rows = await session.execute(stmt)
+        recs = rows.scalars().all()
+        gyms = recs[:per_page]
+
         next_token = None
         if len(recs) > per_page:
-            last_row = recs[per_page - 1]
-            last_nf = int(last_row[1])
-            last_neg_ep = float(last_row[2])
-            next_token = _encode_page_token((last_nf, last_neg_ep, last_row[0].id), "freshness")
+            last = recs[per_page - 1]
+            ts = getattr(last, "last_verified_at_cached", None)
+            ts_iso = ts.isoformat() if ts else None
+            next_token = _encode_page_token_for_freshness(ts_iso, last.id)
+
     else:  # richness
+        # スコア式（NULLはnf=1で末尾送り）
         score_expr = (
             1.0
             + func.least(func.coalesce(GymEquipment.count, 0), 5) * 0.1
@@ -239,48 +218,41 @@ async def search_gyms(
         if required_slugs:
             score_subq = score_subq.where(Equipment.slug.in_(required_slugs))
         score_subq = score_subq.group_by(GymEquipment.gym_id).subquery()
+
         score = score_subq.c.score
         nf_expr = case((score.is_(None), 1), else_=0)
+        # 丸め固定（Numeric(18,6)）し、NULLは大きい値で末尾送り
         neg_sc_expr = cast(func.coalesce(-score, literal(10**9)), Numeric(18, 6))
+
         stmt = (
-            select(
-                Gym,
-                nf_expr.label("nf"),
-                neg_sc_expr.label("neg_sc"),
-            )
+            select(Gym, nf_expr.label("nf"), neg_sc_expr.label("neg_sc"))
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
-            .where(Gym.id.in_(select(base_ids.subquery().c.id)))
+            .where(Gym.id.in_(base_ids.subquery()))
+            .order_by("nf", "neg_sc", Gym.id)
+            .limit(per_page + 1)
         )
-        if last_key:
-            lk_nf, lk_neg_sc, lk_id = last_key
+
+        if page_token:
+            lk_nf, lk_neg_sc, lk_id = _validate_and_decode_page_token(page_token, "richness")
             stmt = stmt.where(
-                tuple_(nf_expr, neg_sc_expr, Gym.id) >
-                tuple_(literal(int(lk_nf)), literal(float(lk_neg_sc)), literal(int(lk_id)))
+                tuple_(nf_expr, neg_sc_expr, Gym.id)
+                > tuple_(literal(int(lk_nf)), literal(float(lk_neg_sc)), literal(int(lk_id)))
             )
-        rows = await session.execute(
-            stmt.order_by("nf", "neg_sc", Gym.id).limit(per_page + 1)
-        )
+
+        rows = await session.execute(stmt)
         recs = rows.all()
         gyms = [r[0] for r in recs[:per_page]]
+
         next_token = None
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
-            next_token = _encode_page_token((int(last_row[1]), float(last_row[2]), last_row[0].id), "richness")
-
-    def _lv(dt: Optional[datetime]):
-        # SQL 側の “epoch<0 は NULL扱い” と合わせる
-        if not dt:
-            return None
-        if dt.year < 1970:
-            return None
-        return dt.isoformat()
+            next_token = _encode_page_token_for_richness(int(last_row[1]), float(last_row[2]), last_row[0].id)
 
     items: List[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
 
 
-# app/api/routers/gyms.py の get_gym_detail を置き換え
 @router.get(
     "/{slug}",
     response_model=GymDetailResponse,
@@ -293,39 +265,40 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
     if not gym:
         raise HTTPException(status_code=404, detail="gym not found")
 
-    rows = (await session.execute(
-        select(
-            Equipment.slug.label("equipment_slug"),
-            Equipment.name.label("equipment_name"),
-            Equipment.category,
-            GymEquipment.count,
-            GymEquipment.max_weight_kg,
-            GymEquipment.last_verified_at,
+    rows = (
+        await session.execute(
+            select(
+                Equipment.slug.label("equipment_slug"),
+                Equipment.name.label("equipment_name"),
+                Equipment.category,
+                GymEquipment.count,
+                GymEquipment.max_weight_kg,
+                GymEquipment.last_verified_at,
+            )
+            .join(Equipment, Equipment.id == GymEquipment.equipment_id)
+            .where(GymEquipment.gym_id == gym.id)
+            .order_by(Equipment.name)
         )
-        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
-        .where(GymEquipment.gym_id == gym.id)
-        .order_by(Equipment.name)
-    )).all()
+    ).all()
 
     from app.schemas.gym_detail import GymEquipmentLine
     equipments = [
         GymEquipmentLine(
             equipment_slug=str(r.equipment_slug),
             equipment_name=str(r.equipment_name),
-            count=getattr(r, 'count', None) if not callable(getattr(r, 'count', None)) else None,
-            max_weight_kg=getattr(r, 'max_weight_kg', None)
+            count=getattr(r, "count", None),
+            max_weight_kg=getattr(r, "max_weight_kg", None),
         )
         for r in rows
     ]
-    updated_at = max(
-        (r.last_verified_at for r in rows if r.last_verified_at), default=None)
+    updated_at = max((r.last_verified_at for r in rows if r.last_verified_at), default=None)
 
     return GymDetailResponse(
-        id=int(getattr(gym, 'id', 0)),
-        slug=str(getattr(gym, 'slug', '')),
-        name=str(getattr(gym, 'name', '')),
-        city=str(getattr(gym, 'city', '')),
-        pref=str(getattr(gym, 'pref', '')),
+        id=int(getattr(gym, "id", 0)),
+        slug=str(getattr(gym, "slug", "")),
+        name=str(getattr(gym, "name", "")),
+        city=str(getattr(gym, "city", "")),
+        pref=str(getattr(gym, "pref", "")),
         equipments=equipments,
         updated_at=updated_at.isoformat() if updated_at else None,
     )
