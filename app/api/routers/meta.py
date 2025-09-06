@@ -10,7 +10,7 @@ from app.db import get_async_session
 from app.models import Gym
 from app.schemas.meta import PrefCount, CityCount
 
-router = APIRouter(prefix="/meta", tags=["meta"])
+router = APIRouter(prefix="/meta")
 
 @router.get(
     "/prefs",
