@@ -21,7 +21,7 @@ class GymBasic(BaseModel):
     id: int
     name: str
     slug: str
-    prefecture: Optional[str] = None
+    pref: Optional[str] = None
     city: Optional[str] = None
 
 class GymEquipmentLine(BaseModel):

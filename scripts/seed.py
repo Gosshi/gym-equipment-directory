@@ -28,12 +28,12 @@ def get_or_create_equipment(sess: Session, slug: str, name: str, category: str, 
     sess.flush()
     return eq
 
-def get_or_create_gym(sess: Session, slug: str, name: str, prefecture: str, city: str, address: str, official_url: str = None):
+def get_or_create_gym(sess: Session, slug: str, name: str, pref: str, city: str, address: str, official_url: str = None):
     g = sess.execute(select(Gym).where(Gym.slug == slug)).scalar_one_or_none()
     if g:
         return g
     g = Gym(
-        slug=slug, name=name, prefecture=prefecture, city=city,
+        slug=slug, name=name, pref=pref, city=city,
         address=address, official_url=official_url
     )
     sess.add(g)
@@ -169,7 +169,7 @@ def main():
         # gyms
         slug_to_gym = {}
         for slug, name, pref, city, addr, url in gym_seed:
-            g = get_or_create_gym(sess, slug=slug, name=name, prefecture=pref, city=city, address=addr, official_url=url)
+            g = get_or_create_gym(sess, slug=slug, name=name, pref=pref, city=city, address=addr, official_url=url)
             slug_to_gym[slug] = g
 
         sess.commit()  # ここでIDが確定

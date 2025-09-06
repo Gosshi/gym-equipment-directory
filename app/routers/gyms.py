@@ -23,7 +23,7 @@ async def search_gyms(
 ):
     gq = select(Gym)
     if pref:
-        gq = gq.where(func.lower(Gym.prefecture) == func.lower(pref))
+        gq = gq.where(func.lower(Gym.pref) == func.lower(pref))
     if city:
         gq = gq.where(func.lower(Gym.city) == func.lower(city))
 

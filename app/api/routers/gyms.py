@@ -101,7 +101,7 @@ async def search_gyms(
     # 2) ベース: Gym.id（pref/city を反映）
     base_ids = select(Gym.id)
     if pref:
-        base_ids = base_ids.where(func.lower(Gym.prefecture) == func.lower(pref))
+        base_ids = base_ids.where(func.lower(Gym.pref) == func.lower(pref))
     if city:
         base_ids = base_ids.where(func.lower(Gym.city) == func.lower(city))
 
@@ -252,7 +252,7 @@ async def search_gyms(
             slug=g.slug,
             name=g.name,
             city=g.city,
-            pref=g.prefecture,
+            pref=g.pref,
             last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
         )
         for g in gyms
@@ -314,7 +314,7 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
             slug=gym.slug,
             name=gym.name,
             city=gym.city,
-            pref=gym.prefecture,
+            pref=gym.pref,
             equipments=equipments,
             updated_at=updated_at.isoformat() if updated_at else None,
         )

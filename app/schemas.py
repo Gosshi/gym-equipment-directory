@@ -13,7 +13,7 @@ class GymBasic(BaseModel):
     name: str = Field(..., description="ジム名")
     chain_name: Optional[str] = Field(None, description="チェーン名スラッグ")
     address: Optional[str] = Field(None, description="住所スラッグ")
-    prefecture: Optional[str] = Field(None, description="都道府県スラッグ")
+    pref: Optional[str] = Field(None, description="都道府県スラッグ")
     city: Optional[str] = Field(None, description="市区町村スラッグ")
 
     model_config = {"from_attributes": True}
@@ -41,7 +41,7 @@ class SearchResponse(BaseModel):
                          "id": 101,
                          "slug": "gold-gym-funabashi",
                          "name": "Gold Gym Funabashi",
-                         "prefecture": "chiba",
+                         "pref": "chiba",
                          "city": "funabashi"
                      },
                      "highlights": [
@@ -87,7 +87,7 @@ class SourceRow(BaseModel):
 class GymDetailResponse(BaseModel):
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "gym": {"id": 101, "slug": "gold-gym-funabashi", "name": "Gold Gym Funabashi", "prefecture": "chiba", "city": "funabashi"},
+            "gym": {"id": 101, "slug": "gold-gym-funabashi", "name": "Gold Gym Funabashi", "pref": "chiba", "city": "funabashi"},
             "equipments": [
                 {"equipment_slug": "dumbbell", "equipment_name": "Dumbbell", "category": "free-weights",
                  "availability": "present", "count": 20, "max_weight_kg": 50,
