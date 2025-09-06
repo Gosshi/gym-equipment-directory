@@ -10,7 +10,7 @@ class Gym(Base):
     chain_name = Column(String, nullable=True)
     slug = Column(String, unique=True, nullable=False, index=True)
     address = Column(String, nullable=True)
-    prefecture = Column(String, nullable=True)
+    pref = Column(String, nullable=True)
     city = Column(String, nullable=True)
     official_url = Column(String, nullable=True)
     affiliate_url = Column(String, nullable=True)
