@@ -56,7 +56,7 @@ async def list_prefs(session: AsyncSession = Depends(get_async_session)):
     },
 )
 async def list_cities(
-    pref: Annotated[str, Query(description="都道府県スラッグ（lower）例: chiba", example="chiba")],
+    pref: Annotated[str, Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"])],
     session: AsyncSession = Depends(get_async_session),
 ):
     try:

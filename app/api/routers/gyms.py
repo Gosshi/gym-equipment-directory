@@ -90,33 +90,33 @@ async def search_gyms(
     request: Request,
     pref: Annotated[
         Optional[str],
-        Query(description="都道府県スラッグ（lower）例: chiba", example="chiba"),
+        Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"]),
     ] = None,
     city: Annotated[
         Optional[str],
-        Query(description="市区町村スラッグ（lower）例: funabashi", example="funabashi"),
+        Query(description="市区町村スラッグ（lower）例: funabashi", examples=["funabashi"]),
     ] = None,
     equipments: Annotated[
         Optional[str],
-        Query(description="設備スラッグCSV。例: `squat-rack,dumbbell`", example="squat-rack,dumbbell"),
+        Query(description="設備スラッグCSV。例: `squat-rack,dumbbell`", examples=["squat-rack,dumbbell"]),
     ] = None,
     equipment_match: Annotated[
         Literal["all", "any"],
-        Query(description="equipments の一致条件", example="all"),
+        Query(description="equipments の一致条件", examples=["all"]),
     ] = "all",
     sort: Annotated[
         Literal["freshness", "richness"],
-        Query(description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。", example="freshness"),
+        Query(description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。", examples=["freshness"]),
     ] = "freshness",
     per_page: Annotated[
         int,
-        Query(ge=1, le=50, description="1ページ件数（≤50）", example=10),
+        Query(ge=1, le=50, description="1ページ件数（≤50）", examples=[10]),
     ] = 20,
     page_token: str | None = Query(
         None,
         description="前ページから受け取ったKeyset継続トークン（sortと整合しない場合は400）。",
         # 例: {"sort":"freshness","k":[null,42]} のBase64
-        example="eyJzb3J0IjoiZnJlc2huZXNzIiwiayI6W251bGwsNDJdfQ==",
+        examples=["eyJzb3J0IjoiZnJlc2huZXNzIiwiayI6W251bGwsNDJdfQ=="],
     ),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -166,7 +166,7 @@ async def search_gyms(
     # ---- 5) 並びと取得 ----
     if sort == "freshness":
         # 列ベースの ORDER（index: pref, city, last_verified_at_cached DESC NULLS LAST, id ASC）
-        stmt = select(Gym).where(Gym.id.in_(base_ids.subquery()))
+        stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
         # token: [ts_iso_or_null, id]
         lk_ts_iso, lk_id = (None, None)
         if page_token:
@@ -227,7 +227,7 @@ async def search_gyms(
         stmt = (
             select(Gym, nf_expr.label("nf"), neg_sc_expr.label("neg_sc"))
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
-            .where(Gym.id.in_(base_ids.subquery()))
+            .where(Gym.id.in_(base_ids.scalar_subquery()))
             .order_by("nf", "neg_sc", Gym.id)
             .limit(per_page + 1)
         )

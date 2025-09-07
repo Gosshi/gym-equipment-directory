@@ -6,6 +6,8 @@ class ErrorResponse(BaseModel):
 
     model_config = {
         "json_schema_extra": {
-            "example": {"detail": "Not Found"}
+            "examples": [
+                {"detail": "Not Found"}
+            ]
         }
     }

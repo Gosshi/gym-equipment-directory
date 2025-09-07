@@ -1,5 +1,5 @@
 # app/schemas/gym_detail.py
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
@@ -42,27 +42,29 @@ class GymDetailResponse(BaseModel):
 
     model_config = {
         "json_schema_extra": {
-            "example": {
-                "id": 1,
-                "slug": "awesome-gym",
-                "name": "Awesome Gym",
-                "city": "funabashi",
-                "pref": "chiba",
-                "equipments": [
-                    {
-                        "equipment_slug": "squat-rack",
-                        "equipment_name": "スクワットラック",
-                        "count": 2,
-                        "max_weight_kg": 180
-                    },
-                    {
-                        "equipment_slug": "dumbbell",
-                        "equipment_name": "ダンベル",
-                        "count": 1,
-                        "max_weight_kg": 50
-                    }
-                ],
-                "updated_at": "2025-09-01T12:34:56Z"
-            }
+            "examples": [
+                {
+                    "id": 1,
+                    "slug": "awesome-gym",
+                    "name": "Awesome Gym",
+                    "city": "funabashi",
+                    "pref": "chiba",
+                    "equipments": [
+                        {
+                            "equipment_slug": "squat-rack",
+                            "equipment_name": "スクワットラック",
+                            "count": 2,
+                            "max_weight_kg": 180
+                        },
+                        {
+                            "equipment_slug": "dumbbell",
+                            "equipment_name": "ダンベル",
+                            "count": 1,
+                            "max_weight_kg": 50
+                        }
+                    ],
+                    "updated_at": "2025-09-01T12:34:56Z"
+                }
+            ]
         }
     }
