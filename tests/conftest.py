@@ -1,9 +1,14 @@
 # tests/conftest.py
-import os, importlib
+import importlib
+import os
+from collections.abc import Callable
+
 import pytest_asyncio
-from typing import Callable
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+# ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
+from app.main import app  # DB_URL セット後に import
 from app.models.base import Base
 
 # ==== 1) DSN を必須化（Postgresのみ） ====
@@ -47,10 +52,6 @@ async def _session(engine):
         yield s
         if s.in_transaction():
             await s.rollback()
-
-
-# ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
-from app.main import app  # DB_URL セット後に import
 
 
 def _install_overrides(app, session: AsyncSession):

@@ -1,10 +1,11 @@
 # tests/test_gym_detail.py
-import pytest
-from httpx import AsyncClient, ASGITransport
 from datetime import datetime
 
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.main import app
-from app.models import Gym, Equipment, GymEquipment
+from app.models import Equipment, Gym, GymEquipment
 
 
 @pytest.mark.asyncio

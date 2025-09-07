@@ -26,6 +26,7 @@ ignore = []
 # ファイルごとの緩和
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]  # re-export を許容
+"migrations/**" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"

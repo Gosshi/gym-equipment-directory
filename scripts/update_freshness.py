@@ -6,6 +6,7 @@ gyms.last_verified_at_cached を一括更新するユーティリティ。
 """
 
 from sqlalchemy import text
+
 from app.db import engine
 
 RESET_SQL = text("""

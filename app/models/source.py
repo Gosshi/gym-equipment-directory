@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum
-from sqlalchemy.sql import func
 from enum import Enum as PyEnum
+
+from sqlalchemy import Column, DateTime, Enum, Integer, String
+from sqlalchemy.sql import func
+
 from app.models.base import Base
 
 

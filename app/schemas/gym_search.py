@@ -1,8 +1,6 @@
 # app/schemas/gym_search.py
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional, List
 from pydantic import BaseModel, Field
 
 __all__ = ["GymSummary", "GymSearchResponse"]
@@ -19,16 +17,14 @@ class GymSummary(BaseModel):
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
-    last_verified_at: Optional[str] = Field(
-        default=None, description="最終検証日時（UTC, nullable）"
-    )
+    last_verified_at: str | None = Field(default=None, description="最終検証日時（UTC, nullable）")
 
 
 class GymSearchResponse(BaseModel):
-    items: List[GymSummary] = Field(description="検索結果")
+    items: list[GymSummary] = Field(description="検索結果")
     total: int = Field(description="総件数")
     has_next: bool = Field(description="次ページ有無")
-    page_token: Optional[str] = None
+    page_token: str | None = None
 
     model_config = {
         "json_schema_extra": {

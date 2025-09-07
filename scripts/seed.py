@@ -4,24 +4,25 @@
 何度実行しても重複しにくいよう、slug/名称でget-or-createします。
 """
 
-from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 import os
 import sys
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 # パス調整（repo 直下から実行する前提）
 sys.path.append(os.path.abspath("."))
 
-from app.db import engine, SessionLocal
+from app.db import SessionLocal
 from app.models import (
-    Gym,
+    Availability,
     Equipment,
+    Gym,
     GymEquipment,
     Source,
-    Availability,
-    VerificationStatus,
     SourceType,
+    VerificationStatus,
 )
 
 

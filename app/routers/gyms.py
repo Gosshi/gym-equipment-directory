@@ -1,11 +1,12 @@
-from typing import List, Optional, Dict
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
-from datetime import datetime, timezone
-from app.deps import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app import schemas
-from app.models import Gym, Equipment, GymEquipment, Source, Availability, VerificationStatus
+from app.deps import get_db
+from app.models import Equipment, Gym, GymEquipment
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -15,7 +16,7 @@ def _as_utc_naive(dt: datetime | None) -> datetime | None:
         return None
     if dt.tzinfo is not None:
         # UTCにそろえてtzinfoを剥がす（DBはnaive列）
-        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt.astimezone(UTC).replace(tzinfo=None)
     return dt
 
 
@@ -46,9 +47,9 @@ def _dt_to_token(dt: datetime | None) -> str | None:
     },
 )
 async def search_gyms(
-    pref: Optional[str] = Query(None, description="都道府県スラッグ（例: chiba）"),
-    city: Optional[str] = Query(None, description="市区町村スラッグ（例: funabashi）"),
-    equipments: Optional[str] = Query(None, description="CSV: squat-rack,dumbbell"),
+    pref: str | None = Query(None, description="都道府県スラッグ（例: chiba）"),
+    city: str | None = Query(None, description="市区町村スラッグ（例: funabashi）"),
+    equipments: str | None = Query(None, description="CSV: squat-rack,dumbbell"),
     sort: str = Query("freshness", pattern="^(richness|freshness)$"),
     page_token: str | None = Query(
         None,
@@ -70,9 +71,9 @@ async def search_gyms(
         return schemas.SearchResponse(items=[], page=page, per_page=per_page, total=0)
 
     gq = gq.order_by(Gym.id).offset((page - 1) * per_page).limit(per_page)
-    gyms: List[Gym] = (await db.scalars(gq)).all()
+    gyms: list[Gym] = (await db.scalars(gq)).all()
 
-    equip_filter: Optional[List[str]] = None
+    equip_filter: list[str] | None = None
     if equipments:
         equip_filter = [s.strip() for s in equipments.split(",") if s.strip()]
 
@@ -98,9 +99,9 @@ async def search_gyms(
 
     ge_rows = (await db.execute(geq)).all()
 
-    by_gym: Dict[int, List[schemas.EquipmentHighlight]] = {}
-    last_verified_by_gym: Dict[int, Optional[str]] = {}
-    richness_by_gym: Dict[int, float] = {}
+    by_gym: dict[int, list[schemas.EquipmentHighlight]] = {}
+    last_verified_by_gym: dict[int, str | None] = {}
+    richness_by_gym: dict[int, float] = {}
 
     for row in ge_rows:
         hi = schemas.EquipmentHighlight(
@@ -132,7 +133,7 @@ async def search_gyms(
             sc += 0.3
         richness_by_gym[row.gym_id] = sc
 
-    items: List[schemas.SearchItem] = []
+    items: list[schemas.SearchItem] = []
     for g in gyms:
         item = schemas.SearchItem(
             gym=schemas.GymBasic.model_validate(g),
@@ -191,7 +192,7 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
         for r in ge_rows
     ]
 
-    sources: List[schemas.SourceRow] = []
+    sources: list[schemas.SourceRow] = []
     updated_at = None
     for r in ge_rows:
         if r.last_verified_at and (updated_at is None or r.last_verified_at > updated_at):

@@ -1,7 +1,8 @@
 # app/api/main.py
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from app.api.routers import gyms, healthz, equipments, meta
+
+from app.api.routers import equipments, gyms, healthz, meta
 
 # もし起動時のDB初期化やCORS設定などがあればこの上で import / 設定してください
 

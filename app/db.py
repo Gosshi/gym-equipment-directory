@@ -1,11 +1,10 @@
 # app/db.py
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    create_async_engine,
     AsyncSession,
     async_sessionmaker,
+    create_async_engine,
 )
-from sqlalchemy.orm import declarative_base
 
 DATABASE_URL = "postgresql+asyncpg://appuser:apppass@localhost:5432/gym_directory"
 

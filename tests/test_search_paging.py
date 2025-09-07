@@ -1,10 +1,11 @@
 # tests/test_search_paging.py
-import pytest
 from datetime import datetime
-from httpx import AsyncClient, ASGITransport
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from app.models import Gym, Equipment, GymEquipment
+from app.models import Equipment, Gym, GymEquipment
 
 
 @pytest.mark.asyncio

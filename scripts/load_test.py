@@ -1,4 +1,7 @@
-import asyncio, time, statistics, sys
+import asyncio
+import sys
+import time
+
 import httpx
 
 

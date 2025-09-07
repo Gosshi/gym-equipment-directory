@@ -1,16 +1,16 @@
 # app/api/deps.py
-from typing import List, Optional
+
 from fastapi import Request
 
 __all__ = ["get_equipment_slugs_from_query"]
 
 
-def get_equipment_slugs_from_query(request: Request, equipments: Optional[str] = None) -> List[str]:
+def get_equipment_slugs_from_query(request: Request, equipments: str | None = None) -> list[str]:
     """
-    クエリパラメータから equipments=CSV, equipment=..., equipment[]=... を吸収してスラッグ一覧を返す。
+    クエリパラメータから equipments=CSV, equipment=..., equipment[]=... を吸収してスラッグ一覧を返す
     """
     qp = request.query_params
-    slugs: List[str] = []
+    slugs: list[str] = []
 
     # equipment=... の繰り返し
     slugs += qp.getlist("equipment")
@@ -24,7 +24,7 @@ def get_equipment_slugs_from_query(request: Request, equipments: Optional[str] =
 
     # 空文字除去 & 重複排除（順序保持）
     seen = set()
-    out: List[str] = []
+    out: list[str] = []
     for s in slugs:
         if s and s not in seen:
             seen.add(s)

@@ -1,16 +1,16 @@
 # app/api/routers/meta.py
-from typing import List
-from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models import Gym
-from app.schemas.meta import PrefCount, CityCount
 from app.schemas.common import ErrorResponse
+from app.schemas.meta import CityCount, PrefCount
 
 # ルータ側は prefix のみ（tags は各EPに付与して重複回避）
 router = APIRouter(prefix="/meta")
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/meta")
 @router.get(
     "/prefs",
     tags=["meta"],
-    response_model=List[PrefCount],
+    response_model=list[PrefCount],
     summary="都道府県候補を取得（件数付き）",
     description="登録されているジムの都道府県スラッグと件数を返します。空/NULLは除外。",
     responses={
@@ -48,7 +48,7 @@ async def list_prefs(session: AsyncSession = Depends(get_async_session)):
 @router.get(
     "/cities",
     tags=["meta"],
-    response_model=List[CityCount],
+    response_model=list[CityCount],
     summary="市区町村候補を取得（件数付き）",
     description="指定した都道府県スラッグに属する市区町村スラッグと件数を返します。空/NULLは除外。",
     responses={

@@ -1,3 +1,3 @@
-from .gym_search import GymSummary, GymSearchResponse
+from .gym_search import GymSearchResponse, GymSummary
 
 __all__ = ["GymSummary", "GymSearchResponse"]
