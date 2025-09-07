@@ -5,6 +5,7 @@ Revises: 12343e69c3de
 Create Date: 2025-09-06 01:31:38.143043
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3b6b1231bf9a'
-down_revision: Union[str, None] = '12343e69c3de'
+revision: str = "3b6b1231bf9a"
+down_revision: Union[str, None] = "12343e69c3de"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -36,9 +37,8 @@ def upgrade():
 
     # equipments.slug は既に BTree を作成済みの想定（未作成なら有効化）
     with op.get_context().autocommit_block():
-        op.execute(
-            "CREATE INDEX IF NOT EXISTS ix_equipments_slug ON equipments (slug)"
-        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_equipments_slug ON equipments (slug)")
+
 
 def downgrade():
     with op.get_context().autocommit_block():

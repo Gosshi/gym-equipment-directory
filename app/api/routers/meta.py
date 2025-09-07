@@ -15,6 +15,7 @@ from app.schemas.common import ErrorResponse
 # ルータ側は prefix のみ（tags は各EPに付与して重複回避）
 router = APIRouter(prefix="/meta")
 
+
 @router.get(
     "/prefs",
     tags=["meta"],
@@ -56,7 +57,9 @@ async def list_prefs(session: AsyncSession = Depends(get_async_session)):
     },
 )
 async def list_cities(
-    pref: Annotated[str, Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"])],
+    pref: Annotated[
+        str, Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"])
+    ],
     session: AsyncSession = Depends(get_async_session),
 ):
     try:
@@ -64,9 +67,7 @@ async def list_cities(
 
         # まずprefの存在チェック（0件なら 404）
         exists_count = await session.scalar(
-            select(func.count())
-            .select_from(Gym)
-            .where(Gym.pref == pref_norm)
+            select(func.count()).select_from(Gym).where(Gym.pref == pref_norm)
         )
         if not exists_count:
             raise HTTPException(status_code=404, detail="pref not found")

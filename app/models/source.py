@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 from enum import Enum as PyEnum
 from app.models.base import Base
 
+
 class SourceType(PyEnum):
     official_site = "official_site"
     on_site_signage = "on_site_signage"
@@ -10,6 +11,7 @@ class SourceType(PyEnum):
     media = "media"
     sns = "sns"
     other = "other"
+
 
 class Source(Base):
     __tablename__ = "sources"

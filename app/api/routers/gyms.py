@@ -23,19 +23,23 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 def _b64e(obj: dict) -> str:
     return base64.urlsafe_b64encode(json.dumps(obj).encode()).decode()
 
+
 def _b64d(token: str) -> dict:
     try:
         return json.loads(base64.urlsafe_b64decode(token.encode()).decode())
     except Exception:
         raise HTTPException(status_code=400, detail="invalid page_token")
 
+
 def _encode_page_token_for_freshness(ts_iso_or_none: Optional[str], last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
     return _b64e({"sort": "freshness", "k": [ts_iso_or_none, last_id]})
 
+
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
     return _b64e({"sort": "richness", "k": [nf, neg_sc, last_id]})
+
 
 def _validate_and_decode_page_token(page_token: str, sort: str) -> Tuple:
     payload = _b64d(page_token)
@@ -54,6 +58,7 @@ def _lv(dt: Optional[datetime]) -> Optional[str]:
     if not dt or (hasattr(dt, "year") and dt.year < 1970):
         return None
     return dt.isoformat()
+
 
 def _gym_summary_from_gym(g: Gym) -> GymSummary:
     return GymSummary(
@@ -98,7 +103,10 @@ async def search_gyms(
     ] = None,
     equipments: Annotated[
         Optional[str],
-        Query(description="設備スラッグCSV。例: `squat-rack,dumbbell`", examples=["squat-rack,dumbbell"]),
+        Query(
+            description="設備スラッグCSV。例: `squat-rack,dumbbell`",
+            examples=["squat-rack,dumbbell"],
+        ),
     ] = None,
     equipment_match: Annotated[
         Literal["all", "any"],
@@ -106,7 +114,10 @@ async def search_gyms(
     ] = "all",
     sort: Annotated[
         Literal["freshness", "richness"],
-        Query(description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。", examples=["freshness"]),
+        Query(
+            description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。",
+            examples=["freshness"],
+        ),
     ] = "freshness",
     per_page: Annotated[
         int,
@@ -187,7 +198,9 @@ async def search_gyms(
                     )
                 )
 
-        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(per_page + 1)
+        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(
+            per_page + 1
+        )
 
         rows = await session.execute(stmt)
         recs = rows.scalars().all()
@@ -246,7 +259,9 @@ async def search_gyms(
         next_token = None
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
-            next_token = _encode_page_token_for_richness(int(last_row[1]), float(last_row[2]), last_row[0].id)
+            next_token = _encode_page_token_for_richness(
+                int(last_row[1]), float(last_row[2]), last_row[0].id
+            )
 
     items: List[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
@@ -282,6 +297,7 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
     ).all()
 
     from app.schemas.gym_detail import GymEquipmentLine
+
     equipments = [
         GymEquipmentLine(
             equipment_slug=str(r.equipment_slug),

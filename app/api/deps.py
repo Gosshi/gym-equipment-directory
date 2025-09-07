@@ -5,10 +5,7 @@ from fastapi import Request
 __all__ = ["get_equipment_slugs_from_query"]
 
 
-def get_equipment_slugs_from_query(
-    request: Request,
-    equipments: Optional[str] = None
-) -> List[str]:
+def get_equipment_slugs_from_query(request: Request, equipments: Optional[str] = None) -> List[str]:
     """
     クエリパラメータから equipments=CSV, equipment=..., equipment[]=... を吸収してスラッグ一覧を返す。
     """

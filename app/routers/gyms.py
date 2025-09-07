@@ -5,10 +5,7 @@ from sqlalchemy import func, select
 from datetime import datetime, timezone
 from app.deps import get_db
 from app import schemas
-from app.models import (
-    Gym, Equipment, GymEquipment, Source,
-    Availability, VerificationStatus
-)
+from app.models import Gym, Equipment, GymEquipment, Source, Availability, VerificationStatus
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -38,22 +35,20 @@ def _dt_to_token(dt: datetime | None) -> str | None:
     return dt.isoformat(timespec="seconds") if dt else None
 
 
-@router.get("/search", response_model=schemas.SearchResponse,
-            responses={
-                400: {
-                    "description": "Invalid page_token",
-                    "content": {
-                        "application/json": {
-                            "example": {"detail": "invalid page_token"}
-                        }
-                    },
-                }
-            },)
+@router.get(
+    "/search",
+    response_model=schemas.SearchResponse,
+    responses={
+        400: {
+            "description": "Invalid page_token",
+            "content": {"application/json": {"example": {"detail": "invalid page_token"}}},
+        }
+    },
+)
 async def search_gyms(
     pref: Optional[str] = Query(None, description="都道府県スラッグ（例: chiba）"),
     city: Optional[str] = Query(None, description="市区町村スラッグ（例: funabashi）"),
-    equipments: Optional[str] = Query(
-        None, description="CSV: squat-rack,dumbbell"),
+    equipments: Optional[str] = Query(None, description="CSV: squat-rack,dumbbell"),
     sort: str = Query("freshness", pattern="^(richness|freshness)$"),
     page_token: str | None = Query(
         None,
@@ -93,7 +88,7 @@ async def search_gyms(
             GymEquipment.count,
             GymEquipment.max_weight_kg,
             GymEquipment.verification_status,
-            GymEquipment.last_verified_at
+            GymEquipment.last_verified_at,
         )
         .join(Equipment, Equipment.id == GymEquipment.equipment_id)
         .where(GymEquipment.gym_id.in_(gym_ids))
@@ -110,13 +105,15 @@ async def search_gyms(
     for row in ge_rows:
         hi = schemas.EquipmentHighlight(
             equipment_slug=row.equipment_slug,
-            availability=row.availability.value if hasattr(
-                row.availability, "value") else str(row.availability),
+            availability=row.availability.value
+            if hasattr(row.availability, "value")
+            else str(row.availability),
             count=row.count,
             max_weight_kg=row.max_weight_kg,
-            verification_status=row.verification_status.value if hasattr(
-                row.verification_status, "value") else str(row.verification_status),
-            last_verified_at=row.last_verified_at
+            verification_status=row.verification_status.value
+            if hasattr(row.verification_status, "value")
+            else str(row.verification_status),
+            last_verified_at=row.last_verified_at,
         )
         by_gym.setdefault(row.gym_id, []).append(hi)
 
@@ -146,8 +143,7 @@ async def search_gyms(
         items.append(item)
 
     if sort == "freshness":
-        items.sort(key=lambda i: (i.last_verified_at is None,
-                   i.last_verified_at), reverse=True)
+        items.sort(key=lambda i: (i.last_verified_at is None, i.last_verified_at), reverse=True)
     elif sort == "richness":
         items.sort(key=lambda i: i.score, reverse=True)
 
@@ -169,7 +165,7 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
             GymEquipment.count,
             GymEquipment.max_weight_kg,
             GymEquipment.verification_status,
-            GymEquipment.last_verified_at
+            GymEquipment.last_verified_at,
         )
         .join(Equipment, Equipment.id == GymEquipment.equipment_id)
         .where(GymEquipment.gym_id == gym.id)
@@ -182,12 +178,14 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
             equipment_slug=r.equipment_slug,
             equipment_name=r.equipment_name,
             category=r.category,
-            availability=r.availability.value if hasattr(
-                r.availability, "value") else str(r.availability),
+            availability=r.availability.value
+            if hasattr(r.availability, "value")
+            else str(r.availability),
             count=r.count,
             max_weight_kg=r.max_weight_kg,
-            verification_status=r.verification_status.value if hasattr(
-                r.verification_status, "value") else str(r.verification_status),
+            verification_status=r.verification_status.value
+            if hasattr(r.verification_status, "value")
+            else str(r.verification_status),
             last_verified_at=r.last_verified_at,
         )
         for r in ge_rows
@@ -203,5 +201,5 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
         gym=schemas.GymBasic.model_validate(gym),
         equipments=equipments,
         sources=sources,
-        updated_at=updated_at
+        updated_at=updated_at,
     )

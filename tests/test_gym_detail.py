@@ -6,10 +6,16 @@ from datetime import datetime
 from app.main import app
 from app.models import Gym, Equipment, GymEquipment
 
+
 @pytest.mark.asyncio
 async def test_gym_detail_fields(session):
-    g = Gym(slug="tokyo-x", name="Tokyo X", pref="tokyo", city="chiyoda",
-            last_verified_at_cached=datetime(2024, 8, 1, 10, 0, 0))
+    g = Gym(
+        slug="tokyo-x",
+        name="Tokyo X",
+        pref="tokyo",
+        city="chiyoda",
+        last_verified_at_cached=datetime(2024, 8, 1, 10, 0, 0),
+    )
     e = Equipment(slug="smith-machine", name="Smith Machine", category="machine")
     session.add_all([g, e])
     await session.flush()

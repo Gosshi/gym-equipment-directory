@@ -4,13 +4,14 @@ Revision ID: 5c002a33eee9
 Revises: 7373a9796dd6
 Create Date: 2025-09-04 13:13:17.153348
 """
+
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = '5c002a33eee9'
-down_revision: Union[str, None] = '7373a9796dd6'
+revision: str = "5c002a33eee9"
+down_revision: Union[str, None] = "7373a9796dd6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -61,7 +62,9 @@ def upgrade() -> None:
     op.execute("CREATE INDEX IF NOT EXISTS ix_gyms_pref_city ON gyms (prefecture, city);")
     op.execute("CREATE INDEX IF NOT EXISTS ix_gym_eq_gym ON gym_equipments (gym_id);")
     op.execute("CREATE INDEX IF NOT EXISTS ix_gym_eq_eq ON gym_equipments (equipment_id);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_gym_eq_last_verified ON gym_equipments (last_verified_at);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_gym_eq_last_verified ON gym_equipments (last_verified_at);"
+    )
     # 部分インデックス（Enumはtextにキャストしておくと頑健）
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_gym_eq_present "
@@ -70,7 +73,9 @@ def upgrade() -> None:
 
     # 鮮度キャッシュ列
     with op.batch_alter_table("gyms") as batch_op:
-        batch_op.add_column(sa.Column("last_verified_at_cached", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(
+            sa.Column("last_verified_at_cached", sa.DateTime(timezone=True), nullable=True)
+        )
 
 
 def downgrade() -> None:

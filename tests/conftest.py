@@ -15,9 +15,11 @@ assert DB_URL and DB_URL.startswith(("postgresql+asyncpg://", "postgresql+psycop
 os.environ["DATABASE_URL"] = DB_URL
 os.environ["TESTING"] = "1"
 
+
 def _engine_kwargs(_: str):
     # ループ跨ぎの事故を避けるため NullPool、pre_ping 有効
     return dict(future=True, echo=False, poolclass=NullPool, pool_pre_ping=True)
+
 
 # ==== 2) Engine / Schema ====
 @pytest_asyncio.fixture(scope="function")
@@ -37,6 +39,7 @@ async def engine():
     finally:
         await eng.dispose()
 
+
 @pytest_asyncio.fixture(scope="function", name="session")
 async def _session(engine):
     SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -45,11 +48,14 @@ async def _session(engine):
         if s.in_transaction():
             await s.rollback()
 
+
 # ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
 from app.main import app  # DB_URL セット後に import
 
+
 def _install_overrides(app, session: AsyncSession):
     import importlib as _imp
+
     candidates: list[Callable] = []
     for modname in (
         "app.api.deps",
@@ -81,8 +87,11 @@ def _install_overrides(app, session: AsyncSession):
             if hasattr(m, attr):
                 try:
                     setattr(
-                        m, attr,
-                        async_sessionmaker(bind=session.bind, class_=AsyncSession, expire_on_commit=False)
+                        m,
+                        attr,
+                        async_sessionmaker(
+                            bind=session.bind, class_=AsyncSession, expire_on_commit=False
+                        ),
                     )
                 except Exception:
                     pass
@@ -93,6 +102,7 @@ def _install_overrides(app, session: AsyncSession):
 
     for c in candidates:
         app.dependency_overrides[c] = override_get_session
+
 
 @pytest_asyncio.fixture(autouse=True, scope="function")
 async def _override_app_session(session):

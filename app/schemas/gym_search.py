@@ -13,12 +13,15 @@ class GymSummary(BaseModel):
     検索結果のジム要約。
     last_verified_at_cached は ISO8601 文字列（例: "2025-09-05T12:34:5600:00"）
     """
+
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
-    last_verified_at: Optional[str] = Field(default=None, description="最終検証日時（UTC, nullable）")
+    last_verified_at: Optional[str] = Field(
+        default=None, description="最終検証日時（UTC, nullable）"
+    )
 
 
 class GymSearchResponse(BaseModel):

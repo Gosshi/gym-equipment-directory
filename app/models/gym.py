@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from app.models.base import Base
 
+
 class Gym(Base):
     __tablename__ = "gyms"
 
