@@ -1,20 +1,20 @@
 # app/api/routers/gyms.py
-from typing import Literal, Optional, List, Tuple
-from typing_extensions import Annotated
+import base64
+import json
 from datetime import datetime
-import base64, json
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Request, HTTPException
-from sqlalchemy import select, func, case, literal, and_, or_, tuple_, cast
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import and_, case, cast, func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Numeric
 
-from app.db import get_async_session
-from app.models import Gym, Equipment, GymEquipment
-from app.schemas.gym_search import GymSummary, GymSearchResponse
-from app.schemas.gym_detail import GymDetailResponse
-from app.schemas.common import ErrorResponse
 from app.api.deps import get_equipment_slugs_from_query
+from app.db import get_async_session
+from app.models import Equipment, Gym, GymEquipment
+from app.schemas.common import ErrorResponse
+from app.schemas.gym_detail import GymDetailResponse
+from app.schemas.gym_search import GymSearchResponse, GymSummary
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -23,21 +23,25 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 def _b64e(obj: dict) -> str:
     return base64.urlsafe_b64encode(json.dumps(obj).encode()).decode()
 
+
 def _b64d(token: str) -> dict:
     try:
         return json.loads(base64.urlsafe_b64decode(token.encode()).decode())
     except Exception:
         raise HTTPException(status_code=400, detail="invalid page_token")
 
-def _encode_page_token_for_freshness(ts_iso_or_none: Optional[str], last_id: int) -> str:
+
+def _encode_page_token_for_freshness(ts_iso_or_none: str | None, last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
     return _b64e({"sort": "freshness", "k": [ts_iso_or_none, last_id]})
+
 
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
     return _b64e({"sort": "richness", "k": [nf, neg_sc, last_id]})
 
-def _validate_and_decode_page_token(page_token: str, sort: str) -> Tuple:
+
+def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
     if payload.get("sort") != sort or "k" not in payload:
         raise HTTPException(status_code=400, detail="invalid page_token")
@@ -50,10 +54,11 @@ def _validate_and_decode_page_token(page_token: str, sort: str) -> Tuple:
 
 
 # ---------- DTO helpers ----------
-def _lv(dt: Optional[datetime]) -> Optional[str]:
+def _lv(dt: datetime | None) -> str | None:
     if not dt or (hasattr(dt, "year") and dt.year < 1970):
         return None
     return dt.isoformat()
+
 
 def _gym_summary_from_gym(g: Gym) -> GymSummary:
     return GymSummary(
@@ -69,7 +74,8 @@ def _gym_summary_from_gym(g: Gym) -> GymSummary:
 _DESC = (
     "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n"
     "- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n"
-    "- sort=richness: GymEquipment をスコア合算し降順（1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
+    "- sort=richness: GymEquipment をスコア合算し降順\n"
+    " （1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
     "- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n"
 )
 
@@ -89,16 +95,19 @@ _DESC = (
 async def search_gyms(
     request: Request,
     pref: Annotated[
-        Optional[str],
+        str | None,
         Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"]),
     ] = None,
     city: Annotated[
-        Optional[str],
+        str | None,
         Query(description="市区町村スラッグ（lower）例: funabashi", examples=["funabashi"]),
     ] = None,
     equipments: Annotated[
-        Optional[str],
-        Query(description="設備スラッグCSV。例: `squat-rack,dumbbell`", examples=["squat-rack,dumbbell"]),
+        str | None,
+        Query(
+            description="設備スラッグCSV。例: `squat-rack,dumbbell`",
+            examples=["squat-rack,dumbbell"],
+        ),
     ] = None,
     equipment_match: Annotated[
         Literal["all", "any"],
@@ -106,7 +115,11 @@ async def search_gyms(
     ] = "all",
     sort: Annotated[
         Literal["freshness", "richness"],
-        Query(description="並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。", examples=["freshness"]),
+        Query(
+            description="並び替え。freshness は last_verified_at_cached DESC, id ASC。"
+            "richness は設備スコア降順",
+            examples=["freshness"],
+        ),
     ] = "freshness",
     per_page: Annotated[
         int,
@@ -121,7 +134,7 @@ async def search_gyms(
     session: AsyncSession = Depends(get_async_session),
 ):
     # ---- 1) 設備スラッグの取得 ----
-    required_slugs: List[str] = get_equipment_slugs_from_query(request, equipments)
+    required_slugs: list[str] = get_equipment_slugs_from_query(request, equipments)
     if equipments and not required_slugs:
         required_slugs = [s.strip() for s in equipments.split(",") if s.strip()]
 
@@ -187,7 +200,9 @@ async def search_gyms(
                     )
                 )
 
-        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(per_page + 1)
+        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(
+            per_page + 1
+        )
 
         rows = await session.execute(stmt)
         recs = rows.scalars().all()
@@ -246,9 +261,11 @@ async def search_gyms(
         next_token = None
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
-            next_token = _encode_page_token_for_richness(int(last_row[1]), float(last_row[2]), last_row[0].id)
+            next_token = _encode_page_token_for_richness(
+                int(last_row[1]), float(last_row[2]), last_row[0].id
+            )
 
-    items: List[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
+    items: list[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
 
@@ -282,6 +299,7 @@ async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_se
     ).all()
 
     from app.schemas.gym_detail import GymEquipmentLine
+
     equipments = [
         GymEquipmentLine(
             equipment_slug=str(r.equipment_slug),

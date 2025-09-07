@@ -1,13 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
-from sqlalchemy.sql import func
 from enum import Enum as PyEnum
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.sql import func
+
 from app.models.base import Base
+
 
 class SubmissionStatus(PyEnum):
     pending = "pending"
     corroborated = "corroborated"
     approved = "approved"
     rejected = "rejected"
+
 
 class UserSubmission(Base):
     __tablename__ = "user_submissions"

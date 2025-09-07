@@ -1,18 +1,21 @@
 # tests/test_meta_and_search.py
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from datetime import datetime
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from app.models import Gym, Equipment, GymEquipment
+from app.models import Equipment, Gym, GymEquipment
+
 
 @pytest.mark.asyncio
 async def test_meta_prefs_and_cities(session):
     # シード
-    session.add_all([
-        Gym(slug="meta-g1", name="Meta G1", pref="chiba", city="funabashi"),
-        Gym(slug="meta-g2", name="Meta G2", pref="chiba", city="urayasu"),
-    ])
+    session.add_all(
+        [
+            Gym(slug="meta-g1", name="Meta G1", pref="chiba", city="funabashi"),
+            Gym(slug="meta-g2", name="Meta G2", pref="chiba", city="urayasu"),
+        ]
+    )
     await session.commit()
 
     transport = ASGITransport(app=app)
@@ -27,6 +30,7 @@ async def test_meta_prefs_and_cities(session):
         cities = r2.json()
         assert any(c["city"] == "funabashi" for c in cities)
 
+
 @pytest.mark.asyncio
 async def test_search_minimal(session):
     g = Gym(slug="search-g1", name="Search G1", pref="chiba", city="funabashi")
@@ -35,9 +39,12 @@ async def test_search_minimal(session):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        r = await ac.get("/gyms/search", params={"pref":"chiba","city":"funabashi","per_page":10})
+        r = await ac.get(
+            "/gyms/search", params={"pref": "chiba", "city": "funabashi", "per_page": 10}
+        )
         assert r.status_code == 200
         assert r.json()["total"] >= 1
+
 
 @pytest.mark.asyncio
 async def test_search_richness_any_equipment(session):
@@ -51,10 +58,17 @@ async def test_search_richness_any_equipment(session):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        r = await ac.get("/gyms/search", params={
-            "pref":"chiba","city":"funabashi","per_page":10,
-            "equipments":"bench-press,dumbbell","equipment_match":"any","sort":"richness"
-        })
+        r = await ac.get(
+            "/gyms/search",
+            params={
+                "pref": "chiba",
+                "city": "funabashi",
+                "per_page": 10,
+                "equipments": "bench-press,dumbbell",
+                "equipment_match": "any",
+                "sort": "richness",
+            },
+        )
         assert r.status_code == 200
         items = r.json()["items"]
         assert any(it["slug"] == "rich-any-2" for it in items)

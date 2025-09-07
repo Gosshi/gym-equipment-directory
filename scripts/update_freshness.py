@@ -6,6 +6,7 @@ gyms.last_verified_at_cached を一括更新するユーティリティ。
 """
 
 from sqlalchemy import text
+
 from app.db import engine
 
 RESET_SQL = text("""
@@ -25,12 +26,14 @@ FROM (
 WHERE g.id = sub.gym_id
 """)
 
+
 def main() -> int:
     with engine.begin() as conn:
         r1 = conn.execute(RESET_SQL)
         r2 = conn.execute(UPDATE_SQL)
         print(f"✅ reset rows: {r1.rowcount}, updated rows: {r2.rowcount}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.sql import func
+
 from app.models.base import Base
+
 
 class Gym(Base):
     __tablename__ = "gyms"

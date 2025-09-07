@@ -4,20 +4,27 @@
 何度実行しても重複しにくいよう、slug/名称でget-or-createします。
 """
 
-from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 import os
 import sys
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 # パス調整（repo 直下から実行する前提）
 sys.path.append(os.path.abspath("."))
 
-from app.db import engine, SessionLocal
+from app.db import SessionLocal
 from app.models import (
-    Gym, Equipment, GymEquipment, Source,
-    Availability, VerificationStatus, SourceType
+    Availability,
+    Equipment,
+    Gym,
+    GymEquipment,
+    Source,
+    SourceType,
+    VerificationStatus,
 )
+
 
 def get_or_create_equipment(sess: Session, slug: str, name: str, category: str, desc: str = None):
     eq = sess.execute(select(Equipment).where(Equipment.slug == slug)).scalar_one_or_none()
@@ -28,22 +35,37 @@ def get_or_create_equipment(sess: Session, slug: str, name: str, category: str, 
     sess.flush()
     return eq
 
-def get_or_create_gym(sess: Session, slug: str, name: str, pref: str, city: str, address: str, official_url: str = None):
+
+def get_or_create_gym(
+    sess: Session,
+    slug: str,
+    name: str,
+    pref: str,
+    city: str,
+    address: str,
+    official_url: str = None,
+):
     g = sess.execute(select(Gym).where(Gym.slug == slug)).scalar_one_or_none()
     if g:
         return g
-    g = Gym(
-        slug=slug, name=name, pref=pref, city=city,
-        address=address, official_url=official_url
-    )
+    g = Gym(slug=slug, name=name, pref=pref, city=city, address=address, official_url=official_url)
     sess.add(g)
     sess.flush()
     return g
 
-def link_gym_equipment(sess: Session, gym: Gym, eq: Equipment,
-                       availability: Availability, count=None, max_weight_kg=None,
-                       verification_status: VerificationStatus = VerificationStatus.unverified,
-                       source: Source | None = None, last_verified_at: datetime | None = None, notes: str | None = None):
+
+def link_gym_equipment(
+    sess: Session,
+    gym: Gym,
+    eq: Equipment,
+    availability: Availability,
+    count=None,
+    max_weight_kg=None,
+    verification_status: VerificationStatus = VerificationStatus.unverified,
+    source: Source | None = None,
+    last_verified_at: datetime | None = None,
+    notes: str | None = None,
+):
     ge = sess.execute(
         select(GymEquipment).where(
             (GymEquipment.gym_id == gym.id) & (GymEquipment.equipment_id == eq.id)
@@ -69,12 +91,19 @@ def link_gym_equipment(sess: Session, gym: Gym, eq: Equipment,
         verification_status=verification_status,
         source_id=source.id if source else None,
         last_verified_at=last_verified_at,
-        notes=notes
+        notes=notes,
     )
     sess.add(ge)
     return ge
 
-def get_or_create_source(sess: Session, stype: SourceType, title: str = None, url: str = None, captured_at: datetime | None = None):
+
+def get_or_create_source(
+    sess: Session,
+    stype: SourceType,
+    title: str = None,
+    url: str = None,
+    captured_at: datetime | None = None,
+):
     # ダミーなので厳密一意までは見ないが、同一title/urlなら再利用
     q = select(Source).where(Source.source_type == stype)
     if title:
@@ -88,6 +117,7 @@ def get_or_create_source(sess: Session, stype: SourceType, title: str = None, ur
     sess.add(src)
     sess.flush()
     return src
+
 
 def main():
     # ---- 1) ダミーの設備マスター（20件弱、必要なら追加してOK）
@@ -116,38 +146,69 @@ def main():
 
     # ---- 2) ダミーのジム（5件）
     gym_seed = [
-        ("dummy-funabashi-east",     "ダミージム 船橋イースト", "chiba", "funabashi", "千葉県船橋市東町1-1-1", None),
-        ("dummy-funabashi-west",     "ダミージム 船橋ウエスト", "chiba", "funabashi", "千葉県船橋市西町1-2-3", None),
-        ("dummy-tsudanuma-center",   "ダミージム 津田沼センター", "chiba", "narashino", "千葉県習志野市谷津1-2-3", None),
-        ("dummy-hilton-bay",         "ダミーホテルジム ベイ", "chiba", "urayasu", "千葉県浦安市舞浜1-1-1", None),
-        ("dummy-makuhari-coast",     "ダミージム 幕張コースト", "chiba", "chiba", "千葉県千葉市美浜区中瀬1-1-1", None),
+        (
+            "dummy-funabashi-east",
+            "ダミージム 船橋イースト",
+            "chiba",
+            "funabashi",
+            "千葉県船橋市東町1-1-1",
+            None,
+        ),
+        (
+            "dummy-funabashi-west",
+            "ダミージム 船橋ウエスト",
+            "chiba",
+            "funabashi",
+            "千葉県船橋市西町1-2-3",
+            None,
+        ),
+        (
+            "dummy-tsudanuma-center",
+            "ダミージム 津田沼センター",
+            "chiba",
+            "narashino",
+            "千葉県習志野市谷津1-2-3",
+            None,
+        ),
+        (
+            "dummy-hilton-bay",
+            "ダミーホテルジム ベイ",
+            "chiba",
+            "urayasu",
+            "千葉県浦安市舞浜1-1-1",
+            None,
+        ),
+        (
+            "dummy-makuhari-coast",
+            "ダミージム 幕張コースト",
+            "chiba",
+            "chiba",
+            "千葉県千葉市美浜区中瀬1-1-1",
+            None,
+        ),
     ]
 
     # ---- 3) 設備 × ジム 対応（有/無/不明を混ぜる）
     # 例： (gym_slug, equipment_slug, availability, count, max_weight_kg)
     ge_seed = [
-        ("dummy-funabashi-east",   "squat-rack",  Availability.present, 2, None),
-        ("dummy-funabashi-east",   "bench-press", Availability.present, 3, None),
-        ("dummy-funabashi-east",   "dumbbell",    Availability.present, None, 40),
-        ("dummy-funabashi-east",   "treadmill",   Availability.present, 6, None),
-        ("dummy-funabashi-east",   "bike",        Availability.unknown, None, None),
-
-        ("dummy-funabashi-west",   "squat-rack",  Availability.absent,  None, None),
-        ("dummy-funabashi-west",   "smith-machine", Availability.present, 1, None),
-        ("dummy-funabashi-west",   "treadmill",   Availability.present, 4, None),
-        ("dummy-funabashi-west",   "dumbbell",    Availability.present, None, 30),
-
-        ("dummy-tsudanuma-center", "power-rack",  Availability.present, 1, None),
+        ("dummy-funabashi-east", "squat-rack", Availability.present, 2, None),
+        ("dummy-funabashi-east", "bench-press", Availability.present, 3, None),
+        ("dummy-funabashi-east", "dumbbell", Availability.present, None, 40),
+        ("dummy-funabashi-east", "treadmill", Availability.present, 6, None),
+        ("dummy-funabashi-east", "bike", Availability.unknown, None, None),
+        ("dummy-funabashi-west", "squat-rack", Availability.absent, None, None),
+        ("dummy-funabashi-west", "smith-machine", Availability.present, 1, None),
+        ("dummy-funabashi-west", "treadmill", Availability.present, 4, None),
+        ("dummy-funabashi-west", "dumbbell", Availability.present, None, 30),
+        ("dummy-tsudanuma-center", "power-rack", Availability.present, 1, None),
         ("dummy-tsudanuma-center", "bench-press", Availability.present, 2, None),
-        ("dummy-tsudanuma-center", "elliptical",  Availability.present, 2, None),
-
-        ("dummy-hilton-bay",       "dumbbell",    Availability.present, None, 20),
-        ("dummy-hilton-bay",       "treadmill",   Availability.present, 3, None),
-        ("dummy-hilton-bay",       "squat-rack",  Availability.absent,  None, None),
-
-        ("dummy-makuhari-coast",   "lat-pulldown",Availability.present, 1, None),
-        ("dummy-makuhari-coast",   "leg-press",   Availability.present, 1, None),
-        ("dummy-makuhari-coast",   "rowing",      Availability.unknown, None, None),
+        ("dummy-tsudanuma-center", "elliptical", Availability.present, 2, None),
+        ("dummy-hilton-bay", "dumbbell", Availability.present, None, 20),
+        ("dummy-hilton-bay", "treadmill", Availability.present, 3, None),
+        ("dummy-hilton-bay", "squat-rack", Availability.absent, None, None),
+        ("dummy-makuhari-coast", "lat-pulldown", Availability.present, 1, None),
+        ("dummy-makuhari-coast", "leg-press", Availability.present, 1, None),
+        ("dummy-makuhari-coast", "rowing", Availability.unknown, None, None),
     ]
 
     with SessionLocal() as sess:
@@ -157,7 +218,7 @@ def main():
             stype=SourceType.user_submission,
             title="ダミー投稿（seed）",
             url=None,
-            captured_at=datetime.utcnow()
+            captured_at=datetime.utcnow(),
         )
 
         # equipments
@@ -169,7 +230,9 @@ def main():
         # gyms
         slug_to_gym = {}
         for slug, name, pref, city, addr, url in gym_seed:
-            g = get_or_create_gym(sess, slug=slug, name=name, pref=pref, city=city, address=addr, official_url=url)
+            g = get_or_create_gym(
+                sess, slug=slug, name=name, pref=pref, city=city, address=addr, official_url=url
+            )
             slug_to_gym[slug] = g
 
         sess.commit()  # ここでIDが確定
@@ -180,18 +243,23 @@ def main():
             g = slug_to_gym[gym_slug]
             e = slug_to_eq[eq_slug]
             link_gym_equipment(
-                sess, g, e,
+                sess,
+                g,
+                e,
                 availability=avail,
                 count=count,
                 max_weight_kg=max_w,
-                verification_status=VerificationStatus.user_verified if avail == Availability.present else VerificationStatus.unverified,
+                verification_status=VerificationStatus.user_verified
+                if avail == Availability.present
+                else VerificationStatus.unverified,
                 source=src,
-                last_verified_at=now
+                last_verified_at=now,
             )
         sess.commit()
 
     print("✅ Seed completed.")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
@@ -199,4 +267,3 @@ if __name__ == "__main__":
 # コンテナ起動済みの前提
 # docker compose exec api python scripts/seed.py
 # => ✅ Seed completed.
-

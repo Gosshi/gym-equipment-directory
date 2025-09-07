@@ -5,17 +5,16 @@ Revises: 5c002a33eee9
 Create Date: 2025-09-04 23:40:02.256087
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
-revision: str = '4965b1c2c229'
-down_revision: Union[str, None] = '5c002a33eee9'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "4965b1c2c229"
+down_revision: str | None = "5c002a33eee9"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade():
@@ -183,6 +182,7 @@ def upgrade():
     FROM agg
     WHERE g.id = agg.gym_id;
     """)
+
 
 def downgrade():
     op.execute("""
