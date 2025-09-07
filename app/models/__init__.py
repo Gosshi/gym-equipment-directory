@@ -4,6 +4,6 @@ from .base import Base
 from .gym import Gym
 from .equipment import Equipment
 from .gym_equipment import GymEquipment
+from .source import Source
 
-__all__ = ["Base", "Gym", "Equipment", "GymEquipment"]
-
+__all__ = ["Base", "Gym", "Equipment", "GymEquipment", "Source"]

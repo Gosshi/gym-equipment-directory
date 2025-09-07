@@ -1,3 +1,6 @@
+PG_DSN=postgresql+asyncpg://postgres:pass@localhost:5433/gym_test
+
+
 up:
 	docker compose up -d
 
@@ -21,3 +24,6 @@ rev:
 
 freshness:
 	docker compose exec api python -m scripts.update_freshness
+
+test:
+	@TEST_DATABASE_URL=$(PG_DSN) pytest -q

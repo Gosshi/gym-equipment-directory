@@ -2,6 +2,7 @@ from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
+from datetime import datetime, timezone
 from app.deps import get_db
 from app import schemas
 from app.models import (
@@ -10,6 +11,31 @@ from app.models import (
 )
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
+
+
+def _as_utc_naive(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        # UTCにそろえてtzinfoを剥がす（DBはnaive列）
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _dt_from_token(s: str | None) -> datetime | None:
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        # "Z" を含む場合のフォールバック
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return _as_utc_naive(dt)
+
+
+def _dt_to_token(dt: datetime | None) -> str | None:
+    dt = _as_utc_naive(dt)
+    return dt.isoformat(timespec="seconds") if dt else None
 
 
 @router.get("/search", response_model=schemas.SearchResponse,
