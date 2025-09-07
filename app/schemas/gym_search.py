@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 __all__ = ["GymSummary", "GymSearchResponse"]
 
@@ -29,20 +29,22 @@ class GymSearchResponse(BaseModel):
 
     model_config = {
         "json_schema_extra": {
-            "example": {
-                "items": [
-                    {
-                        "id": 1,
-                        "slug": "awesome-gym",
-                        "name": "Awesome Gym",
-                        "city": "funabashi",
-                        "pref": "chiba",
-                        "last_verified_at": "2025-09-01T12:34:56Z",
-                    }
-                ],
-                "total": 12,
-                "has_next": True,
-                "page_token": "abc123",
-            }
+            "examples": [
+                {
+                    "items": [
+                        {
+                            "id": 1,
+                            "slug": "awesome-gym",
+                            "name": "Awesome Gym",
+                            "city": "funabashi",
+                            "pref": "chiba",
+                            "last_verified_at": "2025-09-01T12:34:56Z",
+                        }
+                    ],
+                    "total": 12,
+                    "has_next": True,
+                    "page_token": "abc123",
+                }
+            ]
         }
     }
