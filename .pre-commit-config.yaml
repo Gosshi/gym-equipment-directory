@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.12 # Use the ruff version installed in your environment
+    hooks:
+      - id: ruff
+        args: [--fix]       # lint 自動修正
+      - id: ruff-format    # フォーマット自動整形
