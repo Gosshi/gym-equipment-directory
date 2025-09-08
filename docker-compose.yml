@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   api:
     build: .
@@ -34,23 +33,24 @@ services:
       - "8080:8080"
     depends_on:
       - db
-    
+
   pg:
     image: postgres:16
     container_name: gymdir-pg
+    env_file: .env
     ports:
       - "5433:5432"         # ← ホスト : コンテナ
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: gym_test # ← 最初から gym_test 作る
+      POSTGRES_DB: ${TEST_POSTGRES_DB}
+      POSTGRES_USER: ${TEST_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d gym_test"]
       interval: 2s
       timeout: 2s
       retries: 20
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/testdata
     # export TEST_DATABASE_URL='postgresql+asyncpg://postgres:pass@localhost:5433/gym_test'
 
 volumes:
