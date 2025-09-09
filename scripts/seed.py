@@ -4,73 +4,75 @@
 何度実行しても重複しにくいよう、slug/名称でget-or-createします。
 """
 
+import asyncio
 import os
 import sys
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # パス調整（repo 直下から実行する前提）
 sys.path.append(os.path.abspath("."))
 
 from app.db import SessionLocal
-from app.models import (
-    Availability,
-    Equipment,
-    Gym,
-    GymEquipment,
-    Source,
-    SourceType,
-    VerificationStatus,
-)
+from app.models import Equipment, Gym, GymEquipment, Source
+from app.models.gym_equipment import Availability, VerificationStatus
+from app.models.source import SourceType
+
+# ---------- get-or-create helpers (ALL ASYNC) ----------
 
 
-def get_or_create_equipment(sess: Session, slug: str, name: str, category: str, desc: str = None):
-    eq = sess.execute(select(Equipment).where(Equipment.slug == slug)).scalar_one_or_none()
+async def get_or_create_equipment(
+    sess: AsyncSession, slug: str, name: str, category: str, desc: str | None = None
+) -> Equipment:
+    result = await sess.execute(select(Equipment).where(Equipment.slug == slug))
+    eq = result.scalar_one_or_none()
     if eq:
         return eq
     eq = Equipment(slug=slug, name=name, category=category, description=desc)
     sess.add(eq)
-    sess.flush()
+    await sess.flush()
     return eq
 
 
-def get_or_create_gym(
-    sess: Session,
+async def get_or_create_gym(
+    sess: AsyncSession,
     slug: str,
     name: str,
     pref: str,
     city: str,
     address: str,
-    official_url: str = None,
-):
-    g = sess.execute(select(Gym).where(Gym.slug == slug)).scalar_one_or_none()
+    official_url: str | None = None,
+) -> Gym:
+    result = await sess.execute(select(Gym).where(Gym.slug == slug))
+    g = result.scalar_one_or_none()
     if g:
         return g
     g = Gym(slug=slug, name=name, pref=pref, city=city, address=address, official_url=official_url)
     sess.add(g)
-    sess.flush()
+    await sess.flush()
     return g
 
 
-def link_gym_equipment(
-    sess: Session,
+async def link_gym_equipment(
+    sess: AsyncSession,
     gym: Gym,
     eq: Equipment,
     availability: Availability,
-    count=None,
-    max_weight_kg=None,
+    count: int | None = None,
+    max_weight_kg: int | None = None,
     verification_status: VerificationStatus = VerificationStatus.unverified,
     source: Source | None = None,
     last_verified_at: datetime | None = None,
     notes: str | None = None,
-):
-    ge = sess.execute(
+) -> GymEquipment:
+    result = await sess.execute(
         select(GymEquipment).where(
             (GymEquipment.gym_id == gym.id) & (GymEquipment.equipment_id == eq.id)
         )
-    ).scalar_one_or_none()
+    )
+    ge = result.scalar_one_or_none()
     if ge:
         # 既存は軽く更新（初回seedなら基本通らない）
         ge.availability = availability
@@ -94,33 +96,38 @@ def link_gym_equipment(
         notes=notes,
     )
     sess.add(ge)
+    await sess.flush()
     return ge
 
 
-def get_or_create_source(
-    sess: Session,
+async def get_or_create_source(
+    sess: AsyncSession,
     stype: SourceType,
-    title: str = None,
-    url: str = None,
+    title: str | None = None,
+    url: str | None = None,
     captured_at: datetime | None = None,
-):
+) -> Source:
     # ダミーなので厳密一意までは見ないが、同一title/urlなら再利用
     q = select(Source).where(Source.source_type == stype)
     if title:
         q = q.where(Source.title == title)
     if url:
         q = q.where(Source.url == url)
-    src = sess.execute(q).scalar_one_or_none()
+    result = await sess.execute(q)
+    src = result.scalar_one_or_none()
     if src:
         return src
     src = Source(source_type=stype, title=title, url=url, captured_at=captured_at)
     sess.add(src)
-    sess.flush()
+    await sess.flush()
     return src
 
 
-def main():
-    # ---- 1) ダミーの設備マスター（20件弱、必要なら追加してOK）
+# ---------- main ----------
+
+
+async def main() -> int:
+    # ---- 1) ダミーの設備マスター
     equipment_seed = [
         ("squat-rack", "スクワットラック", "free_weight"),
         ("bench-press", "ベンチプレス", "free_weight"),
@@ -144,7 +151,7 @@ def main():
         ("pullup-bar", "懸垂バー", "free_weight"),
     ]
 
-    # ---- 2) ダミーのジム（5件）
+    # ---- 2) ダミーのジム
     gym_seed = [
         (
             "dummy-funabashi-east",
@@ -188,8 +195,7 @@ def main():
         ),
     ]
 
-    # ---- 3) 設備 × ジム 対応（有/無/不明を混ぜる）
-    # 例： (gym_slug, equipment_slug, availability, count, max_weight_kg)
+    # ---- 3) 設備 × ジム
     ge_seed = [
         ("dummy-funabashi-east", "squat-rack", Availability.present, 2, None),
         ("dummy-funabashi-east", "bench-press", Availability.present, 3, None),
@@ -211,9 +217,9 @@ def main():
         ("dummy-makuhari-coast", "rowing", Availability.unknown, None, None),
     ]
 
-    with SessionLocal() as sess:
-        # Source（出典）もダミーで1つ用意
-        src = get_or_create_source(
+    async with SessionLocal() as sess:
+        # 出典ダミー
+        src = await get_or_create_source(
             sess,
             stype=SourceType.user_submission,
             title="ダミー投稿（seed）",
@@ -222,27 +228,27 @@ def main():
         )
 
         # equipments
-        slug_to_eq = {}
+        slug_to_eq: dict[str, Equipment] = {}
         for slug, name, cat in equipment_seed:
-            eq = get_or_create_equipment(sess, slug=slug, name=name, category=cat)
+            eq = await get_or_create_equipment(sess, slug=slug, name=name, category=cat)
             slug_to_eq[slug] = eq
 
         # gyms
-        slug_to_gym = {}
+        slug_to_gym: dict[str, Gym] = {}
         for slug, name, pref, city, addr, url in gym_seed:
-            g = get_or_create_gym(
+            g = await get_or_create_gym(
                 sess, slug=slug, name=name, pref=pref, city=city, address=addr, official_url=url
             )
             slug_to_gym[slug] = g
 
-        sess.commit()  # ここでIDが確定
+        await sess.commit()  # ここでIDが確定
 
         # gym_equipments
         now = datetime.utcnow()
         for gym_slug, eq_slug, avail, count, max_w in ge_seed:
             g = slug_to_gym[gym_slug]
             e = slug_to_eq[eq_slug]
-            link_gym_equipment(
+            await link_gym_equipment(
                 sess,
                 g,
                 e,
@@ -255,15 +261,12 @@ def main():
                 source=src,
                 last_verified_at=now,
             )
-        sess.commit()
+
+        await sess.commit()
 
     print("✅ Seed completed.")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
-
-# コンテナ起動済みの前提
-# docker compose exec api python scripts/seed.py
-# => ✅ Seed completed.
+    raise SystemExit(asyncio.run(main()))

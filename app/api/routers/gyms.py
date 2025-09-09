@@ -2,6 +2,7 @@
 import base64
 import json
 from datetime import datetime
+from enum import Enum
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -19,6 +20,13 @@ from app.schemas.gym_search import GymSearchResponse, GymSummary
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
 
+class GymSortKey(str, Enum):
+    gym_name = "gym_name"
+    created_at = "created_at"
+    freshness = "freshness"
+    richness = "richness"
+
+
 # ---------- Token helpers ----------
 def _b64e(obj: dict) -> str:
     return base64.urlsafe_b64encode(json.dumps(obj).encode()).decode()
@@ -33,12 +41,22 @@ def _b64d(token: str) -> dict:
 
 def _encode_page_token_for_freshness(ts_iso_or_none: str | None, last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
-    return _b64e({"sort": "freshness", "k": [ts_iso_or_none, last_id]})
+    return _b64e({"sort": GymSortKey.freshness, "k": [ts_iso_or_none, last_id]})
 
 
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
-    return _b64e({"sort": "richness", "k": [nf, neg_sc, last_id]})
+    return _b64e({"sort": GymSortKey.richness, "k": [nf, neg_sc, last_id]})
+
+
+def _encode_page_token_for_gym_name(last_name: str, last_id: int) -> str:
+    # {sort:'gym_name', k:[last_name, id]}
+    return _b64e({"sort": GymSortKey.gym_name, "k": [last_name, last_id]})
+
+
+def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
+    # {sort:'created_at', k:[ts_iso, id]}
+    return _b64e({"sort": GymSortKey.created_at, "k": [ts_iso, last_id]})
 
 
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
@@ -46,9 +64,17 @@ def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     if payload.get("sort") != sort or "k" not in payload:
         raise HTTPException(status_code=400, detail="invalid page_token")
     k = payload["k"]
-    if sort == "freshness" and not (isinstance(k, list) and len(k) == 2):
+    if sort == GymSortKey.freshness and not (isinstance(k, list) and len(k) == 2):
         raise HTTPException(status_code=400, detail="invalid page_token")
-    if sort == "richness" and not (isinstance(k, list) and len(k) == 3):
+    if sort == GymSortKey.richness and not (isinstance(k, list) and len(k) == 3):
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    if sort == GymSortKey.gym_name and not (
+        isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+    ):
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    if sort == GymSortKey.created_at and not (
+        isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+    ):
         raise HTTPException(status_code=400, detail="invalid page_token")
     return tuple(k)  # type: ignore[return-value]
 
@@ -77,6 +103,8 @@ _DESC = (
     "- sort=richness: GymEquipment をスコア合算し降順\n"
     " （1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
     "- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n"
+    "- sort=gym_name: name ASC, id ASC（Keyset）\n"
+    "- sort=created_at: created_at DESC, id ASC（Keyset）\n"
 )
 
 
@@ -114,11 +142,13 @@ async def search_gyms(
         Query(description="equipments の一致条件", examples=["all"]),
     ] = "all",
     sort: Annotated[
-        Literal["freshness", "richness"],
+        Literal["freshness", "richness", "gym_name", "created_at"],
         Query(
             description="並び替え。freshness は last_verified_at_cached DESC, id ASC。"
-            "richness は設備スコア降順",
-            examples=["freshness"],
+            "richness は設備スコア降順"
+            "gym_name は name ASC, id ASC"
+            "created_at は created_at DESC, id ASC",
+            examples=["freshness", "gym_name"],
         ),
     ] = "freshness",
     per_page: Annotated[
@@ -177,6 +207,9 @@ async def search_gyms(
         return GymSearchResponse(items=[], total=0, has_next=False, page_token=None)
 
     # ---- 5) 並びと取得 ----
+    next_token = None  # [must] すべての分岐で next_token を初期化
+    gyms = []  # [must] すべての分岐で gyms を初期化
+
     if sort == "freshness":
         # 列ベースの ORDER（index: pref, city, last_verified_at_cached DESC NULLS LAST, id ASC）
         stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
@@ -213,10 +246,15 @@ async def search_gyms(
             last = recs[per_page - 1]
             ts = getattr(last, "last_verified_at_cached", None)
             ts_iso = ts.isoformat() if ts else None
-            next_token = _encode_page_token_for_freshness(ts_iso, last.id)
+            next_token = _encode_page_token_for_freshness(ts_iso, int(getattr(last, "id", 0)))
 
-    else:  # richness
+    elif sort == "richness":  # richness
         # スコア式（NULLはnf=1で末尾送り）
+        # 1) page_token のソート種別を先に検証（ミスマッチなら 400）
+        lk_nf = lk_neg_sc = lk_id = None
+        if page_token:
+            lk_nf, lk_neg_sc, lk_id = _validate_and_decode_page_token(page_token, "richness")
+
         score_expr = (
             1.0
             + func.least(func.coalesce(GymEquipment.count, 0), 5) * 0.1
@@ -243,7 +281,7 @@ async def search_gyms(
             select(Gym, nf_expr.label("nf"), neg_sc_expr.label("neg_sc"))
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
             .where(Gym.id.in_(base_ids.scalar_subquery()))
-            .order_by("nf", "neg_sc", Gym.id)
+            .order_by(nf_expr, neg_sc_expr, Gym.id)
             .limit(per_page + 1)
         )
 
@@ -264,6 +302,59 @@ async def search_gyms(
             next_token = _encode_page_token_for_richness(
                 int(last_row[1]), float(last_row[2]), last_row[0].id
             )
+    elif sort == "gym_name":
+        # name ASC, id ASC（Keyset）
+        stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
+        last_name, last_id = (None, None)
+        if page_token:
+            last_name, last_id = _validate_and_decode_page_token(page_token, "gym_name")  # type: ignore[misc]
+            # 次ページ条件（name ASC, id ASC）:
+            # name > last_name OR (name = last_name AND id > last_id)
+            stmt = stmt.where(
+                or_(
+                    Gym.name > str(last_name),
+                    and_(Gym.name == str(last_name), Gym.id > int(last_id)),  # type: ignore[arg-type]
+                )
+            )
+        stmt = stmt.order_by(Gym.name.asc(), Gym.id.asc()).limit(per_page + 1)
+        rows = await session.execute(stmt)
+        recs = rows.scalars().all()
+        gyms = recs[:per_page]
+        next_token = None
+        if len(recs) > per_page:
+            last = recs[per_page - 1]
+            next_token = _encode_page_token_for_gym_name(
+                str(getattr(last, "name", "")), int(getattr(last, "id", 0))
+            )
+
+    elif sort == "created_at":
+        # created_at DESC（新着順）, id ASC（Keyset）
+        stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
+        lk_ts_iso, lk_id = (None, None)
+        if page_token:
+            lk_ts_iso, lk_id = _validate_and_decode_page_token(page_token, "created_at")  # type: ignore[misc]
+            try:
+                lk_ts = datetime.fromisoformat(str(lk_ts_iso))
+            except Exception:
+                raise HTTPException(status_code=400, detail="invalid page_token")
+            # 次ページ条件（created_at DESC, id ASC）:
+            # created_at < last_ts OR (created_at = last_ts AND id > last_id)
+            stmt = stmt.where(
+                or_(
+                    Gym.created_at < lk_ts,
+                    and_(Gym.created_at == lk_ts, Gym.id > int(lk_id)),  # type: ignore[arg-type]
+                )
+            )
+        stmt = stmt.order_by(Gym.created_at.desc(), Gym.id.asc()).limit(per_page + 1)
+        rows = await session.execute(stmt)
+        recs = rows.scalars().all()
+        gyms = recs[:per_page]
+        next_token = None
+        if len(recs) > per_page:
+            last = recs[per_page - 1]
+            ts = getattr(last, "created_at", None)
+            ts_iso = ts.isoformat() if ts else datetime.now().isoformat()
+            next_token = _encode_page_token_for_created_at(ts_iso, int(getattr(last, "id", 0)))
 
     items: list[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
