@@ -1,6 +1,7 @@
 # app/api/routers/gyms.py
 import base64
 import json
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
@@ -19,12 +20,17 @@ from app.schemas.gym_search import GymSearchResponse, GymSummary
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
+FRESHNESS_WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
+W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
+W_RICH = float(os.getenv("SCORE_W_RICH", "0.4"))
+
 
 class GymSortKey(str, Enum):
     gym_name = "gym_name"
     created_at = "created_at"
     freshness = "freshness"
     richness = "richness"
+    score = "score"
 
 
 # ---------- Token helpers ----------
@@ -41,27 +47,34 @@ def _b64d(token: str) -> dict:
 
 def _encode_page_token_for_freshness(ts_iso_or_none: str | None, last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
-    return _b64e({"sort": GymSortKey.freshness, "k": [ts_iso_or_none, last_id]})
+    return _b64e({"sort": GymSortKey.freshness.value, "k": [ts_iso_or_none, last_id]})
 
 
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
-    return _b64e({"sort": GymSortKey.richness, "k": [nf, neg_sc, last_id]})
+    return _b64e({"sort": GymSortKey.richness.value, "k": [nf, neg_sc, last_id]})
 
 
 def _encode_page_token_for_gym_name(last_name: str, last_id: int) -> str:
     # {sort:'gym_name', k:[last_name, id]}
-    return _b64e({"sort": GymSortKey.gym_name, "k": [last_name, last_id]})
+    return _b64e({"sort": GymSortKey.gym_name.value, "k": [last_name, last_id]})
 
 
 def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
     # {sort:'created_at', k:[ts_iso, id]}
-    return _b64e({"sort": GymSortKey.created_at, "k": [ts_iso, last_id]})
+    return _b64e({"sort": GymSortKey.created_at.value, "k": [ts_iso, last_id]})
+
+
+def _encode_page_token_for_score(score: float, last_id: int) -> str:
+    # {sort:'score', k:[score, id]}
+    return _b64e({"sort": GymSortKey.score.value, "k": [score, last_id]})
 
 
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
-    if payload.get("sort") != sort or "k" not in payload:
+    s = str(payload.get("sort"))
+    # "score" も "GymSortKey.score" もOKにする
+    if not (s == sort or s.endswith("." + sort)) or "k" not in payload:
         raise HTTPException(status_code=400, detail="invalid page_token")
     k = payload["k"]
     if sort == GymSortKey.freshness and not (isinstance(k, list) and len(k) == 2):
@@ -74,6 +87,12 @@ def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
         raise HTTPException(status_code=400, detail="invalid page_token")
     if sort == GymSortKey.created_at and not (
         isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+    ):
+        raise HTTPException(status_code=400, detail="invalid page_token")
+    if sort == GymSortKey.score and not (
+        isinstance(k, list) and len(k) == 2
+        # k[0] は neg_final（数値）、k[1] は id（数値）を想定。厳密チェックしたいなら下を有効化。
+        # and isinstance(k[0], (int, float)) and isinstance(k[1], (int, float))
     ):
         raise HTTPException(status_code=400, detail="invalid page_token")
     return tuple(k)  # type: ignore[return-value]
@@ -94,6 +113,9 @@ def _gym_summary_from_gym(g: Gym) -> GymSummary:
         city=str(getattr(g, "city", "")),
         pref=str(getattr(g, "pref", "")),
         last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
+        score=0.0,
+        freshness_score=0.0,
+        richness_score=0.0,
     )
 
 
@@ -102,6 +124,7 @@ _DESC = (
     "- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n"
     "- sort=richness: GymEquipment をスコア合算し降順\n"
     " （1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
+    " - sort=score: freshness(0.6)とrichness(0.4)を合算した最終スコア降順\n"
     "- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n"
     "- sort=gym_name: name ASC, id ASC（Keyset）\n"
     "- sort=created_at: created_at DESC, id ASC（Keyset）\n"
@@ -142,15 +165,16 @@ async def search_gyms(
         Query(description="equipments の一致条件", examples=["all"]),
     ] = "all",
     sort: Annotated[
-        Literal["freshness", "richness", "gym_name", "created_at"],
+        Literal["freshness", "richness", "gym_name", "created_at", "score"],
         Query(
             description="並び替え。freshness は last_verified_at_cached DESC, id ASC。"
             "richness は設備スコア降順"
+            "score は freshness(0.6) + richness(0.4) の降順。"
             "gym_name は name ASC, id ASC"
             "created_at は created_at DESC, id ASC",
             examples=["freshness", "gym_name"],
         ),
-    ] = "freshness",
+    ] = "score",
     per_page: Annotated[
         int,
         Query(ge=1, le=50, description="1ページ件数（≤50）", examples=[10]),
@@ -209,6 +233,7 @@ async def search_gyms(
     # ---- 5) 並びと取得 ----
     next_token = None  # [must] すべての分岐で next_token を初期化
     gyms = []  # [must] すべての分岐で gyms を初期化
+    scored_rows = None
 
     if sort == "freshness":
         # 列ベースの ORDER（index: pref, city, last_verified_at_cached DESC NULLS LAST, id ASC）
@@ -355,9 +380,121 @@ async def search_gyms(
             ts = getattr(last, "created_at", None)
             ts_iso = ts.isoformat() if ts else datetime.now().isoformat()
             next_token = _encode_page_token_for_created_at(ts_iso, int(getattr(last, "id", 0)))
+    elif sort == "score":
+        # ❶ richness（既存の「合算スコア」）を 0..1 に正規化
+        score_expr = (
+            1.0
+            + func.least(func.coalesce(GymEquipment.count, 0), 5) * 0.1
+            + func.least(func.coalesce(GymEquipment.max_weight_kg, 0) / 60.0, 1.0) * 0.1
+        )
+        score_subq = (
+            select(
+                GymEquipment.gym_id.label("gym_id"),
+                func.sum(score_expr).label("raw_richness"),
+            )
+            .select_from(GymEquipment)
+            .join(Equipment, Equipment.id == GymEquipment.equipment_id)
+        )
+        if required_slugs:
+            score_subq = score_subq.where(Equipment.slug.in_(required_slugs))
+        score_subq = score_subq.group_by(GymEquipment.gym_id).subquery()
+
+        raw_richness = func.coalesce(score_subq.c.raw_richness, 0.0)
+        # ★ window を使わず、全体最大をスカラ副問い合わせで取得
+        richness_max_scalar = (
+            select(func.max(func.coalesce(score_subq.c.raw_richness, 0.0)))
+        ).scalar_subquery()
+        richness_norm = case(
+            (
+                richness_max_scalar > 0.0,
+                cast(raw_richness / cast(richness_max_scalar, Numeric(10, 6)), Numeric(10, 6)),
+            ),
+            else_=cast(0.0, Numeric(10, 6)),
+        )
+
+        # ❷ freshness（0..1）: last_verified_at_cached を 365 日で線形減衰
+        #   ※ ±infinity を避けるため isfinite() でガード
+        is_finite_ts = func.isfinite(Gym.last_verified_at_cached)
+        age_days = case(
+            (
+                is_finite_ts,
+                func.extract("epoch", func.now() - Gym.last_verified_at_cached) / 86400.0,
+            ),
+            else_=None,
+        )
+        freshness_linear = 1.0 - (cast(age_days, Numeric(10, 6)) / float(FRESHNESS_WINDOW_DAYS))
+        freshness = case(
+            # NULL / ±infinity → 0.0
+            (is_finite_ts.is_(False), cast(0.0, Numeric(10, 6))),
+            else_=cast(
+                func.greatest(0.0, func.least(1.0, freshness_linear)),
+                Numeric(10, 6),
+            ),
+        )
+
+        # ❸ final score
+        final_score = cast(W_FRESH * freshness + W_RICH * richness_norm, Numeric(10, 6))
+        neg_final = cast(-final_score, Numeric(18, 6))  # ASC で keyset するため符号反転
+
+        stmt = (
+            select(
+                Gym,
+                func.round(final_score, 3).label("score"),
+                func.round(freshness, 3).label("freshness_score"),
+                func.round(richness_norm, 3).label("richness_score"),
+                neg_final.label("neg_final"),
+            )
+            .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
+            .where(Gym.id.in_(base_ids.scalar_subquery()))
+            .order_by(neg_final.asc(), Gym.id.asc())
+            .limit(per_page + 1)
+        )
+
+        # page_token: [neg_final, id]
+        if page_token:
+            lk_neg_final, lk_id = _validate_and_decode_page_token(page_token, "score")
+            stmt = stmt.where(
+                tuple_(neg_final, Gym.id)
+                > tuple_(literal(float(lk_neg_final)), literal(int(lk_id)))
+            )
+
+        rows = await session.execute(stmt)
+        recs = rows.all()
+        scored_rows = recs[:per_page]
+        gyms = [r[0] for r in scored_rows]
+
+        next_token = None
+        if len(recs) > per_page:
+            last_row = recs[per_page - 1]
+            next_token = _encode_page_token_for_score(
+                float(last_row.neg_final), int(last_row.Gym.id)
+            )
 
     items: list[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
+    # 通常分岐
+    if sort != "score":
+        items: list[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
+    else:
+        # score 分岐は、各行の追加列を GymSummary に詰める
+        items = []
+        for row in scored_rows or []:
+            g = row[0]
+            items.append(
+                GymSummary(
+                    id=int(getattr(g, "id", 0)),
+                    slug=str(getattr(g, "slug", "")),
+                    name=str(getattr(g, "name", "")),
+                    city=str(getattr(g, "city", "")),
+                    pref=str(getattr(g, "pref", "")),
+                    last_verified_at=_lv(getattr(g, "last_verified_at_cached", None)),
+                    score=float(row.score or 0.0),
+                    freshness_score=float(row.freshness_score or 0.0),
+                    richness_score=float(row.richness_score or 0.0),
+                )
+            )
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
+    if not has_next:
+        next_token = None
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
 
 

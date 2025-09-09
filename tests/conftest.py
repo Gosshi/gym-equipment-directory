@@ -3,7 +3,9 @@ import importlib
 import os
 from collections.abc import Callable
 
+import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -24,6 +26,16 @@ os.environ["TESTING"] = "1"
 def _engine_kwargs(_: str):
     # ループ跨ぎの事故を避けるため NullPool、pre_ping 有効
     return dict(future=True, echo=False, poolclass=NullPool, pool_pre_ping=True)
+
+
+@pytest.fixture
+async def app_client(_override_app_session):
+    """
+    API呼び出し用の AsyncClient。
+    - _override_app_session: 既存のDB依存差し替えfixture（すでに表示されているので流用）
+    """
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
 
 
 # ==== 2) Engine / Schema ====
