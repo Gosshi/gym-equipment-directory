@@ -18,6 +18,9 @@ class GymSummary(BaseModel):
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
     last_verified_at: str | None = Field(default=None, description="最終検証日時（UTC, nullable）")
+    score: float | None = Field(default=None, description="スコア（nullable）")
+    freshness_score: float | None = Field(default=None, description="新鮮さスコア（nullable）")
+    richness_score: float | None = Field(default=None, description="充実度スコア（nullable）")
 
 
 class GymSearchResponse(BaseModel):
