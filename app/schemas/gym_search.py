@@ -1,7 +1,7 @@
 # app/schemas/gym_search.py
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = ["GymSummary", "GymSearchResponse"]
 
@@ -29,24 +29,27 @@ class GymSearchResponse(BaseModel):
     has_next: bool = Field(description="次ページ有無")
     page_token: str | None = None
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "items": [
                         {
                             "id": 1,
-                            "slug": "awesome-gym",
-                            "name": "Awesome Gym",
+                            "slug": "dummy-funabashi-east",
+                            "name": "ダミージム 船橋イースト",
                             "city": "funabashi",
                             "pref": "chiba",
                             "last_verified_at": "2025-09-01T12:34:56Z",
+                            "score": 0.84,
+                            "freshness_score": 0.93,
+                            "richness_score": 0.68,
                         }
                     ],
-                    "total": 12,
-                    "has_next": True,
-                    "page_token": "abc123",
+                    "total": 2,
+                    "has_next": False,
+                    "page_token": None,
                 }
             ]
         }
-    }
+    )

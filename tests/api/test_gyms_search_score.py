@@ -22,3 +22,14 @@ async def test_score_sort_paging(app_client: AsyncClient):
         assert set(ids1).isdisjoint(ids2)
     else:
         assert j1["page_token"] is None
+
+
+@pytest.mark.asyncio
+async def test_sorts_basic(app_client):
+    for s in ["score", "freshness", "richness", "gym_name", "created_at"]:
+        r = await app_client.get("/gyms/search", params={"sort": s, "per_page": 2})
+        assert r.status_code == 200
+        j = r.json()
+        assert "items" in j and "has_next" in j and "page_token" in j
+        if not j["has_next"]:
+            assert j["page_token"] is None
