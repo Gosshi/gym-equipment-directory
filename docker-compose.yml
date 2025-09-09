@@ -50,8 +50,9 @@ services:
       timeout: 2s
       retries: 20
     volumes:
-      - pgdata:/var/lib/postgresql/testdata
+      - pgdata_test:/var/lib/postgresql/data
     # export TEST_DATABASE_URL='postgresql+asyncpg://postgres:pass@localhost:5433/gym_test'
 
 volumes:
   pgdata:
+  pgdata_test:

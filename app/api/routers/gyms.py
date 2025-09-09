@@ -23,6 +23,8 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 class GymSortKey(str, Enum):
     gym_name = "gym_name"
     created_at = "created_at"
+    freshness = "freshness"
+    richness = "richness"
 
 
 # ---------- Token helpers ----------
@@ -60,15 +62,21 @@ def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
     if payload.get("sort") != sort or "k" not in payload:
-        raise HTTPException(status_code=400, detail="invalid page_token")
+        raise HTTPException(
+            status_code=400, detail=f"ページトークンが不正です: {payload.get('sort')}"
+        )
     k = payload["k"]
-    if sort == "freshness" and not (isinstance(k, list) and len(k) == 2):
+    if sort == GymSortKey.freshness and not (isinstance(k, list) and len(k) == 2):
         raise HTTPException(status_code=400, detail="invalid page_token")
-    if sort == "richness" and not (isinstance(k, list) and len(k) == 3):
+    if sort == GymSortKey.richness and not (isinstance(k, list) and len(k) == 3):
         raise HTTPException(status_code=400, detail="invalid page_token")
-    if sort == "gym_name" and not (isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)):
+    if sort == GymSortKey.gym_name and not (
+        isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+    ):
         raise HTTPException(status_code=400, detail="invalid page_token")
-    if sort == "created_at" and not (isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)):
+    if sort == GymSortKey.created_at and not (
+        isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+    ):
         raise HTTPException(status_code=400, detail="invalid page_token")
     return tuple(k)  # type: ignore[return-value]
 
