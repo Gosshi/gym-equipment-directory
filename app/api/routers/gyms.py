@@ -41,22 +41,22 @@ def _b64d(token: str) -> dict:
 
 def _encode_page_token_for_freshness(ts_iso_or_none: str | None, last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
-    return _b64e({"sort": "freshness", "k": [ts_iso_or_none, last_id]})
+    return _b64e({"sort": GymSortKey.freshness, "k": [ts_iso_or_none, last_id]})
 
 
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
-    return _b64e({"sort": "richness", "k": [nf, neg_sc, last_id]})
+    return _b64e({"sort": GymSortKey.richness, "k": [nf, neg_sc, last_id]})
 
 
 def _encode_page_token_for_gym_name(last_name: str, last_id: int) -> str:
     # {sort:'gym_name', k:[last_name, id]}
-    return _b64e({"sort": "gym_name", "k": [last_name, last_id]})
+    return _b64e({"sort": GymSortKey.gym_name, "k": [last_name, last_id]})
 
 
 def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
     # {sort:'created_at', k:[ts_iso, id]}
-    return _b64e({"sort": "created_at", "k": [ts_iso, last_id]})
+    return _b64e({"sort": GymSortKey.created_at, "k": [ts_iso, last_id]})
 
 
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
