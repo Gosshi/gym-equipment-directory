@@ -198,3 +198,21 @@ docker compose exec api bash -lc '
 curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=5' | jq .
 curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness' | jq .
 ```
+
+## /gyms/search スコアソート
+総合スコア = `freshness(0.6) + richness(0.4)`（値は .env で調整可能）
+
+```bash
+# 1ページ目（score がデフォルト）
+curl -sG --data-urlencode "pref=chiba" \
+         --data-urlencode "city=funabashi" \
+         --data-urlencode "per_page=3" \
+         "http://localhost:8001/gyms/search" | jq
+
+# 次ページ
+pt=$(curl -sG --data-urlencode "sort=score" --data-urlencode "per_page=3" \
+      "http://localhost:8001/gyms/search" | jq -r .page_token)
+curl -sG --data-urlencode "sort=score" --data-urlencode "per_page=3" \
+         --data-urlencode "page_token=$pt" \
+         "http://localhost:8001/gyms/search" | jq
+```
