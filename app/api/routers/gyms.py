@@ -62,9 +62,7 @@ def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
     if payload.get("sort") != sort or "k" not in payload:
-        raise HTTPException(
-            status_code=400, detail=f"ページトークンが不正です: {payload.get('sort')}"
-        )
+        raise HTTPException(status_code=400, detail="invalid page_token")
     k = payload["k"]
     if sort == GymSortKey.freshness and not (isinstance(k, list) and len(k) == 2):
         raise HTTPException(status_code=400, detail="invalid page_token")
