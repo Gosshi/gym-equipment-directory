@@ -1,6 +1,7 @@
 # app/api/routers/gyms.py
 import base64
 import json
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
@@ -19,9 +20,9 @@ from app.schemas.gym_search import GymSearchResponse, GymSummary
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
-FRESHNESS_WINDOW_DAYS = 365
-W_FRESH = 0.6
-W_RICH = 0.4
+FRESHNESS_WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
+W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
+W_RICH = float(os.getenv("SCORE_W_RICH", "0.4"))
 
 
 class GymSortKey(str, Enum):
@@ -46,32 +47,34 @@ def _b64d(token: str) -> dict:
 
 def _encode_page_token_for_freshness(ts_iso_or_none: str | None, last_id: int) -> str:
     # {sort:'freshness', k:[ts_iso_or_null, id]}
-    return _b64e({"sort": GymSortKey.freshness, "k": [ts_iso_or_none, last_id]})
+    return _b64e({"sort": GymSortKey.freshness.value, "k": [ts_iso_or_none, last_id]})
 
 
 def _encode_page_token_for_richness(nf: int, neg_sc: float, last_id: int) -> str:
     # {sort:'richness', k:[nf, neg_sc, id]}
-    return _b64e({"sort": GymSortKey.richness, "k": [nf, neg_sc, last_id]})
+    return _b64e({"sort": GymSortKey.richness.value, "k": [nf, neg_sc, last_id]})
 
 
 def _encode_page_token_for_gym_name(last_name: str, last_id: int) -> str:
     # {sort:'gym_name', k:[last_name, id]}
-    return _b64e({"sort": GymSortKey.gym_name, "k": [last_name, last_id]})
+    return _b64e({"sort": GymSortKey.gym_name.value, "k": [last_name, last_id]})
 
 
 def _encode_page_token_for_created_at(ts_iso: str, last_id: int) -> str:
     # {sort:'created_at', k:[ts_iso, id]}
-    return _b64e({"sort": GymSortKey.created_at, "k": [ts_iso, last_id]})
+    return _b64e({"sort": GymSortKey.created_at.value, "k": [ts_iso, last_id]})
 
 
 def _encode_page_token_for_score(score: float, last_id: int) -> str:
     # {sort:'score', k:[score, id]}
-    return _b64e({"sort": GymSortKey.score, "k": [score, last_id]})
+    return _b64e({"sort": GymSortKey.score.value, "k": [score, last_id]})
 
 
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
-    if payload.get("sort") != sort or "k" not in payload:
+    s = str(payload.get("sort"))
+    # "score" も "GymSortKey.score" もOKにする
+    if not (s == sort or s.endswith("." + sort)) or "k" not in payload:
         raise HTTPException(status_code=400, detail="invalid page_token")
     k = payload["k"]
     if sort == GymSortKey.freshness and not (isinstance(k, list) and len(k) == 2):
@@ -87,7 +90,9 @@ def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     ):
         raise HTTPException(status_code=400, detail="invalid page_token")
     if sort == GymSortKey.score and not (
-        isinstance(k, list) and len(k) == 2 and isinstance(k[0], str)
+        isinstance(k, list) and len(k) == 2
+        # k[0] は neg_final（数値）、k[1] は id（数値）を想定。厳密チェックしたいなら下を有効化。
+        # and isinstance(k[0], (int, float)) and isinstance(k[1], (int, float))
     ):
         raise HTTPException(status_code=400, detail="invalid page_token")
     return tuple(k)  # type: ignore[return-value]
@@ -488,6 +493,8 @@ async def search_gyms(
                 )
             )
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
+    if not has_next:
+        next_token = None
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
 
 
