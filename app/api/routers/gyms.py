@@ -532,17 +532,54 @@ async def get_gym_detail(
     gym = (await session.execute(select(Gym).where(Gym.slug == slug))).scalar_one_or_none()
     if not gym:
         raise HTTPException(status_code=404, detail="gym not found")
+    # --- equipments を JOIN して配列に構築 ---
+    eq_rows = await session.execute(
+        select(
+            Equipment.slug,
+            Equipment.name,
+            Equipment.category,
+            GymEquipment.count,
+            GymEquipment.max_weight_kg,
+        )
+        .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
+        .where(GymEquipment.gym_id == gym.id)
+        .order_by(Equipment.name)
+    )
+    equipments_list = [
+        {
+            "equipment_slug": slug,
+            "equipment_name": name,
+            "category": category,
+            "count": count,
+            "max_weight_kg": max_w,
+        }
+        for (slug, name, category, count, max_w) in eq_rows.all()
+    ]
 
-    # 既存の GymDetailResponse の必須項目を組み立て（省略：既存ロジックを利用）
-    base = GymDetailResponse.from_orm(gym)  # Pydantic の orm_mode を想定
+    # Pydantic v2: 必要キーを手組みしてから validate
+    # 必須フィールドを明示的に埋めてから validate（Pydantic v2）
+    data = {
+        "id": gym.id,
+        "slug": gym.slug,
+        "name": gym.name,
+        "pref": getattr(gym, "pref", None),
+        "city": gym.city,
+        # 必須の updated_at / last_verified_at は ISO 文字列に統一
+        "updated_at": gym.updated_at.isoformat() if getattr(gym, "updated_at", None) else None,
+        "last_verified_at": gym.last_verified_at_cached.isoformat()
+        if getattr(gym, "last_verified_at_cached", None)
+        else None,
+        # スキーマの item 形に合わせた dict 配列
+        "equipments": equipments_list,
+    }
 
     if include == "score":
         num = await _count_equips(session, int(getattr(gym, "id", 0)))
         mx = await _max_gym_equips(session)
         bundle = compute_bundle(gym.last_verified_at_cached, num, mx)
-        # 追加フィールド（schema 側で Optional[ScoreFields] を用意している想定）
-        base.freshness = bundle.freshness
-        base.richness = bundle.richness
-        base.score = bundle.score
+        # 追加フィールドを dict に積む
+        data["freshness"] = bundle.freshness
+        data["richness"] = bundle.richness
+        data["score"] = bundle.score
 
-    return base
+    return GymDetailResponse.model_validate(data)

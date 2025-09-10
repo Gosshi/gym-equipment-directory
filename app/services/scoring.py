@@ -11,8 +11,20 @@ WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
 EPS = 1e-6
 
 
-def _now() -> datetime:
-    return datetime.now(UTC)
+def _now_naive_utc() -> datetime:
+    """naive(タイムゾーンなし)のUTC時刻を返す。DBのtimestamp without time zoneと整合。"""
+    return datetime.utcnow()
+
+
+def _to_naive_utc(dt: datetime | None) -> datetime | None:
+    """aware/naive 混在を避けるため、すべて naive UTC に正規化する。"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # すでに naive とみなし、UTCとして扱う
+        return dt
+    # aware → UTC → naive
+    return dt.astimezone(UTC).replace(tzinfo=None)
 
 
 def validate_weights() -> None:
@@ -28,10 +40,11 @@ def validate_weights() -> None:
 
 def freshness_score(last_verified_at: datetime | None) -> float:
     """last_verified_at が None の場合は 0。WINDOW_DAYS で線形減衰。"""
+    last_verified_at = _to_naive_utc(last_verified_at)
     if last_verified_at is None:
         return 0.0
     window = timedelta(days=WINDOW_DAYS)
-    delta = _now() - last_verified_at
+    delta = _now_naive_utc() - last_verified_at
     if delta <= timedelta(0):
         return 1.0
     if delta >= window:

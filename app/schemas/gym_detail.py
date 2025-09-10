@@ -36,6 +36,7 @@ class GymEquipmentLine(BaseModel):
 
 
 class GymDetailResponse(BaseModel):
+    model_config = {"from_attributes": True}  # ★ v2 で必須
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
     name: str = Field(description="名称")
