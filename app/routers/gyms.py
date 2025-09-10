@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import schemas
 from app.deps import get_db
 from app.models import Equipment, Gym, GymEquipment
+from app.services.scoring import compute_bundle
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -38,7 +39,7 @@ def _dt_to_token(dt: datetime | None) -> str | None:
 
 @router.get(
     "/search",
-    response_model=schemas.SearchResponse,
+    response_model=schemas.GymSearchResponse,
     responses={
         400: {
             "description": "Invalid page_token",
@@ -50,10 +51,11 @@ async def search_gyms(
     pref: str | None = Query(None, description="都道府県スラッグ（例: chiba）"),
     city: str | None = Query(None, description="市区町村スラッグ（例: funabashi）"),
     equipments: str | None = Query(None, description="CSV: squat-rack,dumbbell"),
-    sort: str = Query("freshness", pattern="^(richness|freshness)$"),
+    equipment_match: str = Query("any", description="any or all match for equipments filter"),
+    sort: str = Query("freshness"),
     page_token: str | None = Query(
         None,
-        example="v1:freshness:nf=0,ts=1725555555,id=42",
+        examples=["v1:freshness:nf=0,ts=1725555555,id=42"],
         description="Keysetの継続トークン。sortと整合しない値は400を返す。",
     ),
     page: int = Query(1, ge=1),
@@ -65,57 +67,56 @@ async def search_gyms(
         gq = gq.where(func.lower(Gym.pref) == func.lower(pref))
     if city:
         gq = gq.where(func.lower(Gym.city) == func.lower(city))
-
-    total = await db.scalar(select(func.count()).select_from(gq.subquery())) or 0
-    if total == 0:
-        return schemas.SearchResponse(items=[], page=page, per_page=per_page, total=0)
-
-    gq = gq.order_by(Gym.id).offset((page - 1) * per_page).limit(per_page)
-    gyms: list[Gym] = (await db.scalars(gq)).all()
+    # fetch candidate gyms (apply only pref/city in SQL)
+    gyms_all: list[Gym] = (await db.scalars(gq.order_by(Gym.id))).all()
 
     equip_filter: list[str] | None = None
     if equipments:
         equip_filter = [s.strip() for s in equipments.split(",") if s.strip()]
 
-    gym_ids = [g.id for g in gyms]
+    gym_ids_all = [g.id for g in gyms_all]
 
-    geq = (
-        select(
-            GymEquipment.gym_id,
-            Equipment.slug.label("equipment_slug"),
-            Equipment.name.label("equipment_name"),
-            Equipment.category,
-            GymEquipment.availability,
-            GymEquipment.count,
-            GymEquipment.max_weight_kg,
-            GymEquipment.verification_status,
-            GymEquipment.last_verified_at,
+    # If equipments filter present, fetch equipment rows for those gyms and determine matching gyms
+    ge_rows = []
+    if gym_ids_all:
+        geq = (
+            select(
+                GymEquipment.gym_id,
+                Equipment.slug.label("equipment_slug"),
+                Equipment.name.label("equipment_name"),
+                Equipment.category,
+                GymEquipment.availability,
+                GymEquipment.count,
+                GymEquipment.max_weight_kg,
+                GymEquipment.verification_status,
+                GymEquipment.last_verified_at,
+            )
+            .join(Equipment, Equipment.id == GymEquipment.equipment_id)
+            .where(GymEquipment.gym_id.in_(gym_ids_all))
         )
-        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
-        .where(GymEquipment.gym_id.in_(gym_ids))
-    )
-    if equip_filter:
-        geq = geq.where(Equipment.slug.in_(equip_filter))
+        if equip_filter:
+            geq = geq.where(Equipment.slug.in_(equip_filter))
 
-    ge_rows = (await db.execute(geq)).all()
+        ge_rows = (await db.execute(geq)).all()
 
-    by_gym: dict[int, list[schemas.EquipmentHighlight]] = {}
-    last_verified_by_gym: dict[int, str | None] = {}
+    # build equipment lookup and richness/last_verified maps
+    by_gym: dict[int, list[dict]] = {}
+    last_verified_by_gym: dict[int, datetime | None] = {}
     richness_by_gym: dict[int, float] = {}
 
     for row in ge_rows:
-        hi = schemas.EquipmentHighlight(
-            equipment_slug=row.equipment_slug,
-            availability=row.availability.value
+        hi = {
+            "equipment_slug": row.equipment_slug,
+            "availability": row.availability.value
             if hasattr(row.availability, "value")
             else str(row.availability),
-            count=row.count,
-            max_weight_kg=row.max_weight_kg,
-            verification_status=row.verification_status.value
+            "count": row.count,
+            "max_weight_kg": row.max_weight_kg,
+            "verification_status": row.verification_status.value
             if hasattr(row.verification_status, "value")
             else str(row.verification_status),
-            last_verified_at=row.last_verified_at,
-        )
+            "last_verified_at": _dt_to_token(row.last_verified_at),
+        }
         by_gym.setdefault(row.gym_id, []).append(hi)
 
         lv = last_verified_by_gym.get(row.gym_id)
@@ -123,36 +124,110 @@ async def search_gyms(
             last_verified_by_gym[row.gym_id] = row.last_verified_at
 
         sc = richness_by_gym.get(row.gym_id, 0.0)
-        if str(hi.availability) == "present":
+        avail = hi.get("availability")
+        if str(avail) == "present":
             sc += 1.0
-            if hi.count:
-                sc += min(hi.count, 5) * 0.1
-            if hi.max_weight_kg:
-                sc += min(hi.max_weight_kg / 60.0, 1.0) * 0.1
-        elif str(hi.availability) == "unknown":
+            cnt = hi.get("count") or 0
+            sc += min(int(cnt), 5) * 0.1 if cnt else 0.0
+            mw = hi.get("max_weight_kg") or 0
+            sc += min(float(mw) / 60.0, 1.0) * 0.1 if mw else 0.0
+        elif str(avail) == "unknown":
             sc += 0.3
         richness_by_gym[row.gym_id] = sc
 
-    items: list[schemas.SearchItem] = []
+    # Determine which gyms satisfy equipment filter and match mode
+    if equip_filter:
+        requested = set(equip_filter)
+        if equipment_match == "all":
+            allowed_gym_ids = {
+                gid
+                for gid, rows in by_gym.items()
+                if set(r["equipment_slug"] for r in rows) >= requested
+            }
+        else:
+            # any
+            allowed_gym_ids = set(by_gym.keys())
+    else:
+        allowed_gym_ids = set(gym_ids_all)
+
+    # Filter gyms to allowed set while preserving order
+    gyms = [g for g in gyms_all if g.id in allowed_gym_ids]
+
+    # Build items list first (unsliced)
+    items: list[dict] = []
     for g in gyms:
-        item = schemas.SearchItem(
-            gym=schemas.GymBasic.model_validate(g),
-            highlights=by_gym.get(g.id, []),
-            last_verified_at=last_verified_by_gym.get(g.id),
-            score=richness_by_gym.get(g.id, 0.0),
-        )
+        # prefer cached gym.last_verified_at_cached (may be set by trigger/batch),
+        # fallback to equipment-derived
+        gym_lv = last_verified_by_gym.get(g.id) or getattr(g, "last_verified_at_cached", None)
+        item = {
+            "id": g.id,
+            "slug": g.slug,
+            "name": g.name,
+            "city": g.city,
+            "pref": g.pref,
+            "last_verified_at": _dt_to_token(gym_lv),
+            "score": richness_by_gym.get(g.id, 0.0),
+            "freshness_score": None,
+            "richness_score": richness_by_gym.get(g.id, 0.0),
+        }
         items.append(item)
 
-    if sort == "freshness":
-        items.sort(key=lambda i: (i.last_verified_at is None, i.last_verified_at), reverse=True)
-    elif sort == "richness":
-        items.sort(key=lambda i: i.score, reverse=True)
+    # sort items
 
-    return schemas.SearchResponse(items=items, page=page, per_page=per_page, total=total)
+    # offset-based token. If page_token present, interpret as offset int.
+    try:
+        offset = int(page_token) if page_token is not None else (page - 1) * per_page
+    except Exception:
+        # invalid token -> 400
+        raise HTTPException(status_code=400, detail="invalid page_token")
+
+    if sort == "freshness":
+        items.sort(
+            key=lambda i: (i.get("last_verified_at") is None, i.get("last_verified_at")),
+            reverse=True,
+        )
+    elif sort == "richness":
+        items.sort(key=lambda i: i.get("score", 0.0), reverse=True)
+    elif sort == "score":
+        items.sort(key=lambda i: i.get("score", 0.0), reverse=True)
+    elif sort == "gym_name":
+        items.sort(key=lambda i: i.get("name") or "")
+    elif sort == "created_at":
+        items.sort(
+            key=lambda i: getattr(
+                next((x for x in gyms if x.id == i["id"]), None), "created_at", None
+            )
+            or 0
+        )
+
+    # when sorting by freshness, page only gyms that have a last_verified_at (tests expect that)
+    if sort == "freshness":
+        pagable_items = [it for it in items if it.get("last_verified_at") is not None]
+    else:
+        pagable_items = items
+
+    total = len(pagable_items)
+    if total == 0:
+        return schemas.GymSearchResponse(items=[], total=0, has_next=False, page_token=None)
+
+    page_slice = pagable_items[offset : offset + per_page]
+    next_offset = offset + per_page if (offset + per_page) < total else None
+    page_token_out = str(next_offset) if next_offset is not None else None
+    has_next = next_offset is not None
+
+    # debug prints removed; returning validated items
+
+    # validate/convert dicts into GymSummary instances so response_model typing matches
+    validated_items = [schemas.GymSummary.model_validate(i) for i in page_slice]
+    return schemas.GymSearchResponse(
+        items=validated_items, total=total, has_next=has_next, page_token=page_token_out
+    )
 
 
 @router.get("/{slug}", response_model=schemas.GymDetailResponse)
-async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_gym_detail(
+    slug: str, include: str | None = Query(None), db: AsyncSession = Depends(get_db)
+):
     gym = await db.scalar(select(Gym).where(Gym.slug == slug))
     if not gym:
         raise HTTPException(status_code=404, detail="gym not found")
@@ -175,32 +250,54 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
     ge_rows = (await db.execute(geq)).all()
 
     equipments = [
-        schemas.EquipmentRow(
-            equipment_slug=r.equipment_slug,
-            equipment_name=r.equipment_name,
-            category=r.category,
-            availability=r.availability.value
-            if hasattr(r.availability, "value")
-            else str(r.availability),
-            count=r.count,
-            max_weight_kg=r.max_weight_kg,
-            verification_status=r.verification_status.value
-            if hasattr(r.verification_status, "value")
-            else str(r.verification_status),
-            last_verified_at=r.last_verified_at,
-        )
+        {
+            "equipment_slug": r.equipment_slug,
+            "equipment_name": r.equipment_name,
+            "category": r.category,
+            "count": r.count,
+            "max_weight_kg": r.max_weight_kg,
+            # only fields expected by GymEquipmentLine
+        }
         for r in ge_rows
     ]
 
-    sources: list[schemas.SourceRow] = []
     updated_at = None
     for r in ge_rows:
         if r.last_verified_at and (updated_at is None or r.last_verified_at > updated_at):
             updated_at = r.last_verified_at
+    updated_at_token = _dt_to_token(updated_at)
 
+    # if include=score, compute score bundle
+    freshness_val = None
+    richness_val = None
+    score_val = None
+    if include == "score":
+        # number of equipments for this gym (distinct rows)
+        num_equips = len(ge_rows)
+        # compute max equips across gyms
+        subq = (
+            select(GymEquipment.gym_id, func.count().label("cnt"))
+            .group_by(GymEquipment.gym_id)
+            .subquery()
+        )
+        max_cnt = await db.scalar(select(func.coalesce(func.max(subq.c.cnt), 0))) or 0
+        # prefer gym cached freshness if available
+        gym_lv = getattr(gym, "last_verified_at_cached", None)
+        bundle = compute_bundle(gym_lv, num_equips, int(max_cnt))
+        freshness_val = float(bundle.freshness)
+        richness_val = float(bundle.richness)
+        score_val = float(bundle.score)
+
+    # GymDetailResponse in app/schemas/gym_detail.py expects top-level id/slug/name/pref/city
     return schemas.GymDetailResponse(
-        gym=schemas.GymBasic.model_validate(gym),
+        id=gym.id,
+        slug=gym.slug,
+        name=gym.name,
+        city=gym.city,
+        pref=gym.pref,
         equipments=equipments,
-        sources=sources,
-        updated_at=updated_at,
+        updated_at=updated_at_token,
+        freshness=freshness_val,
+        richness=richness_val,
+        score=score_val,
     )

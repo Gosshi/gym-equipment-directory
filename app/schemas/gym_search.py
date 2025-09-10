@@ -3,7 +3,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-__all__ = ["GymSummary", "GymSearchResponse"]
+__all__ = [
+    "GymSummary",
+    "GymSearchResponse",
+    "EquipmentHighlight",
+    "SearchItem",
+    "SearchResponse",
+]
 
 
 class GymSummary(BaseModel):
@@ -25,7 +31,7 @@ class GymSummary(BaseModel):
 
 class GymSearchResponse(BaseModel):
     items: list[GymSummary] = Field(description="検索結果")
-    total: int = Field(description="総件数")
+    total: int | None = Field(default=None, description="総件数（optional）")
     has_next: bool = Field(description="次ページ有無")
     page_token: str | None = None
 
@@ -52,4 +58,30 @@ class GymSearchResponse(BaseModel):
                 }
             ]
         }
+    )
+
+
+class EquipmentHighlight(BaseModel):
+    equipment_slug: str = Field(..., description="設置機器スラッグ（例: squat-rack）")
+    availability: str = Field(..., description="present/absent/unknown")
+    count: int | None = Field(None, description="台数などの数量")
+    max_weight_kg: int | None = Field(None, description="最大重量(kg) 例: ダンベル最大重量")
+    verification_status: str = Field(..., description="verified/unverified など")
+    last_verified_at: str | None = Field(None, description="設置情報の最終確認日時（UTC ISO）")
+
+
+class SearchItem(BaseModel):
+    gym: GymSummary = Field(..., description="ジム基本情報")
+    highlights: list[EquipmentHighlight] = Field(default_factory=list, description="設備ハイライト")
+    last_verified_at: str | None = Field(
+        None, description="ジムに紐づく設備の最終確認日時（UTC ISO）"
+    )
+    score: float = Field(0.0, description="簡易スコア")
+
+
+class SearchResponse(BaseModel):
+    items: list[GymSummary] = Field(..., description="検索結果のジム要約リスト")
+    has_next: bool = Field(..., description="次ページがあるか")
+    page_token: str | None = Field(
+        None, description="次ページ取得用トークン（オフセットエンコード）"
     )

@@ -1,3 +1,6 @@
-from .gym_search import GymSearchResponse, GymSummary
+__all__ = [s for s in dir() if not s.startswith("_")]
 
-__all__ = ["GymSummary", "GymSearchResponse"]
+from .gym_search import SearchResponse as SearchResponse
+
+# Backwards-compatible alias expected by older modules
+# SearchResponse is also available as a direct import above
