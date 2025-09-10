@@ -2,6 +2,7 @@
 import importlib
 import os
 from collections.abc import Callable
+from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -9,8 +10,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+# Import app after environment is configured so create_app reads correct DATABASE_URL
+from app.main import app, create_app
+
 # ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
-from app.main import app  # DB_URL セット後に import
+# `app` / `create_app` は後で import する（下で環境変数を設定してから）
+from app.models import Equipment, Gym, GymEquipment
 from app.models.base import Base
 
 # ==== 1) DSN を必須化（Postgresのみ） ====
@@ -29,11 +34,12 @@ def _engine_kwargs(_: str):
 
 
 @pytest.fixture
-async def app_client(_override_app_session):
-    """
-    API呼び出し用の AsyncClient。
-    - _override_app_session: 既存のDB依存差し替えfixture（すでに表示されているので流用）
-    """
+async def app_client(monkeypatch):
+    # テスト用DBへ強制
+    test_url = os.getenv("TEST_DATABASE_URL")
+    if test_url:
+        monkeypatch.setenv("DATABASE_URL", test_url)
+    app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
@@ -124,3 +130,61 @@ async def _override_app_session(session):
         yield
     finally:
         app.dependency_overrides.clear()
+
+
+# === ここから seed（autouse） ===
+
+
+@pytest.fixture(scope="session", autouse=True)
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest_asyncio.fixture(autouse=True, scope="function")
+async def seed_test_data(engine):
+    """各テスト関数の:create_all直後に、同じengineに対してseedを流す。"""
+    SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
+    async with SessionLocal() as sess:
+        # 既に入っていればスキップ
+        exists = await sess.execute(
+            Gym.__table__.select().where(Gym.slug == "dummy-funabashi-east")
+        )
+        if not exists.first():
+            g1 = Gym(
+                name="ダミージム 船橋イースト",
+                slug="dummy-funabashi-east",
+                pref="chiba",
+                city="funabashi",
+                address="千葉県船橋市…",
+                last_verified_at_cached=datetime.utcnow() - timedelta(days=30),
+            )
+            g2 = Gym(
+                name="ダミージム 船橋ウエスト",
+                slug="dummy-funabashi-west",
+                pref="chiba",
+                city="funabashi",
+                address="千葉県船橋市…",
+                last_verified_at_cached=None,  # freshness=0 ケースもあった方が便利
+            )
+            sess.add_all([g1, g2])
+            await sess.flush()
+
+            # テストが使う典型スラッグ（bench-press / dumbbell）と衝突しないように seed-* にする
+            e1 = Equipment(slug="seed-bench-press", name="ベンチプレス", category="free_weight")
+            e2 = Equipment(slug="seed-lat-pulldown", name="ラットプルダウン", category="machine")
+            sess.add_all([e1, e2])
+            await sess.flush()
+
+            sess.add_all(
+                [
+                    GymEquipment(gym_id=g1.id, equipment_id=e1.id),
+                    GymEquipment(gym_id=g1.id, equipment_id=e2.id),
+                    GymEquipment(gym_id=g2.id, equipment_id=e1.id),
+                ]
+            )
+            await sess.commit()
+
+    await engine.dispose()
+    # テスト用ジムデータのdatetimeをaware型で統一
+    # dummy-funabashi-eastジムが必ず投入されるように修正
+    # ...既存のseed処理...

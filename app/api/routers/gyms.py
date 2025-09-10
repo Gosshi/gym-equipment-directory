@@ -17,6 +17,7 @@ from app.models import Equipment, Gym, GymEquipment
 from app.schemas.common import ErrorResponse
 from app.schemas.gym_detail import GymDetailResponse
 from app.schemas.gym_search import GymSearchResponse, GymSummary
+from app.services.scoring import compute_bundle
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -129,6 +130,22 @@ _DESC = (
     "- sort=gym_name: name ASC, id ASC（Keyset）\n"
     "- sort=created_at: created_at DESC, id ASC（Keyset）\n"
 )
+
+
+async def _count_equips(sess: AsyncSession, gym_id: int) -> int:
+    q = select(func.count()).select_from(GymEquipment).where(GymEquipment.gym_id == gym_id)
+    return (await sess.execute(q)).scalar_one()
+
+
+async def _max_gym_equips(sess: AsyncSession) -> int:
+    """全ジム中の最大設備点数。小規模環境では都度計算、将来はキャッシュ/別テーブルへ。"""
+    sub = (
+        select(GymEquipment.gym_id, func.count().label("c"))
+        .group_by(GymEquipment.gym_id)
+        .subquery()
+    )
+    q = select(func.coalesce(func.max(sub.c.c), 0))
+    return (await sess.execute(q)).scalar_one()
 
 
 @router.get(
@@ -502,49 +519,67 @@ async def search_gyms(
     "/{slug}",
     response_model=GymDetailResponse,
     summary="ジム詳細を取得",
-    description="ジムスラッグで詳細情報（設備一覧・最新更新時刻）を返します。",
+    description=(
+        "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
+    ),
     responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
 )
-async def get_gym_detail(slug: str, session: AsyncSession = Depends(get_async_session)):
-    gym = await session.scalar(select(Gym).where(Gym.slug == slug))
+async def get_gym_detail(
+    slug: str,
+    include: str | None = Query(default=None, description="例: include=score"),
+    session: AsyncSession = Depends(get_async_session),
+):
+    gym = (await session.execute(select(Gym).where(Gym.slug == slug))).scalar_one_or_none()
     if not gym:
         raise HTTPException(status_code=404, detail="gym not found")
-
-    rows = (
-        await session.execute(
-            select(
-                Equipment.slug.label("equipment_slug"),
-                Equipment.name.label("equipment_name"),
-                Equipment.category,
-                GymEquipment.count,
-                GymEquipment.max_weight_kg,
-                GymEquipment.last_verified_at,
-            )
-            .join(Equipment, Equipment.id == GymEquipment.equipment_id)
-            .where(GymEquipment.gym_id == gym.id)
-            .order_by(Equipment.name)
+    # --- equipments を JOIN して配列に構築 ---
+    eq_rows = await session.execute(
+        select(
+            Equipment.slug,
+            Equipment.name,
+            Equipment.category,
+            GymEquipment.count,
+            GymEquipment.max_weight_kg,
         )
-    ).all()
-
-    from app.schemas.gym_detail import GymEquipmentLine
-
-    equipments = [
-        GymEquipmentLine(
-            equipment_slug=str(r.equipment_slug),
-            equipment_name=str(r.equipment_name),
-            count=getattr(r, "count", None),
-            max_weight_kg=getattr(r, "max_weight_kg", None),
-        )
-        for r in rows
-    ]
-    updated_at = max((r.last_verified_at for r in rows if r.last_verified_at), default=None)
-
-    return GymDetailResponse(
-        id=int(getattr(gym, "id", 0)),
-        slug=str(getattr(gym, "slug", "")),
-        name=str(getattr(gym, "name", "")),
-        city=str(getattr(gym, "city", "")),
-        pref=str(getattr(gym, "pref", "")),
-        equipments=equipments,
-        updated_at=updated_at.isoformat() if updated_at else None,
+        .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
+        .where(GymEquipment.gym_id == gym.id)
+        .order_by(Equipment.name)
     )
+    equipments_list = [
+        {
+            "equipment_slug": slug,
+            "equipment_name": name,
+            "category": category,
+            "count": count,
+            "max_weight_kg": max_w,
+        }
+        for (slug, name, category, count, max_w) in eq_rows.all()
+    ]
+
+    # Pydantic v2: 必要キーを手組みしてから validate
+    # 必須フィールドを明示的に埋めてから validate（Pydantic v2）
+    data = {
+        "id": gym.id,
+        "slug": gym.slug,
+        "name": gym.name,
+        "pref": getattr(gym, "pref", None),
+        "city": gym.city,
+        # 必須の updated_at / last_verified_at は ISO 文字列に統一
+        "updated_at": gym.updated_at.isoformat() if getattr(gym, "updated_at", None) else None,
+        "last_verified_at": gym.last_verified_at_cached.isoformat()
+        if getattr(gym, "last_verified_at_cached", None)
+        else None,
+        # スキーマの item 形に合わせた dict 配列
+        "equipments": equipments_list,
+    }
+
+    if include == "score":
+        num = await _count_equips(session, int(getattr(gym, "id", 0)))
+        mx = await _max_gym_equips(session)
+        bundle = compute_bundle(gym.last_verified_at_cached, num, mx)
+        # 追加フィールドを dict に積む
+        data["freshness"] = bundle.freshness
+        data["richness"] = bundle.richness
+        data["score"] = bundle.score
+
+    return GymDetailResponse.model_validate(data)
