@@ -45,6 +45,10 @@ class GymDetailResponse(BaseModel):
     updated_at: str | None = Field(
         default=None, description="設備情報の最終更新（= last_verified_at の最大）"
     )
+    # include=score のときだけ埋まるオプショナル
+    freshness: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
+    richness: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
+    score: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
 
     model_config = {
         "json_schema_extra": {
