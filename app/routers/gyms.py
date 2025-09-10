@@ -37,6 +37,8 @@ async def search_gyms(
     per_page: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
+    if equipment_match not in ("any", "all"):
+        raise HTTPException(status_code=400, detail="invalid equipment_match")
     # CSV を list[str] に
     equip_list = [s.strip() for s in equipments.split(",")] if equipments else None
 

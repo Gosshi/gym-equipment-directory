@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Equipment, Gym, GymEquipment
 from app.utils.paging import build_next_offset_token, parse_offset_token
-from app.utils.sort import resolve_sort_key
+from app.utils.sort import SortKey, resolve_sort_key
 
 
 class GymSummaryDTO(TypedDict, total=False):
@@ -47,6 +47,9 @@ async def search_gyms(
     - freshness: last_verified_at が None のものはページング対象から除外
     - page_token は offset 整数互換
     """
+    # 0) sort 正規化（早期）
+    sort_key: SortKey = resolve_sort_key(sort)
+
     # 1) Pref/City 絞り込みで候補ジム取得
     gq = select(Gym)
     if pref:
@@ -149,7 +152,7 @@ async def search_gyms(
         filtered.append(it)
 
     # 6) ソート
-    key = resolve_sort_key(sort)
+    key = sort_key
     if key == "freshness":
         filtered.sort(
             key=lambda i: (i.get("last_verified_at") is None, i.get("last_verified_at")),
@@ -161,8 +164,8 @@ async def search_gyms(
         filtered.sort(key=lambda i: i.get("name") or "")
     elif key == "created_at":
         # id -> created_at マップを取得して比較
-        gym_rows = (await db.scalars(select(Gym).order_by(Gym.id))).all()
-        created_map = {g.id: getattr(g, "created_at", None) for g in gym_rows}
+        # gym_rows = (await db.scalars(select(Gym).order_by(Gym.id))).all()
+        created_map = await _created_at_map(db)
         filtered.sort(key=lambda i: created_map.get(i.get("id")) or 0)
 
     # 7) ページング（freshness のみ last_verified_at is not None を対象）
@@ -191,3 +194,9 @@ async def search_gyms(
         "has_next": next_token is not None,
         "page_token": next_token,
     }
+
+
+# --- internal helpers ---------------------------------------------------------
+async def _created_at_map(db: AsyncSession) -> dict[int, datetime | None]:
+    rows = (await db.scalars(select(Gym).order_by(Gym.id))).all()
+    return {int(g.id): getattr(g, "created_at", None) for g in rows}
