@@ -10,8 +10,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+# Import app after environment is configured so create_app reads correct DATABASE_URL
+from app.main import app, create_app
+
 # ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
-from app.main import app, create_app  # DB_URL セット後に import
+# `app` / `create_app` は後で import する（下で環境変数を設定してから）
 from app.models import Equipment, Gym, GymEquipment
 from app.models.base import Base
 
