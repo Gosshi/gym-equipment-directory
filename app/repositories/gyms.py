@@ -1,48 +1,66 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Equipment, Gym, GymEquipment
 
 
-async def get_by_slug(session: AsyncSession, slug: str) -> Gym | None:
-    """Return Gym model by slug or None."""
-    stmt = select(Gym).where(Gym.slug == slug)
-    return (await session.execute(stmt)).scalar_one_or_none()
+async def list_candidate_gyms(
+    db: AsyncSession, pref: str | None = None, city: str | None = None
+) -> list[Gym]:
+    """Return candidate Gym rows filtered by optional pref/city (preserves DB ordering by id)."""
+    q = select(Gym)
+    if pref:
+        q = q.where(func.lower(Gym.pref) == func.lower(pref))
+    if city:
+        q = q.where(func.lower(Gym.city) == func.lower(city))
+    rows = (await db.scalars(q.order_by(Gym.id))).all()
+    return list(rows)
 
 
-async def list_equipments_for_gym(
-    session: AsyncSession, gym_id: int
-) -> list[tuple[str, str, str | None, int | None, int | None]]:
-    """Return list of tuples: (equipment_slug, equipment_name, category, count, max_weight_kg)."""
-    stmt = (
+async def get_gym_by_slug(db: AsyncSession, slug: str) -> Gym | None:
+    """Fetch a single Gym by slug or return None."""
+    return await db.scalar(select(Gym).where(Gym.slug == slug))
+
+
+async def list_gym_equipments(
+    db: AsyncSession, gym_ids: Sequence[int], equipment_slugs: Iterable[str] | None = None
+) -> list[Any]:
+    """Return rows for equipments joined with gym_equipment for given gym_ids.
+
+    Each row is the SQLAlchemy Row mapping with attributes used by callers.
+    """
+    q = (
         select(
-            Equipment.slug,
-            Equipment.name,
+            GymEquipment.gym_id,
+            Equipment.slug.label("equipment_slug"),
+            Equipment.name.label("equipment_name"),
             Equipment.category,
+            GymEquipment.availability,
             GymEquipment.count,
             GymEquipment.max_weight_kg,
+            GymEquipment.verification_status,
+            GymEquipment.last_verified_at,
         )
-        .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
-        .where(GymEquipment.gym_id == gym_id)
-        .order_by(Equipment.name)
+        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
+        .where(GymEquipment.gym_id.in_(list(gym_ids)))
     )
-    rows = await session.execute(stmt)
-    # rows.all() returns a Sequence[Row[...]]; convert to list of plain tuples
-    return [tuple(r) for r in rows.all()]
+    if equipment_slugs:
+        q = q.where(Equipment.slug.in_(list(equipment_slugs)))
+    res = (await db.execute(q)).all()
+    return list(res)
 
 
-async def count_gym_equips(session: AsyncSession, gym_id: int) -> int:
-    stmt = select(func.count()).select_from(GymEquipment).where(GymEquipment.gym_id == gym_id)
-    return (await session.execute(stmt)).scalar_one()
-
-
-async def max_gym_equips(session: AsyncSession) -> int:
-    sub = (
-        select(GymEquipment.gym_id, func.count().label("c"))
+async def count_equips_grouped(db: AsyncSession) -> int:
+    """Return the maximum number of equipments any gym has (coalesced to 0)."""
+    subq = (
+        select(GymEquipment.gym_id, func.count().label("cnt"))
         .group_by(GymEquipment.gym_id)
         .subquery()
     )
-    stmt = select(func.coalesce(func.max(sub.c.c), 0))
-    return (await session.execute(stmt)).scalar_one()
+    val = await db.scalar(select(func.coalesce(func.max(subq.c.cnt), 0)))
+    return int(val or 0)

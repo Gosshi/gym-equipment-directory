@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TypedDict
 
 FRESH_W = float(os.getenv("SCORE_W_FRESH", "0.6"))
 RICH_W = float(os.getenv("SCORE_W_RICH", "0.4"))
 WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
 
+EPS = 1e-6
 
-class ScoreBundle(TypedDict):
-    freshness: float
-    richness: float
-    score: float
+
+def _now_naive_utc() -> datetime:
+    """Return naive UTC-compatible datetime (consistent with DB naive timestamp handling)."""
+    return datetime.utcnow()
 
 
 def _to_naive_utc(dt: datetime | None) -> datetime | None:
@@ -23,13 +24,17 @@ def _to_naive_utc(dt: datetime | None) -> datetime | None:
     return dt.astimezone(UTC).replace(tzinfo=None)
 
 
+def validate_weights() -> None:
+    if abs((FRESH_W + RICH_W) - 1.0) > 1e-6:
+        raise ValueError("SCORE weight invalid: SCORE_W_FRESH + SCORE_W_RICH must be 1.0")
+
+
 def freshness_score(last_verified_at: datetime | None) -> float:
-    last = _to_naive_utc(last_verified_at)
-    if last is None:
+    last_verified_at = _to_naive_utc(last_verified_at)
+    if last_verified_at is None:
         return 0.0
-    now = datetime.utcnow()
     window = timedelta(days=WINDOW_DAYS)
-    delta = now - last
+    delta = _now_naive_utc() - last_verified_at
     if delta <= timedelta(0):
         return 1.0
     if delta >= window:
@@ -43,10 +48,20 @@ def richness_score(num_equips: int, max_equips: int) -> float:
     return max(0.0, min(1.0, num_equips / max_equips))
 
 
+@dataclass
+class ScoreBundle:
+    freshness: float
+    richness: float
+    score: float
+
+
+def aggregate_score(fresh: float, rich: float) -> float:
+    return FRESH_W * fresh + RICH_W * rich
+
+
 def compute_bundle(
     last_verified_at: datetime | None, num_equips: int, max_equips: int
 ) -> ScoreBundle:
     f = freshness_score(last_verified_at)
     r = richness_score(num_equips, max_equips)
-    s = FRESH_W * f + RICH_W * r
-    return {"freshness": f, "richness": r, "score": s}
+    return ScoreBundle(f, r, aggregate_score(f, r))

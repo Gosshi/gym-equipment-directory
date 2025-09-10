@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -7,34 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import schemas
 from app.deps import get_db
 from app.models import Equipment, Gym, GymEquipment
-from app.services.scoring import compute_bundle
+from app.services.gym_detail import (
+    get_gym_detail as svc_get_gym_detail,
+)
+from app.services.gym_detail import (
+    search_gyms as svc_search_gyms,
+)
+from app.utils.datetime import dt_to_token
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
-
-
-def _as_utc_naive(dt: datetime | None) -> datetime | None:
-    if dt is None:
-        return None
-    if dt.tzinfo is not None:
-        # UTCにそろえてtzinfoを剥がす（DBはnaive列）
-        return dt.astimezone(UTC).replace(tzinfo=None)
-    return dt
-
-
-def _dt_from_token(s: str | None) -> datetime | None:
-    if not s:
-        return None
-    try:
-        dt = datetime.fromisoformat(s)
-    except ValueError:
-        # "Z" を含む場合のフォールバック
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    return _as_utc_naive(dt)
-
-
-def _dt_to_token(dt: datetime | None) -> str | None:
-    dt = _as_utc_naive(dt)
-    return dt.isoformat(timespec="seconds") if dt else None
 
 
 @router.get(
@@ -67,14 +48,18 @@ async def search_gyms(
         gq = gq.where(func.lower(Gym.pref) == func.lower(pref))
     if city:
         gq = gq.where(func.lower(Gym.city) == func.lower(city))
-    # fetch candidate gyms (apply only pref/city in SQL)
-    gyms_all: list[Gym] = (await db.scalars(gq.order_by(Gym.id))).all()
-
+    # prepare equipment filter list
     equip_filter: list[str] | None = None
     if equipments:
         equip_filter = [s.strip() for s in equipments.split(",") if s.strip()]
 
-    gym_ids_all = [g.id for g in gyms_all]
+    # fetch candidate gyms (apply only pref/city in SQL) via service
+    # (which will also aggregate equipments)
+    items_all, _ = await svc_search_gyms(
+        db, pref=pref, city=city, equipments=equip_filter, equipment_match=equipment_match
+    )
+
+    gym_ids_all = [g["id"] for g in items_all]
 
     # If equipments filter present, fetch equipment rows for those gyms and determine matching gyms
     ge_rows = []
@@ -115,7 +100,7 @@ async def search_gyms(
             "verification_status": row.verification_status.value
             if hasattr(row.verification_status, "value")
             else str(row.verification_status),
-            "last_verified_at": _dt_to_token(row.last_verified_at),
+            "last_verified_at": dt_to_token(row.last_verified_at),
         }
         by_gym.setdefault(row.gym_id, []).append(hi)
 
@@ -150,27 +135,15 @@ async def search_gyms(
     else:
         allowed_gym_ids = set(gym_ids_all)
 
-    # Filter gyms to allowed set while preserving order
-    gyms = [g for g in gyms_all if g.id in allowed_gym_ids]
+    # allowed_gym_ids を反映して items を構築（未使用警告の解消と意図したフィルタ適用）
+    filtered_items_all = [it for it in items_all if it["id"] in allowed_gym_ids]
 
-    # Build items list first (unsliced)
+    # Build items list converting datetimes to tokens
     items: list[dict] = []
-    for g in gyms:
-        # prefer cached gym.last_verified_at_cached (may be set by trigger/batch),
-        # fallback to equipment-derived
-        gym_lv = last_verified_by_gym.get(g.id) or getattr(g, "last_verified_at_cached", None)
-        item = {
-            "id": g.id,
-            "slug": g.slug,
-            "name": g.name,
-            "city": g.city,
-            "pref": g.pref,
-            "last_verified_at": _dt_to_token(gym_lv),
-            "score": richness_by_gym.get(g.id, 0.0),
-            "freshness_score": None,
-            "richness_score": richness_by_gym.get(g.id, 0.0),
-        }
-        items.append(item)
+    for it in filtered_items_all:
+        new = dict(it)
+        new["last_verified_at"] = dt_to_token(it.get("last_verified_at"))
+        items.append(new)
 
     # sort items
 
@@ -193,12 +166,10 @@ async def search_gyms(
     elif sort == "gym_name":
         items.sort(key=lambda i: i.get("name") or "")
     elif sort == "created_at":
-        items.sort(
-            key=lambda i: getattr(
-                next((x for x in gyms if x.id == i["id"]), None), "created_at", None
-            )
-            or 0
-        )
+        # created_at is a DB field; fetch mapping of id->created_at from DB for accurate sorting
+        gym_rows = (await db.scalars(gq.order_by(Gym.id))).all()
+        created_map = {g.id: getattr(g, "created_at", None) for g in gym_rows}
+        items.sort(key=lambda i: created_map.get(i.get("id")) or 0)
 
     # when sorting by freshness, page only gyms that have a last_verified_at (tests expect that)
     if sort == "freshness":
@@ -228,76 +199,22 @@ async def search_gyms(
 async def get_gym_detail(
     slug: str, include: str | None = Query(None), db: AsyncSession = Depends(get_db)
 ):
-    gym = await db.scalar(select(Gym).where(Gym.slug == slug))
-    if not gym:
+    detail = await svc_get_gym_detail(db, slug, include_score=(include == "score"))
+    if detail is None:
         raise HTTPException(status_code=404, detail="gym not found")
 
-    geq = (
-        select(
-            Equipment.slug.label("equipment_slug"),
-            Equipment.name.label("equipment_name"),
-            Equipment.category,
-            GymEquipment.availability,
-            GymEquipment.count,
-            GymEquipment.max_weight_kg,
-            GymEquipment.verification_status,
-            GymEquipment.last_verified_at,
-        )
-        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
-        .where(GymEquipment.gym_id == gym.id)
-        .order_by(Equipment.category, Equipment.name)
-    )
-    ge_rows = (await db.execute(geq)).all()
+    # convert updated_at (datetime) into token
+    updated_at_token = dt_to_token(detail.get("updated_at")) if detail.get("updated_at") else None
 
-    equipments = [
-        {
-            "equipment_slug": r.equipment_slug,
-            "equipment_name": r.equipment_name,
-            "category": r.category,
-            "count": r.count,
-            "max_weight_kg": r.max_weight_kg,
-            # only fields expected by GymEquipmentLine
-        }
-        for r in ge_rows
-    ]
-
-    updated_at = None
-    for r in ge_rows:
-        if r.last_verified_at and (updated_at is None or r.last_verified_at > updated_at):
-            updated_at = r.last_verified_at
-    updated_at_token = _dt_to_token(updated_at)
-
-    # if include=score, compute score bundle
-    freshness_val = None
-    richness_val = None
-    score_val = None
-    if include == "score":
-        # number of equipments for this gym (distinct rows)
-        num_equips = len(ge_rows)
-        # compute max equips across gyms
-        subq = (
-            select(GymEquipment.gym_id, func.count().label("cnt"))
-            .group_by(GymEquipment.gym_id)
-            .subquery()
-        )
-        max_cnt = await db.scalar(select(func.coalesce(func.max(subq.c.cnt), 0))) or 0
-        # prefer gym cached freshness if available
-        gym_lv = getattr(gym, "last_verified_at_cached", None)
-        bundle = compute_bundle(gym_lv, num_equips, int(max_cnt))
-        freshness_val = float(bundle.freshness)
-        richness_val = float(bundle.richness)
-        score_val = float(bundle.score)
-
-    # GymDetailResponse in app/schemas/gym_detail.py expects top-level id/slug/name/pref/city
     return schemas.GymDetailResponse(
-        id=gym.id,
-        slug=gym.slug,
-        name=gym.name,
-        city=gym.city,
-        pref=gym.pref,
-        equipments=equipments,
+        id=detail["id"],
+        slug=detail["slug"],
+        name=detail["name"],
+        city=detail["city"],
+        pref=detail["pref"],
+        equipments=detail["equipments"],
         updated_at=updated_at_token,
-        freshness=freshness_val,
-        richness=richness_val,
-        score=score_val,
+        freshness=detail.get("freshness"),
+        richness=detail.get("richness"),
+        score=detail.get("score"),
     )

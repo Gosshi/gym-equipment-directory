@@ -1,6 +1,17 @@
-__all__ = [s for s in dir() if not s.startswith("_")]
+from .gym_detail import GymDetailResponse
+from .gym_search import (
+    EquipmentHighlight,
+    GymSearchResponse,
+    GymSummary,
+    SearchItem,
+    SearchResponse,
+)
 
-from .gym_search import SearchResponse as SearchResponse
-
-# Backwards-compatible alias expected by older modules
-# SearchResponse is also available as a direct import above
+__all__ = [
+    "GymSummary",
+    "GymSearchResponse",
+    "EquipmentHighlight",
+    "SearchItem",
+    "SearchResponse",
+    "GymDetailResponse",
+]
