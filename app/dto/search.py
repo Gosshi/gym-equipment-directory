@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import TypedDict
+
 from datetime import datetime
+from typing import TypedDict
 
 
 class GymSummaryDTO(TypedDict, total=False):
