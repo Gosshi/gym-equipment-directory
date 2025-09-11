@@ -15,7 +15,10 @@ type FormState = {
 
 function parseList(v: string | null): string[] {
   if (!v) return [];
-  return v.split(",").map((s) => s.trim()).filter(Boolean);
+  return v
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 export default function SearchForm() {
@@ -98,7 +101,7 @@ export default function SearchForm() {
           <input
             type="text"
             value={form.pref}
-            onChange={(e) => setForm((s) => ({ ...s, pref: e.target.value }))}
+            onChange={e => setForm(s => ({ ...s, pref: e.target.value }))}
             placeholder="例: 東京都"
           />
         </label>
@@ -107,16 +110,13 @@ export default function SearchForm() {
           <input
             type="text"
             value={form.city}
-            onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))}
+            onChange={e => setForm(s => ({ ...s, city: e.target.value }))}
             placeholder="例: 渋谷区"
           />
         </label>
         <label>
           Sort:
-          <select
-            value={form.sort}
-            onChange={(e) => setForm((s) => ({ ...s, sort: e.target.value }))}
-          >
+          <select value={form.sort} onChange={e => setForm(s => ({ ...s, sort: e.target.value }))}>
             {/* Backend supports: freshness | richness | gym_name | created_at | score */}
             <option value="">Default (score)</option>
             <option value="score">Score</option>
@@ -130,7 +130,7 @@ export default function SearchForm() {
           Per page:
           <select
             value={form.per_page}
-            onChange={(e) => setForm((s) => ({ ...s, per_page: e.target.value }))}
+            onChange={e => setForm(s => ({ ...s, per_page: e.target.value }))}
           >
             <option value="10">10</option>
             <option value="20">20</option>
@@ -156,11 +156,11 @@ export default function SearchForm() {
                   <input
                     type="checkbox"
                     checked={checked}
-                    onChange={(ev) => {
+                    onChange={ev => {
                       const next = new Set(form.equipments);
                       if (ev.target.checked) next.add(key);
                       else next.delete(key);
-                      setForm((s) => ({ ...s, equipments: Array.from(next) }));
+                      setForm(s => ({ ...s, equipments: Array.from(next) }));
                     }}
                   />
                   <span>{name}</span>
@@ -172,7 +172,9 @@ export default function SearchForm() {
       </fieldset>
 
       <div className="row">
-        <button className="btn" type="submit">検索</button>
+        <button className="btn" type="submit">
+          検索
+        </button>
         <button className="btn secondary" type="button" onClick={clear}>
           クリア
         </button>

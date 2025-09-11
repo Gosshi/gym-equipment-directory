@@ -13,7 +13,7 @@ type Props = {
 
 function EquipmentChips({ list }: { list?: unknown }) {
   const items: string[] = Array.isArray(list)
-    ? (list as any[]).map((x) => {
+    ? (list as any[]).map(x => {
         if (typeof x === "string") return x;
         if (x && typeof x === "object") {
           return (x as any).name ?? (x as any).slug ?? "";
@@ -82,4 +82,3 @@ export default function GymList({
     </div>
   );
 }
-

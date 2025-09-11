@@ -11,7 +11,11 @@ function useQueryParams() {
   const sp = useSearchParams();
   return useMemo(() => {
     const equipments = sp.get("equipments")
-      ? sp.get("equipments")!.split(",").map((s) => s.trim()).filter(Boolean)
+      ? sp
+          .get("equipments")!
+          .split(",")
+          .map(s => s.trim())
+          .filter(Boolean)
       : [];
     return {
       pref: sp.get("pref") || undefined,

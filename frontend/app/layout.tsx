@@ -13,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <header>
           <div style={{ maxWidth: 960, margin: "0 auto" }} className="row">
-            <a href="/search"><strong>Gym Directory</strong></a>
+            <a href="/search">
+              <strong>Gym Directory</strong>
+            </a>
           </div>
         </header>
         <Providers>
