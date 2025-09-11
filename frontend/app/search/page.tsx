@@ -47,7 +47,8 @@ export default function SearchPage() {
   );
 
   const gyms = data?.items ?? (data as any)?.gyms ?? [];
-  const nextToken = (data as any)?.next_page_token ?? null;
+  const nextToken = (data as any)?.page_token ?? null;
+  const hasNext = Boolean((data as any)?.has_next);
 
   return (
     <div className="stack">
@@ -58,10 +59,9 @@ export default function SearchPage() {
         isLoading={isLoading}
         isError={isError}
         error={error as any}
-        nextPageToken={nextToken}
+        nextPageToken={hasNext ? nextToken : null}
         onNextPage={nextPage}
       />
     </div>
   );
 }
-

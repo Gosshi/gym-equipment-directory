@@ -72,9 +72,12 @@ export default function SearchForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Backend requires lower-case slug-like strings for pref/city
+    const pref = form.pref.trim().toLowerCase();
+    const city = form.city.trim().toLowerCase();
     updateQuery({
-      pref: form.pref,
-      city: form.city,
+      pref,
+      city,
       equipments: form.equipments,
       sort: form.sort,
       per_page: form.per_page,
@@ -114,10 +117,13 @@ export default function SearchForm() {
             value={form.sort}
             onChange={(e) => setForm((s) => ({ ...s, sort: e.target.value }))}
           >
-            <option value="">Default</option>
-            <option value="relevance">Relevance</option>
-            <option value="name_asc">Name ↑</option>
-            <option value="name_desc">Name ↓</option>
+            {/* Backend supports: freshness | richness | gym_name | created_at | score */}
+            <option value="">Default (score)</option>
+            <option value="score">Score</option>
+            <option value="freshness">Freshness</option>
+            <option value="richness">Richness</option>
+            <option value="gym_name">Gym name</option>
+            <option value="created_at">Created at</option>
           </select>
         </label>
         <label>
@@ -174,4 +180,3 @@ export default function SearchForm() {
     </form>
   );
 }
-

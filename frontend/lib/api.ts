@@ -22,8 +22,9 @@ export type GymDetail = GymSummary & {
 export type SearchResponse = {
   items?: GymSummary[];
   gyms?: GymSummary[]; // fallback if API uses a different key
-  next_page_token?: string | null;
   total?: number;
+  has_next?: boolean;
+  page_token?: string | null;
   [k: string]: unknown;
 };
 
@@ -67,4 +68,3 @@ export async function searchGyms(params: SearchParams): Promise<SearchResponse> 
 export async function getGymBySlug(slug: string): Promise<GymDetail> {
   return fetchJson<GymDetail>(`/gyms/${encodeURIComponent(slug)}`);
 }
-
