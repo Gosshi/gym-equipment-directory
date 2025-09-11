@@ -30,7 +30,8 @@ export type SearchResponse = {
 
 export type Equipment = { slug?: string; name?: string; id?: string | number };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+// Default to Next.js proxy path to avoid cross-origin issues in the browser
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
 
 function toQuery(params: Record<string, unknown>): string {
   const q = new URLSearchParams();
