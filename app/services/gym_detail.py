@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Equipment, Gym, GymEquipment
 from app.repositories.gym_repository import GymRepository
 from app.schemas.gym_detail import GymDetailResponse
+from app import schemas as legacy_schemas
 from app.services.scoring import compute_bundle
 
 
@@ -92,3 +93,67 @@ async def get_gym_detail(
         data["score"] = bundle.score
 
     return GymDetailResponse.model_validate(data)
+
+
+async def get_gym_detail_v1(
+    session: AsyncSession, slug: str
+) -> legacy_schemas.GymDetailResponse | None:
+    """
+    Router(app/routers) 向けのレガシー詳細レスポンスを返すサービス関数。
+    - 見つからない場合は None を返し、router 側で 404 を返す方針。
+    - スキーマは app/schemas.py の GymDetailResponse に準拠。
+    """
+    gym = await session.scalar(select(Gym).where(Gym.slug == slug))
+    if not gym:
+        return None
+
+    eq_stmt = (
+        select(
+            Equipment.slug.label("equipment_slug"),
+            Equipment.name.label("equipment_name"),
+            Equipment.category,
+            GymEquipment.availability,
+            GymEquipment.count,
+            GymEquipment.max_weight_kg,
+            GymEquipment.verification_status,
+            GymEquipment.last_verified_at,
+        )
+        .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
+        .where(GymEquipment.gym_id == gym.id)
+        .order_by(Equipment.category, Equipment.name)
+    )
+    rows = (await session.execute(eq_stmt)).all()
+
+    equipments: list[legacy_schemas.EquipmentRow] = []
+    updated_at: datetime | None = None
+    for r in rows:
+        # enum -> str
+        availability = (
+            r.availability.value if hasattr(r.availability, "value") else str(r.availability)
+        )
+        verification_status = (
+            r.verification_status.value
+            if hasattr(r.verification_status, "value")
+            else str(r.verification_status)
+        )
+        equipments.append(
+            legacy_schemas.EquipmentRow(
+                equipment_slug=r.equipment_slug,
+                equipment_name=r.equipment_name,
+                category=r.category,
+                availability=str(availability),
+                count=r.count,
+                max_weight_kg=r.max_weight_kg,
+                verification_status=str(verification_status),
+                last_verified_at=r.last_verified_at,
+            )
+        )
+        if r.last_verified_at and (updated_at is None or r.last_verified_at > updated_at):
+            updated_at = r.last_verified_at
+
+    return legacy_schemas.GymDetailResponse(
+        gym=legacy_schemas.GymBasic.model_validate(gym),
+        equipments=equipments,
+        sources=[],
+        updated_at=updated_at,
+    )
