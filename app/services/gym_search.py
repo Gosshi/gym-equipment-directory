@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dto.search import GymSummaryDTO, ServiceResult
-from app.models import Equipment, Gym, GymEquipment
+from app.models import Equipment, GymEquipment
+from app.repositories.gym_repository import GymRepository
 from app.utils.paging import build_next_offset_token, parse_offset_token
 from app.utils.sort import SortKey, resolve_sort_key
 
@@ -35,13 +36,9 @@ async def search_gyms(
     # 0) sort 正規化
     sort_key: SortKey = resolve_sort_key(sort)
 
-    # 1) 候補ジム取得
-    gq = select(Gym)
-    if pref:
-        gq = gq.where(func.lower(Gym.pref) == func.lower(pref))
-    if city:
-        gq = gq.where(func.lower(Gym.city) == func.lower(city))
-    gyms = (await db.scalars(gq)).all()
+    # 1) 候補ジム取得（Repository 経由）
+    repo = GymRepository(db)
+    gyms = await repo.list_by_pref_city(pref=pref, city=city)
 
     items_all: list[GymSummaryDTO] = [
         {
@@ -167,5 +164,6 @@ async def search_gyms(
 
 
 async def _created_at_map(db: AsyncSession) -> dict[int, datetime | None]:
-    rows = (await db.scalars(select(Gym).order_by(Gym.id))).all()
+    repo = GymRepository(db)
+    rows = await repo.get_all_ordered_by_id()
     return {g.id: getattr(g, "created_at", None) for g in rows}
