@@ -1,14 +1,12 @@
 # app/api/routers/healthz.py
 from fastapi import APIRouter, Depends
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_async_session
+from app.api.deps import get_health_service
+from app.services.health import HealthService
 
 router = APIRouter(prefix="/healthz", tags=["health"])
 
 
 @router.get("", summary="Health check", description="DBにSELECT 1を投げる軽量ヘルスチェック")
-async def healthz(session: AsyncSession = Depends(get_async_session)):
-    await session.execute(text("SELECT 1"))
-    return {"ok": True}
+async def healthz(svc: HealthService = Depends(get_health_service)):
+    return await svc.ok()

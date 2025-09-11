@@ -173,3 +173,16 @@ async def get_gym_detail_opt(
         if getattr(exc, "status_code", None) == 404:
             return None
         raise
+
+
+class GymDetailService:
+    """Service wrapper to enable DI via Depends in routers."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def get(self, slug: str, include: str | None) -> GymDetailResponse:
+        return await get_gym_detail(self._session, slug, include)
+
+    async def get_opt(self, slug: str, include: str | None) -> GymDetailResponse | None:
+        return await get_gym_detail_opt(self._session, slug, include)

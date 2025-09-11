@@ -1,16 +1,18 @@
-"""/gyms routers that delegate to services."""
+"""/gyms routers that delegate to services via DI."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Callable, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_equipment_slugs_from_query
-from app.db import get_async_session
+from app.api.deps import (
+    get_equipment_slugs_from_query,
+    get_gym_detail_api_service,
+    get_gym_search_api_service,
+)
 from app.schemas.common import ErrorResponse
 from app.schemas.gym_detail import GymDetailResponse
 from app.schemas.gym_search import GymSearchResponse
-from app.services.gym_search_api import search_gyms_api as svc_search_gyms_api
+from app.services.gym_detail import GymDetailService
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -84,7 +86,7 @@ async def search_gyms(
         # 例: {"sort":"freshness","k":[null,42]} のBase64
         examples=["eyJzb3J0IjoiZnJlc2huZXNzIiwiayI6W251bGwsNDJdfQ=="],
     ),
-    session: AsyncSession = Depends(get_async_session),
+    search_svc: Callable[..., GymSearchResponse] = Depends(get_gym_search_api_service),
 ):
     # 1) 設備スラッグを吸収
     required_slugs: list[str] = get_equipment_slugs_from_query(request, equipments)
@@ -93,8 +95,7 @@ async def search_gyms(
 
     # 2) サービス呼び出し（DBアクセス・トークン処理はサービス側）
     try:
-        return await svc_search_gyms_api(
-            session,
+        return await search_svc(
             pref=pref,
             city=city,
             required_slugs=required_slugs,
@@ -119,12 +120,10 @@ async def search_gyms(
 async def get_gym_detail(
     slug: str,
     include: str | None = Query(default=None, description="例: include=score"),
-    session: AsyncSession = Depends(get_async_session),
+    svc: GymDetailService = Depends(get_gym_detail_api_service),
 ):
     # サービスに委譲。見つからない場合は router 側で 404 を返す。
-    from app.services.gym_detail import get_gym_detail_opt as svc_get_gym_detail
-
-    detail = await svc_get_gym_detail(session, slug, include)
+    detail = await svc.get_opt(slug, include)
     if detail is None:
         raise HTTPException(status_code=404, detail="gym not found")
     return detail
