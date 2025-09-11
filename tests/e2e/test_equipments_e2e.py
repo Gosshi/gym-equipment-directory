@@ -1,7 +1,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -25,4 +24,3 @@ async def test_list_equipments_filter_and_limit(app_client: AsyncClient):
     assert r3.status_code == 200
     assert isinstance(r3.json(), list)
     assert len(r3.json()) <= 1
-

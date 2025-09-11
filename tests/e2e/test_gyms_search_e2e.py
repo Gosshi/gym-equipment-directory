@@ -1,7 +1,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -14,4 +13,3 @@ async def test_search_per_page_boundary_one(app_client: AsyncClient):
     assert "has_next" in body and "page_token" in body
     if body["has_next"] is False:
         assert body["page_token"] is None
-
