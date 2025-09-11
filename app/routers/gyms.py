@@ -3,13 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
 from app.deps import get_db
-from app.services.gym_search import search_gyms as svc_search_gyms_service
 from app.services.gym_detail import (
     get_gym_detail_v1 as svc_get_gym_detail,
 )
+from app.services.gym_search import search_gyms as svc_search_gyms_service
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
-
 
 
 @router.get(

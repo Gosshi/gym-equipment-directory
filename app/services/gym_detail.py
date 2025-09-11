@@ -6,10 +6,10 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import schemas as legacy_schemas
 from app.models import Equipment, Gym, GymEquipment
 from app.repositories.gym_repository import GymRepository
 from app.schemas.gym_detail import GymDetailResponse
-from app import schemas as legacy_schemas
 from app.services.scoring import compute_bundle
 
 
