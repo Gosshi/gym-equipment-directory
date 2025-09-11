@@ -1,12 +1,13 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
 from app.deps import get_db
 from app.models import Equipment, Gym, GymEquipment
+from app.services.gym_search import search_gyms as svc_search_gyms_service
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -60,95 +61,49 @@ async def search_gyms(
     per_page: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
-    gq = select(Gym)
-    if pref:
-        gq = gq.where(func.lower(Gym.pref) == func.lower(pref))
-    if city:
-        gq = gq.where(func.lower(Gym.city) == func.lower(city))
-
-    total = await db.scalar(select(func.count()).select_from(gq.subquery())) or 0
-    if total == 0:
-        return schemas.SearchResponse(items=[], page=page, per_page=per_page, total=0)
-
-    gq = gq.order_by(Gym.id).offset((page - 1) * per_page).limit(per_page)
-    gyms: list[Gym] = (await db.scalars(gq)).all()
-
-    equip_filter: list[str] | None = None
+    # CSV -> list[str]
+    equip_list: list[str] | None = None
     if equipments:
-        equip_filter = [s.strip() for s in equipments.split(",") if s.strip()]
+        equip_list = [s.strip() for s in equipments.split(",") if s.strip()]
 
-    gym_ids = [g.id for g in gyms]
-
-    geq = (
-        select(
-            GymEquipment.gym_id,
-            Equipment.slug.label("equipment_slug"),
-            Equipment.name.label("equipment_name"),
-            Equipment.category,
-            GymEquipment.availability,
-            GymEquipment.count,
-            GymEquipment.max_weight_kg,
-            GymEquipment.verification_status,
-            GymEquipment.last_verified_at,
+    # service に委譲（routerは入出力整形のみ）
+    try:
+        result = await svc_search_gyms_service(
+            db,
+            pref=pref,
+            city=city,
+            equipments=equip_list,
+            equipment_match="any",  # 既定は any
+            sort=sort,
+            page_token=page_token,
+            page=page,
+            per_page=per_page,
         )
-        .join(Equipment, Equipment.id == GymEquipment.equipment_id)
-        .where(GymEquipment.gym_id.in_(gym_ids))
-    )
-    if equip_filter:
-        geq = geq.where(Equipment.slug.in_(equip_filter))
+    except ValueError:
+        # 無効な page_token など
+        raise HTTPException(status_code=400, detail="invalid page_token")
 
-    ge_rows = (await db.execute(geq)).all()
-
-    by_gym: dict[int, list[schemas.EquipmentHighlight]] = {}
-    last_verified_by_gym: dict[int, str | None] = {}
-    richness_by_gym: dict[int, float] = {}
-
-    for row in ge_rows:
-        hi = schemas.EquipmentHighlight(
-            equipment_slug=row.equipment_slug,
-            availability=row.availability.value
-            if hasattr(row.availability, "value")
-            else str(row.availability),
-            count=row.count,
-            max_weight_kg=row.max_weight_kg,
-            verification_status=row.verification_status.value
-            if hasattr(row.verification_status, "value")
-            else str(row.verification_status),
-            last_verified_at=row.last_verified_at,
-        )
-        by_gym.setdefault(row.gym_id, []).append(hi)
-
-        lv = last_verified_by_gym.get(row.gym_id)
-        if lv is None or (row.last_verified_at and row.last_verified_at > lv):
-            last_verified_by_gym[row.gym_id] = row.last_verified_at
-
-        sc = richness_by_gym.get(row.gym_id, 0.0)
-        if str(hi.availability) == "present":
-            sc += 1.0
-            if hi.count:
-                sc += min(hi.count, 5) * 0.1
-            if hi.max_weight_kg:
-                sc += min(hi.max_weight_kg / 60.0, 1.0) * 0.1
-        elif str(hi.availability) == "unknown":
-            sc += 0.3
-        richness_by_gym[row.gym_id] = sc
-
+    # service -> schemas へ詰め替え
     items: list[schemas.SearchItem] = []
-    for g in gyms:
-        item = schemas.SearchItem(
-            gym=schemas.GymBasic.model_validate(g),
-            highlights=by_gym.get(g.id, []),
-            last_verified_at=last_verified_by_gym.get(g.id),
-            score=richness_by_gym.get(g.id, 0.0),
+    for it in result["items"]:
+        items.append(
+            schemas.SearchItem(
+                gym=schemas.GymBasic.model_validate(
+                    {
+                        "id": it.get("id"),
+                        "slug": it.get("slug"),
+                        "name": it.get("name"),
+                        "pref": it.get("pref"),
+                        "city": it.get("city"),
+                    }
+                ),
+                highlights=[],  # 必要なら後段で拡張
+                last_verified_at=it.get("last_verified_at"),
+                score=float(it.get("score", 0.0)),
+            )
         )
-        items.append(item)
 
-    if sort == "freshness":
-        items.sort(key=lambda i: (i.last_verified_at is None, i.last_verified_at), reverse=True)
-    elif sort == "richness":
-        items.sort(key=lambda i: i.score, reverse=True)
-
-    return schemas.SearchResponse(items=items, page=page, per_page=per_page, total=total)
+    return schemas.SearchResponse(items=items, page=page, per_page=per_page, total=result["total"])
 
 
 @router.get("/{slug}", response_model=schemas.GymDetailResponse)
@@ -179,14 +134,16 @@ async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
             equipment_slug=r.equipment_slug,
             equipment_name=r.equipment_name,
             category=r.category,
-            availability=r.availability.value
-            if hasattr(r.availability, "value")
-            else str(r.availability),
+            availability=(
+                r.availability.value if hasattr(r.availability, "value") else str(r.availability)
+            ),
             count=r.count,
             max_weight_kg=r.max_weight_kg,
-            verification_status=r.verification_status.value
-            if hasattr(r.verification_status, "value")
-            else str(r.verification_status),
+            verification_status=(
+                r.verification_status.value
+                if hasattr(r.verification_status, "value")
+                else str(r.verification_status)
+            ),
             last_verified_at=r.last_verified_at,
         )
         for r in ge_rows
