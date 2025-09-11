@@ -14,6 +14,11 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 @router.get(
     "/search",
     response_model=schemas.SearchResponse,
+    summary="ジム検索（v1）",
+    description=(
+        "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタ。"
+        "sort は richness/freshness を指定。ページングあり。"
+    ),
     responses={
         400: {
             "description": "Invalid page_token",
@@ -79,7 +84,12 @@ async def search_gyms(
     return schemas.SearchResponse(items=items, page=page, per_page=per_page, total=result["total"])
 
 
-@router.get("/{slug}", response_model=schemas.GymDetailResponse)
+@router.get(
+    "/{slug}",
+    response_model=schemas.GymDetailResponse,
+    summary="ジム詳細（v1）",
+    description="ジムの詳細情報を返します。",
+)
 async def get_gym_detail(slug: str, svc: GymDetailServiceV1 = Depends(get_gym_detail_service_v1)):
     detail = await svc.get(slug)
     if detail is None:
