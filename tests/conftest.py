@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
+from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -19,6 +20,8 @@ from app.models import Equipment, Gym, GymEquipment
 from app.models.base import Base
 
 # ==== 1) DSN を必須化（Postgresのみ） ====
+# Load .env.test if available (pytest.ini env_file is not supported without plugin)
+load_dotenv(".env.test", override=False)
 DB_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 assert DB_URL and DB_URL.startswith(("postgresql+asyncpg://", "postgresql+psycopg://")), (
     "Set TEST_DATABASE_URL like: postgresql+asyncpg://user:pass@host:port/gym_test"
@@ -184,7 +187,5 @@ async def seed_test_data(engine):
             )
             await sess.commit()
 
-    await engine.dispose()
-    # テスト用ジムデータのdatetimeをaware型で統一
-    # dummy-funabashi-eastジムが必ず投入されるように修正
-    # ...既存のseed処理...
+    # Note: engine disposal is handled by the engine fixture's finalizer.
+    # Do not dispose here; tests still need the active engine/session.
