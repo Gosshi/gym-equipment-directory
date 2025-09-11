@@ -4,7 +4,7 @@ import base64
 import json
 import os
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from sqlalchemy import and_, case, cast, func, literal, or_, select, tuple_
@@ -19,7 +19,7 @@ W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
 W_RICH = float(os.getenv("SCORE_W_RICH", "0.4"))
 
 
-class GymSortKey(str, Enum):
+class GymSortKey(StrEnum):
     gym_name = "gym_name"
     created_at = "created_at"
     freshness = "freshness"
