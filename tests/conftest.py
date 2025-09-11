@@ -6,10 +6,13 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from dotenv import load_dotenv
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+# Import app after environment is configured so create_app reads correct DATABASE_URL
+from app.main import app, create_app
 
 # ==== 3) FastAPI 依存差し替え（使われ得る全候補を網羅） ====
 # `app` / `create_app` は後で import する（下で環境変数を設定してから）
@@ -26,9 +29,6 @@ assert DB_URL and DB_URL.startswith(("postgresql+asyncpg://", "postgresql+psycop
 # アプリ側も同じDSNを見る
 os.environ["DATABASE_URL"] = DB_URL
 os.environ["TESTING"] = "1"
-
-# Import app after environment is configured so create_app reads correct DATABASE_URL
-from app.main import app, create_app
 
 
 def _engine_kwargs(_: str):

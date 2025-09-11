@@ -2,9 +2,9 @@ import os
 
 from fastapi import FastAPI
 
+from app.api.routers.equipments import router as equipments_router
 from app.api.routers.gyms import router as gyms_router
 from app.api.routers.meta import router as meta_router
-from app.api.routers.equipments import router as equipments_router
 from app.services.scoring import validate_weights
 
 
