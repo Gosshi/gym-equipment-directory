@@ -53,6 +53,11 @@ async function fetchJson<T>(path: string, query?: Record<string, unknown>): Prom
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    if (typeof window !== "undefined") {
+      // Help debugging by showing failing URL and response body in console
+      // eslint-disable-next-line no-console
+      console.error("API error", { url, status: res.status, body: text });
+    }
     throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
   }
   return (await res.json()) as T;
