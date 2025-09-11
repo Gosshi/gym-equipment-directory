@@ -1,7 +1,5 @@
 """API dependency helpers and service providers."""
 
-from typing import List
-
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
