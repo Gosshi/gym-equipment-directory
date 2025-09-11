@@ -1,7 +1,6 @@
 """/gyms routers that delegate to services via DI."""
 
 from collections.abc import Callable
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 

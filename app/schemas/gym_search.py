@@ -116,9 +116,7 @@ class GymSearchQuery(BaseModel):
     @classmethod
     def as_query(
         cls,
-        pref: Annotated[
-            str | None, Query(description="都道府県スラッグ（lower）例: chiba")
-        ] = None,
+        pref: Annotated[str | None, Query(description="都道府県スラッグ（lower）例: chiba")] = None,
         city: Annotated[
             str | None, Query(description="市区町村スラッグ（lower）例: funabashi")
         ] = None,
@@ -133,13 +131,9 @@ class GymSearchQuery(BaseModel):
             Literal["freshness", "richness", "gym_name", "created_at", "score"],
             Query(description="並び順"),
         ] = "score",
-        per_page: Annotated[
-            int, Query(description="1ページ件数（1..50）", examples=[10])
-        ] = 20,
-        page_token: Annotated[
-            str | None, Query(description="Keyset 継続トークン")
-        ] = None,
-    ) -> "GymSearchQuery":
+        per_page: Annotated[int, Query(description="1ページ件数（1..50）", examples=[10])] = 20,
+        page_token: Annotated[str | None, Query(description="Keyset 継続トークン")] = None,
+    ) -> GymSearchQuery:
         try:
             return cls.model_validate(
                 {
