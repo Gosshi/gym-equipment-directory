@@ -2,31 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.dto.search import GymSummaryDTO, ServiceResult
 from app.models import Equipment, Gym, GymEquipment
 from app.utils.paging import build_next_offset_token, parse_offset_token
 from app.utils.sort import SortKey, resolve_sort_key
-
-
-class GymSummaryDTO(TypedDict, total=False):
-    id: int
-    slug: str
-    name: str
-    pref: str
-    city: str
-    last_verified_at: datetime | None
-    score: float
-
-
-class ServiceResult(TypedDict):
-    items: list[GymSummaryDTO]
-    total: int
-    has_next: bool
-    page_token: str | None
 
 
 async def search_gyms(
