@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_async_session
-from app.models import Equipment
+from app.api.deps import get_equipment_service
 from app.schemas.common import ErrorResponse
+from app.services.equipments import EquipmentService
 
 router = APIRouter(prefix="/equipments", tags=["equipments"])
 
@@ -38,12 +36,7 @@ class EquipmentMaster(BaseModel):
 async def list_equipments(
     q: str | None = Query(None, description="部分一致（ILIKE風）"),
     limit: int = Query(20, ge=1, le=100),
-    session: AsyncSession = Depends(get_async_session),
+    svc: EquipmentService = Depends(get_equipment_service),
 ):
-    stmt = select(Equipment.id, Equipment.slug, Equipment.name, Equipment.category)
-    if q:
-        ilike = f"%{q}%"
-        stmt = stmt.where(or_(Equipment.slug.ilike(ilike), Equipment.name.ilike(ilike)))
-    stmt = stmt.order_by(Equipment.slug.asc()).limit(limit)
-    rows = await session.execute(stmt)
-    return [dict(r) for r in rows.mappings()]
+    result = await svc.list(q, limit)
+    return [m.model_dump() for m in result]

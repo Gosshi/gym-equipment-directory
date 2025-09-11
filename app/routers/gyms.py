@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas
-from app.deps import get_db
-from app.services.gym_detail import (
-    get_gym_detail_v1 as svc_get_gym_detail,
+from app.deps import (
+    GymDetailServiceV1,
+    SearchServiceV1,
+    get_gym_detail_service_v1,
+    get_search_service_v1,
 )
-from app.services.gym_search import search_gyms as svc_search_gyms_service
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -33,7 +33,7 @@ async def search_gyms(
     ),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
+    svc: SearchServiceV1 = Depends(get_search_service_v1),
 ):
     # CSV -> list[str]
     equip_list: list[str] | None = None
@@ -42,8 +42,7 @@ async def search_gyms(
 
     # service に委譲（routerは入出力整形のみ）
     try:
-        result = await svc_search_gyms_service(
-            db,
+        result = await svc.search(
             pref=pref,
             city=city,
             equipments=equip_list,
@@ -81,8 +80,8 @@ async def search_gyms(
 
 
 @router.get("/{slug}", response_model=schemas.GymDetailResponse)
-async def get_gym_detail(slug: str, db: AsyncSession = Depends(get_db)):
-    detail = await svc_get_gym_detail(db, slug)
+async def get_gym_detail(slug: str, svc: GymDetailServiceV1 = Depends(get_gym_detail_service_v1)):
+    detail = await svc.get(slug)
     if detail is None:
         # service 層で見つからなかった場合は 404 を返す
         raise HTTPException(status_code=404, detail="gym not found")
