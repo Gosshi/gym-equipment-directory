@@ -14,7 +14,6 @@ from sqlalchemy.types import Numeric
 from app.models import Equipment, Gym, GymEquipment
 from app.schemas.gym_search import GymSearchResponse, GymSummary
 
-
 FRESHNESS_WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
 W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
 W_RICH = float(os.getenv("SCORE_W_RICH", "0.4"))
@@ -358,7 +357,9 @@ async def search_gyms_api(
 
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
-            next_token = _encode_page_token_for_score(float(last_row.neg_final), int(last_row.Gym.id))
+            next_token = _encode_page_token_for_score(
+                float(last_row.neg_final), int(last_row.Gym.id)
+            )
 
     # ---- 5) マッピング ----
     if sort != "score":
@@ -385,4 +386,3 @@ async def search_gyms_api(
     if not has_next:
         next_token = None
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
-
