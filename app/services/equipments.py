@@ -32,4 +32,3 @@ class EquipmentService:
         except SQLAlchemyError:
             # Unify DB errors as 503
             raise HTTPException(status_code=503, detail="database unavailable")
-

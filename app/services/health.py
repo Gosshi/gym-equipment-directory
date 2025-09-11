@@ -11,4 +11,3 @@ class HealthService:
     async def ok(self) -> dict:
         await self._session.execute(text("SELECT 1"))
         return {"ok": True}
-

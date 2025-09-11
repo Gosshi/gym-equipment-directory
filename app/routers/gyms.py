@@ -80,9 +80,7 @@ async def search_gyms(
 
 
 @router.get("/{slug}", response_model=schemas.GymDetailResponse)
-async def get_gym_detail(
-    slug: str, svc: GymDetailServiceV1 = Depends(get_gym_detail_service_v1)
-):
+async def get_gym_detail(slug: str, svc: GymDetailServiceV1 = Depends(get_gym_detail_service_v1)):
     detail = await svc.get(slug)
     if detail is None:
         # service 層で見つからなかった場合は 404 を返す

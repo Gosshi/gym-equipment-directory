@@ -53,4 +53,3 @@ class MetaService:
             raise
         except SQLAlchemyError:
             raise HTTPException(status_code=503, detail="database unavailable")
-
