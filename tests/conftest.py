@@ -184,7 +184,5 @@ async def seed_test_data(engine):
             )
             await sess.commit()
 
-    await engine.dispose()
-    # テスト用ジムデータのdatetimeをaware型で統一
-    # dummy-funabashi-eastジムが必ず投入されるように修正
-    # ...既存のseed処理...
+    # Note: engine disposal is handled by the engine fixture's finalizer.
+    # Do not dispose here; tests still need the active engine/session.
