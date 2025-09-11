@@ -1,7 +1,7 @@
 """/gyms routers that delegate to services via DI."""
 
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -12,7 +12,7 @@ from app.api.deps import (
 )
 from app.schemas.common import ErrorResponse
 from app.schemas.gym_detail import GymDetailResponse
-from app.schemas.gym_search import GymSearchResponse
+from app.schemas.gym_search import GymSearchQuery, GymSearchResponse
 from app.services.gym_detail import GymDetailService
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
@@ -47,63 +47,24 @@ _DESC = (
 )
 async def search_gyms(
     request: Request,
-    pref: Annotated[
-        str | None,
-        Query(description="都道府県スラッグ（lower）例: chiba", examples=["chiba"]),
-    ] = None,
-    city: Annotated[
-        str | None,
-        Query(description="市区町村スラッグ（lower）例: funabashi", examples=["funabashi"]),
-    ] = None,
-    equipments: Annotated[
-        str | None,
-        Query(
-            description="設備スラッグCSV。例: `squat-rack,dumbbell`",
-            examples=["squat-rack,dumbbell"],
-        ),
-    ] = None,
-    equipment_match: Annotated[
-        Literal["all", "any"],
-        Query(description="equipments の一致条件", examples=["all"]),
-    ] = "all",
-    sort: Annotated[
-        Literal["freshness", "richness", "gym_name", "created_at", "score"],
-        Query(
-            description="並び替え。freshness は last_verified_at_cached DESC, id ASC。"
-            "richness は設備スコア降順"
-            "score は freshness(0.6) + richness(0.4) の降順。"
-            "gym_name は name ASC, id ASC"
-            "created_at は created_at DESC, id ASC",
-            examples=["freshness", "gym_name"],
-        ),
-    ] = "score",
-    per_page: Annotated[
-        int,
-        Query(ge=1, le=50, description="1ページ件数（≤50）", examples=[10]),
-    ] = 20,
-    page_token: str | None = Query(
-        None,
-        description="前ページから受け取ったKeyset継続トークン（sortと整合しない場合は400）。",
-        # 例: {"sort":"freshness","k":[null,42]} のBase64
-        examples=["eyJzb3J0IjoiZnJlc2huZXNzIiwiayI6W251bGwsNDJdfQ=="],
-    ),
+    q: GymSearchQuery = Depends(GymSearchQuery.as_query),
     search_svc: Callable[..., GymSearchResponse] = Depends(get_gym_search_api_service),
 ):
-    # 1) 設備スラッグを吸収
-    required_slugs: list[str] = get_equipment_slugs_from_query(request, equipments)
-    if equipments and not required_slugs:
-        required_slugs = [s.strip() for s in equipments.split(",") if s.strip()]
+    # 1) 設備スラッグを吸収（CSV/配列/単数の各形式に対応）
+    required_slugs: list[str] = get_equipment_slugs_from_query(request, q.equipments)
+    if q.equipments and not required_slugs:
+        required_slugs = [s.strip() for s in q.equipments.split(",") if s.strip()]
 
     # 2) サービス呼び出し（DBアクセス・トークン処理はサービス側）
     try:
         return await search_svc(
-            pref=pref,
-            city=city,
+            pref=q.pref,
+            city=q.city,
             required_slugs=required_slugs,
-            equipment_match=equipment_match,
-            sort=sort,
-            per_page=per_page,
-            page_token=page_token,
+            equipment_match=q.equipment_match,
+            sort=q.sort,
+            per_page=q.per_page,
+            page_token=q.page_token,
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid page_token")
