@@ -157,3 +157,19 @@ async def get_gym_detail_v1(
         sources=[],
         updated_at=updated_at,
     )
+
+
+async def get_gym_detail_opt(
+    session: AsyncSession, slug: str, include: str | None
+) -> GymDetailResponse | None:
+    """Optional-return wrapper for router-side 404 handling.
+
+    Returns GymDetailResponse if found; otherwise None. Other HTTP errors from the
+    underlying service are propagated.
+    """
+    try:
+        return await get_gym_detail(session, slug, include)
+    except HTTPException as exc:  # type: ignore[reportGeneralTypeIssues]
+        if getattr(exc, "status_code", None) == 404:
+            return None
+        raise

@@ -121,7 +121,10 @@ async def get_gym_detail(
     include: str | None = Query(default=None, description="例: include=score"),
     session: AsyncSession = Depends(get_async_session),
 ):
-    # Delegate to service which uses GymRepository under the hood
-    from app.services.gym_detail import get_gym_detail as svc_get_gym_detail
+    # サービスに委譲。見つからない場合は router 側で 404 を返す。
+    from app.services.gym_detail import get_gym_detail_opt as svc_get_gym_detail
 
-    return await svc_get_gym_detail(session, slug, include)
+    detail = await svc_get_gym_detail(session, slug, include)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="gym not found")
+    return detail
