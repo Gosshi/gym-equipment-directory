@@ -5,6 +5,7 @@ from .equipment import Equipment
 from .favorite import Favorite
 from .gym import Gym
 from .gym_equipment import GymEquipment
+from .gym_image import GymImage
 from .report import Report
 from .source import Source
 
@@ -16,4 +17,5 @@ __all__ = [
     "Source",
     "Report",
     "Favorite",
+    "GymImage",
 ]

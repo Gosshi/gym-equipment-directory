@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas as legacy_schemas
 from app.models import Equipment, Gym, GymEquipment, Source
+from app.models.gym_image import GymImage
 from app.repositories.gym_repository import GymRepository
 from app.schemas.gym_detail import GymDetailResponse
 from app.services.scoring import compute_bundle
@@ -125,6 +126,24 @@ async def get_gym_detail(
         "equipments": equipments_list,
         "gym_equipments": gym_equipments_list,
     }
+
+    # images: gym_images rows for reference (no upload)
+    img_rows = await session.execute(
+        select(GymImage.url, GymImage.source, GymImage.verified, GymImage.created_at)
+        .where(GymImage.gym_id == gym.id)
+        .order_by(GymImage.created_at.desc(), GymImage.id.desc())
+    )
+    images_list = []
+    for url, source, verified, created_at in img_rows.all():
+        images_list.append(
+            {
+                "url": url,
+                "source": source,
+                "verified": bool(verified),
+                "created_at": created_at,
+            }
+        )
+    data["images"] = images_list
 
     if include == "score":
         num = await _count_equips(session, int(getattr(gym, "id", 0)))

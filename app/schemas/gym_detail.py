@@ -57,6 +57,15 @@ class GymDetailResponse(BaseModel):
         default_factory=list,
         description="設備ごとの在/無・検証状況などの詳細サマリ",
     )
+
+    # 追加: 参照用ジム画像（アップロードは不要、参照のみ）
+    class GymImage(BaseModel):
+        url: str = Field(description="画像URL")
+        source: str | None = Field(default=None, description="出典（任意）")
+        verified: bool = Field(default=False, description="検証済みか")
+        created_at: datetime | None = Field(default=None, description="登録日時")
+
+    images: list[GymImage] = Field(default_factory=list, description="関連画像の一覧")
     updated_at: str | None = Field(
         default=None, description="設備情報の最終更新（= last_verified_at の最大）"
     )
@@ -99,6 +108,14 @@ class GymDetailResponse(BaseModel):
                         }
                     ],
                     "updated_at": "2025-09-01T12:34:56Z",
+                    "images": [
+                        {
+                            "url": "https://example.com/image.jpg",
+                            "source": "instagram",
+                            "verified": False,
+                            "created_at": "2025-09-01T12:34:56Z",
+                        }
+                    ],
                 }
             ]
         }
