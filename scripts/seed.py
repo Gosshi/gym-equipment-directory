@@ -177,8 +177,8 @@ async def main() -> int:
             "funabashi",
             "千葉県船橋市東町1-1-1",
             None,
-            35.0000,
-            139.0000,
+            35.7013,  # around Funabashi Station area
+            139.9846,
         ),
         (
             "dummy-funabashi-west",
@@ -187,8 +187,8 @@ async def main() -> int:
             "funabashi",
             "千葉県船橋市西町1-2-3",
             None,
-            35.0100,
-            139.0000,
+            35.6990,  # west side of Funabashi
+            139.9700,
         ),
         (
             "dummy-tsudanuma-center",
@@ -197,8 +197,8 @@ async def main() -> int:
             "narashino",
             "千葉県習志野市谷津1-2-3",
             None,
-            35.0500,
-            139.0000,
+            35.6895,  # near Tsudanuma area
+            140.0203,
         ),
         (
             "dummy-hilton-bay",
@@ -207,8 +207,8 @@ async def main() -> int:
             "urayasu",
             "千葉県浦安市舞浜1-1-1",
             None,
-            35.0200,
-            139.0000,
+            35.6329,  # Maihama (TDR area)
+            139.8830,
         ),
         (
             "dummy-makuhari-coast",
@@ -217,8 +217,8 @@ async def main() -> int:
             "chiba",
             "千葉県千葉市美浜区中瀬1-1-1",
             None,
-            35.0300,
-            139.0000,
+            35.6486,  # Makuhari (Mihama-ku Nakase)
+            140.0415,
         ),
     ]
 
