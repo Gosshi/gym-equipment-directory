@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 from app.api import errors
-from app.api.routers import admin_reports, equipments, gyms, healthz, meta, suggest
+from app.api.routers import admin_reports, equipments, gyms, healthz, me_favorites, meta, suggest
 
 # もし起動時のDB初期化やCORS設定などがあればこの上で import / 設定してください
 
@@ -37,6 +37,7 @@ app.include_router(healthz.router, tags=["health"])
 app.include_router(meta.router, tags=["meta"])
 app.include_router(suggest.router, tags=["suggest"])
 app.include_router(admin_reports.router, tags=["admin"])
+app.include_router(me_favorites.router, tags=["me"])
 
 # Centralized error handlers
 errors.install(app)
