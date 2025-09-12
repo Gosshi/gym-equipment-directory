@@ -10,6 +10,7 @@ from app.services.gym_search_api import GymSearchResponse
 from app.services.gym_search_api import search_gyms_api as _search_gyms_api
 from app.services.health import HealthService
 from app.services.meta import MetaService
+from app.services.suggest import SuggestService
 
 __all__ = [
     "get_equipment_slugs_from_query",
@@ -18,6 +19,7 @@ __all__ = [
     "get_equipment_service",
     "get_meta_service",
     "get_health_service",
+    "get_suggest_service",
 ]
 
 
@@ -101,3 +103,9 @@ def get_health_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> HealthService:
     return HealthService(session)
+
+
+def get_suggest_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> SuggestService:
+    return SuggestService(session)

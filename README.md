@@ -201,6 +201,51 @@ curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments
 
 ---
 
+## 追加エンドポイント（Meta / Suggest）
+
+- Meta
+  - `GET /meta/prefectures` — 登録済みジムの都道府県スラッグを重複なしで返却（空/NULL除外）
+  - `GET /meta/cities?pref=chiba` — 指定都道府県内の市区町村スラッグと件数を返却（既存）
+  - `GET /meta/equipment-categories` — 登録済み設備カテゴリを重複なしで返却（空/NULL除外）
+- Suggest
+  - `GET /suggest/equipments?q=ベンチ&limit=5` — equipments.name を ILIKE 部分一致で検索し、名前配列を返却
+
+動作例（ローカル）
+
+```bash
+curl -sS 'http://localhost:8001/meta/prefectures' | jq .
+curl -sS 'http://localhost:8001/meta/equipment-categories' | jq .
+curl -sS 'http://localhost:8001/suggest/equipments?q=ベンチ&limit=5' | jq .
+```
+
+## マイグレーション（pg_trgm + GIN index）
+
+ILIKE 検索最適化のため、`pg_trgm` 拡張と `equipments.name` への GIN インデックスを追加しました。
+
+Docker 環境で適用:
+
+```bash
+docker compose up -d
+docker compose exec api alembic upgrade head
+```
+
+Makefile を使う場合:
+
+```bash
+make up
+make migrate
+```
+
+ローカル環境（Docker未使用）の場合:
+
+```bash
+export DATABASE_URL=postgresql+psycopg2://appuser:apppass@localhost:5432/gym_directory
+alembic upgrade head
+```
+
+
+---
+
 ## コミット前の自動整形・Lint（pre-commit）
 
 このリポジトリはコミット時に Ruff のフォーマットと自動修正（--fix）を実行します。
