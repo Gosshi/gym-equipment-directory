@@ -1,4 +1,5 @@
 # migrations/env.py
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -10,11 +11,26 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+
+def _get_sqlalchemy_url() -> str:
+    # Prefer ALEMBIC_DATABASE_URL, then DATABASE_URL, else alembic.ini
+    url = os.getenv("ALEMBIC_DATABASE_URL") or os.getenv("DATABASE_URL")
+    if not url:
+        return config.get_main_option("sqlalchemy.url")
+    # Alembic requires sync driver; coerce +asyncpg → +psycopg2 for migrations
+    if "+asyncpg" in url:
+        url = url.replace("+asyncpg", "+psycopg2")
+    if "+psycopg" in url and "+psycopg2" not in url:
+        # normalize psycopg3 URL to psycopg2 if needed
+        url = url.replace("+psycopg", "+psycopg2")
+    return url
+
+
 target_metadata = Base.metadata
 
 
 def run_migrations_offline():
-    url = config.get_main_option("sqlalchemy.url")
+    url = _get_sqlalchemy_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -27,8 +43,10 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
+    section = config.get_section(config.config_ini_section) or {}
+    section["sqlalchemy.url"] = _get_sqlalchemy_url()
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         future=True,
