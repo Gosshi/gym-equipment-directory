@@ -44,12 +44,29 @@ async def get_or_create_gym(
     city: str,
     address: str,
     official_url: str | None = None,
+    *,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> Gym:
     result = await sess.execute(select(Gym).where(Gym.slug == slug))
     g = result.scalar_one_or_none()
     if g:
+        # 既存があり、緯度経度が未設定なら補完（上書きしたい場合は直接UPDATEしてください）
+        if getattr(g, "latitude", None) is None and latitude is not None:
+            g.latitude = float(latitude)
+        if getattr(g, "longitude", None) is None and longitude is not None:
+            g.longitude = float(longitude)
         return g
-    g = Gym(slug=slug, name=name, pref=pref, city=city, address=address, official_url=official_url)
+    g = Gym(
+        slug=slug,
+        name=name,
+        pref=pref,
+        city=city,
+        address=address,
+        official_url=official_url,
+        latitude=latitude,
+        longitude=longitude,
+    )
     sess.add(g)
     await sess.flush()
     return g
@@ -160,6 +177,8 @@ async def main() -> int:
             "funabashi",
             "千葉県船橋市東町1-1-1",
             None,
+            35.0000,
+            139.0000,
         ),
         (
             "dummy-funabashi-west",
@@ -168,6 +187,8 @@ async def main() -> int:
             "funabashi",
             "千葉県船橋市西町1-2-3",
             None,
+            35.0100,
+            139.0000,
         ),
         (
             "dummy-tsudanuma-center",
@@ -176,6 +197,8 @@ async def main() -> int:
             "narashino",
             "千葉県習志野市谷津1-2-3",
             None,
+            35.0500,
+            139.0000,
         ),
         (
             "dummy-hilton-bay",
@@ -184,6 +207,8 @@ async def main() -> int:
             "urayasu",
             "千葉県浦安市舞浜1-1-1",
             None,
+            35.0200,
+            139.0000,
         ),
         (
             "dummy-makuhari-coast",
@@ -192,6 +217,8 @@ async def main() -> int:
             "chiba",
             "千葉県千葉市美浜区中瀬1-1-1",
             None,
+            35.0300,
+            139.0000,
         ),
     ]
 
@@ -235,9 +262,17 @@ async def main() -> int:
 
         # gyms
         slug_to_gym: dict[str, Gym] = {}
-        for slug, name, pref, city, addr, url in gym_seed:
+        for slug, name, pref, city, addr, url, lat, lng in gym_seed:
             g = await get_or_create_gym(
-                sess, slug=slug, name=name, pref=pref, city=city, address=addr, official_url=url
+                sess,
+                slug=slug,
+                name=name,
+                pref=pref,
+                city=city,
+                address=addr,
+                official_url=url,
+                latitude=lat,
+                longitude=lng,
             )
             slug_to_gym[slug] = g
 
