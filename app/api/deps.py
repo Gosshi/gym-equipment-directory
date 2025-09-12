@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_async_session
 from app.services.equipments import EquipmentService
 from app.services.gym_detail import GymDetailService
+from app.services.gym_nearby import GymNearbyResponse
+from app.services.gym_nearby import search_nearby as _search_nearby
 from app.services.gym_search_api import GymSearchResponse
 from app.services.gym_search_api import search_gyms_api as _search_gyms_api
 from app.services.health import HealthService
@@ -15,6 +17,7 @@ from app.services.suggest import SuggestService
 __all__ = [
     "get_equipment_slugs_from_query",
     "get_gym_search_api_service",
+    "get_gym_nearby_service",
     "get_gym_detail_api_service",
     "get_equipment_service",
     "get_meta_service",
@@ -87,6 +90,31 @@ def get_gym_detail_api_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> GymDetailService:
     return GymDetailService(session)
+
+
+def get_gym_nearby_service(
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Provides a callable service for /gyms/nearby."""
+
+    async def _svc(
+        *,
+        lat: float,
+        lng: float,
+        radius_km: float,
+        per_page: int,
+        page_token: str | None,
+    ) -> GymNearbyResponse:
+        return await _search_nearby(
+            session,
+            lat=lat,
+            lng=lng,
+            radius_km=radius_km,
+            per_page=per_page,
+            page_token=page_token,
+        )
+
+    return _svc
 
 
 def get_equipment_service(
