@@ -14,6 +14,20 @@ router = APIRouter(prefix="/meta")
 
 
 @router.get(
+    "/prefectures",
+    tags=["meta"],
+    response_model=list[str],
+    summary="都道府県一覧（distinct）",
+    description="登録されているジムの都道府県スラッグを重複なしで返します。空/NULLは除外。",
+    responses={
+        503: {"model": ErrorResponse, "description": "database unavailable"},
+    },
+)
+async def list_prefectures(svc: MetaService = Depends(get_meta_service)):
+    return await svc.list_prefectures()
+
+
+@router.get(
     "/prefs",
     tags=["meta"],
     response_model=list[PrefCount],
@@ -45,3 +59,17 @@ async def list_cities(
     svc: MetaService = Depends(get_meta_service),
 ):
     return await svc.list_cities(pref)
+
+
+@router.get(
+    "/equipment-categories",
+    tags=["meta"],
+    response_model=list[str],
+    summary="設備カテゴリ一覧（distinct）",
+    description="登録されている設備カテゴリ名を重複なしで返します。空/NULLは除外。",
+    responses={
+        503: {"model": ErrorResponse, "description": "database unavailable"},
+    },
+)
+async def list_equipment_categories(svc: MetaService = Depends(get_meta_service)):
+    return await svc.list_equipment_categories()
