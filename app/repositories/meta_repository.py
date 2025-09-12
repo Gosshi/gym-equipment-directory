@@ -16,7 +16,8 @@ class MetaRepository:
         stmt: Select = (
             select(distinct(Gym.pref))
             .where(Gym.pref.is_not(None), Gym.pref != "")
-            .order_by(func.lower(Gym.pref).asc())
+            # Postgres では DISTINCT 時の ORDER BY は選択列に限定されるため lower() は使わない
+            .order_by(Gym.pref.asc())
         )
         rows = (await self._session.execute(stmt)).scalars().all()
         return [p for p in rows if p]
@@ -29,7 +30,7 @@ class MetaRepository:
                 Gym.city.is_not(None),
                 Gym.city != "",
             )
-            .order_by(func.lower(Gym.city).asc())
+            .order_by(Gym.city.asc())
         )
         rows = (await self._session.execute(stmt)).scalars().all()
         return [c for c in rows if c]
@@ -38,7 +39,7 @@ class MetaRepository:
         stmt: Select = (
             select(distinct(Equipment.category))
             .where(Equipment.category.is_not(None), Equipment.category != "")
-            .order_by(func.lower(Equipment.category).asc())
+            .order_by(Equipment.category.asc())
         )
         rows = (await self._session.execute(stmt)).scalars().all()
         return [c for c in rows if c]
