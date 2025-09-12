@@ -218,6 +218,20 @@ curl -sS 'http://localhost:8001/meta/equipment-categories' | jq .
 curl -sS 'http://localhost:8001/suggest/equipments?q=ベンチ&limit=5' | jq .
 ```
 
+## 動作確認（/gyms/nearby）
+
+> 事前に `alembic upgrade head` と `python -m scripts.seed` を実施し、
+> `gyms.latitude/longitude` が入っていることを前提にしています。
+
+```bash
+# 近い順（半径5km）
+curl -sS 'http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=10' | jq .
+
+# 次ページ（page_token をそのまま利用）
+TOKEN=$(curl -sS 'http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2' | jq -r '.page_token')
+curl -sS "http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2&page_token=${TOKEN}" | jq .
+```
+
 ## マイグレーション（pg_trgm + GIN index）
 
 ILIKE 検索最適化のため、`pg_trgm` 拡張と `equipments.name` への GIN インデックスを追加しました。
