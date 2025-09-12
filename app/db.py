@@ -1,4 +1,6 @@
 # app/db.py
+import os
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -6,7 +8,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-DATABASE_URL = "postgresql+asyncpg://appuser:apppass@localhost:5432/gym_directory"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql+asyncpg://appuser:apppass@localhost:5432/gym_directory"
+)
 
 engine: AsyncEngine = create_async_engine(
     DATABASE_URL,
