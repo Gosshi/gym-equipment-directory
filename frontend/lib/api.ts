@@ -74,3 +74,32 @@ export async function searchGyms(params: SearchParams): Promise<SearchResponse> 
 export async function getGymBySlug(slug: string): Promise<GymDetail> {
   return fetchJson<GymDetail>(`/gyms/${encodeURIComponent(slug)}`);
 }
+
+// Nearby gyms (by geolocation)
+export type NearbyParams = {
+  lat: number;
+  lng: number;
+  radius_km?: number;
+  per_page?: number;
+  page_token?: string | null;
+};
+
+export type NearbyItem = {
+  id?: string | number;
+  slug: string;
+  name?: string;
+  pref?: string;
+  city?: string;
+  distance_km?: number;
+  last_verified_at?: string | null;
+};
+
+export type NearbyResponse = {
+  items?: NearbyItem[];
+  has_next?: boolean;
+  page_token?: string | null;
+};
+
+export async function getNearbyGyms(params: NearbyParams): Promise<NearbyResponse> {
+  return fetchJson<NearbyResponse>("/gyms/nearby", params as Record<string, unknown>);
+}
