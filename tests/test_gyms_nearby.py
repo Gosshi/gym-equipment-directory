@@ -43,6 +43,8 @@ async def test_nearby_radius_filter(session: AsyncSession, app_client: AsyncClie
     g1 = await _add_gym(session, slug="nearby-g1", name="G1", lat=35.0, lng=139.0)
     g2 = await _add_gym(session, slug="nearby-g2", name="G2", lat=35.01, lng=139.0)
     _ = await _add_gym(session, slug="nearby-g3", name="G3", lat=35.05, lng=139.0)
+    # Close seeding session early to avoid teardown ordering issues
+    await session.close()
 
     r = await app_client.get(
         "/gyms/nearby",
@@ -65,6 +67,7 @@ async def test_nearby_paging_no_duplicates(session: AsyncSession, app_client: As
         s = f"nearby-pg-{i}"
         slugs.append(s)
         await _add_gym(session, slug=s, name=s.upper(), lat=35.0 + i * 0.001, lng=139.0)
+    await session.close()
 
     r1 = await app_client.get(
         "/gyms/nearby", params={"lat": lat0, "lng": lng0, "radius_km": 10, "per_page": 2}
@@ -115,6 +118,7 @@ async def test_nearby_without_page_token_starts_from_top(
     # Ensure two gyms near base
     g_close = await _add_gym(session, slug="nearby-top-1", name="Top1", lat=36.0, lng=139.0)
     await _add_gym(session, slug="nearby-top-2", name="Top2", lat=36.02, lng=139.0)
+    await session.close()
 
     r = await app_client.get(
         "/gyms/nearby", params={"lat": lat0, "lng": lng0, "radius_km": 10, "per_page": 10}
