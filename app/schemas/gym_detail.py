@@ -43,6 +43,20 @@ class GymDetailResponse(BaseModel):
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
     equipments: list[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
+
+    # 追加: 関連する gym_equipments の要約（N+1 回避して取得）
+    class GymEquipmentSummary(BaseModel):
+        slug: str = Field(description="設備スラッグ")
+        name: str = Field(description="設備名")
+        availability: str = Field(description="present/absent/unknown")
+        verification_status: str = Field(description="検証状況")
+        last_verified_at: datetime | None = Field(default=None, description="最終確認時刻")
+        source: str | None = Field(default=None, description="情報ソース（URL 等）")
+
+    gym_equipments: list[GymEquipmentSummary] = Field(
+        default_factory=list,
+        description="設備ごとの在/無・検証状況などの詳細サマリ",
+    )
     updated_at: str | None = Field(
         default=None, description="設備情報の最終更新（= last_verified_at の最大）"
     )
@@ -73,6 +87,16 @@ class GymDetailResponse(BaseModel):
                             "count": 1,
                             "max_weight_kg": 50,
                         },
+                    ],
+                    "gym_equipments": [
+                        {
+                            "slug": "squat-rack",
+                            "name": "スクワットラック",
+                            "availability": "present",
+                            "verification_status": "verified",
+                            "last_verified_at": "2025-09-01T12:34:56Z",
+                            "source": "https://example.com/source",
+                        }
                     ],
                     "updated_at": "2025-09-01T12:34:56Z",
                 }
