@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas as legacy_schemas
-from app.models import Equipment, Gym, GymEquipment
+from app.models import Equipment, Gym, GymEquipment, Source
 from app.repositories.gym_repository import GymRepository
 from app.schemas.gym_detail import GymDetailResponse
 from app.services.scoring import compute_bundle
@@ -73,6 +73,47 @@ async def get_gym_detail(
         for (slug, name, category, count, max_w) in eq_rows.all()
     ]
 
+    # gym_equipments: equipment + gym_equipment + source（左外部結合）を一括取得
+    ge_rows = await session.execute(
+        select(
+            Equipment.slug,
+            Equipment.name,
+            GymEquipment.availability,
+            GymEquipment.verification_status,
+            GymEquipment.last_verified_at,
+            Source.url,
+        )
+        .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
+        .join(Source, Source.id == GymEquipment.source_id, isouter=True)
+        .where(GymEquipment.gym_id == gym.id)
+        .order_by(Equipment.name)
+    )
+    gym_equipments_list = []
+    for (
+        slug,
+        name,
+        availability,
+        verification_status,
+        last_verified_at,
+        source_url,
+    ) in ge_rows.all():
+        avail = availability.value if hasattr(availability, "value") else str(availability)
+        vstat = (
+            verification_status.value
+            if hasattr(verification_status, "value")
+            else str(verification_status)
+        )
+        gym_equipments_list.append(
+            {
+                "slug": slug,
+                "name": name,
+                "availability": str(avail),
+                "verification_status": str(vstat),
+                "last_verified_at": last_verified_at,
+                "source": source_url,
+            }
+        )
+
     data = {
         "id": int(getattr(gym, "id", 0)),
         "slug": str(getattr(gym, "slug", "")),
@@ -82,6 +123,7 @@ async def get_gym_detail(
         "updated_at": _iso(getattr(gym, "updated_at", None)),
         "last_verified_at": _iso(getattr(gym, "last_verified_at_cached", None)),
         "equipments": equipments_list,
+        "gym_equipments": gym_equipments_list,
     }
 
     if include == "score":
