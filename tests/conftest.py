@@ -64,7 +64,7 @@ async def app_client(monkeypatch):
 async def engine():
     eng = create_async_engine(DB_URL, **_engine_kwargs(DB_URL))
     # モデルを確実に import してメタデータを埋める
-    for m in ("source", "gym", "equipment", "gym_equipment"):
+    for m in ("source", "gym", "equipment", "gym_equipment", "report"):
         try:
             importlib.import_module(f"app.models.{m}")
         except Exception:
