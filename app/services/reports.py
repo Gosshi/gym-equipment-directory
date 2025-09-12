@@ -33,6 +33,8 @@ class ReportService:
             email=str(payload.email) if payload.email else None,
             source_url=payload.source_url,
         )
+        # Persist the report
+        await self.session.commit()
         # Logging: gym_id and type
         logger.info("report accepted", extra={"gym_id": gym.id, "type": payload.type.value})
         return {"id": int(r.id), "status": r.status}
@@ -70,4 +72,5 @@ class ReportService:
         r = await self.repo.resolve(report_id)
         if not r:
             raise ValueError("report not found")
+        await self.session.commit()
         return {"id": int(r.id), "status": r.status}
