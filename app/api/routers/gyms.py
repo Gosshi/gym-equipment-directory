@@ -3,8 +3,10 @@
 from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
+    get_async_session,
     get_equipment_slugs_from_query,
     get_gym_detail_api_service,
     get_gym_nearby_service,
@@ -14,7 +16,9 @@ from app.schemas.common import ErrorResponse
 from app.schemas.gym_detail import GymDetailResponse
 from app.schemas.gym_nearby import GymNearbyResponse
 from app.schemas.gym_search import GymSearchQuery, GymSearchResponse
+from app.schemas.report import ReportCreateRequest
 from app.services.gym_detail import GymDetailService
+from app.services.reports import ReportService
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -119,3 +123,21 @@ async def get_gym_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail="gym not found")
     return detail
+
+
+@router.post(
+    "/{slug}/report",
+    status_code=201,
+    summary="誤り報告を送信",
+)
+async def report_gym(
+    slug: str,
+    payload: ReportCreateRequest,
+    session: AsyncSession = Depends(get_async_session),
+):
+    svc = ReportService(session)
+    try:
+        r = await svc.create_for_gym_slug(slug, payload)
+        return r
+    except ValueError:
+        raise HTTPException(status_code=404, detail="gym not found")

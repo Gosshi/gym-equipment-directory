@@ -2,6 +2,7 @@ import os
 
 from fastapi import FastAPI
 
+from app.api.routers.admin_reports import router as admin_reports_router
 from app.api.routers.equipments import router as equipments_router
 from app.api.routers.gyms import router as gyms_router
 from app.api.routers.healthz import router as healthz_router
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(suggest_router)
     app.include_router(healthz_router)
     app.include_router(readyz_router)
+    app.include_router(admin_reports_router)
     return app
 
 
