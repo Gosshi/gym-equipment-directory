@@ -45,6 +45,15 @@ async def app_client(monkeypatch):
     # スコア重みは合計1.0を強制（外部環境の影響を受けないよう固定）
     monkeypatch.setenv("SCORE_W_FRESH", "0.6")
     monkeypatch.setenv("SCORE_W_RICH", "0.4")
+    # 既に import 済みの scoring モジュールを環境変数変更後の値で再読込
+    try:
+        import importlib as _imp
+
+        import app.services.scoring as _scoring
+
+        _imp.reload(_scoring)
+    except Exception:
+        pass
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
