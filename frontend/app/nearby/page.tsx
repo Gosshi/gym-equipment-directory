@@ -77,7 +77,7 @@ export default function NearbyPage() {
     enabled,
   });
 
-  const gyms = (data?.items as any[]) ?? [];
+  const gyms = (data?.items as any[]) ?? ((data as any)?.gyms as any[]) ?? [];
   const hasNext = Boolean(data?.has_next);
   const nextToken = (data?.page_token as string | null) ?? null;
 

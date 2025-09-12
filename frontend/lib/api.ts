@@ -96,6 +96,7 @@ export type NearbyItem = {
 
 export type NearbyResponse = {
   items?: NearbyItem[];
+  gyms?: NearbyItem[]; // some backends may use this key
   has_next?: boolean;
   page_token?: string | null;
 };
