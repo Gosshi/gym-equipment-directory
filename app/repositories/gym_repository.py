@@ -63,3 +63,23 @@ class GymRepository:
     async def get_all_ordered_by_id(self) -> list[Gym]:
         """Return all gyms ordered by id (ascending)."""
         return (await self._session.scalars(select(Gym).order_by(Gym.id))).all()
+
+    async def suggest_by_name_or_city(self, *, q: str, pref: str | None, limit: int) -> list[Gym]:
+        """Suggest gyms by partial match on name or city, optionally filtered by pref.
+
+        Args:
+            q: Query text (partial, case-insensitive).
+            pref: Prefecture slug to filter (case-insensitive) or None.
+            limit: Maximum number of results.
+
+        Returns:
+            List of Gym entities up to `limit`.
+        """
+        if not q:
+            return []
+
+        stmt = select(Gym).where(Gym.name.ilike(f"%{q}%") | Gym.city.ilike(f"%{q}%"))
+        if pref:
+            stmt = stmt.where(func.lower(Gym.pref) == func.lower(pref))
+        stmt = stmt.limit(int(limit))
+        return (await self._session.scalars(stmt)).all()
