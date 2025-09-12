@@ -72,27 +72,6 @@ async def search_gyms(
 
 
 @router.get(
-    "/{slug}",
-    response_model=GymDetailResponse,
-    summary="ジム詳細を取得",
-    description=(
-        "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
-    ),
-    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
-)
-async def get_gym_detail(
-    slug: str,
-    include: str | None = Query(default=None, description="例: include=score"),
-    svc: GymDetailService = Depends(get_gym_detail_api_service),
-):
-    # サービスに委譲。見つからない場合は router 側で 404 を返す。
-    detail = await svc.get_opt(slug, include)
-    if detail is None:
-        raise HTTPException(status_code=404, detail="gym not found")
-    return detail
-
-
-@router.get(
     "/nearby",
     response_model=GymNearbyResponse,
     summary="ジム近傍検索（Haversine + Keyset）",
@@ -119,3 +98,24 @@ async def gyms_nearby(
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid page_token")
+
+
+@router.get(
+    "/{slug}",
+    response_model=GymDetailResponse,
+    summary="ジム詳細を取得",
+    description=(
+        "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
+    ),
+    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
+)
+async def get_gym_detail(
+    slug: str,
+    include: str | None = Query(default=None, description="例: include=score"),
+    svc: GymDetailService = Depends(get_gym_detail_api_service),
+):
+    # サービスに委譲。見つからない場合は router 側で 404 を返す。
+    detail = await svc.get_opt(slug, include)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="gym not found")
+    return detail
