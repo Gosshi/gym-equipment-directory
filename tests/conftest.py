@@ -42,6 +42,9 @@ async def app_client(monkeypatch):
     test_url = os.getenv("TEST_DATABASE_URL")
     if test_url:
         monkeypatch.setenv("DATABASE_URL", test_url)
+    # スコア重みは合計1.0を強制（外部環境の影響を受けないよう固定）
+    monkeypatch.setenv("SCORE_W_FRESH", "0.6")
+    monkeypatch.setenv("SCORE_W_RICH", "0.4")
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
