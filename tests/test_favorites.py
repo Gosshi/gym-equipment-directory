@@ -45,3 +45,23 @@ async def test_favorites_crud_idempotent(app_client: AsyncClient):
     assert r6.status_code == 200
     items2 = r6.json()
     assert all(it["gym_id"] != gym_id for it in items2)
+
+
+@pytest.mark.asyncio
+async def test_favorites_device_id_validation(app_client: AsyncClient):
+    bad_ids = ["short", "bad$symbol", "white space", "あいうえお"]
+    for bad in bad_ids:
+        # POST invalid
+        r1 = await app_client.post(
+            "/me/favorites",
+            json={"device_id": bad, "gym_id": 1},
+        )
+        assert r1.status_code == 422
+
+        # GET invalid
+        r2 = await app_client.get("/me/favorites", params={"device_id": bad})
+        assert r2.status_code == 422
+
+        # DELETE invalid
+        r3 = await app_client.delete("/me/favorites/1", params={"device_id": bad})
+        assert r3.status_code == 422

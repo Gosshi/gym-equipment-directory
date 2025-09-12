@@ -26,7 +26,13 @@ async def add_favorite(
     summary="お気に入り一覧（デバイスID）",
 )
 async def list_favorites(
-    device_id: str = Query(..., description="匿名デバイスID"),
+    device_id: str = Query(
+        ...,
+        description="匿名デバイスID",
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    ),
     session: AsyncSession = Depends(get_async_session),
 ):
     svc = FavoriteService(session)
@@ -37,7 +43,13 @@ async def list_favorites(
 @router.delete("/favorites/{gym_id}", status_code=204, summary="お気に入りを削除（冪等）")
 async def delete_favorite(
     gym_id: int,
-    device_id: str = Query(..., description="匿名デバイスID"),
+    device_id: str = Query(
+        ...,
+        description="匿名デバイスID",
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    ),
     session: AsyncSession = Depends(get_async_session),
 ):
     svc = FavoriteService(session)
