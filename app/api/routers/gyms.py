@@ -7,10 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.api.deps import (
     get_equipment_slugs_from_query,
     get_gym_detail_api_service,
+    get_gym_nearby_service,
     get_gym_search_api_service,
 )
 from app.schemas.common import ErrorResponse
 from app.schemas.gym_detail import GymDetailResponse
+from app.schemas.gym_nearby import GymNearbyResponse
 from app.schemas.gym_search import GymSearchQuery, GymSearchResponse
 from app.services.gym_detail import GymDetailService
 
@@ -64,6 +66,35 @@ async def search_gyms(
             sort=q.sort,
             per_page=q.per_page,
             page_token=q.page_token,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid page_token")
+
+
+@router.get(
+    "/nearby",
+    response_model=GymNearbyResponse,
+    summary="ジム近傍検索（Haversine + Keyset）",
+    description=(
+        "指定した座標から半径 `radius_km` 以内のジムを、\n"
+        "Haversine距離の昇順・id昇順で返します。ページングは距離+idのKeysetです。"
+    ),
+)
+async def gyms_nearby(
+    lat: float = Query(..., description="緯度"),
+    lng: float = Query(..., description="経度"),
+    radius_km: float = Query(5.0, ge=0.0, description="検索半径（km）"),
+    per_page: int = Query(10, ge=1, le=50, description="1ページ件数"),
+    page_token: str | None = Query(None, description="Keyset継続トークン"),
+    svc=Depends(get_gym_nearby_service),
+):
+    try:
+        return await svc(
+            lat=lat,
+            lng=lng,
+            radius_km=radius_km,
+            per_page=per_page,
+            page_token=page_token,
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid page_token")
