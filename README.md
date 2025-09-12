@@ -199,6 +199,23 @@ curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=fresh
 curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness' | jq .
 ```
 
+---
+
+## コミット前の自動整形・Lint（pre-commit）
+
+このリポジトリはコミット時に Ruff のフォーマットと自動修正（--fix）を実行します。
+
+手順:
+
+- 開発用ツールをインストール: `pip install -r requirements-dev.txt`
+- Git フックを有効化: `make pre-commit-install`
+- 必要に応じて全ファイルに実行: `make pre-commit-run`
+
+実行される内容:
+
+- `ruff --fix`（Lint の自動修正）
+- `ruff format`（コード整形）
+
 ## /gyms/search スコアソート
 総合スコア = `freshness(0.6) + richness(0.4)`（値は .env で調整可能）
 
