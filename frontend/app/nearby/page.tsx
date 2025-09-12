@@ -40,8 +40,7 @@ function useGeolocation(timeoutMs = 8000) {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       err => {
-        if (err.code === err.PERMISSION_DENIED)
-          setError("位置情報の利用が拒否されました。");
+        if (err.code === err.PERMISSION_DENIED) setError("位置情報の利用が拒否されました。");
         else if (err.code === err.TIMEOUT) setError("位置情報の取得がタイムアウトしました。");
         else setError("位置情報の取得に失敗しました。");
       },
@@ -66,14 +65,7 @@ export default function NearbyPage() {
   const enabled = !!coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng);
 
   const { data, isLoading, isError, error } = useQuery<NearbyResponse>({
-    queryKey: [
-      "nearby",
-      coords?.lat ?? null,
-      coords?.lng ?? null,
-      radius_km,
-      per_page,
-      pageToken,
-    ],
+    queryKey: ["nearby", coords?.lat ?? null, coords?.lng ?? null, radius_km, per_page, pageToken],
     queryFn: () =>
       getNearbyGyms({
         lat: coords!.lat,
@@ -219,9 +211,7 @@ export default function NearbyPage() {
                           {g.name ?? g.slug}
                         </Link>
                       </h3>
-                      <div className="muted">
-                        {(g.pref ?? "") + (g.city ? ` ${g.city}` : "")}
-                      </div>
+                      <div className="muted">{(g.pref ?? "") + (g.city ? ` ${g.city}` : "")}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div>{formatDistanceKm(g.distance_km)}</div>
@@ -252,4 +242,3 @@ export default function NearbyPage() {
     </div>
   );
 }
-
