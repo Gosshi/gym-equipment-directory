@@ -27,3 +27,10 @@ freshness:
 
 test:
 	@TEST_DATABASE_URL=$(PG_DSN) pytest -q
+
+# --- Dev tooling ---
+pre-commit-install:
+	pre-commit install
+
+pre-commit-run:
+	pre-commit run --all-files
