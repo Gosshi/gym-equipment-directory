@@ -47,14 +47,15 @@ async def get_or_create_gym(
     *,
     latitude: float | None = None,
     longitude: float | None = None,
+    overwrite_geo: bool = False,
 ) -> Gym:
     result = await sess.execute(select(Gym).where(Gym.slug == slug))
     g = result.scalar_one_or_none()
     if g:
-        # 既存があり、緯度経度が未設定なら補完（上書きしたい場合は直接UPDATEしてください）
-        if getattr(g, "latitude", None) is None and latitude is not None:
+        # 既存があり、緯度経度が未設定なら補完。上書きしたい場合は overwrite_geo=True で更新。
+        if latitude is not None and (getattr(g, "latitude", None) is None or overwrite_geo):
             g.latitude = float(latitude)
-        if getattr(g, "longitude", None) is None and longitude is not None:
+        if longitude is not None and (getattr(g, "longitude", None) is None or overwrite_geo):
             g.longitude = float(longitude)
         return g
     g = Gym(
@@ -169,6 +170,7 @@ async def main() -> int:
     ]
 
     # ---- 2) ダミーのジム
+    overwrite_geo = os.getenv("SEED_OVERWRITE_GEO", "").lower() in {"1", "true", "yes"}
     gym_seed = [
         (
             "dummy-funabashi-east",
@@ -273,6 +275,7 @@ async def main() -> int:
                 official_url=url,
                 latitude=lat,
                 longitude=lng,
+                overwrite_geo=overwrite_geo,
             )
             slug_to_gym[slug] = g
 
