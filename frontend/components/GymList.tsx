@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import FavoriteButton from "@/components/FavoriteButton";
 
 type Props = {
   gyms: any[] | undefined;
@@ -63,6 +64,11 @@ export default function GymList({
                 </h3>
                 {g.address && <div className="muted">{g.address}</div>}
               </div>
+              {typeof g.id === "number" && (
+                <div>
+                  <FavoriteButton gymId={g.id} gymSlug={g.slug ?? String(g.id)} compact />
+                </div>
+              )}
             </div>
             <EquipmentChips list={g.equipments} />
           </div>

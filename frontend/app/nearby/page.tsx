@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getNearbyGyms, type NearbyResponse } from "@/lib/api";
+import FavoriteButton from "@/components/FavoriteButton";
 
 type Coords = { lat: number; lng: number } | null;
 
@@ -218,6 +219,11 @@ export default function NearbyPage() {
                       {g.last_verified_at && (
                         <div className="muted" style={{ fontSize: "0.9rem" }}>
                           最終確認: {new Date(g.last_verified_at).toLocaleDateString("ja-JP")}
+                        </div>
+                      )}
+                      {typeof g.id === "number" && (
+                        <div style={{ marginTop: 8 }}>
+                          <FavoriteButton gymId={g.id} gymSlug={g.slug} compact />
                         </div>
                       )}
                     </div>
