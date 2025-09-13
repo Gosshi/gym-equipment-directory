@@ -27,14 +27,22 @@ def _to_naive_utc(dt: datetime | None) -> datetime | None:
     return dt.astimezone(UTC).replace(tzinfo=None)
 
 
+def _weights_from_env() -> tuple[float, float]:
+    """Always read weights from env for validation to avoid stale module state."""
+    fresh = float(os.getenv("SCORE_W_FRESH", "0.6"))
+    rich = float(os.getenv("SCORE_W_RICH", "0.4"))
+    return fresh, rich
+
+
 def validate_weights() -> None:
-    """起動時検証用。合計 1.0±ε を要求。"""
-    if abs((FRESH_W + RICH_W) - 1.0) > 1e-6:
+    """起動時検証用。合計 1.0±ε を要求。常に現在の環境変数を参照する。"""
+    fresh, rich = _weights_from_env()
+    if abs((fresh + rich) - 1.0) > 1e-6:
         raise ValueError(
-            f"SCORE weight invalid: SCORE_W_FRESH + SCORE_W_RICH must be 1.0 "
-            f"(got {FRESH_W + RICH_W:.6f})"
+            "SCORE weight invalid: SCORE_W_FRESH + SCORE_W_RICH must be 1.0 "
+            f"(got {fresh + rich:.6f})"
         )
-    if FRESH_W < -EPS or RICH_W < -EPS:
+    if fresh < -EPS or rich < -EPS:
         raise ValueError("SCORE weights must be non-negative")
 
 
