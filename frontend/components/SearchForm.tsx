@@ -149,9 +149,11 @@ export default function SearchForm() {
         <legend>Equipments</legend>
         {equipments && (
           <EquipmentSuggestInput
-            selected={(form.equipments
-              .map(slug => equipments.find((m: Equipment) => m.slug === slug)?.name)
-              .filter(Boolean) as string[])}
+            selected={
+              form.equipments
+                .map(slug => equipments.find((m: Equipment) => m.slug === slug)?.name)
+                .filter(Boolean) as string[]
+            }
             onSelect={names => {
               // Map suggestion names to slugs using the loaded equipment master
               const master = equipments ?? [];

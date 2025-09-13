@@ -67,4 +67,3 @@ export default function FavoriteButton({ gymId, gymSlug, compact }: Props) {
     </button>
   );
 }
-

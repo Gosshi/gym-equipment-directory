@@ -54,10 +54,30 @@ export default function GymSuggestInput({ pref, onPickCity }: Props) {
         />
       </label>
       {open && suggestions.length > 0 && (
-        <ul id="gym-suggest-list" role="listbox" className="card" style={{ position: "absolute", zIndex: 10, width: "100%", marginTop: 4, listStyle: "none", padding: 0 }}>
+        <ul
+          id="gym-suggest-list"
+          role="listbox"
+          className="card"
+          style={{
+            position: "absolute",
+            zIndex: 10,
+            width: "100%",
+            marginTop: 4,
+            listStyle: "none",
+            padding: 0,
+          }}
+        >
           {suggestions.map((it, i) => (
-            <li key={`${it.slug}-${i}`} className="row" style={{ padding: 4, justifyContent: "space-between" }}>
-              <Link className="btn" href={`/gyms/${encodeURIComponent(it.slug)}`} aria-label={`${it.name} 詳細へ`}>
+            <li
+              key={`${it.slug}-${i}`}
+              className="row"
+              style={{ padding: 4, justifyContent: "space-between" }}
+            >
+              <Link
+                className="btn"
+                href={`/gyms/${encodeURIComponent(it.slug)}`}
+                aria-label={`${it.name} 詳細へ`}
+              >
                 {it.name}
               </Link>
               <button
@@ -75,4 +95,3 @@ export default function GymSuggestInput({ pref, onPickCity }: Props) {
     </div>
   );
 }
-

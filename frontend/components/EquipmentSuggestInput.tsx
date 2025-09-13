@@ -28,7 +28,10 @@ export default function EquipmentSuggestInput({ selected, onSelect }: Props) {
     enabled: debounced.length > 0,
   });
 
-  const suggestions = useMemo(() => (data ?? []).filter(name => !selected.includes(name)), [data, selected]);
+  const suggestions = useMemo(
+    () => (data ?? []).filter(name => !selected.includes(name)),
+    [data, selected],
+  );
 
   const add = (name: string) => {
     const next = Array.from(new Set([...selected, name]));
@@ -59,10 +62,28 @@ export default function EquipmentSuggestInput({ selected, onSelect }: Props) {
         />
       </label>
       {open && suggestions.length > 0 && (
-        <ul id="equip-suggest-list" role="listbox" className="card" style={{ position: "absolute", zIndex: 10, width: "100%", marginTop: 4, listStyle: "none", padding: 0 }}>
+        <ul
+          id="equip-suggest-list"
+          role="listbox"
+          className="card"
+          style={{
+            position: "absolute",
+            zIndex: 10,
+            width: "100%",
+            marginTop: 4,
+            listStyle: "none",
+            padding: 0,
+          }}
+        >
           {suggestions.map((name, i) => (
             <li key={`${name}-${i}`}>
-              <button className="btn secondary" type="button" onClick={() => add(name)} aria-label={`${name} を追加`} style={{ width: "100%", justifyContent: "flex-start" }}>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={() => add(name)}
+                aria-label={`${name} を追加`}
+                style={{ width: "100%", justifyContent: "flex-start" }}
+              >
                 {name}
               </button>
             </li>
@@ -72,9 +93,18 @@ export default function EquipmentSuggestInput({ selected, onSelect }: Props) {
       {selected.length > 0 && (
         <div className="row" style={{ marginTop: 8 }}>
           {selected.map(name => (
-            <span key={name} className="muted" style={{ border: "1px solid #e5e7eb", borderRadius: 999, padding: "2px 6px" }}>
+            <span
+              key={name}
+              className="muted"
+              style={{ border: "1px solid #e5e7eb", borderRadius: 999, padding: "2px 6px" }}
+            >
               {name}
-              <button type="button" aria-label={`${name} を削除`} onClick={() => remove(name)} style={{ marginLeft: 6, border: 0, background: "transparent", cursor: "pointer" }}>
+              <button
+                type="button"
+                aria-label={`${name} を削除`}
+                onClick={() => remove(name)}
+                style={{ marginLeft: 6, border: 0, background: "transparent", cursor: "pointer" }}
+              >
                 ×
               </button>
             </span>
@@ -84,4 +114,3 @@ export default function EquipmentSuggestInput({ selected, onSelect }: Props) {
     </div>
   );
 }
-

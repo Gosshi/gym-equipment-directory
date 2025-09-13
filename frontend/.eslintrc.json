@@ -1,6 +1,4 @@
 {
   "extends": ["next/core-web-vitals"],
-  "rules": {
-    // keep rules minimal; rely on Next defaults
-  }
+  "rules": {}
 }

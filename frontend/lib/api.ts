@@ -106,7 +106,12 @@ export async function getNearbyGyms(params: NearbyParams): Promise<NearbyRespons
 }
 
 // Suggest APIs
-export type GymSuggestItem = { slug: string; name: string; pref?: string | null; city?: string | null };
+export type GymSuggestItem = {
+  slug: string;
+  name: string;
+  pref?: string | null;
+  city?: string | null;
+};
 
 export async function suggestEquipments(q: string, limit = 5): Promise<string[]> {
   return fetchJson<string[]>("/suggest/equipments", { q, limit });

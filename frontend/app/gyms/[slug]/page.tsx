@@ -22,11 +22,17 @@ export default function GymDetailPage() {
     ? (((data as any)?.equipments as any[]) ?? [])
     : [];
   const images: { url: string; source?: string | null }[] = Array.isArray((data as any)?.images)
-    ? (((data as any)?.images as any[]) ?? []).map((im: any) => ({ url: im?.url, source: im?.source }))
+    ? (((data as any)?.images as any[]) ?? []).map((im: any) => ({
+        url: im?.url,
+        source: im?.source,
+      }))
     : [];
   const gymId = (data as any)?.id as number | undefined;
   const hasImages = images.length > 0;
-  const current = useMemo(() => (hasImages ? images[idx % images.length] : null), [images, idx, hasImages]);
+  const current = useMemo(
+    () => (hasImages ? images[idx % images.length] : null),
+    [images, idx, hasImages],
+  );
 
   return (
     <div className="stack">
@@ -49,11 +55,23 @@ export default function GymDetailPage() {
                 />
               )}
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <button className="btn secondary" type="button" onClick={() => setIdx(i => (i - 1 + images.length) % images.length)} aria-label="前の画像">
+                <button
+                  className="btn secondary"
+                  type="button"
+                  onClick={() => setIdx(i => (i - 1 + images.length) % images.length)}
+                  aria-label="前の画像"
+                >
                   ‹
                 </button>
-                <div className="muted">{idx + 1} / {images.length}</div>
-                <button className="btn secondary" type="button" onClick={() => setIdx(i => (i + 1) % images.length)} aria-label="次の画像">
+                <div className="muted">
+                  {idx + 1} / {images.length}
+                </div>
+                <button
+                  className="btn secondary"
+                  type="button"
+                  onClick={() => setIdx(i => (i + 1) % images.length)}
+                  aria-label="次の画像"
+                >
                   ›
                 </button>
               </div>

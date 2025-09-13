@@ -22,9 +22,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      <div aria-live="polite" aria-atomic="true" style={{ position: "fixed", right: 12, bottom: 12, display: "grid", gap: 8 }}>
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        style={{ position: "fixed", right: 12, bottom: 12, display: "grid", gap: 8 }}
+      >
         {toasts.map(t => (
-          <div key={t.id} role="status" className="card" style={{ background: "#111827", color: "white" }}>
+          <div
+            key={t.id}
+            role="status"
+            className="card"
+            style={{ background: "#111827", color: "white" }}
+          >
             {t.message}
           </div>
         ))}
@@ -38,4 +47,3 @@ export function useToast() {
   if (!ctx) throw new Error("ToastProvider is missing");
   return ctx;
 }
-
