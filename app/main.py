@@ -1,7 +1,10 @@
 import os
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.cors import CORSMiddleware
 
 from app.api.routers.admin_reports import router as admin_reports_router
 from app.api.routers.equipments import router as equipments_router
@@ -12,7 +15,9 @@ from app.api.routers.meta import router as meta_router
 from app.api.routers.readyz import router as readyz_router
 from app.api.routers.suggest import router as suggest_router
 from app.logging import setup_logging
+from app.middleware.rate_limit import rate_limit_middleware
 from app.middleware.request_id import request_id_middleware
+from app.middleware.security_headers import security_headers_middleware
 from app.services.scoring import validate_weights
 
 
@@ -24,6 +29,21 @@ def create_app() -> FastAPI:
     validate_weights()
     # Request-ID middleware (JSON access log)
     app.middleware("http")(request_id_middleware)
+    # Security headers
+    app.middleware("http")(security_headers_middleware)
+    # Rate limiting (IP-based, method-specific)
+    app.middleware("http")(rate_limit_middleware)
+
+    # CORS from ALLOW_ORIGINS env (comma-separated)
+    allow_origins = [o.strip() for o in os.getenv("ALLOW_ORIGINS", "").split(",") if o.strip()]
+    if allow_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allow_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+            allow_headers=["*"],
+        )
     app.include_router(gyms_router)
     app.include_router(meta_router)
     app.include_router(equipments_router)
@@ -32,14 +52,36 @@ def create_app() -> FastAPI:
     app.include_router(readyz_router)
     app.include_router(admin_reports_router)
     app.include_router(me_favorites_router)
+
+    # Simple health for tests and uptime checks
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "env": os.getenv("APP_ENV", "dev")}
+
+    # 429 handler: unified JSON {"error": {...}}
+    @app.exception_handler(RateLimitExceeded)
+    async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):  # type: ignore[unused-ignore]
+        info = getattr(request.state, "rate_limit_info", None)
+        if not isinstance(info, dict):
+            info = {
+                "method": request.method,
+                "ip": (request.client.host if request.client else None) or "-",
+                "limit": "-",
+            }
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": "rate_limited",
+                    "message": "Too Many Requests",
+                    "detail": info,
+                }
+            },
+        )
+
     # Startup log
     structlog.get_logger(__name__).info("app_startup", env=os.getenv("APP_ENV", "dev"))
     return app
 
 
 app = create_app()
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "env": os.getenv("APP_ENV", "dev")}
