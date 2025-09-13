@@ -80,8 +80,8 @@ async def rate_limit_middleware(request: Request, call_next: Callable) -> Respon
             "limit": limit_str,
         }
         request.state.rate_limit_info = info
-        # Raise the slowapi exception to be handled centrally
-        raise RateLimitExceeded(detail=str(info))
+        # Raise the slowapi exception (no kwargs; handled by our exception_handler)
+        raise RateLimitExceeded()
 
     response = await call_next(request)
     # Optional exposed headers for clients (remaining not provided by MovingWindow)
