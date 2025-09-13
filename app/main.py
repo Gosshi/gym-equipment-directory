@@ -53,6 +53,11 @@ def create_app() -> FastAPI:
     app.include_router(admin_reports_router)
     app.include_router(me_favorites_router)
 
+    # Simple health for tests and uptime checks
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "env": os.getenv("APP_ENV", "dev")}
+
     # 429 handler: unified JSON {"error": {...}}
     @app.exception_handler(RateLimitExceeded)
     async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):  # type: ignore[unused-ignore]
@@ -80,8 +85,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "env": os.getenv("APP_ENV", "dev")}
