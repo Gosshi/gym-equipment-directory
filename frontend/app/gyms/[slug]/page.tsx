@@ -89,9 +89,14 @@ export default function GymDetailPage() {
             {eq.length === 0 && <div className="muted">No equipments listed.</div>}
             {eq.length > 0 && (
               <ul style={{ paddingLeft: 18, margin: 0 }}>
-                {eq.map((e, i) => (
-                  <li key={i}>{e?.name ?? e?.slug ?? String(e)}</li>
-                ))}
+                {eq.map((e: any, i: number) => {
+                  const name =
+                    e?.equipment_name ?? e?.equipment_slug ?? e?.name ?? e?.slug ?? String(e);
+                  const parts: string[] = [name];
+                  if (typeof e?.count === "number") parts.push(`x${e.count}`);
+                  if (typeof e?.max_weight_kg === "number") parts.push(`${e.max_weight_kg}kg`);
+                  return <li key={i}>{parts.join(" / ")}</li>;
+                })}
               </ul>
             )}
           </div>
