@@ -5,11 +5,11 @@ from collections.abc import Callable
 from typing import TypedDict
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from limits import parse as parse_limit
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
 from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
 
 
 class RateLimitInfo(TypedDict, total=False):
@@ -80,9 +80,17 @@ async def rate_limit_middleware(request: Request, call_next: Callable) -> Respon
             "limit": limit_str,
         }
         request.state.rate_limit_info = info
-        # Raise the slowapi exception with a positional message
-        # Details are provided via request.state and formatted by our handler
-        raise RateLimitExceeded("Too Many Requests")
+        # Respond directly with JSON 429 to avoid dependency on slowapi's handler
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": "rate_limited",
+                    "message": "Too Many Requests",
+                    "detail": info,
+                }
+            },
+        )
 
     response = await call_next(request)
     # Optional exposed headers for clients (remaining not provided by MovingWindow)
