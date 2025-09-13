@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Equipment, getEquipments } from "@/lib/api";
+import EquipmentSuggestInput from "@/components/EquipmentSuggestInput";
+import GymSuggestInput from "@/components/GymSuggestInput";
 
 type FormState = {
   pref: string;
@@ -114,6 +116,10 @@ export default function SearchForm() {
             placeholder="例: 渋谷区"
           />
         </label>
+        <GymSuggestInput
+          pref={form.pref || undefined}
+          onPickCity={(pref, city) => setForm(s => ({ ...s, pref: pref ?? "", city: city ?? "" }))}
+        />
         <label>
           Sort:
           <select value={form.sort} onChange={e => setForm(s => ({ ...s, sort: e.target.value }))}>
@@ -141,6 +147,23 @@ export default function SearchForm() {
 
       <fieldset>
         <legend>Equipments</legend>
+        {equipments && (
+          <EquipmentSuggestInput
+            selected={(form.equipments
+              .map(slug => equipments.find((m: Equipment) => m.slug === slug)?.name)
+              .filter(Boolean) as string[])}
+            onSelect={names => {
+              // Map suggestion names to slugs using the loaded equipment master
+              const master = equipments ?? [];
+              const slugSet = new Set<string>(form.equipments);
+              names.forEach(name => {
+                const hit = master.find((m: Equipment) => (m.name ?? "").trim() === name.trim());
+                if (hit?.slug) slugSet.add(hit.slug);
+              });
+              setForm(s => ({ ...s, equipments: Array.from(slugSet) }));
+            }}
+          />
+        )}
         {isLoading && <div className="muted">Loading equipments...</div>}
         {!isLoading && equipments && equipments.length === 0 && (
           <div className="muted">No equipments</div>

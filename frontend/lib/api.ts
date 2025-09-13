@@ -104,3 +104,46 @@ export type NearbyResponse = {
 export async function getNearbyGyms(params: NearbyParams): Promise<NearbyResponse> {
   return fetchJson<NearbyResponse>("/gyms/nearby", params as Record<string, unknown>);
 }
+
+// Suggest APIs
+export type GymSuggestItem = { slug: string; name: string; pref?: string | null; city?: string | null };
+
+export async function suggestEquipments(q: string, limit = 5): Promise<string[]> {
+  return fetchJson<string[]>("/suggest/equipments", { q, limit });
+}
+
+export async function suggestGyms(q: string, pref?: string, limit = 10): Promise<GymSuggestItem[]> {
+  const params: Record<string, unknown> = { q, limit };
+  if (pref) params.pref = pref;
+  return fetchJson<GymSuggestItem[]>("/suggest/gyms", params);
+}
+
+// Favorites APIs
+export type FavoriteItem = {
+  gym_id: number;
+  slug: string;
+  name: string;
+  pref?: string | null;
+  city?: string | null;
+  last_verified_at?: string | null;
+};
+
+export async function listFavorites(device_id: string): Promise<FavoriteItem[]> {
+  return fetchJson<FavoriteItem[]>("/me/favorites", { device_id });
+}
+
+export async function addFavorite(device_id: string, gym_id: number): Promise<void> {
+  const url = `${API_BASE}/me/favorites`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id, gym_id }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function removeFavorite(device_id: string, gym_id: number): Promise<void> {
+  const url = `${API_BASE}/me/favorites/${encodeURIComponent(String(gym_id))}?device_id=${encodeURIComponent(device_id)}`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
