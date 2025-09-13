@@ -4,6 +4,7 @@ import time
 import uuid
 from collections.abc import Callable
 
+import sentry_sdk
 import structlog
 from fastapi import Request, Response
 
@@ -27,6 +28,18 @@ async def request_id_middleware(request: Request, call_next: Callable) -> Respon
     structlog.contextvars.bind_contextvars(
         request_id=rid, path=request.url.path, method=request.method
     )
+
+    # Enrich Sentry scope with request info (tags + extras)
+    try:
+        sentry_sdk.set_tag("request_id", rid)
+        sentry_sdk.set_tag("path", request.url.path)
+        sentry_sdk.set_tag("method", request.method)
+        sentry_sdk.set_extra("request_id", rid)
+        sentry_sdk.set_extra("path", request.url.path)
+        sentry_sdk.set_extra("method", request.method)
+    except Exception:
+        # Never let Sentry instrumentation break request processing
+        pass
 
     start_ns = time.perf_counter_ns()
     status_code = 500
