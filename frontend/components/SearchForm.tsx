@@ -155,14 +155,17 @@ export default function SearchForm() {
                 .filter(Boolean) as string[]
             }
             onSelect={names => {
-              // Map suggestion names to slugs using the loaded equipment master
+              // names（選択済みの表示名の配列）を、最新のスラッグ配列に置き換える
               const master = equipments ?? [];
-              const slugSet = new Set<string>(form.equipments);
+              const nextSlugs: string[] = [];
               names.forEach(name => {
-                const hit = master.find((m: Equipment) => (m.name ?? "").trim() === name.trim());
-                if (hit?.slug) slugSet.add(hit.slug);
+                const key = name.trim();
+                const hit = master.find(
+                  (m: Equipment) => (m.name ?? "").trim() === key || (m.slug ?? "") === key,
+                );
+                if (hit?.slug) nextSlugs.push(hit.slug);
               });
-              setForm(s => ({ ...s, equipments: Array.from(slugSet) }));
+              setForm(s => ({ ...s, equipments: Array.from(new Set(nextSlugs)) }));
             }}
           />
         )}
