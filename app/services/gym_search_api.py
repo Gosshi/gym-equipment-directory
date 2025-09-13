@@ -7,6 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
+import structlog
 from sqlalchemy import and_, case, cast, func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Numeric
@@ -112,6 +113,14 @@ async def search_gyms_api(
     per_page: int,
     page_token: str | None,
 ) -> GymSearchResponse:
+    logger = structlog.get_logger(__name__)
+    logger.info(
+        "gyms_search_begin",
+        pref=pref,
+        city=city,
+        sort=sort,
+        per_page=per_page,
+    )
     # ---- 1) ベース: Gym.id（pref/city を反映） ----
     if pref:
         pref = pref.lower()
@@ -385,4 +394,9 @@ async def search_gyms_api(
     has_next = len(items) == per_page and (total > 0) and (next_token is not None)
     if not has_next:
         next_token = None
+    logger.info(
+        "gyms_search_end",
+        count=len(items),
+        has_next=bool(has_next),
+    )
     return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)

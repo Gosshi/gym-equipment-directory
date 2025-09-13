@@ -4,6 +4,7 @@ import base64
 import json
 from datetime import datetime
 
+import structlog
 from sqlalchemy import and_, cast, func, literal, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Numeric
@@ -53,6 +54,7 @@ async def search_nearby(
     per_page: int,
     page_token: str | None,
 ) -> GymNearbyResponse:
+    logger = structlog.get_logger(__name__)
     """Nearby gyms using Haversine distance and keyset pagination.
 
     - Filters out rows with NULL latitude/longitude
@@ -121,4 +123,11 @@ async def search_nearby(
             float(dist_last or 0.0), int(getattr(g_last, "id", 0))
         )
 
+    logger.info(
+        "gyms_nearby",
+        lat=float(lat),
+        lng=float(lng),
+        radius_km=float(radius_km),
+        returned=len(items),
+    )
     return GymNearbyResponse(items=items, has_next=has_next, page_token=next_token)
