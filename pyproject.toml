@@ -33,3 +33,9 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+# Keep defaults lenient to avoid CI noise; tighten later as needed.
+ignore_missing_imports = true
