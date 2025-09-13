@@ -14,3 +14,9 @@ repos:
         pass_filenames: true
         types_or: [javascript, jsx, ts, tsx, json, css, scss, markdown]
         files: ^frontend/
+      - id: frontend-next-lint-fix
+        name: frontend next lint --fix
+        language: system
+        entry: bash -lc 'cd frontend && ./node_modules/.bin/next lint --fix'
+        pass_filenames: false
+        files: ^frontend/
