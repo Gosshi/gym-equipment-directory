@@ -1,0 +1,151 @@
+name: PR Preview (Single EC2)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  AMI_ID: ami-xxxxxxxx            # TODO: 置換
+  INSTANCE_TYPE: t3.micro         # or t4g.micro (match AMI arch)
+  SG_ID: sg-xxxxxxxx              # TODO: 置換
+  SUBNET_ID: subnet-xxxxxxxx      # TODO: 置換
+  KEY_NAME: pr-stg                # 任意/不要なら空に
+  INSTANCE_NAME: pr-preview       # 固定名（1台運用のキモ）
+  APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-preview-singleton
+      cancel-in-progress: true
+
+    steps:
+      - name: Configure AWS creds (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::738755162207:role/github-oidc-pr-staging
+
+      - name: Decide mode (upsert or destroy)
+        id: mode
+        run: |
+          if [ "${{ github.event.action }}" = "closed" ]; then
+            echo "mode=destroy-if-no-open-pr" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=upsert" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ====== 起動/再デプロイ（opened/reopened/synchronize） ======
+      - name: Upsert single preview instance
+        if: steps.mode.outputs.mode == 'upsert'
+        id: upsert
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.STG_DATABASE_URL }}
+          SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+
+          # 既存の pr-preview を検索
+          IID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+
+          # User Data 構築（Docker + compose セットアップし、compose で API 起動）
+          # 注意: t4g(ARM) を使う場合は compose バイナリ URL を arm64 に合わせて変更
+          read -r -d '' UD <<EOS
+          #!/bin/bash
+          set -eux
+          dnf -y update
+          dnf -y install docker git
+          systemctl enable --now docker
+          curl -sSL https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          mkdir -p /srv/app && cd /srv/app
+          cat > docker-compose.yml <<YML
+          services:
+            api:
+              image: ${APP_IMAGE}
+              environment:
+                APP_ENV: stg
+                ALLOW_ORIGINS: "*"
+                DATABASE_URL: ${DATABASE_URL}
+                SENTRY_DSN: ${SENTRY_DSN}
+              ports:
+                - "8000:8000"
+              command: >
+                bash -lc "alembic upgrade head &&
+                          uvicorn app.main:app --host 0.0.0.0 --port 8000"
+          YML
+          docker-compose up -d
+          EOS
+
+          # KEY_NAME が空なら引数省略
+          KEY_OPT=()
+          if [ -n "${KEY_NAME:-}" ]; then
+            KEY_OPT+=(--key-name "$KEY_NAME")
+          fi
+
+          if [ -z "${IID}" ]; then
+            echo "No existing instance. Launching new ${INSTANCE_NAME}..."
+          else
+            echo "Existing instance found: ${IID}. Recreating to redeploy latest image..."
+            aws ec2 terminate-instances --instance-ids "${IID}"
+            aws ec2 wait instance-terminated --instance-ids "${IID}"
+          fi
+
+          RUN_ARGS=(
+            --image-id "${AMI_ID}"
+            --instance-type "${INSTANCE_TYPE}"
+            --security-group-ids "${SG_ID}"
+            --subnet-id "${SUBNET_ID}"
+            --user-data "${UD}"
+            --count 1
+            --query 'Instances[0].InstanceId' --output text
+          )
+          if [ -n "${KEY_NAME:-}" ]; then
+            RUN_ARGS+=(--key-name "${KEY_NAME}")
+          fi
+          IID=$(aws ec2 run-instances "${RUN_ARGS[@]}")
+
+          aws ec2 create-tags --resources "${IID}" --tags Key=Name,Value="${INSTANCE_NAME}",Key=Env,Value=stg,Key=Owner,Value=github-actions
+
+          # Public IP 取得
+          aws ec2 wait instance-running --instance-ids "${IID}"
+          IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+          echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: http://${IP}:8000"
+
+      # ====== PR close 時：他に開いているPRが無ければ破棄 ======
+      - name: Check remaining open PRs
+        if: steps.mode.outputs.mode == 'destroy-if-no-open-pr'
+        id: remain
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            core.setOutput('open_count', prs.length);
+
+      - name: Destroy instance if no open PRs
+        if: steps.mode.outputs.mode == 'destroy-if-no-open-pr' && steps.remain.outputs.open_count == '0'
+        run: |
+          IID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          if [ -n "${IID}" ]; then
+            aws ec2 terminate-instances --instance-ids "${IID}"
+            aws ec2 wait instance-terminated --instance-ids "${IID}"
+            echo "Terminated ${INSTANCE_NAME} (${IID})"
+          else
+            echo "No instance to terminate."
+          fi
