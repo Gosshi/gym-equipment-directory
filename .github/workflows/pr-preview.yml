@@ -26,6 +26,15 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      - name: Debug OIDC claims (aud/sub)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const id = await core.getIDToken('sts.amazonaws.com');  // aud を合わせる
+            const payload = JSON.parse(Buffer.from(id.split('.')[1], 'base64').toString());
+            console.log('aud:', payload.aud);
+            console.log('sub:', payload.sub);
+            console.log('event:', context.eventName);
       - name: Configure AWS creds (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
