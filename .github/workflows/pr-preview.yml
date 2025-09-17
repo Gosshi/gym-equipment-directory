@@ -194,16 +194,12 @@ jobs:
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
           fi
 
-          # .env（内蔵DB用）
+          # .env（アプリ用） — DB 接続は Secrets から渡す
           cat > .env <<'ENV'
           APP_PORT=8000
-          POSTGRES_DB=gym
-          POSTGRES_USER=postgres
-          POSTGRES_PASSWORD=postgres
-          DATABASE_URL=postgresql://postgres:postgres@db:5432/gym
           ENV
 
-          # docker-compose.yml（api + db）
+          # docker-compose.yml（api のみ。DBは外部の STG を使用）
           cat > docker-compose.yml <<'YML'
           services:
             api:
@@ -214,34 +210,11 @@ jobs:
                 ALLOW_ORIGINS: "*"
                 DATABASE_URL: ${DATABASE_URL}
                 SENTRY_DSN: ${SENTRY_DSN}
-              depends_on:
-                db:
-                  condition: service_healthy
               ports:
                 - "${APP_PORT}:8000"
               command: >
-                bash -lc "
-                  alembic upgrade head &&
-                  uvicorn app.main:app --host 0.0.0.0 --port 8000
-                "
-
-            db:
-              image: postgres:16-alpine
-              env_file: .env
-              environment:
-                POSTGRES_DB: ${POSTGRES_DB}
-                POSTGRES_USER: ${POSTGRES_USER}
-                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-              volumes:
-                - pgdata:/var/lib/postgresql/data
-              healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"]
-                interval: 2s
-                timeout: 2s
-                retries: 30
-
-          volumes:
-            pgdata:
+                bash -lc "alembic upgrade head &&
+                          uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
           # まずは pull（失敗時は後で build にフォールバック可能にしたい場合はここに処理追加可）
