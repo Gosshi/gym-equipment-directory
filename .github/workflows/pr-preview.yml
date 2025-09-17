@@ -183,18 +183,17 @@ jobs:
           fi
 
           IID=$(
-          aws ec2 run-instances \
-            --image-id "${AMI_ID}" \
-            --instance-type "${INSTANCE_TYPE}" \
-            --security-group-ids "${SG_ID}" \
-            --subnet-id "${SUBNET_ID}" \
-            --associate-public-ip-address \
-            --user-data "${UD}" \
-            --count 1 \
-            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions}]" \
-            --query 'Instances[0].InstanceId' \
-            --output text
-                  )
+            aws ec2 run-instances \
+              --image-id "${AMI_ID}" \
+              --instance-type "${INSTANCE_TYPE}" \
+              --security-group-ids "${SG_ID}" \
+              --subnet-id "${SUBNET_ID}" \
+              --associate-public-ip-address \   # ← 追加
+              --user-data "${UD}" \
+              --count 1 \
+              --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions}]" \
+              --query 'Instances[0].InstanceId' --output text
+          )
           echo "Launched instance ID: $IID"
 
           # Public IP 取得
@@ -202,6 +201,26 @@ jobs:
           IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
+
+          # ---- ここからヘルスチェック（最大90秒）----
+          echo "Waiting for TCP/8000 to be reachable..."
+          for i in {1..30}; do
+            if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
+              echo "Port 8000 is open"
+              break
+            fi
+            echo "  retry ${i}/30 ..."
+            sleep 3
+          done
+
+          echo "Probing HTTP endpoint..."
+          set +e
+          curl -fsS "http://${IP}:8000/docs" >/dev/null && OK=1 || OK=0
+          if [ "$OK" -ne 1 ]; then
+            curl -fsS "http://${IP}:8000/health/db" || true
+            echo "::warning::App did not respond yet. Likely the container failed to start."
+          fi
+          set -e
 
       # ====== PR close 時：他に開いているPRが無ければ破棄 ======
       - name: Check remaining open PRs
