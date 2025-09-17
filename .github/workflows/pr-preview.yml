@@ -177,12 +177,13 @@ jobs:
             --subnet-id "${SUBNET_ID}"
             --user-data "${UD}"
             --count 1
-            --query 'Instances[0].InstanceId' --output text
           )
           if [ -n "${KEY_NAME:-}" ]; then
             RUN_ARGS+=(--key-name "${KEY_NAME}")
           fi
-          IID=$(aws ec2 run-instances "${RUN_ARGS[@]}")
+
+          IID=$(aws ec2 run-instances "${RUN_ARGS[@]}" \
+                  --query 'Instances[0].InstanceId' --output text)
 
           aws ec2 create-tags --resources "${IID}" --tags Key=Name,Value="${INSTANCE_NAME}",Key=Env,Value=stg,Key=Owner,Value=github-actions
 
