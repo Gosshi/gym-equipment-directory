@@ -64,7 +64,7 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.APP_IMAGE }}
-            ghcr.io/${{ toLower(github.repository) }}:pr-${{ github.event.pull_request.number }}
+            ghcr.io/Gosshi/gym-equipment-directory:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
