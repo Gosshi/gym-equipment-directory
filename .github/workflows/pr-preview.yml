@@ -117,7 +117,9 @@ jobs:
           DATABASE_URL: ${{ secrets.STG_DATABASE_URL }}
           SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
+          trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — command: $BASH_COMMAND"' ERR
+          set -x
 
           # 既存の pr-preview を検索
           IID=$(aws ec2 describe-instances \
