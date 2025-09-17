@@ -42,7 +42,7 @@ jobs:
           role-to-assume: arn:aws:iam::738755162207:role/github-oidc-pr-staging
       
       ## Preflight checks
-      - name: Preflight: print inputs
+      - name: "Preflight: print inputs"
         run: |
           set -x
           echo "AMI_ID=${AMI_ID}"
@@ -51,7 +51,7 @@ jobs:
           echo "SUBNET_ID=${SUBNET_ID}"
           test -n "${{ secrets.STG_DATABASE_URL }}" || (echo "ERROR: STG_DATABASE_URL is empty" && exit 1)
 
-      - name: Preflight: check AMI arch & VPC/SG/Subnet
+      - name: "Preflight: check AMI arch & VPC/SG/Subnet"
         id: preflight
         run: |
           set -euo pipefail
@@ -69,7 +69,7 @@ jobs:
           echo "MapPublicIpOnLaunch=$MAP_PUBLIC"
           echo "arch=$ARCH" >> $GITHUB_OUTPUT
 
-      - name: Preflight: dry-run run-instances (permission check)
+      - name: "Preflight: dry-run run-instances (permission check)"
         continue-on-error: true
         id: dryrun
         run: |
