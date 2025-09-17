@@ -183,7 +183,7 @@ jobs:
 
           # 基本セットアップ
           dnf -y update
-          dnf -y install docker git
+          dnf -y install docker docker-compose-plugin git
           systemctl enable --now docker
 
           # Docker 権限を ec2-user と ssm-user 両方に付与
@@ -212,9 +212,8 @@ jobs:
           APP_PORT=8000
           ENV
 
-          # docker compose
-          curl -sSL https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
+          # docker compose (use plugin)
+          docker compose version || true
 
           # compose file
           cat > docker-compose.yml <<'YML'
@@ -239,7 +238,7 @@ jobs:
             docker pull ${APP_IMAGE} && break || { echo "pull retry $i"; sleep 5; }
           done
 
-          /usr/local/bin/docker-compose up -d
+          docker compose up -d
           UD
 
           # sed 置換の安全化（& エスケープ）
