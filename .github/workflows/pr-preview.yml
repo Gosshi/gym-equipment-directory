@@ -69,24 +69,33 @@ jobs:
           echo "MapPublicIpOnLaunch=$MAP_PUBLIC"
           echo "arch=$ARCH" >> $GITHUB_OUTPUT
 
-      - name: "Preflight: dry-run run-instances (permission check)"
+      - name: "Preflight: dry-run run-instances (permission check)""
         continue-on-error: true
         id: dryrun
         run: |
           set -euo pipefail
+          set -x
           aws ec2 run-instances \
             --dry-run \
             --image-id "${AMI_ID}" \
             --instance-type "${INSTANCE_TYPE}" \
             --security-group-ids "${SG_ID}" \
             --subnet-id "${SUBNET_ID}" \
-            --count 1
+            --count 1 \
+            2> /tmp/dryrun.err || true
+          echo "----- DRY-RUN STDERR -----"
+          cat /tmp/dryrun.err || true
+
         # 期待する失敗: An error occurred (DryRunOperation) ... would have succeeded.
 
       - name: Interpret dry-run result
         if: steps.dryrun.outcome != 'success'
         run: |
-          echo "::error::Dry-run did NOT return success (expected DryRunOperation). Check IAM permissions or parameters."
+          if grep -q "DryRunOperation" /tmp/dryrun.err; then
+            echo "DryRunOperation detected -> permissions OK"
+            exit 0
+          fi
+          echo "::error::$(cat /tmp/dryrun.err)"
           exit 1
       ## End Preflight
 
