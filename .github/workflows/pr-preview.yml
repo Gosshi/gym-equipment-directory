@@ -10,12 +10,12 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  AMI_ID: ami-xxxxxxxx            # TODO: 置換
-  INSTANCE_TYPE: t3.micro         # or t4g.micro (match AMI arch)
-  SG_ID: sg-xxxxxxxx              # TODO: 置換
-  SUBNET_ID: subnet-xxxxxxxx      # TODO: 置換
-  KEY_NAME: pr-stg                # 任意/不要なら空に
-  INSTANCE_NAME: pr-preview       # 固定名（1台運用のキモ）
+  AMI_ID: ami-08a59875ad2a26a5f            # Amazon Linux 2023
+  INSTANCE_TYPE: t3.micro
+  SG_ID: sg-0600751c154b62e0c              # api-sg の ID
+  SUBNET_ID: subnet-0312f79d1cf5c6bdc      # デフォルトVPCのサブネット
+  KEY_NAME: ""                    # SSHしないので空にする
+  INSTANCE_NAME: pr-preview
   APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
 
 jobs:
