@@ -237,6 +237,10 @@ jobs:
             mkdir -p /home/ssm-user/.docker
             cp /root/.docker/config.json /home/ssm-user/.docker/config.json || true
             chown -R ssm-user:ssm-user /home/ssm-user/.docker || true
+
+            # Also perform explicit docker login to ensure credentials are recognized
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
+            su - ssm-user -c "echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin" || true
           fi
 
           # Ensure APP_PORT for compose
