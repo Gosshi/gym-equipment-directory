@@ -16,6 +16,7 @@ env:
   SUBNET_ID: subnet-0312f79d1cf5c6bdc      # デフォルトVPCのサブネット
   KEY_NAME: ""                             # SSHしないので空にする
   INSTANCE_NAME: pr-preview
+  INSTANCE_PROFILE: ec2-pr-preview-ssm
   APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
 
 jobs:
@@ -182,7 +183,8 @@ jobs:
               --user-data "file://$PWD/user-data.sh" \
               --count 1 \
               --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions},{Key=PR,Value=${PR_NUM}}]" \
-              --query 'Instances[0].InstanceId' --output text
+              --query 'Instances[0].InstanceId' --output text \
+              --iam-instance-profile "Name=${INSTANCE_PROFILE}" 
           )
           echo "Launched instance ID: $IID"
 
