@@ -182,10 +182,20 @@ jobs:
             RUN_ARGS+=(--key-name "${KEY_NAME}")
           fi
 
-          IID=$(aws ec2 run-instances "${RUN_ARGS[@]}" \
-                  --query 'Instances[0].InstanceId' --output text)
-
-          aws ec2 create-tags --resources "${IID}" --tags Key=Name,Value="${INSTANCE_NAME}",Key=Env,Value=stg,Key=Owner,Value=github-actions
+          IID=$(
+          aws ec2 run-instances \
+            --image-id "${AMI_ID}" \
+            --instance-type "${INSTANCE_TYPE}" \
+            --security-group-ids "${SG_ID}" \
+            --subnet-id "${SUBNET_ID}" \
+            --associate-public-ip-address \
+            --user-data "${UD}" \
+            --count 1 \
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions}]" \
+            --query 'Instances[0].InstanceId' \
+            --output text
+                  )
+          echo "Launched instance ID: $IID"
 
           # Public IP 取得
           aws ec2 wait instance-running --instance-ids "${IID}"
