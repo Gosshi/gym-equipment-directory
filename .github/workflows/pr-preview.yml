@@ -122,7 +122,7 @@ jobs:
           NAME_TAG="${INSTANCE_NAME}-pr${PR_NUM}"
           PURPOSE_TAG="pr-preview-singleton"
 
-          # 既存のインスタンスを Purpose タグで検出（空/None/複数に対応）
+          # 既存インスタンス（空/None/複数に対応）
           IID_RAW=$(aws ec2 describe-instances \
             --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
                       "Name=instance-state-name,Values=pending,running,stopping,stopped" \
@@ -160,9 +160,11 @@ jobs:
           APP_PORT=8000
           ENV
 
+          # docker compose
           curl -sSL https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
           chmod +x /usr/local/bin/docker-compose
 
+          # compose file
           cat > docker-compose.yml <<'YML'
           services:
             api:
@@ -180,7 +182,7 @@ jobs:
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
-          docker-compose up -d
+          /usr/local/bin/docker-compose up -d
           UD
 
           # sed 置換の安全化（& エスケープ）
