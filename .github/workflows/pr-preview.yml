@@ -18,7 +18,7 @@ env:
   KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
   INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
-  APP_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+  APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
 
 jobs:
   preview:
@@ -64,7 +64,7 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.APP_IMAGE }}
-            ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
+            ghcr.io/${{ toLower(github.repository) }}:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
