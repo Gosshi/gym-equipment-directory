@@ -14,7 +14,7 @@ env:
   INSTANCE_TYPE: t3.micro
   SG_ID: sg-0600751c154b62e0c              # api-sg の ID
   SUBNET_ID: subnet-0312f79d1cf5c6bdc      # デフォルトVPCのサブネット
-  KEY_NAME: ""                    # SSHしないので空にする
+  KEY_NAME: ""                             # SSHしないので空にする
   INSTANCE_NAME: pr-preview
   APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
 
@@ -35,12 +35,13 @@ jobs:
             console.log('aud:', payload.aud);
             console.log('sub:', payload.sub);
             console.log('event:', context.eventName);
+
       - name: Configure AWS creds (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: arn:aws:iam::738755162207:role/github-oidc-pr-staging
-      
+
       ## Preflight checks
       - name: "Preflight: print inputs"
         run: |
@@ -86,8 +87,6 @@ jobs:
           echo "----- DRY-RUN STDERR -----"
           cat /tmp/dryrun.err || true
 
-        # 期待する失敗: An error occurred (DryRunOperation) ... would have succeeded.
-
       - name: Interpret dry-run result
         if: steps.dryrun.outcome != 'success'
         run: |
@@ -118,17 +117,20 @@ jobs:
           SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
         run: |
           set -Eeuo pipefail
-          trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — command: $BASH_COMMAND"' ERR
+          trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — $BASH_COMMAND"' ERR
           set -x
 
-          # 既存の pr-preview を検索
+          PR_NUM="${{ github.event.pull_request.number }}"
+          NAME_TAG="${INSTANCE_NAME} (PR #${PR_NUM})"
+          PURPOSE_TAG="pr-preview-singleton"
+
           IID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
+                      "Name=instance-state-name,Values=pending,running,stopping,stopped" \
             --query 'Reservations[].Instances[].InstanceId' --output text)
 
-          # User Data 構築（Docker + compose セットアップし、compose で API 起動）
-          # 注意: t4g(ARM) を使う場合は compose バイナリ URL を arm64 に
-          UD=$(cat <<EOS
+          # User Data をファイルに保存
+          cat > user-data.template <<'UD'
           #!/bin/bash
           set -eux
           dnf -y update
@@ -153,33 +155,16 @@ jobs:
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
           docker-compose up -d
-          EOS
-          )
+          UD
 
-          # KEY_NAME が空なら引数省略
-          KEY_OPT=()
-          if [ -n "${KEY_NAME:-}" ]; then
-            KEY_OPT+=(--key-name "$KEY_NAME")
-          fi
+          sed -e "s|\${APP_IMAGE}|${APP_IMAGE}|g" \
+              -e "s|\${DATABASE_URL}|${DATABASE_URL}|g" \
+              -e "s|\${SENTRY_DSN}|${SENTRY_DSN}|g" user-data.template > user-data.sh
 
-          if [ -z "${IID}" ]; then
-            echo "No existing instance. Launching new ${INSTANCE_NAME}..."
-          else
+          if [ -n "${IID}" ]; then
             echo "Existing instance found: ${IID}. Recreating to redeploy latest image..."
             aws ec2 terminate-instances --instance-ids "${IID}"
             aws ec2 wait instance-terminated --instance-ids "${IID}"
-          fi
-
-          RUN_ARGS=(
-            --image-id "${AMI_ID}"
-            --instance-type "${INSTANCE_TYPE}"
-            --security-group-ids "${SG_ID}"
-            --subnet-id "${SUBNET_ID}"
-            --user-data "${UD}"
-            --count 1
-          )
-          if [ -n "${KEY_NAME:-}" ]; then
-            RUN_ARGS+=(--key-name "${KEY_NAME}")
           fi
 
           IID=$(
@@ -188,21 +173,19 @@ jobs:
               --instance-type "${INSTANCE_TYPE}" \
               --security-group-ids "${SG_ID}" \
               --subnet-id "${SUBNET_ID}" \
-              --associate-public-ip-address \   # ← 追加
-              --user-data "${UD}" \
+              --associate-public-ip-address \
+              --user-data "file://$PWD/user-data.sh" \
               --count 1 \
-              --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${INSTANCE_NAME}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions}]" \
+              --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions},{Key=PR,Value=${PR_NUM}}]" \
               --query 'Instances[0].InstanceId' --output text
           )
           echo "Launched instance ID: $IID"
 
-          # Public IP 取得
           aws ec2 wait instance-running --instance-ids "${IID}"
           IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
 
-          # ---- ここからヘルスチェック（最大90秒）----
           echo "Waiting for TCP/8000 to be reachable..."
           for i in {1..30}; do
             if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
@@ -212,17 +195,13 @@ jobs:
             echo "  retry ${i}/30 ..."
             sleep 3
           done
-
-          echo "Probing HTTP endpoint..."
           set +e
-          curl -fsS "http://${IP}:8000/docs" >/dev/null && OK=1 || OK=0
-          if [ "$OK" -ne 1 ]; then
+          curl -fsS "http://${IP}:8000/docs" >/dev/null || {
             curl -fsS "http://${IP}:8000/health/db" || true
             echo "::warning::App did not respond yet. Likely the container failed to start."
-          fi
+          }
           set -e
 
-      # ====== PR close 時：他に開いているPRが無ければ破棄 ======
       - name: Check remaining open PRs
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr'
         id: remain
@@ -239,13 +218,16 @@ jobs:
       - name: Destroy instance if no open PRs
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr' && steps.remain.outputs.open_count == '0'
         run: |
+          set -euo pipefail
+          PURPOSE_TAG="pr-preview-singleton"
           IID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
+                      "Name=instance-state-name,Values=pending,running,stopping,stopped" \
             --query 'Reservations[].Instances[].InstanceId' --output text)
           if [ -n "${IID}" ]; then
             aws ec2 terminate-instances --instance-ids "${IID}"
             aws ec2 wait instance-terminated --instance-ids "${IID}"
-            echo "Terminated ${INSTANCE_NAME} (${IID})"
+            echo "Terminated (${IID})"
           else
             echo "No instance to terminate."
           fi
