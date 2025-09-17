@@ -194,6 +194,32 @@ jobs:
 
           mkdir -p /srv/app && cd /srv/app
 
+          # 診断用の情報ファイルとログインメッセージ
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat > /srv/app/INFO.txt <<INFO
+          PR Preview bootstrap ran.
+          Time (UTC): ${TS}
+          Image: ${APP_IMAGE}
+          Env: stg
+          INFO
+          chmod 644 /srv/app/INFO.txt
+
+          mkdir -p /etc/motd.d
+          cat > /etc/motd.d/99-pr-preview <<MOTD
+          [PR Preview] This instance is for PR preview.
+          Workdir: /srv/app (docker compose)
+          Image: ${APP_IMAGE}
+          Use:  cd /srv/app && docker compose ps
+          MOTD
+
+          # ssm-user ログイン時の利便性向上
+          for rc in /home/ssm-user/.bashrc /home/ssm-user/.zshrc; do
+            test -f "$rc" || touch "$rc"; chmod 644 "$rc"
+            if ! grep -q "cd /srv/app" "$rc"; then
+              echo "cd /srv/app" >> "$rc"
+            fi
+          done
+
           # GHCR docker config (write config.json directly with basic auth)
           if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
             mkdir -p /root/.docker
