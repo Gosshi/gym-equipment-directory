@@ -231,9 +231,7 @@ jobs:
           # GHCR docker config (write config.json directly with basic auth)
           if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
             mkdir -p /root/.docker
-            cat > /root/.docker/config.json <<'CONF'
-            {"auths":{"ghcr.io":{"auth":"${GHCR_AUTH_B64}"}}}
-            CONF
+            printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "${GHCR_AUTH_B64}" > /root/.docker/config.json
             chmod 600 /root/.docker/config.json
 
             mkdir -p /home/ssm-user/.docker
