@@ -173,20 +173,22 @@ jobs:
             aws ec2 wait instance-terminated --instance-ids "${IID}"
           fi
 
-          IID=$(
-            aws ec2 run-instances \
-              --image-id "${AMI_ID}" \
-              --instance-type "${INSTANCE_TYPE}" \
-              --security-group-ids "${SG_ID}" \
-              --subnet-id "${SUBNET_ID}" \
-              --associate-public-ip-address \
-              --user-data "file://$PWD/user-data.sh" \
-              --count 1 \
-              --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions},{Key=PR,Value=${PR_NUM}}]" \
-              --query 'Instances[0].InstanceId' --output text \
-              --iam-instance-profile "Name=${INSTANCE_PROFILE}" 
+          CMD=(aws ec2 run-instances
+            --image-id "${AMI_ID}"
+            --instance-type "${INSTANCE_TYPE}"
+            --security-group-ids "${SG_ID}"
+            --subnet-id "${SUBNET_ID}"
+            --associate-public-ip-address
+            --user-data "file://$PWD/user-data.sh"
+            --count 1
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions},{Key=PR,Value=${PR_NUM}}]"
+            --query 'Instances[0].InstanceId'
+            --output text
+            --iam-instance-profile "Name=${INSTANCE_PROFILE}"
           )
+          IID="$("${CMD[@]}")"
           echo "Launched instance ID: $IID"
+          test -n "$IID"
 
           aws ec2 wait instance-running --instance-ids "${IID}"
           IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
