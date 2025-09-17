@@ -69,7 +69,7 @@ jobs:
           echo "MapPublicIpOnLaunch=$MAP_PUBLIC"
           echo "arch=$ARCH" >> $GITHUB_OUTPUT
 
-      - name: "Preflight: dry-run run-instances (permission check)""
+      - name: "Preflight: dry-run run-instances (permission check)"
         continue-on-error: true
         id: dryrun
         run: |
