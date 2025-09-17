@@ -268,10 +268,31 @@ jobs:
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
-          # Pre-pull image with retry (helps surface auth errors)
+          # 取得元の Git 情報（GHCR pull 失敗時のフォールバックで使用）
+          GIT_URL=${GIT_URL}
+          GIT_REF=${GIT_REF}
+
+          # まずは GHCR から pull（リトライ）。失敗したらローカルビルドにフォールバック
+          set +e
+          PULLED=0
           for i in {1..5}; do
-            docker pull ${APP_IMAGE} && break || { echo "pull retry $i"; sleep 5; }
+            docker pull "${APP_IMAGE}" && PULLED=1 && break
+            echo "pull retry ${i}"; sleep 5
           done
+          set -e
+
+          if [ "${PULLED}" != "1" ]; then
+            echo "Pull failed. Falling back to local build from ${GIT_URL} @ ${GIT_REF}"
+            dnf -y install git
+            mkdir -p /srv/src && cd /srv/src
+            if [ ! -d repo ]; then
+              git clone "${GIT_URL}" repo || true
+            fi
+            cd repo
+            git fetch --depth 1 origin "${GIT_REF}" || true
+            git checkout -q "${GIT_REF}" || { echo "Checkout ${GIT_REF} failed"; exit 1; }
+            docker build -t "${APP_IMAGE}" -f Dockerfile .
+          fi
 
           docker compose up -d
           UD
@@ -284,13 +305,17 @@ jobs:
           GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
           GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
           GHCR_AUTH_B64_S=$(printf '%s' "${GHCR_USERNAME}:${GHCR_TOKEN}" | base64 | tr -d '\n')
+          GIT_URL_S=$(safe "https://github.com/${{ steps.vars.outputs.REPO_LC }}.git")
+          GIT_REF_S=$(safe "${{ github.sha }}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
               -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
               -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
               -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" \
-              -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" user-data.template > user-data.sh
+              -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" \
+              -e "s|\${GIT_URL}|${GIT_URL_S}|g" \
+              -e "s|\${GIT_REF}|${GIT_REF_S}|g" user-data.template > user-data.sh
 
           # 起動
           CMD=(aws ec2 run-instances
