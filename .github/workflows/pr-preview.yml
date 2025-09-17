@@ -40,6 +40,55 @@ jobs:
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: arn:aws:iam::738755162207:role/github-oidc-pr-staging
+      
+      ## Preflight checks
+      - name: Preflight: print inputs
+        run: |
+          set -x
+          echo "AMI_ID=${AMI_ID}"
+          echo "INSTANCE_TYPE=${INSTANCE_TYPE}"
+          echo "SG_ID=${SG_ID}"
+          echo "SUBNET_ID=${SUBNET_ID}"
+          test -n "${{ secrets.STG_DATABASE_URL }}" || (echo "ERROR: STG_DATABASE_URL is empty" && exit 1)
+
+      - name: Preflight: check AMI arch & VPC/SG/Subnet
+        id: preflight
+        run: |
+          set -euo pipefail
+          # AMI 情報
+          aws ec2 describe-images --image-ids "${AMI_ID}" --query 'Images[0].{Arch:Architecture,Name:Name,Platform:PlatformDetails}' --output table
+          ARCH=$(aws ec2 describe-images --image-ids "${AMI_ID}" --query 'Images[0].Architecture' --output text)
+          echo "AMI_ARCH=$ARCH"
+          # SG/Subnet の VPC 一致確認
+          SG_VPC=$(aws ec2 describe-security-groups --group-ids "${SG_ID}" --query 'SecurityGroups[0].VpcId' --output text)
+          SUBNET_VPC=$(aws ec2 describe-subnets --subnet-ids "${SUBNET_ID}" --query 'Subnets[0].VpcId' --output text)
+          echo "SG_VPC=$SG_VPC SUBNET_VPC=$SUBNET_VPC"
+          test "$SG_VPC" = "$SUBNET_VPC" || (echo "ERROR: SG and Subnet belong to different VPCs" && exit 1)
+          # Subnet の Public IP 自動割当
+          MAP_PUBLIC=$(aws ec2 describe-subnets --subnet-ids "${SUBNET_ID}" --query 'Subnets[0].MapPublicIpOnLaunch' --output text)
+          echo "MapPublicIpOnLaunch=$MAP_PUBLIC"
+          echo "arch=$ARCH" >> $GITHUB_OUTPUT
+
+      - name: Preflight: dry-run run-instances (permission check)
+        continue-on-error: true
+        id: dryrun
+        run: |
+          set -euo pipefail
+          aws ec2 run-instances \
+            --dry-run \
+            --image-id "${AMI_ID}" \
+            --instance-type "${INSTANCE_TYPE}" \
+            --security-group-ids "${SG_ID}" \
+            --subnet-id "${SUBNET_ID}" \
+            --count 1
+        # 期待する失敗: An error occurred (DryRunOperation) ... would have succeeded.
+
+      - name: Interpret dry-run result
+        if: steps.dryrun.outcome != 'success'
+        run: |
+          echo "::error::Dry-run did NOT return success (expected DryRunOperation). Check IAM permissions or parameters."
+          exit 1
+      ## End Preflight
 
       - name: Decide mode (upsert or destroy)
         id: mode
