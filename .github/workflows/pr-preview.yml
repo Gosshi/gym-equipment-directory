@@ -194,6 +194,19 @@ jobs:
 
           mkdir -p /srv/app && cd /srv/app
 
+          # GHCR docker config (write config.json directly with basic auth)
+          if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
+            mkdir -p /root/.docker
+            cat > /root/.docker/config.json <<'CONF'
+            {"auths":{"ghcr.io":{"auth":"${GHCR_AUTH_B64}"}}}
+            CONF
+            chmod 600 /root/.docker/config.json
+
+            mkdir -p /home/ssm-user/.docker
+            cp /root/.docker/config.json /home/ssm-user/.docker/config.json || true
+            chown -R ssm-user:ssm-user /home/ssm-user/.docker || true
+          fi
+
           # Ensure APP_PORT for compose
           cat > .env <<'ENV'
           APP_PORT=8000
@@ -221,15 +234,10 @@ jobs:
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
-          # GHCR login if credentials provided (for private packages)
-          if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
-            echo "Logging in to GHCR as ${GHCR_USERNAME} (root)"
-            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
-            echo "Logging in to GHCR for ssm-user"
-            su - ssm-user -c "echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin" || true
-          else
-            echo "GHCR login skipped (no credentials provided)"
-          fi
+          # Pre-pull image with retry (helps surface auth errors)
+          for i in {1..5}; do
+            docker pull ${APP_IMAGE} && break || { echo "pull retry $i"; sleep 5; }
+          done
 
           /usr/local/bin/docker-compose up -d
           UD
@@ -241,12 +249,14 @@ jobs:
           SENTRY_DSN_S=$(safe "${SENTRY_DSN}")
           GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
           GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
+          GHCR_AUTH_B64_S=$(printf '%s' "${GHCR_USERNAME}:${GHCR_TOKEN}" | base64 | tr -d '\n')
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
               -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
               -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
-              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" user-data.template > user-data.sh
+              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" \
+              -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" user-data.template > user-data.sh
 
           # 起動
           CMD=(aws ec2 run-instances
