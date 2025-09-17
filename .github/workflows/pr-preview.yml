@@ -122,7 +122,7 @@ jobs:
           set -x
 
           PR_NUM="${{ github.event.pull_request.number }}"
-          NAME_TAG="${INSTANCE_NAME} (PR #${PR_NUM})"
+          NAME_TAG="${INSTANCE_NAME}-pr${PR_NUM}"
           PURPOSE_TAG="pr-preview-singleton"
 
           IID=$(aws ec2 describe-instances \
@@ -186,6 +186,13 @@ jobs:
             --output text
             --iam-instance-profile "Name=${INSTANCE_PROFILE}"
           )
+          echo "== run-instances args =="
+          printf ' %q' "${CMD[@]}"
+          echo
+          "${CMD[@]}" || {
+            echo "::error::run-instances failed"
+            exit 1
+          }
           IID="$("${CMD[@]}")"
           echo "Launched instance ID: $IID"
           test -n "$IID"
