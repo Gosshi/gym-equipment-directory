@@ -148,6 +148,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.STG_DATABASE_URL }}
           SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         run: |
           set -Eeuo pipefail
           trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — $BASH_COMMAND"' ERR
@@ -217,6 +219,14 @@ jobs:
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
+          # GHCR login if credentials provided (for private packages)
+          if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
+            echo "Logging in to GHCR as ${GHCR_USERNAME}"
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
+          else
+            echo "GHCR login skipped (no credentials provided)"
+          fi
+
           /usr/local/bin/docker-compose up -d
           UD
 
@@ -225,10 +235,14 @@ jobs:
           APP_IMAGE_S=$(safe "${APP_IMAGE}")
           DATABASE_URL_S=$(safe "${DATABASE_URL}")
           SENTRY_DSN_S=$(safe "${SENTRY_DSN}")
+          GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
+          GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
-              -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" user-data.template > user-data.sh
+              -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
+              -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
+              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" user-data.template > user-data.sh
 
           # 起動
           CMD=(aws ec2 run-instances
