@@ -7,6 +7,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  packages: write
 
 env:
   AWS_REGION: ap-northeast-1
@@ -17,7 +18,7 @@ env:
   KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
   INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
-  APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
+  APP_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
 jobs:
   preview:
@@ -27,15 +28,45 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - name: Debug OIDC claims (aud/sub)
-        uses: actions/github-script@v7
+      - name: Decide mode (upsert or destroy)
+        id: mode
+        run: |
+          if [ "${{ github.event.action }}" = "closed" ]; then
+            echo "mode=destroy-if-no-open-pr" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=upsert" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Build and push the PR image to GHCR (same-repo PRs only)
+      - name: Checkout
+        if: steps.mode.outputs.mode == 'upsert'
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: steps.mode.outputs.mode == 'upsert'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.mode.outputs.mode == 'upsert'
+        uses: docker/login-action@v3
         with:
-          script: |
-            const id = await core.getIDToken('sts.amazonaws.com');
-            const payload = JSON.parse(Buffer.from(id.split('.')[1], 'base64').toString());
-            console.log('aud:', payload.aud);
-            console.log('sub:', payload.sub);
-            console.log('event:', context.eventName);
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: steps.mode.outputs.mode == 'upsert' && github.event.pull_request.head.repo.fork == false
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.APP_IMAGE }}
+            ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Configure AWS creds (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -96,14 +127,7 @@ jobs:
           exit 1
       ## End Preflight
 
-      - name: Decide mode (upsert or destroy)
-        id: mode
-        run: |
-          if [ "${{ github.event.action }}" = "closed" ]; then
-            echo "mode=destroy-if-no-open-pr" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=upsert" >> "$GITHUB_OUTPUT"
-          fi
+      # mode is already decided above
 
       # ====== 起動/再デプロイ（opened/reopened/synchronize） ======
       - name: Upsert single preview instance
