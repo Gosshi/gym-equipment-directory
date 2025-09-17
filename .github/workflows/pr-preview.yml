@@ -299,9 +299,10 @@ jobs:
                 echo "Tarball download failed"; exit 1; }
             tar -xzf /tmp/src.tar.gz --strip-components=1 -C /srv/src
             docker build -t "${APP_IMAGE}" -f Dockerfile /srv/src
+            cd /srv/app
           fi
 
-          docker compose up -d
+          docker compose -f /srv/app/docker-compose.yml up -d
           UD
 
           # sed 置換の安全化（& エスケープ）
