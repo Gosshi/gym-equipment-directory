@@ -18,7 +18,7 @@ env:
   KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
   INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
-  APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
+  
 
 jobs:
   preview:
@@ -42,6 +42,17 @@ jobs:
         if: steps.mode.outputs.mode == 'upsert'
         uses: actions/checkout@v4
 
+      - name: Compute image tags (lowercase)
+        if: steps.mode.outputs.mode == 'upsert'
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "REPO_LC=$repo_lc" >> "$GITHUB_OUTPUT"
+          echo "APP_IMAGE=ghcr.io/$repo_lc:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "APP_IMAGE_PR=ghcr.io/$repo_lc:pr-${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         if: steps.mode.outputs.mode == 'upsert'
         uses: docker/setup-buildx-action@v3
@@ -64,7 +75,7 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.APP_IMAGE }}
-            ghcr.io/Gosshi/gym-equipment-directory:pr-${{ github.event.pull_request.number }}
+            ${{ env.APP_IMAGE_PR }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
