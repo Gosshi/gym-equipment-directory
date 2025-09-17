@@ -18,7 +18,6 @@ env:
   KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
   INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
-  
 
 jobs:
   preview:
@@ -37,7 +36,7 @@ jobs:
             echo "mode=upsert" >> "$GITHUB_OUTPUT"
           fi
 
-      # Build and push the PR image to GHCR (same-repo PRs only)
+      # ===== Build & Push (same-repo PR only) =====
       - name: Checkout
         if: steps.mode.outputs.mode == 'upsert'
         uses: actions/checkout@v4
@@ -79,13 +78,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ===== AWS Auth =====
       - name: Configure AWS creds (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: arn:aws:iam::738755162207:role/github-oidc-pr-staging
 
-      ## Preflight checks
+      # ===== Preflight =====
       - name: "Preflight: print inputs"
         run: |
           set -x
@@ -93,7 +93,6 @@ jobs:
           echo "INSTANCE_TYPE=${INSTANCE_TYPE}"
           echo "SG_ID=${SG_ID}"
           echo "SUBNET_ID=${SUBNET_ID}"
-          test -n "${{ secrets.STG_DATABASE_URL }}" || (echo "ERROR: STG_DATABASE_URL is empty" && exit 1)
 
       - name: "Preflight: check AMI arch & VPC/SG/Subnet"
         id: preflight
@@ -136,23 +135,17 @@ jobs:
           fi
           echo "::error::$(cat /tmp/dryrun.err)"
           exit 1
-      ## End Preflight
 
-      # mode is already decided above
-
-      # ====== 起動/再デプロイ（opened/reopened/synchronize） ======
+      # ===== Upsert (create/replace) =====
       - name: Upsert single preview instance
         if: steps.mode.outputs.mode == 'upsert'
         id: upsert
         shell: bash
         env:
-          DATABASE_URL: ${{ secrets.STG_DATABASE_URL }}
           SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           REPO_FETCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          REPO_REF: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
           trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — $BASH_COMMAND"' ERR
@@ -162,41 +155,32 @@ jobs:
           NAME_TAG="${INSTANCE_NAME}-pr${PR_NUM}"
           PURPOSE_TAG="pr-preview-singleton"
 
-          # 既存インスタンス（空/None/複数に対応）
+          # 既存インスタンスを明示的に削除（機能を残す）
           IID_RAW=$(aws ec2 describe-instances \
             --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
                       "Name=instance-state-name,Values=pending,running,stopping,stopped" \
             --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null || true)
           IID_LIST=$(echo "$IID_RAW" | tr '\n' ' ' | xargs)
-          echo "Found existing instance(s): '${IID_LIST:-<none>}'"
+          echo "Found existing: '${IID_LIST:-<none>}'"
           if [ -n "$IID_LIST" ] && [ "$IID_LIST" != "None" ]; then
-            echo "Terminating existing instance(s): $IID_LIST"
             aws ec2 terminate-instances --instance-ids $IID_LIST
-            for id in $IID_LIST; do
-              aws ec2 wait instance-terminated --instance-ids "$id" || true
-            done
-          else
-            echo "No existing instances to terminate."
+            for id in $IID_LIST; do aws ec2 wait instance-terminated --instance-ids "$id" || true; done
           fi
 
-          # User Data: .env 作成 + compose 生成 + docker 権限
+          # User-Data（api+db を docker compose で起動）
           cat > user-data.template <<'UD'
           #!/bin/bash
           set -eux
 
-          # 基本セットアップ
           dnf -y update
           dnf -y install docker git
           systemctl enable --now docker
-
-          # Docker 権限を ec2-user と ssm-user 両方に付与
           usermod -aG docker ec2-user || true
           usermod -aG docker ssm-user || true
-          # ソケット生成待ち＋パーミッション（プレビュー用途）
           for i in {1..30}; do [ -S /var/run/docker.sock ] && break || sleep 1; done
           chmod 666 /var/run/docker.sock || true
 
-          # docker compose v2 (plugin) を公式リリースから配置（AL2023にパッケージがない場合向け）
+          # docker compose v2 (plugin) 配置
           mkdir -p /usr/local/lib/docker/cli-plugins
           curl -fL -o /usr/local/lib/docker/cli-plugins/docker-compose \
             https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64
@@ -205,55 +189,21 @@ jobs:
 
           mkdir -p /srv/app && cd /srv/app
 
-          # 診断用の情報ファイルとログインメッセージ
-          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          cat > /srv/app/INFO.txt <<INFO
-          PR Preview bootstrap ran.
-          Time (UTC): ${TS}
-          Image: ${APP_IMAGE}
-          Env: stg
-          INFO
-          chmod 644 /srv/app/INFO.txt
-
-          mkdir -p /etc/motd.d
-          cat > /etc/motd.d/99-pr-preview <<MOTD
-          [PR Preview] This instance is for PR preview.
-          Workdir: /srv/app (docker compose)
-          Image: ${APP_IMAGE}
-          Use:  cd /srv/app && docker compose ps
-          MOTD
-
-          # ssm-user ログイン時の利便性向上
-          for rc in /home/ssm-user/.bashrc /home/ssm-user/.zshrc; do
-            test -f "$rc" || touch "$rc"; chmod 644 "$rc"
-            if ! grep -q "cd /srv/app" "$rc"; then
-              echo "cd /srv/app" >> "$rc"
-            fi
-          done
-
-          # GHCR docker config (write config.json directly with basic auth)
+          # GHCR ログイン（private対応）
           if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
-            mkdir -p /root/.docker
-            printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "${GHCR_AUTH_B64}" > /root/.docker/config.json
-            chmod 600 /root/.docker/config.json
-
-            mkdir -p /home/ssm-user/.docker
-            cp /root/.docker/config.json /home/ssm-user/.docker/config.json || true
-            chown -R ssm-user:ssm-user /home/ssm-user/.docker || true
-
-            # Also perform explicit docker login to ensure credentials are recognized
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
-            su - ssm-user -c "echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin" || true
           fi
 
-          # Ensure APP_PORT for compose
+          # .env（内蔵DB用）
           cat > .env <<'ENV'
           APP_PORT=8000
+          POSTGRES_DB=gym
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          DATABASE_URL=postgresql://postgres:postgres@db:5432/gym
           ENV
 
-          # docker compose (plugin) 確認済み
-
-          # compose file
+          # docker-compose.yml（api + db）
           cat > docker-compose.yml <<'YML'
           services:
             api:
@@ -264,96 +214,76 @@ jobs:
                 ALLOW_ORIGINS: "*"
                 DATABASE_URL: ${DATABASE_URL}
                 SENTRY_DSN: ${SENTRY_DSN}
+              depends_on:
+                db:
+                  condition: service_healthy
               ports:
                 - "${APP_PORT}:8000"
               command: >
-                bash -lc "alembic upgrade head &&
-                          uvicorn app.main:app --host 0.0.0.0 --port 8000"
+                bash -lc "
+                  alembic upgrade head &&
+                  uvicorn app.main:app --host 0.0.0.0 --port 8000
+                "
+
+            db:
+              image: postgres:16-alpine
+              env_file: .env
+              environment:
+                POSTGRES_DB: ${POSTGRES_DB}
+                POSTGRES_USER: ${POSTGRES_USER}
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+              volumes:
+                - pgdata:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"]
+                interval: 2s
+                timeout: 2s
+                retries: 30
+
+          volumes:
+            pgdata:
           YML
 
-          # 取得元の Git 情報（GHCR pull 失敗時のフォールバックで使用）
-          REPO=${REPO}
-          REPO_URL=${REPO_URL}
-          REPO_REF=${REPO_REF}
-          REPO_FETCH_TOKEN=${REPO_FETCH_TOKEN}
-
-          # まずは GHCR から pull（リトライ）。失敗したらローカルビルドにフォールバック
+          # まずは pull（失敗時は後で build にフォールバック可能にしたい場合はここに処理追加可）
           set +e
-          PULLED=0
-          for i in {1..5}; do
-            docker pull "${APP_IMAGE}" && PULLED=1 && break
-            echo "pull retry ${i}"; sleep 5
-          done
+          docker pull "${APP_IMAGE}"
           set -e
 
-          if [ "${PULLED}" != "1" ]; then
-            echo "Pull failed. Falling back to local build from ${REPO_URL} @ ${REPO_REF}"
-            mkdir -p /srv/src && cd /srv/src
-            AUTH_ARGS=()
-            if [ -n "${REPO_FETCH_TOKEN:-}" ]; then
-              AUTH_ARGS=(-H "Authorization: Bearer ${REPO_FETCH_TOKEN}")
-            fi
-            # Try tarball download to avoid interactive git auth
-            curl -fL "${AUTH_ARGS[@]}" -o /tmp/src.tar.gz \
-              "https://api.github.com/repos/${REPO}/tarball/${REPO_REF}" || {
-                echo "Tarball download failed"; exit 1; }
-            tar -xzf /tmp/src.tar.gz --strip-components=1 -C /srv/src
-            docker build -t "${APP_IMAGE}" -f Dockerfile /srv/src
-            cd /srv/app
-          fi
-
-          docker compose -f /srv/app/docker-compose.yml up -d
+          docker compose up -d
           UD
 
-          # sed 置換の安全化（& エスケープ）
+          # user-data 変数差し込み
           safe() { printf '%s' "$1" | sed -e 's/[&]/\\&/g'; }
           APP_IMAGE_S=$(safe "${APP_IMAGE}")
-          DATABASE_URL_S=$(safe "${DATABASE_URL}")
           SENTRY_DSN_S=$(safe "${SENTRY_DSN}")
           GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
           GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
-          GHCR_AUTH_B64_S=$(printf '%s' "${GHCR_USERNAME}:${GHCR_TOKEN}" | base64 | tr -d '\n')
-          REPO_S=$(safe "${{ github.repository }}")
-          REPO_URL_S=$(safe "https://github.com/${{ github.repository }}")
-          REPO_REF_S=$(safe "${{ github.sha }}")
-          REPO_FETCH_TOKEN_S=$(safe "${REPO_FETCH_TOKEN}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
-              -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
               -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
               -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
-              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" \
-              -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" \
-              -e "s|\${REPO}|${REPO_S}|g" \
-              -e "s|\${REPO_URL}|${REPO_URL_S}|g" \
-              -e "s|\${REPO_REF}|${REPO_REF_S}|g" \
-              -e "s|\${REPO_FETCH_TOKEN}|${REPO_FETCH_TOKEN_S}|g" user-data.template > user-data.sh
+              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" user-data.template > user-data.sh
 
-          # 起動
-          CMD=(aws ec2 run-instances
-            --image-id "${AMI_ID}"
-            --instance-type "${INSTANCE_TYPE}"
-            --security-group-ids "${SG_ID}"
-            --subnet-id "${SUBNET_ID}"
-            --associate-public-ip-address
-            --user-data "file://$PWD/user-data.sh"
-            --count 1
-            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Env,Value=stg},{Key=Owner,Value=github-actions},{Key=PR,Value=${PR_NUM}}]"
-            --query 'Instances[0].InstanceId'
-            --output text
-            --iam-instance-profile "Name=${INSTANCE_PROFILE}"
-          )
-          echo "== run-instances args =="; printf ' %q' "${CMD[@]}"; echo
-          IID="$("${CMD[@]}")"
+          # run-instances（タグ付け・IAMロール・Public IP）
+          IID=$(aws ec2 run-instances \
+            --image-id "${AMI_ID}" \
+            --instance-type "${INSTANCE_TYPE}" \
+            --security-group-ids "${SG_ID}" \
+            --subnet-id "${SUBNET_ID}" \
+            --associate-public-ip-address \
+            --user-data "file://$PWD/user-data.sh" \
+            --count 1 \
+            --iam-instance-profile "Name=${INSTANCE_PROFILE}" \
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME_TAG}},{Key=Purpose,Value=${PURPOSE_TAG}},{Key=Owner,Value=github-actions},{Key=Env,Value=stg},{Key=PR,Value=${PR_NUM}}]" \
+            --query 'Instances[0].InstanceId' --output text)
           echo "Launched instance ID: $IID"; test -n "$IID"
 
-          # Public IP 取得
-          aws ec2 wait instance-running --instance-ids "${IID}"
-          IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+          aws ec2 wait instance-running --instance-ids "$IID"
+          IP=$(aws ec2 describe-instances --instance-ids "$IID" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
 
-          # 8000 ヘルスチェック
+          # ヘルスチェック（TCP 8000）
           echo "Waiting for TCP/8000 to be reachable..."
           for i in {1..30}; do
             if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
@@ -364,10 +294,11 @@ jobs:
           set +e
           curl -fsS "http://${IP}:8000/docs" >/dev/null || {
             curl -fsS "http://${IP}:8000/health/db" || true
-            echo "::warning::App did not respond yet. Likely the container failed to start."
+            echo "::warning::App did not respond yet (container may be initializing)."
           }
           set -e
 
+      # ===== Destroy on PR close (no other open PRs) =====
       - name: Check remaining open PRs
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr'
         id: remain
@@ -394,9 +325,7 @@ jobs:
           echo "Found to terminate: '${IID_LIST:-<none>}'"
           if [ -n "$IID_LIST" ] && [ "$IID_LIST" != "None" ]; then
             aws ec2 terminate-instances --instance-ids $IID_LIST
-            for id in $IID_LIST; do
-              aws ec2 wait instance-terminated --instance-ids "$id" || true
-            done
+            for id in $IID_LIST; do aws ec2 wait instance-terminated --instance-ids "$id" || true; done
             echo "Terminated ($IID_LIST)"
           else
             echo "No instance to terminate."
