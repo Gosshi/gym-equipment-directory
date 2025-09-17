@@ -10,13 +10,13 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  AMI_ID: ami-08a59875ad2a26a5f            # Amazon Linux 2023
+  AMI_ID: ami-08a59875ad2a26a5f            # Amazon Linux 2023 (x86_64)
   INSTANCE_TYPE: t3.micro
-  SG_ID: sg-0600751c154b62e0c              # api-sg の ID
-  SUBNET_ID: subnet-0312f79d1cf5c6bdc      # デフォルトVPCのサブネット
-  KEY_NAME: ""                             # SSHしないので空にする
+  SG_ID: sg-0600751c154b62e0c              # api-sg
+  SUBNET_ID: subnet-0312f79d1cf5c6bdc      # default VPC subnet
+  KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
-  INSTANCE_PROFILE: ec2-pr-preview-ssm
+  INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
   APP_IMAGE: ghcr.io/Gosshi/gym-equipment-directory:${{ github.sha }}
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const id = await core.getIDToken('sts.amazonaws.com');  // aud を合わせる
+            const id = await core.getIDToken('sts.amazonaws.com');
             const payload = JSON.parse(Buffer.from(id.split('.')[1], 'base64').toString());
             console.log('aud:', payload.aud);
             console.log('sub:', payload.sub);
@@ -57,23 +57,20 @@ jobs:
         id: preflight
         run: |
           set -euo pipefail
-          # AMI 情報
           aws ec2 describe-images --image-ids "${AMI_ID}" --query 'Images[0].{Arch:Architecture,Name:Name,Platform:PlatformDetails}' --output table
           ARCH=$(aws ec2 describe-images --image-ids "${AMI_ID}" --query 'Images[0].Architecture' --output text)
           echo "AMI_ARCH=$ARCH"
-          # SG/Subnet の VPC 一致確認
           SG_VPC=$(aws ec2 describe-security-groups --group-ids "${SG_ID}" --query 'SecurityGroups[0].VpcId' --output text)
           SUBNET_VPC=$(aws ec2 describe-subnets --subnet-ids "${SUBNET_ID}" --query 'Subnets[0].VpcId' --output text)
           echo "SG_VPC=$SG_VPC SUBNET_VPC=$SUBNET_VPC"
           test "$SG_VPC" = "$SUBNET_VPC" || (echo "ERROR: SG and Subnet belong to different VPCs" && exit 1)
-          # Subnet の Public IP 自動割当
           MAP_PUBLIC=$(aws ec2 describe-subnets --subnet-ids "${SUBNET_ID}" --query 'Subnets[0].MapPublicIpOnLaunch' --output text)
           echo "MapPublicIpOnLaunch=$MAP_PUBLIC"
           echo "arch=$ARCH" >> $GITHUB_OUTPUT
 
       - name: "Preflight: dry-run run-instances (permission check)"
-        continue-on-error: true
         id: dryrun
+        continue-on-error: true
         run: |
           set -euo pipefail
           set -x
@@ -125,25 +122,41 @@ jobs:
           NAME_TAG="${INSTANCE_NAME}-pr${PR_NUM}"
           PURPOSE_TAG="pr-preview-singleton"
 
-          IID=$(aws ec2 describe-instances \
+          # 既存のインスタンスを Purpose タグで検出（空/None/複数に対応）
+          IID_RAW=$(aws ec2 describe-instances \
             --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
                       "Name=instance-state-name,Values=pending,running,stopping,stopped" \
-            --query 'Reservations[].Instances[].InstanceId' --output text)
+            --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null || true)
+          IID_LIST=$(echo "$IID_RAW" | tr '\n' ' ' | xargs)
+          echo "Found existing instance(s): '${IID_LIST:-<none>}'"
+          if [ -n "$IID_LIST" ] && [ "$IID_LIST" != "None" ]; then
+            echo "Terminating existing instance(s): $IID_LIST"
+            aws ec2 terminate-instances --instance-ids $IID_LIST
+            for id in $IID_LIST; do
+              aws ec2 wait instance-terminated --instance-ids "$id" || true
+            done
+          else
+            echo "No existing instances to terminate."
+          fi
 
-          # User Data をファイルに保存
+          # User Data: .env 作成 + compose 生成 + docker 権限
           cat > user-data.template <<'UD'
           #!/bin/bash
           set -eux
           dnf -y update
           dnf -y install docker git
           systemctl enable --now docker
-          curl -sSL https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
+          usermod -aG docker ec2-user
+
           mkdir -p /srv/app && cd /srv/app
           # Ensure APP_PORT for compose
           cat > .env <<'ENV'
           APP_PORT=8000
           ENV
+
+          curl -sSL https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
           cat > docker-compose.yml <<'YML'
           services:
             api:
@@ -160,19 +173,21 @@ jobs:
                 bash -lc "alembic upgrade head &&
                           uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
-          docker-compose up -d
+
+          /usr/local/bin/docker-compose up -d
           UD
 
-          sed -e "s|\${APP_IMAGE}|${APP_IMAGE}|g" \
-              -e "s|\${DATABASE_URL}|${DATABASE_URL}|g" \
-              -e "s|\${SENTRY_DSN}|${SENTRY_DSN}|g" user-data.template > user-data.sh
+          # sed 置換の安全化（& エスケープ）
+          safe() { printf '%s' "$1" | sed -e 's/[&]/\\&/g'; }
+          APP_IMAGE_S=$(safe "${APP_IMAGE}")
+          DATABASE_URL_S=$(safe "${DATABASE_URL}")
+          SENTRY_DSN_S=$(safe "${SENTRY_DSN}")
 
-          if [ -n "${IID}" ]; then
-            echo "Existing instance found: ${IID}. Recreating to redeploy latest image..."
-            aws ec2 terminate-instances --instance-ids "${IID}"
-            aws ec2 wait instance-terminated --instance-ids "${IID}"
-          fi
+          sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
+              -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
+              -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" user-data.template > user-data.sh
 
+          # 起動
           CMD=(aws ec2 run-instances
             --image-id "${AMI_ID}"
             --instance-type "${INSTANCE_TYPE}"
@@ -186,30 +201,23 @@ jobs:
             --output text
             --iam-instance-profile "Name=${INSTANCE_PROFILE}"
           )
-          echo "== run-instances args =="
-          printf ' %q' "${CMD[@]}"
-          echo
-          "${CMD[@]}" || {
-            echo "::error::run-instances failed"
-            exit 1
-          }
+          echo "== run-instances args =="; printf ' %q' "${CMD[@]}"; echo
           IID="$("${CMD[@]}")"
-          echo "Launched instance ID: $IID"
-          test -n "$IID"
+          echo "Launched instance ID: $IID"; test -n "$IID"
 
+          # Public IP 取得
           aws ec2 wait instance-running --instance-ids "${IID}"
           IP=$(aws ec2 describe-instances --instance-ids "${IID}" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
 
+          # 8000 ヘルスチェック
           echo "Waiting for TCP/8000 to be reachable..."
           for i in {1..30}; do
             if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
-              echo "Port 8000 is open"
-              break
+              echo "Port 8000 is open"; break
             fi
-            echo "  retry ${i}/30 ..."
-            sleep 3
+            echo "  retry ${i}/30 ..."; sleep 3
           done
           set +e
           curl -fsS "http://${IP}:8000/docs" >/dev/null || {
@@ -236,14 +244,18 @@ jobs:
         run: |
           set -euo pipefail
           PURPOSE_TAG="pr-preview-singleton"
-          IID=$(aws ec2 describe-instances \
+          IID_RAW=$(aws ec2 describe-instances \
             --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
                       "Name=instance-state-name,Values=pending,running,stopping,stopped" \
-            --query 'Reservations[].Instances[].InstanceId' --output text)
-          if [ -n "${IID}" ]; then
-            aws ec2 terminate-instances --instance-ids "${IID}"
-            aws ec2 wait instance-terminated --instance-ids "${IID}"
-            echo "Terminated (${IID})"
+            --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null || true)
+          IID_LIST=$(echo "$IID_RAW" | tr '\n' ' ' | xargs)
+          echo "Found to terminate: '${IID_LIST:-<none>}'"
+          if [ -n "$IID_LIST" ] && [ "$IID_LIST" != "None" ]; then
+            aws ec2 terminate-instances --instance-ids $IID_LIST
+            for id in $IID_LIST; do
+              aws ec2 wait instance-terminated --instance-ids "$id" || true
+            done
+            echo "Terminated ($IID_LIST)"
           else
             echo "No instance to terminate."
           fi
