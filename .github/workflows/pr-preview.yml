@@ -150,6 +150,9 @@ jobs:
           SENTRY_DSN: ${{ secrets.STG_SENTRY_DSN }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          REPO_FETCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REPO_REF: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
           trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — $BASH_COMMAND"' ERR
@@ -269,8 +272,10 @@ jobs:
           YML
 
           # 取得元の Git 情報（GHCR pull 失敗時のフォールバックで使用）
-          GIT_URL=${GIT_URL}
-          GIT_REF=${GIT_REF}
+          REPO=${REPO}
+          REPO_URL=${REPO_URL}
+          REPO_REF=${REPO_REF}
+          REPO_FETCH_TOKEN=${REPO_FETCH_TOKEN}
 
           # まずは GHCR から pull（リトライ）。失敗したらローカルビルドにフォールバック
           set +e
@@ -282,16 +287,18 @@ jobs:
           set -e
 
           if [ "${PULLED}" != "1" ]; then
-            echo "Pull failed. Falling back to local build from ${GIT_URL} @ ${GIT_REF}"
-            dnf -y install git
+            echo "Pull failed. Falling back to local build from ${REPO_URL} @ ${REPO_REF}"
             mkdir -p /srv/src && cd /srv/src
-            if [ ! -d repo ]; then
-              git clone "${GIT_URL}" repo || true
+            AUTH_ARGS=()
+            if [ -n "${REPO_FETCH_TOKEN:-}" ]; then
+              AUTH_ARGS=(-H "Authorization: Bearer ${REPO_FETCH_TOKEN}")
             fi
-            cd repo
-            git fetch --depth 1 origin "${GIT_REF}" || true
-            git checkout -q "${GIT_REF}" || { echo "Checkout ${GIT_REF} failed"; exit 1; }
-            docker build -t "${APP_IMAGE}" -f Dockerfile .
+            # Try tarball download to avoid interactive git auth
+            curl -fL "${AUTH_ARGS[@]}" -o /tmp/src.tar.gz \
+              "https://api.github.com/repos/${REPO}/tarball/${REPO_REF}" || {
+                echo "Tarball download failed"; exit 1; }
+            tar -xzf /tmp/src.tar.gz --strip-components=1 -C /srv/src
+            docker build -t "${APP_IMAGE}" -f Dockerfile /srv/src
           fi
 
           docker compose up -d
@@ -305,8 +312,9 @@ jobs:
           GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
           GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
           GHCR_AUTH_B64_S=$(printf '%s' "${GHCR_USERNAME}:${GHCR_TOKEN}" | base64 | tr -d '\n')
-          GIT_URL_S=$(safe "https://github.com/${{ steps.vars.outputs.REPO_LC }}.git")
-          GIT_REF_S=$(safe "${{ github.sha }}")
+          REPO_S=$(safe "${{ github.repository }}")
+          REPO_URL_S=$(safe "https://github.com/${{ github.repository }}")
+          REPO_REF_S=$(safe "${{ github.sha }}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
@@ -314,8 +322,9 @@ jobs:
               -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
               -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" \
               -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" \
-              -e "s|\${GIT_URL}|${GIT_URL_S}|g" \
-              -e "s|\${GIT_REF}|${GIT_REF_S}|g" user-data.template > user-data.sh
+              -e "s|\${REPO}|${REPO_S}|g" \
+              -e "s|\${REPO_URL}|${REPO_URL_S}|g" \
+              -e "s|\${REPO_REF}|${REPO_REF_S}|g" user-data.template > user-data.sh
 
           # 起動
           CMD=(aws ec2 run-instances
