@@ -315,6 +315,7 @@ jobs:
           REPO_S=$(safe "${{ github.repository }}")
           REPO_URL_S=$(safe "https://github.com/${{ github.repository }}")
           REPO_REF_S=$(safe "${{ github.sha }}")
+          REPO_FETCH_TOKEN_S=$(safe "${REPO_FETCH_TOKEN}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
@@ -324,7 +325,8 @@ jobs:
               -e "s|\${GHCR_AUTH_B64}|${GHCR_AUTH_B64_S}|g" \
               -e "s|\${REPO}|${REPO_S}|g" \
               -e "s|\${REPO_URL}|${REPO_URL_S}|g" \
-              -e "s|\${REPO_REF}|${REPO_REF_S}|g" user-data.template > user-data.sh
+              -e "s|\${REPO_REF}|${REPO_REF_S}|g" \
+              -e "s|\${REPO_FETCH_TOKEN}|${REPO_FETCH_TOKEN_S}|g" user-data.template > user-data.sh
 
           # 起動
           CMD=(aws ec2 run-instances
