@@ -126,7 +126,7 @@ gym-equipment-directory/
 
 ```bash
 export DATABASE_URL="postgresql+asyncpg://appuser:apppass@127.0.0.1:5432/gym_directory"
-python -m uvicorn app.api.main:app --reload --port 8001
+python -m uvicorn app.api.main:app --reload --port 8000
 ```
 
 ### Compose の `api` サービスで起動する場合
@@ -150,20 +150,20 @@ python -m uvicorn app.api.main:app --reload --port 8001
 
 ```bash
 # 1) freshness（最新順）
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=5' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=5' | jq .
 
 # 2) richness（設備スコア順 / any）
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness&per_page=10' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness&per_page=10' | jq .
 
 # 3) name 昇順（keyset）
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=gym_name&per_page=5' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=gym_name&per_page=5' | jq .
 
 # 4) created_at 降順（keyset）
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=created_at&per_page=5' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=created_at&per_page=5' | jq .
 
 # 5) ページング継続（例：1ページ目の page_token を使って2ページ目を取得）
-TOKEN=$(curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2' | jq -r '.page_token')
-curl -sS "http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2&page_token=${TOKEN}" | jq .
+TOKEN=$(curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2' | jq -r '.page_token')
+curl -sS "http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2&page_token=${TOKEN}" | jq .
 ```
 
 ### よくあるハマりどころ
@@ -195,8 +195,8 @@ docker compose exec api bash -lc '
 '
 
 # 3) エンドポイント疎通（代表例）
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=5' | jq .
-curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=5' | jq .
+curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&equipments=squat-rack,dumbbell&equipment_match=any&sort=richness' | jq .
 ```
 
 ---
@@ -213,9 +213,9 @@ curl -sS 'http://localhost:8001/gyms/search?pref=chiba&city=funabashi&equipments
 動作例（ローカル）
 
 ```bash
-curl -sS 'http://localhost:8001/meta/prefectures' | jq .
-curl -sS 'http://localhost:8001/meta/equipment-categories' | jq .
-curl -sS 'http://localhost:8001/suggest/equipments?q=ベンチ&limit=5' | jq .
+curl -sS 'http://localhost:8000/meta/prefectures' | jq .
+curl -sS 'http://localhost:8000/meta/equipment-categories' | jq .
+curl -sS 'http://localhost:8000/suggest/equipments?q=ベンチ&limit=5' | jq .
 ```
 
 ## 動作確認（/gyms/nearby）
@@ -225,11 +225,11 @@ curl -sS 'http://localhost:8001/suggest/equipments?q=ベンチ&limit=5' | jq .
 
 ```bash
 # 近い順（半径5km）
-curl -sS 'http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=10' | jq .
+curl -sS 'http://localhost:8000/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=10' | jq .
 
 # 次ページ（page_token をそのまま利用）
-TOKEN=$(curl -sS 'http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2' | jq -r '.page_token')
-curl -sS "http://localhost:8001/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2&page_token=${TOKEN}" | jq .
+TOKEN=$(curl -sS 'http://localhost:8000/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2' | jq -r '.page_token')
+curl -sS "http://localhost:8000/gyms/nearby?lat=35.0&lng=139.0&radius_km=5&per_page=2&page_token=${TOKEN}" | jq .
 ```
 
 ## マイグレーション（pg_trgm + GIN index）
@@ -283,12 +283,12 @@ alembic upgrade head
 curl -sG --data-urlencode "pref=chiba" \
          --data-urlencode "city=funabashi" \
          --data-urlencode "per_page=3" \
-         "http://localhost:8001/gyms/search" | jq
+         "http://localhost:8000/gyms/search" | jq
 
 # 次ページ
 pt=$(curl -sG --data-urlencode "sort=score" --data-urlencode "per_page=3" \
-      "http://localhost:8001/gyms/search" | jq -r .page_token)
+      "http://localhost:8000/gyms/search" | jq -r .page_token)
 curl -sG --data-urlencode "sort=score" --data-urlencode "per_page=3" \
          --data-urlencode "page_token=$pt" \
-         "http://localhost:8001/gyms/search" | jq
+         "http://localhost:8000/gyms/search" | jq
 ```
