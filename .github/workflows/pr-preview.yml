@@ -189,6 +189,8 @@ jobs:
           # Docker 権限を ec2-user と ssm-user 両方に付与
           usermod -aG docker ec2-user || true
           usermod -aG docker ssm-user || true
+          # セッション直後でも使えるようにソケットに広めの権限（プレビュー用途）
+          chmod 666 /var/run/docker.sock || true
 
           mkdir -p /srv/app && cd /srv/app
 
@@ -221,8 +223,10 @@ jobs:
 
           # GHCR login if credentials provided (for private packages)
           if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
-            echo "Logging in to GHCR as ${GHCR_USERNAME}"
+            echo "Logging in to GHCR as ${GHCR_USERNAME} (root)"
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
+            echo "Logging in to GHCR for ssm-user"
+            su - ssm-user -c "echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin" || true
           else
             echo "GHCR login skipped (no credentials provided)"
           fi
