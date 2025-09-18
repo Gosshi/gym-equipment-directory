@@ -20,6 +20,7 @@ env:
   KEY_NAME: ""                             # SSH不要
   INSTANCE_NAME: pr-preview
   INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
+  PREVIEW_ACCESS_MODE: ssm                 # ssm|public
 
 jobs:
   preview:
@@ -298,6 +299,7 @@ jobs:
           aws ec2 wait instance-running --instance-ids "$IID"
           IP=$(aws ec2 describe-instances --instance-ids "$IID" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
+          echo "INSTANCE_ID=${IID}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
 
           # Optionally allow DB ingress for this instance (tcp/5432) using DB security group
@@ -309,31 +311,78 @@ jobs:
               || echo "DB SG ingress may already exist; continuing"
           fi
 
-          # ヘルスチェック（TCP 8000）
-          echo "Waiting for TCP/8000 to be reachable..."
-          for i in {1..30}; do
-            if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
-              echo "Port 8000 is open"; break
-            fi
-            echo "  retry ${i}/30 ..."; sleep 3
-          done
-          set +e
-          curl -fsS "http://${IP}:8000/docs" >/dev/null || {
-            curl -fsS "http://${IP}:8000/health" || true
-            echo "::warning::App did not respond yet (container may be initializing)."
-          }
-          set -e
+          # 外部疎通チェック（publicモード時のみ）
+          if [ "${PREVIEW_ACCESS_MODE}" != "ssm" ]; then
+            echo "Waiting for TCP/8000 to be reachable (public mode)..."
+            for i in {1..30}; do
+              if timeout 3 bash -lc "echo > /dev/tcp/${IP}/8000" 2>/dev/null; then
+                echo "Port 8000 is open"; break
+              fi
+              echo "  retry ${i}/30 ..."; sleep 3
+            done
+            set +e
+            curl -fsS "http://${IP}:8000/docs" >/dev/null || {
+              curl -fsS "http://${IP}:8000/health" || true
+              echo "::warning::App did not respond yet (container may be initializing)."
+            }
+            set -e
+          fi
 
-      - name: Comment preview URL on PR
-        if: steps.mode.outputs.mode == 'upsert' && github.event.pull_request.head.repo.fork == false && steps.upsert.outputs.PUBLIC_IP != ''
+      - name: In-instance health check via SSM (127.0.0.1)
+        if: env.PREVIEW_ACCESS_MODE == 'ssm'
+        shell: bash
+        run: |
+          set -euo pipefail
+          IID=${{ steps.upsert.outputs.INSTANCE_ID }}
+          test -n "${IID}" || { echo "No INSTANCE_ID"; exit 1; }
+          CMD='for i in {1..60}; do (curl -fsS http://127.0.0.1:8000/readyz || curl -fsS http://127.0.0.1:8000/healthz || curl -fsS http://127.0.0.1:8000/docs) >/dev/null 2>&1 && exit 0; echo retry $i; sleep 3; done; exit 1'
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${IID}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands="${CMD}" \
+            --query 'Command.CommandId' --output text)
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'Status' --output text 2>/dev/null || echo 'Pending')
+            if [ "${STATUS}" = "Success" ]; then echo "In-instance health OK"; break; fi
+            if [ "${STATUS}" = "Failed" ]; then echo "::error::In-instance health failed"; exit 1; fi
+            sleep 2
+          done
+
+      - name: Comment SSM preview instructions on PR
+        if: steps.mode.outputs.mode == 'upsert' && env.PREVIEW_ACCESS_MODE == 'ssm' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const iid = process.env.INSTANCE_ID
+            if (!iid) { core.warning('No INSTANCE_ID; skip'); return }
+            const cmd = `aws ssm start-session --target ${iid} --document-name AWS-StartPortForwardingSession --parameters '{"portNumber":["8000"],"localPortNumber":["8000"]}'`
+            const body = [
+              'PR Preview (SSM access):',
+              '',
+              '1) Ensure AWS CLI v2 + session-manager-plugin',
+              '2) Start port-forwarding:',
+              '```',
+              cmd,
+              '```',
+              'Open http://127.0.0.1:8000/docs'
+            ].join('\n')
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            })
+          result-encoding: string
+        env:
+          INSTANCE_ID: ${{ steps.upsert.outputs.INSTANCE_ID }}
+
+      - name: Comment public preview URL on PR (public mode)
+        if: steps.mode.outputs.mode == 'upsert' && env.PREVIEW_ACCESS_MODE != 'ssm' && github.event.pull_request.head.repo.fork == false && steps.upsert.outputs.PUBLIC_IP != ''
         uses: actions/github-script@v7
         with:
           script: |
             const ip = process.env.IP
-            if (!ip) {
-              core.warning('No PUBLIC_IP available; skipping comment')
-              return
-            }
+            if (!ip) { core.warning('No PUBLIC_IP; skip'); return }
             const url = `http://${ip}:8000`
             const body = `PR Preview is live: ${url}`
             await github.rest.issues.createComment({
@@ -356,10 +405,26 @@ jobs:
             --query 'Reservations[-1:].Instances[-1:].InstanceId' --output text)
           if [ -z "${IID_LAST}" ] || [ "${IID_LAST}" = "None" ]; then
             echo "No running instance to collect logs from" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
-          # Probe app
-          IP=${{ steps.upsert.outputs.PUBLIC_IP }}
-          if curl -fsS "http://${IP}:8000/docs" >/dev/null; then
-            echo "App responded OK — no logs collected" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          # Probe app depending on access mode
+          if [ "${PREVIEW_ACCESS_MODE}" = "ssm" ]; then
+            CMD_ID=$(aws ssm send-command \
+              --instance-ids "${IID_LAST}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters commands='["curl -fsS http://127.0.0.1:8000/readyz || curl -fsS http://127.0.0.1:8000/healthz || curl -fsS http://127.0.0.1:8000/docs"]' \
+              --query 'Command.CommandId' --output text || true)
+            if [ -n "${CMD_ID}" ]; then
+              for i in {1..20}; do
+                ST=$(aws ssm get-command-invocation --command-id "${CMD_ID}" --instance-id "${IID_LAST}" --query 'Status' --output text 2>/dev/null || echo 'Pending')
+                [ "${ST}" = "Success" ] && { echo "In-instance health OK — no logs" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+                [ "${ST}" = "Failed" ] && break
+                sleep 2
+              done
+            fi
+          else
+            IP=${{ steps.upsert.outputs.PUBLIC_IP }}
+            if curl -fsS "http://${IP}:8000/docs" >/dev/null; then
+              echo "App responded OK — no logs collected" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          fi
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${IID_LAST}" \
             --document-name "AWS-RunShellScript" \
