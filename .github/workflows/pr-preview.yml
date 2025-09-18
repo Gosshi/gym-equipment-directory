@@ -328,6 +328,52 @@ jobs:
             set -e
           fi
 
+      - name: Schedule auto-stop/terminate (TTL)
+        if: steps.mode.outputs.mode == 'upsert'
+        shell: bash
+        env:
+          # 何時間後に止める/消すか（整数時間）
+          PREVIEW_TTL_HOURS: "2"
+          # Stop にしたいなら aws-sdk:ec2:stopInstances に差し替え
+          SCHED_TARGET_ARN: "arn:aws:scheduler:::aws-sdk:ec2:terminateInstances"
+          SCHED_ROLE_ARN: "arn:aws:iam::738755162207:role/eventbridge-scheduler-ec2-exec"
+        run: |
+          set -euo pipefail
+          IID=${{ steps.upsert.outputs.INSTANCE_ID }}
+          PR_NUM="${{ github.event.pull_request.number }}"
+          test -n "${IID}"
+
+          NAME="pr-preview-pr${PR_NUM}-auto-terminate"
+          # UTCの now+TTL を ISO8601 で
+          RUN_AT=$(date -u -d "+${PREVIEW_TTL_HOURS} hours" +"%Y-%m-%dT%H:%M:%S")
+          echo "Schedule at: ${RUN_AT}"
+
+          # 入力（ターゲットAPI入力）: InstanceIds に配列で渡す（JSON文字列化）
+          INPUT=$(jq -nc --arg iid "$IID" '{InstanceIds: [$iid]}')
+          TARGET=$(jq -nc --arg arn "$SCHED_TARGET_ARN" --arg role "$SCHED_ROLE_ARN" --arg input "$INPUT" '{Arn:$arn, RoleArn:$role, Input:$input}')
+
+          # create → 失敗したら update
+          set +e
+          aws scheduler create-schedule \
+            --name "${NAME}" \
+            --schedule-expression "at(${RUN_AT})" \
+            --flexible-time-window "Mode=OFF" \
+            --target "$TARGET" \
+            --group-name "default"
+          RC=$?
+          set -e
+          if [ $RC -ne 0 ]; then
+            echo "create-schedule failed, try update-schedule"
+            aws scheduler update-schedule \
+              --name "${NAME}" \
+              --schedule-expression "at(${RUN_AT})" \
+              --flexible-time-window "Mode=OFF" \
+              --target "$TARGET" \
+              --group-name "default"
+          fi
+
+          echo "Scheduled ${NAME} -> ${RUN_AT}"
+
       - name: In-instance health check via SSM (127.0.0.1)
         if: env.PREVIEW_ACCESS_MODE == 'ssm' && steps.mode.outputs.mode == 'upsert'
         shell: bash
@@ -442,6 +488,16 @@ jobs:
             fi
             sleep 2
           done
+            
+      - name: Delete auto-stop/terminate schedule on PR close
+        if: steps.mode.outputs.mode == 'destroy-if-no-open-pr'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          NAME="pr-preview-pr${PR_NUM}-auto-terminate"
+          aws scheduler delete-schedule --name "${NAME}" --group-name "default" || true
+          echo "Deleted schedule ${NAME} (if existed)"
 
       # ===== Destroy on PR close (no other open PRs) =====
       - name: Check remaining open PRs
