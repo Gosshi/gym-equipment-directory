@@ -57,8 +57,14 @@ jobs:
           BASE_SHA=$(git merge-base HEAD "origin/${BASE_REF}")
           echo "BASE_REF=$BASE_REF BASE_SHA=$BASE_SHA"
           FILES=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD | grep -E '\.py$' || true)
-          echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          if [ -n "$FILES" ]; then echo "has_py=true" >> "$GITHUB_OUTPUT"; else echo "has_py=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$FILES" ]; then
+            {
+              echo "has_py=true"
+              printf 'files<<EOF\n%s\nEOF\n' "$FILES"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "has_py=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -88,9 +94,12 @@ jobs:
 
       - name: Mypy type check (changed files only)
         if: steps.changes.outputs.has_py == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.files }}
         run: |
-          echo "Changed files:" "${{ steps.changes.outputs.files }}"
-          mypy --show-error-codes ${{ steps.changes.outputs.files }}
+          echo "Changed files:" "$CHANGED_FILES"
+          # shell splits on whitespace/newlines
+          mypy --show-error-codes $CHANGED_FILES
       - name: Mypy skipped (no Python changes)
         if: steps.changes.outputs.has_py != 'true'
         run: echo "No Python changes detected; skipping mypy"
