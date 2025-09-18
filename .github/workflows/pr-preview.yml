@@ -265,6 +265,11 @@ jobs:
           REPO_REF_S=$(safe "${REPO_REF}")
           REPO_FETCH_TOKEN_S=$(safe "${REPO_FETCH_TOKEN}")
 
+          # SENTRY_DSN が空なら compose から該当行を除去（空文字を渡すと Sentry SDK が失敗するため）
+          if [ -z "${SENTRY_DSN}" ]; then
+            sed -i.bak '/SENTRY_DSN:/d' user-data.template
+          fi
+
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
               -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
