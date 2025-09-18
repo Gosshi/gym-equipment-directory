@@ -192,10 +192,8 @@ jobs:
 
           mkdir -p /srv/app && cd /srv/app
 
-          # GHCR ログイン（private対応）
-          if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
-            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
-          fi
+          # GHCR ログイン（private対応）: 置換後の文字列をそのまま使う。空なら失敗しても継続。
+          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin || true
 
           # .env（アプリ用） — DB 接続は Secrets から渡す
           cat > .env <<'ENV'
