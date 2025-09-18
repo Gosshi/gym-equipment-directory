@@ -319,7 +319,7 @@ jobs:
           done
           set +e
           curl -fsS "http://${IP}:8000/docs" >/dev/null || {
-            curl -fsS "http://${IP}:8000/health/db" || true
+            curl -fsS "http://${IP}:8000/health" || true
             echo "::warning::App did not respond yet (container may be initializing)."
           }
           set -e
