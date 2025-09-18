@@ -329,7 +329,7 @@ jobs:
           fi
 
       - name: In-instance health check via SSM (127.0.0.1)
-        if: env.PREVIEW_ACCESS_MODE == 'ssm'
+        if: env.PREVIEW_ACCESS_MODE == 'ssm' && steps.mode.outputs.mode == 'upsert'
         shell: bash
         run: |
           set -euo pipefail
