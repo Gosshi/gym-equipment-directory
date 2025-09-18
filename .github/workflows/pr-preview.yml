@@ -300,6 +300,15 @@ jobs:
           echo "PUBLIC_IP=${IP}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: http://${IP}:8000"
 
+          # ===== API SG ingress (port 8000, PRごとに /32 で一時開放) =====
+          if [ -n "${SG_ID}" ] && [ -n "${IP}" ] && [ "${IP}" != "None" ]; then
+            echo "Authorizing API SG ${SG_ID} for 8000/tcp from ${IP}/32"
+            aws ec2 authorize-security-group-ingress \
+              --group-id "${SG_ID}" \
+              --ip-permissions IpProtocol=tcp,FromPort=8000,ToPort=8000,IpRanges='[{CidrIp="'"'${IP}'"'/32",Description="pr-preview PR '${PR_NUM}'"}]' \
+              || echo "API SG ingress may already exist; continuing"
+          fi
+
           # Optionally allow DB ingress for this instance (tcp/5432) using DB security group
           if [ -n "${{ secrets.DB_SG_ID }}" ]; then
             echo "Authorizing DB SG ${{ secrets.DB_SG_ID }} for instance IP ${IP}/32"
@@ -392,6 +401,42 @@ jobs:
               state: 'open'
             });
             core.setOutput('open_count', prs.length);
+
+      - name: Revoke API SG ingress (port 8000) for this PR
+        if: steps.mode.outputs.mode == 'destroy-if-no-open-pr' && steps.remain.outputs.open_count == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          if [ -n "${SG_ID}" ]; then
+            DESC="pr-preview PR ${PR_NUM}"
+            JSON=$(aws ec2 describe-security-groups --group-ids "${SG_ID}" --query 'SecurityGroups[0].IpPermissions' --output json || echo '[]')
+            echo "${JSON}" > /tmp/sgperms.json
+            CIDRS=$(python3 - <<'PY' 2>/dev/null || true
+import json,os
+try:
+    data=json.load(open('/tmp/sgperms.json'))
+except Exception:
+    data=[]
+desc=os.environ.get('DESC','')
+cidrs=[]
+for p in data or []:
+    if str(p.get('FromPort'))=='8000' and str(p.get('ToPort'))=='8000' and p.get('IpProtocol')=='tcp':
+        for r in p.get('IpRanges',[]):
+            if r.get('Description','')==desc:
+                cidrs.append(r.get('CidrIp'))
+if cidrs:
+    print(' '.join(cidrs))
+PY
+            )
+            for C in $CIDRS; do
+              echo "Revoking 8000/tcp ${C} (desc=${DESC}) from SG ${SG_ID}"
+              aws ec2 revoke-security-group-ingress \
+                --group-id "${SG_ID}" \
+                --ip-permissions IpProtocol=tcp,FromPort=8000,ToPort=8000,IpRanges="[{CidrIp=${C},Description=\"${DESC}\"}]" \
+                || true
+            done
+          fi
 
       - name: Destroy instance if no open PRs
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr' && steps.remain.outputs.open_count == '0'
