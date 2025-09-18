@@ -147,6 +147,8 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           REPO_FETCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REPO_REF: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
           trap 'echo "::error::Failed at ${BASH_SOURCE}:${LINENO} — $BASH_COMMAND"' ERR
@@ -220,8 +222,28 @@ jobs:
 
           # まずは pull（失敗時は後で build にフォールバック可能にしたい場合はここに処理追加可）
           set +e
-          docker pull "${APP_IMAGE}"
+          PULLED=0
+          for i in {1..5}; do
+            docker pull "${APP_IMAGE}" && PULLED=1 && break
+            echo "pull retry ${i}"; sleep 5
+          done
           set -e
+
+          # pull に失敗したら、そのコミットのソースからローカルビルド
+          if [ "${PULLED}" != "1" ]; then
+            echo "Pull failed. Falling back to local build from https://api.github.com/repos/${REPO}/tarball/${REPO_REF}"
+            mkdir -p /srv/src && cd /srv/src
+            AUTH_ARGS=()
+            if [ -n "${REPO_FETCH_TOKEN:-}" ]; then
+              AUTH_ARGS=(-H "Authorization: Bearer ${REPO_FETCH_TOKEN}")
+            fi
+            curl -fL "${AUTH_ARGS[@]}" -o /tmp/src.tar.gz \
+              "https://api.github.com/repos/${REPO}/tarball/${REPO_REF}" || {
+                echo "Tarball download failed"; exit 1; }
+            tar -xzf /tmp/src.tar.gz --strip-components=1 -C /srv/src
+            docker build -t "${APP_IMAGE}" -f Dockerfile /srv/src
+            cd /srv/app
+          fi
 
           docker compose up -d
           UD
@@ -233,12 +255,18 @@ jobs:
           SENTRY_DSN_S=$(safe "${SENTRY_DSN}")
           GHCR_USERNAME_S=$(safe "${GHCR_USERNAME}")
           GHCR_TOKEN_S=$(safe "${GHCR_TOKEN}")
+          REPO_S=$(safe "${REPO}")
+          REPO_REF_S=$(safe "${REPO_REF}")
+          REPO_FETCH_TOKEN_S=$(safe "${REPO_FETCH_TOKEN}")
 
           sed -e "s|\${APP_IMAGE}|${APP_IMAGE_S}|g" \
               -e "s|\${DATABASE_URL}|${DATABASE_URL_S}|g" \
               -e "s|\${SENTRY_DSN}|${SENTRY_DSN_S}|g" \
               -e "s|\${GHCR_USERNAME}|${GHCR_USERNAME_S}|g" \
-              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" user-data.template > user-data.sh
+              -e "s|\${GHCR_TOKEN}|${GHCR_TOKEN_S}|g" \
+              -e "s|\${REPO}|${REPO_S}|g" \
+              -e "s|\${REPO_REF}|${REPO_REF_S}|g" \
+              -e "s|\${REPO_FETCH_TOKEN}|${REPO_FETCH_TOKEN_S}|g" user-data.template > user-data.sh
 
           # run-instances（タグ付け・IAMロール・Public IP）
           IID=$(aws ec2 run-instances \
