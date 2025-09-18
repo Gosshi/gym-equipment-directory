@@ -391,28 +391,6 @@ jobs:
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr' && steps.remain.outputs.open_count == '0'
         run: |
           set -euo pipefail
-          # Revoke DB SG ingress entries created by previews (description starts with 'pr-preview PR ')
-          if [ -n "${{ secrets.DB_SG_ID }}" ]; then
-            echo "Revoking DB SG rules on ${{ secrets.DB_SG_ID }} matching description 'pr-preview PR '"
-            # List rules and find CIDRs with matching description
-            aws ec2 describe-security-groups --group-ids "${{ secrets.DB_SG_ID }}" \
-              --query 'SecurityGroups[0].IpPermissions[?FromPort==`5432` && ToPort==`5432` && IpProtocol==`tcp`].IpRanges[]' \
-              --output json > /tmp/ipranges.json || true
-            # Use python (available) to extract matching CIDRs
-            python - <<'PY' || true
-import json,subprocess,sys
-data=json.load(open('/tmp/ipranges.json'))
-targets=[r for r in data if r.get('Description','').startswith('pr-preview PR ')]
-for r in targets:
-  cidr=r['CidrIp']
-  subprocess.run([
-    'aws','ec2','revoke-security-group-ingress',
-    '--group-id','${{ secrets.DB_SG_ID }}',
-    '--ip-permissions',f'IpProtocol=tcp,FromPort=5432,ToPort=5432,IpRanges=[{{CidrIp=\"{cidr}\",Description=\"{r.get("Description","")}\"}}]'
-  ], check=False)
-print(f'Revoked {len(targets)} rules', file=sys.stderr)
-PY
-          fi
           PURPOSE_TAG="pr-preview-singleton"
           IID_RAW=$(aws ec2 describe-instances \
             --filters "Name=tag:Purpose,Values=${PURPOSE_TAG}" \
