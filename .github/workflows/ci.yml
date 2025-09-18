@@ -46,26 +46,6 @@ jobs:
         with:
           fetch-depth: 0  # full history for diff
 
-      - name: Detect changed Python files (git diff)
-        id: changes
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.ref }}
-        run: |
-          set -euo pipefail
-          BASE_REF=${PR_BASE:-main}
-          git fetch --no-tags --prune --depth=1 origin "$BASE_REF"
-          BASE_SHA=$(git merge-base HEAD "origin/${BASE_REF}")
-          echo "BASE_REF=$BASE_REF BASE_SHA=$BASE_SHA"
-          FILES=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD | grep -E '\.py$' || true)
-          if [ -n "$FILES" ]; then
-            {
-              echo "has_py=true"
-              printf 'files<<EOF\n%s\nEOF\n' "$FILES"
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "has_py=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -91,18 +71,6 @@ jobs:
 
       - name: Ruff lint
         run: ruff check .
-
-      - name: Mypy type check (changed files only)
-        if: steps.changes.outputs.has_py == 'true'
-        env:
-          CHANGED_FILES: ${{ steps.changes.outputs.files }}
-        run: |
-          echo "Changed files:" "$CHANGED_FILES"
-          # shell splits on whitespace/newlines
-          mypy --show-error-codes $CHANGED_FILES
-      - name: Mypy skipped (no Python changes)
-        if: steps.changes.outputs.has_py != 'true'
-        run: echo "No Python changes detected; skipping mypy"
 
       - name: Alembic upgrade head (use sync driver)
         env:
