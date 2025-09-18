@@ -8,6 +8,8 @@ permissions:
   id-token: write
   contents: read
   packages: write
+  issues: write
+  pull-requests: write
 
 env:
   AWS_REGION: ap-northeast-1
@@ -323,11 +325,15 @@ jobs:
           set -e
 
       - name: Comment preview URL on PR
-        if: steps.mode.outputs.mode == 'upsert'
+        if: steps.mode.outputs.mode == 'upsert' && github.event.pull_request.head.repo.fork == false && steps.upsert.outputs.PUBLIC_IP != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const ip = core.getInput('ip')
+            const ip = process.env.IP
+            if (!ip) {
+              core.warning('No PUBLIC_IP available; skipping comment')
+              return
+            }
             const url = `http://${ip}:8000`
             const body = `PR Preview is live: ${url}`
             await github.rest.issues.createComment({
@@ -338,7 +344,7 @@ jobs:
             })
           result-encoding: string
         env:
-          ip: ${{ steps.upsert.outputs.PUBLIC_IP }}
+          IP: ${{ steps.upsert.outputs.PUBLIC_IP }}
 
       - name: If startup failed, collect logs via SSM and add to Summary
         if: steps.mode.outputs.mode == 'upsert'
