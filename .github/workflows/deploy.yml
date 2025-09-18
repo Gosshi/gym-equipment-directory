@@ -44,10 +44,14 @@ jobs:
         run: |
           OWNER=${GITHUB_REPOSITORY%%/*}
           REPO=${GITHUB_REPOSITORY##*/}
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          REPO_LC=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
           REG=${REGISTRY:-ghcr.io}
-          echo "owner=$OWNER" >> $GITHUB_OUTPUT
-          echo "repo=$REPO" >> $GITHUB_OUTPUT
-          echo "image=$REG/$OWNER/$REPO:${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          REG_LC=$(echo "$REG" | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER_LC" >> $GITHUB_OUTPUT
+          echo "repo=$REPO_LC" >> $GITHUB_OUTPUT
+          echo "registry=$REG_LC" >> $GITHUB_OUTPUT
+          echo "image=$REG_LC/$OWNER_LC/$REPO_LC:${GITHUB_SHA}" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v6
