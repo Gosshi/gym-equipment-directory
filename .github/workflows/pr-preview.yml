@@ -345,7 +345,7 @@ jobs:
 
           NAME="pr-preview-pr${PR_NUM}-auto-terminate"
           # UTCの now+TTL を ISO8601 で
-          RUN_AT=$(date -u -d "+${PREVIEW_TTL_HOURS} hours" +"%Y-%m-%dT%H:%M:%SZ")
+          RUN_AT=$(date -u -d "+${PREVIEW_TTL_HOURS} hours" +"%Y-%m-%dT%H:%M:%S")
           echo "Schedule at: ${RUN_AT}"
 
           # 入力（ターゲットAPI入力）: InstanceIds に配列で渡す（JSON文字列化）
