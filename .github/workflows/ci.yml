@@ -43,16 +43,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ensure history for diff-based filters
 
       - name: Detect changed Python files
         id: changes
         uses: dorny/paths-filter@v3
         with:
+          use_checkout: true
           list-files: shell
           filters: |
             py:
-              - added|modified|renamed:
-                  - '**/*.py'
+              - added|modified|renamed: '**/*.py'
 
       - name: Setup Python
         uses: actions/setup-python@v5
