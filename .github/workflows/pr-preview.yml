@@ -348,8 +348,9 @@ jobs:
           RUN_AT=$(date -u -d "+${PREVIEW_TTL_HOURS} hours" +"%Y-%m-%dT%H:%M:%SZ")
           echo "Schedule at: ${RUN_AT}"
 
-          # 入力（ターゲットAPI入力）: InstanceIds に配列で渡す
-          INPUT=$(jq -c --arg iid "$IID" '{InstanceIds: [$iid]}' <<< '{}')
+          # 入力（ターゲットAPI入力）: InstanceIds に配列で渡す（JSON文字列化）
+          INPUT=$(jq -nc --arg iid "$IID" '{InstanceIds: [$iid]}')
+          TARGET=$(jq -nc --arg arn "$SCHED_TARGET_ARN" --arg role "$SCHED_ROLE_ARN" --arg input "$INPUT" '{Arn:$arn, RoleArn:$role, Input:$input}')
 
           # create → 失敗したら update
           set +e
@@ -357,7 +358,7 @@ jobs:
             --name "${NAME}" \
             --schedule-expression "at(${RUN_AT})" \
             --flexible-time-window "Mode=OFF" \
-            --target "Arn=${SCHED_TARGET_ARN},RoleArn=${SCHED_ROLE_ARN},Input=${INPUT}" \
+            --target "$TARGET" \
             --group-name "default"
           RC=$?
           set -e
@@ -367,7 +368,7 @@ jobs:
               --name "${NAME}" \
               --schedule-expression "at(${RUN_AT})" \
               --flexible-time-window "Mode=OFF" \
-              --target "Arn=${SCHED_TARGET_ARN},RoleArn=${SCHED_ROLE_ARN},Input=${INPUT}" \
+              --target "$TARGET" \
               --group-name "default"
           fi
 
