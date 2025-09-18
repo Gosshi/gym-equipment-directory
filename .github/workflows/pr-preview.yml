@@ -211,11 +211,11 @@ jobs:
                 ALLOW_ORIGINS: "*"
                 DATABASE_URL: ${DATABASE_URL}
                 SENTRY_DSN: ${SENTRY_DSN}
+              restart: unless-stopped
               ports:
                 - "${APP_PORT}:8000"
               command: >
-                bash -lc "alembic upgrade head &&
-                          uvicorn app.main:app --host 0.0.0.0 --port 8000"
+                bash -lc "uvicorn app.main:app --host 0.0.0.0 --port 8000"
           YML
 
           # まずは pull（失敗時は後で build にフォールバック可能にしたい場合はここに処理追加可）
@@ -242,6 +242,14 @@ jobs:
             docker build -t "${APP_IMAGE}" -f Dockerfile /srv/src
             cd /srv/app
           fi
+
+          # Run migrations separately (one-shot). Do not block startup on transient failures; retry a few times.
+          for i in {1..5}; do
+            docker run --rm \
+              -e DATABASE_URL="${DATABASE_URL}" \
+              "${APP_IMAGE}" bash -lc "alembic upgrade head" && break || {
+                echo "alembic retry ${i}"; sleep 5; }
+          done
 
           docker compose up -d
           UD
