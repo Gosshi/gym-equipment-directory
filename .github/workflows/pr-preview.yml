@@ -334,8 +334,8 @@ jobs:
         env:
           # 何時間後に止める/消すか（整数時間）
           PREVIEW_TTL_HOURS: "2"
-          # Stop にしたいなら aws-sdk:ec2:StopInstances に差し替え
-          SCHED_TARGET_ARN: "arn:aws:scheduler:::aws-sdk:ec2:TerminateInstances"
+          # Stop にしたいなら aws-sdk:ec2:stopInstances に差し替え
+          SCHED_TARGET_ARN: "arn:aws:scheduler:::aws-sdk:ec2:terminateInstances"
           SCHED_ROLE_ARN: "arn:aws:iam::738755162207:role/eventbridge-scheduler-ec2-exec"
         run: |
           set -euo pipefail
