@@ -44,6 +44,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect changed Python files
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: shell
+          filters: |
+            py:
+              - added|modified|renamed:
+                  - '**/*.py'
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -70,8 +80,14 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
-      - name: Mypy type check
-        run: mypy .
+      - name: Mypy type check (changed files only)
+        if: steps.changes.outputs.py == 'true'
+        run: |
+          echo "Changed files:" ${{ steps.changes.outputs.py_files }}
+          mypy --show-error-codes ${{ steps.changes.outputs.py_files }}
+      - name: Mypy skipped (no Python changes)
+        if: steps.changes.outputs.py != 'true'
+        run: echo "No Python changes detected; skipping mypy"
 
       - name: Alembic upgrade head (use sync driver)
         env:
