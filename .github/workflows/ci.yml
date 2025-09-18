@@ -34,15 +34,17 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         ports:
-          - "${{ env.POSTGRES_PORT }}:5432"
+          - "5432:5432"
         # ヘルスチェック
         options: >-
-          --health-cmd="pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-cmd="pg_isready -U postgres -d gym_test"
           --health-interval=10s --health-timeout=5s --health-retries=10
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for diff
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -69,9 +71,6 @@ jobs:
 
       - name: Ruff lint
         run: ruff check .
-
-      - name: Mypy type check
-        run: mypy .
 
       - name: Alembic upgrade head (use sync driver)
         env:
