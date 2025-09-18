@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -70,7 +71,10 @@ async def engine():
         except Exception:
             pass
     async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        # Clean schema to avoid leftover tables (e.g., from integration DB)
+        await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+        await conn.execute(text("SET search_path TO public"))
         await conn.run_sync(Base.metadata.create_all)
     try:
         yield eng
