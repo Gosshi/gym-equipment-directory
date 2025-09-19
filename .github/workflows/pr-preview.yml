@@ -384,9 +384,19 @@ jobs:
 
           # --- Build the seed script on the runner and ship via base64 (avoids argv splitting issues) ---
           read -r -d '' SCRIPT <<'EOS'
-          set -euo pipefail
+          #!/usr/bin/env bash
+          set -Eeuxo pipefail
+
+          on_err() {
+            echo "[seed] ERROR captured; dumping diagnostics..."
+            docker ps -a || true
+            docker compose -f /srv/app/docker-compose.yml ps -a || true
+            docker compose -f /srv/app/docker-compose.yml logs --tail=200 api || true
+          }
+          trap on_err ERR
+
           # 1) 待機: /srv/app が作られるまで (cloud-init/user-data 完了待ち)
-          for i in {1..120}; do
+          for i in {1..180}; do
             if [ -d /srv/app ] && [ -f /srv/app/docker-compose.yml ]; then break; fi
             echo "[seed] waiting /srv/app... ($i)"; sleep 3
           done
@@ -394,25 +404,46 @@ jobs:
           cd /srv/app
 
           # 2) 待機: docker daemon / compose 利用可
-          for i in {1..60}; do
+          for i in {1..80}; do
             docker info >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 && break
             echo "[seed] waiting docker/compose... ($i)"; sleep 3
           done
 
           # 3) 待機: api コンテナが Up になるまで
-          for i in {1..120}; do
+          for i in {1..180}; do
             st=$(docker compose -f /srv/app/docker-compose.yml ps --status running --services 2>/dev/null | grep -E "^api$" || true)
-            if [ -n "$st" ]; then break; fi
+            if [ -n "$st" ]; then
+              echo "[seed] api is running"
+              break
+            fi
             echo "[seed] waiting api container... ($i)"; sleep 3
           done
 
-          # 4) マイグレーション + 最小データ投入 (数回リトライ)
+          # 4) DB疎通（アプリ内部）
+          for i in {1..5}; do
+            if docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python - <<PY
+          import os, psycopg2
+          url = os.environ["DATABASE_URL"].replace("+asyncpg","")
+          psycopg2.connect(url).close()
+          print("DB OK")
+          PY'; then
+              echo "[seed] DB connectivity OK"
+              break
+            else
+              echo "[seed] DB connectivity retry $i"; sleep 5
+            fi
+          done
+
+          # 5) マイグレーション + 最小データ投入 (数回リトライ)
           for i in {1..5}; do
             docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head' && break || { echo "[seed] alembic retry $i"; sleep 5; }
           done
           for i in {1..5}; do
             docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal' && break || { echo "[seed] seed retry $i"; sleep 5; }
           done
+
+          # 6) アプリの簡易ヘルス
+          docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'curl -fsS http://127.0.0.1:8000/readyz || curl -fsS http://127.0.0.1:8000/healthz || curl -fsS http://127.0.0.1:8000/docs >/dev/null'
 
           echo "[seed] DONE"
           EOS
@@ -423,19 +454,23 @@ jobs:
           # Build SSM parameter JSON with two single-line commands
           PARAMS=$(jq -nc --arg b64 "$B64" '{
             commands: [
-              "bash -lc \"echo " + $b64 + " | base64 -d > /tmp/seed.sh\"",
+              "bash -lc \"printf %s " + $b64 + " | base64 -d > /tmp/seed.sh\"",
               "bash -lc \"chmod +x /tmp/seed.sh && /tmp/seed.sh\""
             ]
           }')
 
+          echo "[seed] sending SSM command..."
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${IID}" \
             --document-name "AWS-RunShellScript" \
             --parameters "$PARAMS" \
             --query 'Command.CommandId' --output text)
+          echo "[seed] command id: ${COMMAND_ID}"
 
-          # Wait for completion
-          for i in {1..60}; do
+          # Wait for completion (and show live status)
+          for i in {1..90}; do
+            aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --output table \
+              --query '{Status:Status,Details:StatusDetails,Resp:ResponseCode,Start:ExecutionStartDateTime,End:ExecutionEndDateTime}' || true
             STATUS=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'Status' --output text 2>/dev/null || echo 'Pending')
             if [ "${STATUS}" = "Success" ] || [ "${STATUS}" = "Failed" ]; then
               break
@@ -446,11 +481,17 @@ jobs:
           STDOUT=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'StandardOutputContent' --output text 2>/dev/null || true)
           STDERR=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'StandardErrorContent' --output text 2>/dev/null || true)
 
+          echo "----- SSM STDOUT (truncated by AWS if long) -----"
           if [ -n "${STDOUT}" ] && [ "${STDOUT}" != "None" ]; then
-            echo "${STDOUT}"
+            printf '%s\n' "${STDOUT}"
+          else
+            echo "<empty>"
           fi
+          echo "----- SSM STDERR (truncated by AWS if long) -----"
           if [ -n "${STDERR}" ] && [ "${STDERR}" != "None" ]; then
-            echo "${STDERR}" >&2
+            printf '%s\n' "${STDERR}"
+          else
+            echo "<empty>"
           fi
 
           if [ "${STATUS}" != "Success" ]; then
