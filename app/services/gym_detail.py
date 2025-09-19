@@ -7,10 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas as legacy_schemas
+from app.dto import GymDetailDTO
+from app.dto.mappers import assemble_gym_detail
 from app.models import Equipment, Gym, GymEquipment, Source
 from app.models.gym_image import GymImage
 from app.repositories.gym_repository import GymRepository
-from app.schemas.gym_detail import GymDetailResponse
 from app.services.scoring import compute_bundle
 
 
@@ -29,15 +30,7 @@ async def _max_gym_equips(session: AsyncSession) -> int:
     return (await session.execute(stmt)).scalar_one()
 
 
-def _iso(dt: datetime | None) -> str | None:
-    if not dt or (hasattr(dt, "year") and dt.year < 1970):
-        return None
-    return dt.isoformat()
-
-
-async def get_gym_detail(
-    session: AsyncSession, slug: str, include: str | None
-) -> GymDetailResponse:
+async def get_gym_detail(session: AsyncSession, slug: str, include: str | None) -> GymDetailDTO:
     # Resolve the gym id by slug first (index on slug exists)
     gym_id = await session.scalar(select(Gym.id).where(Gym.slug == slug))
     if not gym_id:
@@ -115,17 +108,7 @@ async def get_gym_detail(
             }
         )
 
-    data = {
-        "id": int(getattr(gym, "id", 0)),
-        "slug": str(getattr(gym, "slug", "")),
-        "name": str(getattr(gym, "name", "")),
-        "pref": getattr(gym, "pref", None),
-        "city": str(getattr(gym, "city", "")),
-        "updated_at": _iso(getattr(gym, "updated_at", None)),
-        "last_verified_at": _iso(getattr(gym, "last_verified_at_cached", None)),
-        "equipments": equipments_list,
-        "gym_equipments": gym_equipments_list,
-    }
+    updated_at = getattr(gym, "updated_at", None)
 
     # images: gym_images rows for reference (no upload)
     img_rows = await session.execute(
@@ -143,17 +126,27 @@ async def get_gym_detail(
                 "created_at": created_at,
             }
         )
-    data["images"] = images_list
+
+    freshness = richness = score = None
 
     if include == "score":
         num = await _count_equips(session, int(getattr(gym, "id", 0)))
         mx = await _max_gym_equips(session)
         bundle = compute_bundle(getattr(gym, "last_verified_at_cached", None), num, mx)
-        data["freshness"] = bundle.freshness
-        data["richness"] = bundle.richness
-        data["score"] = bundle.score
+        freshness = bundle.freshness
+        richness = bundle.richness
+        score = bundle.score
 
-    return GymDetailResponse.model_validate(data)
+    return assemble_gym_detail(
+        gym,
+        equipments_list,
+        gym_equipments_list,
+        images_list,
+        updated_at=updated_at,
+        freshness=freshness,
+        richness=richness,
+        score=score,
+    )
 
 
 async def get_gym_detail_v1(
@@ -222,7 +215,7 @@ async def get_gym_detail_v1(
 
 async def get_gym_detail_opt(
     session: AsyncSession, slug: str, include: str | None
-) -> GymDetailResponse | None:
+) -> GymDetailDTO | None:
     """Optional-return wrapper for router-side 404 handling.
 
     Returns GymDetailResponse if found; otherwise None. Other HTTP errors from the
@@ -242,8 +235,8 @@ class GymDetailService:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def get(self, slug: str, include: str | None) -> GymDetailResponse:
+    async def get(self, slug: str, include: str | None) -> GymDetailDTO:
         return await get_gym_detail(self._session, slug, include)
 
-    async def get_opt(self, slug: str, include: str | None) -> GymDetailResponse | None:
+    async def get_opt(self, slug: str, include: str | None) -> GymDetailDTO | None:
         return await get_gym_detail_opt(self._session, slug, include)
