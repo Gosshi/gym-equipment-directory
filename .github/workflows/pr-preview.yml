@@ -382,36 +382,51 @@ jobs:
           IID=${{ steps.upsert.outputs.INSTANCE_ID }}
           test -n "${IID}" || { echo "No INSTANCE_ID"; exit 1; }
 
-          # --- Build multi-line command safely (wait for /srv/app & container ready) ---
-          SCRIPT=$'set -euo pipefail\n\
-          # 1) 待機: /srv/app が作られるまで (cloud-init/user-data 完了待ち)\n\
-          for i in {1..120}; do\n\
-            if [ -d /srv/app ] && [ -f /srv/app/docker-compose.yml ]; then break; fi;\n\
-            echo "[seed] waiting /srv/app... ($i)"; sleep 3;\n\
-          done\n\
-          test -d /srv/app || { echo "[seed] /srv/app not found"; exit 1; }\n\
-          cd /srv/app\n\
-          # 2) 待機: docker daemon / compose 利用可\n\
-          for i in {1..60}; do\n\
-            docker info >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 && break;\n\
-            echo "[seed] waiting docker/compose... ($i)"; sleep 3;\n\
-          done\n\
-          # 3) 待機: api コンテナが Up になるまで\n\
-          for i in {1..120}; do\n\
-            st=$(docker compose -f /srv/app/docker-compose.yml ps --status running --services 2>/dev/null | grep -E "^api$" || true);\n\
-            if [ -n "$st" ]; then break; fi;\n\
-            echo "[seed] waiting api container... ($i)"; sleep 3;\n\
-          done\n\
-          # 4) マイグレーション + 最小データ投入 (数回リトライ)\n\
-          for i in {1..5}; do\n\
-            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc '\''alembic upgrade head'\'' && break || { echo "[seed] alembic retry $i"; sleep 5; };\n\
-          done\n\
-          for i in {1..5}; do\n\
-            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc '\''python -m scripts.seed_minimal'\'' && break || { echo "[seed] seed retry $i"; sleep 5; };\n\
-          done\n\
-          echo "[seed] DONE"\n'
+          # --- Build the seed script on the runner and ship via base64 (avoids argv splitting issues) ---
+          read -r -d '' SCRIPT <<'EOS'
+          set -euo pipefail
+          # 1) 待機: /srv/app が作られるまで (cloud-init/user-data 完了待ち)
+          for i in {1..120}; do
+            if [ -d /srv/app ] && [ -f /srv/app/docker-compose.yml ]; then break; fi
+            echo "[seed] waiting /srv/app... ($i)"; sleep 3
+          done
+          test -d /srv/app || { echo "[seed] /srv/app not found"; exit 1; }
+          cd /srv/app
 
-          PARAMS=$(jq -nc --arg cmd "$SCRIPT" '{commands: ["bash","-lc",$cmd]}')
+          # 2) 待機: docker daemon / compose 利用可
+          for i in {1..60}; do
+            docker info >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 && break
+            echo "[seed] waiting docker/compose... ($i)"; sleep 3
+          done
+
+          # 3) 待機: api コンテナが Up になるまで
+          for i in {1..120}; do
+            st=$(docker compose -f /srv/app/docker-compose.yml ps --status running --services 2>/dev/null | grep -E "^api$" || true)
+            if [ -n "$st" ]; then break; fi
+            echo "[seed] waiting api container... ($i)"; sleep 3
+          done
+
+          # 4) マイグレーション + 最小データ投入 (数回リトライ)
+          for i in {1..5}; do
+            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head' && break || { echo "[seed] alembic retry $i"; sleep 5; }
+          done
+          for i in {1..5}; do
+            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal' && break || { echo "[seed] seed retry $i"; sleep 5; }
+          done
+
+          echo "[seed] DONE"
+          EOS
+
+          # base64 encode (GNU (-w0) first; fallback to BSD (-b 0))
+          B64=$(printf '%s' "$SCRIPT" | base64 -w0 2>/dev/null || base64 -b 0)
+
+          # Build SSM parameter JSON with two single-line commands
+          PARAMS=$(jq -nc --arg b64 "$B64" '{
+            commands: [
+              "bash -lc \"echo " + $b64 + " | base64 -d > /tmp/seed.sh\"",
+              "bash -lc \"chmod +x /tmp/seed.sh && /tmp/seed.sh\""
+            ]
+          }')
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${IID}" \
@@ -419,6 +434,7 @@ jobs:
             --parameters "$PARAMS" \
             --query 'Command.CommandId' --output text)
 
+          # Wait for completion
           for i in {1..60}; do
             STATUS=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'Status' --output text 2>/dev/null || echo 'Pending')
             if [ "${STATUS}" = "Success" ] || [ "${STATUS}" = "Failed" ]; then
