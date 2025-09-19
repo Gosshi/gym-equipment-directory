@@ -382,23 +382,23 @@ jobs:
           IID=${{ steps.upsert.outputs.INSTANCE_ID }}
           test -n "${IID}" || { echo "No INSTANCE_ID"; exit 1; }
 
-          CMD=$(cat <<'EOS'
-            set -euo pipefail
-            cd /srv/app
-            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head'
-            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal'
-            EOS
-          )
+          # --- Build multi-line command safely without heredoc (ANSI-C $'...' + proper quoting) ---
+          SCRIPT=$'set -euo pipefail\n\
+          cd /srv/app\n\
+          docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc '\''alembic upgrade head'\''\n\
+          docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc '\''python -m scripts.seed_minimal'\''\n'
 
-          PARAMS=$(jq -nc --arg script "$CMD" '{commands: ["bash -lc \"" + $script + "\""]}')
+          # JSON parameters for SSM: commands=["bash","-lc","<SCRIPT>"]
+          PARAMS=$(jq -nc --arg cmd "$SCRIPT" '{commands: ["bash","-lc",$cmd]}')
 
+          # Send command to the instance
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${IID}" \
             --document-name "AWS-RunShellScript" \
             --parameters "$PARAMS" \
             --query 'Command.CommandId' --output text)
 
-          STATUS="Pending"
+          # Wait for completion
           for i in {1..40}; do
             STATUS=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'Status' --output text 2>/dev/null || echo 'Pending')
             if [ "${STATUS}" = "Success" ] || [ "${STATUS}" = "Failed" ]; then
@@ -407,6 +407,7 @@ jobs:
             sleep 3
           done
 
+          # Fetch outputs (best-effort)
           STDOUT=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'StandardOutputContent' --output text 2>/dev/null || true)
           STDERR=$(aws ssm get-command-invocation --command-id "${COMMAND_ID}" --instance-id "${IID}" --query 'StandardErrorContent' --output text 2>/dev/null || true)
 
