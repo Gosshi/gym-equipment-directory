@@ -383,11 +383,11 @@ jobs:
           test -n "${IID}" || { echo "No INSTANCE_ID"; exit 1; }
 
           CMD=$(cat <<'EOS'
-set -euo pipefail
-cd /srv/app
-docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head'
-docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal'
-EOS
+            set -euo pipefail
+            cd /srv/app
+            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head'
+            docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal'
+            EOS
           )
 
           PARAMS=$(jq -nc --arg script "$CMD" '{commands: ["bash -lc \"" + $script + "\""]}')
