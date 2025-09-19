@@ -63,25 +63,30 @@ async def search_gyms(
 
     # service -> schemas へ詰め替え
     items: list[schemas.SearchItem] = []
-    for it in result["items"]:
+    for it in result.items:
         items.append(
             schemas.SearchItem(
                 gym=schemas.GymBasic.model_validate(
                     {
-                        "id": it.get("id"),
-                        "slug": it.get("slug"),
-                        "name": it.get("name"),
-                        "pref": it.get("pref"),
-                        "city": it.get("city"),
+                        "id": it.id,
+                        "slug": it.slug,
+                        "name": it.name,
+                        "pref": it.pref,
+                        "city": it.city,
                     }
                 ),
                 highlights=[],  # 必要なら後段で拡張
-                last_verified_at=it.get("last_verified_at"),
-                score=float(it.get("score", 0.0)),
+                last_verified_at=it.last_verified_at,
+                score=float(it.score or 0.0),
             )
         )
 
-    return schemas.SearchResponse(items=items, page=page, per_page=per_page, total=result["total"])
+    return schemas.SearchResponse(
+        items=items,
+        page=page,
+        per_page=per_page,
+        total=result.total,
+    )
 
 
 @router.get(

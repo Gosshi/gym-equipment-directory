@@ -12,8 +12,8 @@ from sqlalchemy import and_, case, cast, func, literal, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Numeric
 
+from app.dto import GymSearchPageDTO, GymSummaryDTO
 from app.models import Equipment, Gym, GymEquipment
-from app.schemas.gym_search import GymSearchResponse, GymSummary
 
 FRESHNESS_WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
 W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
@@ -88,8 +88,8 @@ def _lv(dt: datetime | None) -> str | None:
     return dt.isoformat()
 
 
-def _gym_summary_from_gym(g: Gym) -> GymSummary:
-    return GymSummary(
+def _gym_summary_from_gym(g: Gym) -> GymSummaryDTO:
+    return GymSummaryDTO(
         id=int(getattr(g, "id", 0)),
         slug=str(getattr(g, "slug", "")),
         name=str(getattr(g, "name", "")),
@@ -112,7 +112,7 @@ async def search_gyms_api(
     sort: Literal["freshness", "richness", "gym_name", "created_at", "score"],
     per_page: int,
     page_token: str | None,
-) -> GymSearchResponse:
+) -> GymSearchPageDTO:
     logger = structlog.get_logger(__name__)
     logger.info(
         "gyms_search_begin",
@@ -157,7 +157,7 @@ async def search_gyms_api(
     # ---- 3) total ----
     total = (await session.scalar(select(func.count()).select_from(base_ids.subquery()))) or 0
     if total == 0:
-        return GymSearchResponse(items=[], total=0, has_next=False, page_token=None)
+        return GymSearchPageDTO(items=[], total=0, has_next=False, page_token=None)
 
     # ---- 4) 並びと取得 ----
     next_token = None
@@ -372,13 +372,13 @@ async def search_gyms_api(
 
     # ---- 5) マッピング ----
     if sort != "score":
-        items: list[GymSummary] = [_gym_summary_from_gym(g) for g in gyms]
+        items: list[GymSummaryDTO] = [_gym_summary_from_gym(g) for g in gyms]
     else:
         items = []
         for row in scored_rows or []:
             g = row[0]
             items.append(
-                GymSummary(
+                GymSummaryDTO(
                     id=int(getattr(g, "id", 0)),
                     slug=str(getattr(g, "slug", "")),
                     name=str(getattr(g, "name", "")),
@@ -399,4 +399,4 @@ async def search_gyms_api(
         count=len(items),
         has_next=bool(has_next),
     )
-    return GymSearchResponse(items=items, total=total, has_next=has_next, page_token=next_token)
+    return GymSearchPageDTO(items=items, total=total, has_next=has_next, page_token=next_token)

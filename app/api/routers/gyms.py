@@ -12,10 +12,10 @@ from app.api.deps import (
     get_gym_nearby_service,
     get_gym_search_api_service,
 )
+from app.dto import GymDetailDTO, GymSearchPageDTO
 from app.schemas.common import ErrorResponse
-from app.schemas.gym_detail import GymDetailResponse
 from app.schemas.gym_nearby import GymNearbyResponse
-from app.schemas.gym_search import GymSearchQuery, GymSearchResponse
+from app.schemas.gym_search import GymSearchQuery
 from app.schemas.report import ReportCreateRequest
 from app.services.gym_detail import GymDetailService
 from app.services.reports import ReportService
@@ -40,7 +40,7 @@ _DESC = (
 
 @router.get(
     "/search",
-    response_model=GymSearchResponse,
+    response_model=GymSearchPageDTO,
     summary="ジム検索（設備フィルタ + Keysetページング）",
     description=_DESC,
     responses={
@@ -53,7 +53,7 @@ _DESC = (
 async def search_gyms(
     request: Request,
     q: GymSearchQuery = Depends(GymSearchQuery.as_query),
-    search_svc: Callable[..., GymSearchResponse] = Depends(get_gym_search_api_service),
+    search_svc: Callable[..., GymSearchPageDTO] = Depends(get_gym_search_api_service),
 ):
     # 1) 設備スラッグを吸収（CSV/配列/単数の各形式に対応）
     required_slugs: list[str] = get_equipment_slugs_from_query(request, q.equipments)
@@ -106,7 +106,7 @@ async def gyms_nearby(
 
 @router.get(
     "/{slug}",
-    response_model=GymDetailResponse,
+    response_model=GymDetailDTO,
     summary="ジム詳細を取得",
     description=(
         "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"

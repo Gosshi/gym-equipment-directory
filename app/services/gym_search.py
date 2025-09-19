@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dto.search import GymSummaryDTO, ServiceResult
+from app.dto import GymSearchPageDTO, GymSummaryDTO
+from app.dto.mappers import map_gym_to_summary
 from app.models import Equipment, GymEquipment
 from app.repositories.gym_repository import GymRepository
 from app.utils.paging import build_next_offset_token, parse_offset_token
@@ -24,7 +26,7 @@ async def search_gyms(
     page_token: str | None,
     page: int,
     per_page: int,
-) -> ServiceResult:
+) -> GymSearchPageDTO:
     """
     既存挙動に合わせた検索サービス。
       - pref/city: SQL で絞り込み
@@ -40,19 +42,15 @@ async def search_gyms(
     repo = GymRepository(db)
     gyms = await repo.list_by_pref_city(pref=pref, city=city)
 
-    items_all: list[GymSummaryDTO] = [
+    items_all: list[dict[str, Any]] = [
         {
-            "id": g.id,
-            "slug": g.slug,
-            "name": g.name,
-            "pref": g.pref,
-            "city": g.city,
+            "gym": g,
             "last_verified_at": getattr(g, "last_verified_at_cached", None),
             "score": 0.0,
         }
         for g in gyms
     ]
-    gym_ids_all = [g["id"] for g in items_all]
+    gym_ids_all = [int(getattr(it["gym"], "id", 0)) for it in items_all]
 
     # 2) Equipment 行取得
     ge_rows = []
@@ -119,9 +117,9 @@ async def search_gyms(
     # 5) 反映
     filtered: list[GymSummaryDTO] = []
     for it in items_all:
-        if it["id"] not in allowed_gym_ids:
+        gid = int(getattr(it["gym"], "id", 0))
+        if gid not in allowed_gym_ids:
             continue
-        gid = it["id"]
         it["last_verified_at"] = it.get("last_verified_at") or last_verified_by_gym.get(gid)
         it["score"] = float(richness_by_gym.get(gid, 0.0))
         filtered.append(it)
@@ -135,10 +133,10 @@ async def search_gyms(
     elif sort_key in ("richness", "score"):
         filtered.sort(key=lambda i: i.get("score", 0.0), reverse=True)
     elif sort_key == "gym_name":
-        filtered.sort(key=lambda i: i.get("name") or "")
+        filtered.sort(key=lambda i: getattr(i["gym"], "name", "") or "")
     elif sort_key == "created_at":
         created_map = await _created_at_map(db)
-        filtered.sort(key=lambda i: created_map.get(i.get("id")) or 0)
+        filtered.sort(key=lambda i: created_map.get(int(getattr(i["gym"], "id", 0))) or 0)
 
     # 7) ページング
     pagable = (
@@ -149,18 +147,27 @@ async def search_gyms(
 
     total_all = len(filtered)
     if total_all == 0:
-        return {"items": [], "total": 0, "has_next": False, "page_token": None}
+        return GymSearchPageDTO(items=[], total=0, has_next=False, page_token=None)
 
     offset = parse_offset_token(page_token, page=page, per_page=per_page)
     slice_ = pagable[offset : offset + per_page]
     next_token = build_next_offset_token(offset, per_page, len(pagable))
 
-    return {
-        "items": slice_,
-        "total": total_all,
-        "has_next": next_token is not None,
-        "page_token": next_token,
-    }
+    dto_items = [
+        map_gym_to_summary(
+            it["gym"],
+            last_verified_at=it.get("last_verified_at"),
+            score=float(it.get("score", 0.0)),
+        )
+        for it in slice_
+    ]
+
+    return GymSearchPageDTO(
+        items=dto_items,
+        total=total_all,
+        has_next=next_token is not None,
+        page_token=next_token,
+    )
 
 
 async def _created_at_map(db: AsyncSession) -> dict[int, datetime | None]:
