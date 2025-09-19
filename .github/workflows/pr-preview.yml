@@ -383,19 +383,19 @@ jobs:
           test -n "${IID}" || { echo "No INSTANCE_ID"; exit 1; }
 
           CMD=$(cat <<'EOS'
-            bash -lc '
-              set -e
-              cd /srv/app
-              docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc "alembic upgrade head"
-              docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc "python -m scripts.seed_minimal"
-            '
-          EOS
+set -e
+cd /srv/app
+docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'alembic upgrade head'
+docker compose -f /srv/app/docker-compose.yml exec -T api bash -lc 'python -m scripts.seed_minimal'
+EOS
           )
+
+          PARAMS=$(jq -nc --arg script "$CMD" '{commands: ["bash -lc \"" + $script + "\""]}')
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${IID}" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands=["$CMD"] \
+            --parameters "$PARAMS" \
             --query 'Command.CommandId' --output text)
 
           for i in {1..40}; do
