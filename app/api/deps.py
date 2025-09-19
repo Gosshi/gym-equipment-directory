@@ -4,11 +4,11 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
+from app.dto import GymSearchPageDTO
 from app.services.equipments import EquipmentService
 from app.services.gym_detail import GymDetailService
 from app.services.gym_nearby import GymNearbyResponse
 from app.services.gym_nearby import search_nearby as _search_nearby
-from app.services.gym_search_api import GymSearchResponse
 from app.services.gym_search_api import search_gyms_api as _search_gyms_api
 from app.services.health import HealthService
 from app.services.meta import MetaService
@@ -71,7 +71,7 @@ def get_gym_search_api_service(
         sort: str,
         per_page: int,
         page_token: str | None,
-    ) -> GymSearchResponse:
+    ) -> GymSearchPageDTO:
         return await _search_gyms_api(
             session,
             pref=pref,
