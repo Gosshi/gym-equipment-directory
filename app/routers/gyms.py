@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app import schemas
-from app.deps import (
-    GymDetailServiceV1,
-    SearchServiceV1,
-    get_gym_detail_service_v1,
-    get_search_service_v1,
-)
+from app.deps import get_gym_detail_service_v1, get_search_service_v1
+from app.services.gym_detail import GymDetailService
+from app.services.gym_search import GymSearchService
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -38,7 +35,7 @@ async def search_gyms(
     ),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=50),
-    svc: SearchServiceV1 = Depends(get_search_service_v1),
+    svc: GymSearchService = Depends(get_search_service_v1),
 ):
     # CSV -> list[str]
     equip_list: list[str] | None = None
@@ -95,8 +92,8 @@ async def search_gyms(
     summary="ジム詳細（v1）",
     description="ジムの詳細情報を返します。",
 )
-async def get_gym_detail(slug: str, svc: GymDetailServiceV1 = Depends(get_gym_detail_service_v1)):
-    detail = await svc.get(slug)
+async def get_gym_detail(slug: str, svc: GymDetailService = Depends(get_gym_detail_service_v1)):
+    detail = await svc.get_legacy(slug)
     if detail is None:
         # service 層で見つからなかった場合は 404 を返す
         raise HTTPException(status_code=404, detail="gym not found")

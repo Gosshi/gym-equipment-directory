@@ -3,8 +3,9 @@
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_async_session
+from app.db import SessionLocal, get_async_session
 from app.dto import GymSearchPageDTO
+from app.infra.unit_of_work import SqlAlchemyUnitOfWork
 from app.services.equipments import EquipmentService
 from app.services.gym_detail import GymDetailService
 from app.services.gym_nearby import GymNearbyResponse
@@ -57,6 +58,10 @@ def get_equipment_slugs_from_query(request: Request, equipments: str | None = No
 # --- Service providers for DI ---
 
 
+def _uow_factory() -> SqlAlchemyUnitOfWork:
+    return SqlAlchemyUnitOfWork(SessionLocal)
+
+
 def get_gym_search_api_service(
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -86,10 +91,8 @@ def get_gym_search_api_service(
     return _svc
 
 
-def get_gym_detail_api_service(
-    session: AsyncSession = Depends(get_async_session),
-) -> GymDetailService:
-    return GymDetailService(session)
+def get_gym_detail_api_service() -> GymDetailService:
+    return GymDetailService(_uow_factory)
 
 
 def get_gym_nearby_service(
@@ -117,10 +120,8 @@ def get_gym_nearby_service(
     return _svc
 
 
-def get_equipment_service(
-    session: AsyncSession = Depends(get_async_session),
-) -> EquipmentService:
-    return EquipmentService(session)
+def get_equipment_service() -> EquipmentService:
+    return EquipmentService(_uow_factory)
 
 
 def get_meta_service(session: AsyncSession = Depends(get_async_session)) -> MetaService:
