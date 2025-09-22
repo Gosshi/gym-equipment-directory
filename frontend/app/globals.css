@@ -1,94 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  color-scheme: light;
+  --font-sans: "Inter", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 215 20.2% 65.1%;
+  --radius: 0.75rem;
 }
-* {
-  box-sizing: border-box;
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 217.2 32.6% 17.5%;
 }
+
 body {
-  margin: 0;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    Helvetica,
-    Arial,
-    "Apple Color Emoji",
-    "Segoe UI Emoji";
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
-a {
-  color: #0b5bd3;
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
-header {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 12px 16px;
-}
-main {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 16px;
-}
-h1,
-h2,
-h3 {
-  margin: 0 0 8px;
-}
-.stack {
-  display: grid;
-  gap: 12px;
-}
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.card {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-}
-.muted {
-  color: #6b7280;
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #111827;
-  color: #fff;
-  border-radius: 6px;
-  padding: 8px 12px;
-  border: 0;
-  cursor: pointer;
-}
-.btn.secondary {
-  background: #374151;
-}
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-label {
-  font-size: 0.9rem;
-}
-input[type="text"],
-select {
-  padding: 6px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-fieldset {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-legend {
-  padding: 0 6px;
-  font-size: 0.9rem;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground;
+  }
 }
