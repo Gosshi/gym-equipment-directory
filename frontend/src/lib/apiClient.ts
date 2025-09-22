@@ -1,3 +1,5 @@
+import { authClient } from "@/auth/authClient";
+
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
 
@@ -54,6 +56,58 @@ const buildQueryString = (query: Record<string, unknown> | undefined) => {
   return serialized ? `?${serialized}` : "";
 };
 
+const normalizeHeaders = (input?: HeadersInit): Record<string, string> => {
+  if (!input) {
+    return {};
+  }
+
+  if (input instanceof Headers) {
+    const entries: Record<string, string> = {};
+    input.forEach((value, key) => {
+      entries[key] = value;
+    });
+    return entries;
+  }
+
+  if (Array.isArray(input)) {
+    const entries: Record<string, string> = {};
+    for (const [key, value] of input) {
+      if (key) {
+        entries[key] = String(value);
+      }
+    }
+    return entries;
+  }
+
+  const entries: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined && value !== null) {
+      entries[key] = String(value);
+    }
+  }
+  return entries;
+};
+
+const hasHeader = (headers: Record<string, string>, name: string) =>
+  Object.keys(headers).some((key) => key.toLowerCase() === name.toLowerCase());
+
+const ensureCanonicalHeader = (
+  headers: Record<string, string>,
+  name: string,
+  fallback: string,
+) => {
+  const existingKey = Object.keys(headers).find((key) => key.toLowerCase() === name.toLowerCase());
+  if (existingKey) {
+    if (existingKey !== name) {
+      const value = headers[existingKey];
+      delete headers[existingKey];
+      headers[name] = value;
+    }
+    return;
+  }
+  headers[name] = fallback;
+};
+
 export async function apiRequest<TResponse>(
   path: string,
   { timeoutMs = DEFAULT_TIMEOUT_MS, query, headers, ...init }: ApiRequestOptions = {},
@@ -64,13 +118,26 @@ export async function apiRequest<TResponse>(
   const url = `${getApiBaseUrl()}${path}${buildQueryString(query)}`;
 
   try {
+    let token: string | null = null;
+    try {
+      token = await authClient.getToken();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to obtain auth token", error);
+      }
+    }
+
+    const headersObject = normalizeHeaders(headers);
+    ensureCanonicalHeader(headersObject, "Accept", "application/json");
+    ensureCanonicalHeader(headersObject, "Content-Type", "application/json");
+    if (token && !hasHeader(headersObject, "Authorization")) {
+      headersObject.Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       ...init,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...(headers || {}),
-      },
+      headers: headersObject,
       signal: controller.signal,
     });
 
