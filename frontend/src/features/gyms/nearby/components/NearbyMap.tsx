@@ -31,7 +31,7 @@ const FALLBACK_STYLE: StyleSpecification = {
       tileSize: 256,
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">OpenStreetMap</a> contributors',
-      maxZoom: 19,
+      maxzoom: 19,
     },
   },
   layers: [
@@ -66,8 +66,8 @@ const resolveMapStyle = (): string | StyleSpecification => {
 };
 const DEFAULT_ZOOM = 13;
 const MARKER_BASE_CLASS =
-  "nearby-marker flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/85 text-2xl text-red-500 shadow-lg backdrop-blur-sm transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
-const MARKER_HIGHLIGHT_CLASSES = "ring-4 ring-offset-2 ring-primary scale-110";
+  "nearby-marker flex h-11 w-11 items-center justify-center rounded-full border-2 border-red-400/70 bg-white/90 text-3xl text-red-500 shadow-[0_8px_18px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500";
+const MARKER_HIGHLIGHT_CLASSES = "ring-4 ring-red-500/80 ring-offset-2 scale-110";
 
 const logMapCenter = (payload: Record<string, unknown>) => {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
