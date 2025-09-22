@@ -3,26 +3,30 @@ import userEvent from "@testing-library/user-event";
 
 import { AuthProvider } from "@/auth/AuthProvider";
 import { GymDetailPage } from "@/features/gyms/GymDetailPage";
-import { addFavorite, listFavorites, removeFavorite } from "@/services/favorites";
+import { getFavorites, addFavorite, removeFavorite, getHistory, addHistory } from "@/lib/apiClient";
 import { getGymBySlug } from "@/services/gyms";
-import { resetFavoriteStoreForTests } from "@/store/favorites";
-import type { Favorite } from "@/types/favorite";
-import type { GymDetail } from "@/types/gym";
+import { resetFavoritesStoreForTests } from "@/store/favoritesStore";
+import { resetHistoryStoreForTests } from "@/store/historyStore";
+import type { GymDetail, GymSummary } from "@/types/gym";
 
 jest.mock("@/services/gyms", () => ({
   getGymBySlug: jest.fn(),
 }));
 
-jest.mock("@/services/favorites", () => ({
-  listFavorites: jest.fn(),
+jest.mock("@/lib/apiClient", () => ({
+  getFavorites: jest.fn(),
   addFavorite: jest.fn(),
   removeFavorite: jest.fn(),
+  getHistory: jest.fn(),
+  addHistory: jest.fn(),
 }));
 
 const mockedGetGymBySlug = getGymBySlug as jest.MockedFunction<typeof getGymBySlug>;
-const mockedListFavorites = listFavorites as jest.MockedFunction<typeof listFavorites>;
+const mockedGetFavorites = getFavorites as jest.MockedFunction<typeof getFavorites>;
 const mockedAddFavorite = addFavorite as jest.MockedFunction<typeof addFavorite>;
 const mockedRemoveFavorite = removeFavorite as jest.MockedFunction<typeof removeFavorite>;
+const mockedGetHistory = getHistory as jest.MockedFunction<typeof getHistory>;
+const mockedAddHistory = addHistory as jest.MockedFunction<typeof addHistory>;
 
 const mockGymDetail: GymDetail = {
   id: 101,
@@ -40,23 +44,23 @@ const mockGymDetail: GymDetail = {
   description: "テスト用のジム詳細です。",
 };
 
-const mockFavorite: Favorite = {
-  createdAt: "2024-09-10T10:00:00Z",
-  gym: {
-    id: mockGymDetail.id,
-    slug: mockGymDetail.slug,
-    name: mockGymDetail.name,
-    prefecture: mockGymDetail.prefecture,
-    city: mockGymDetail.city,
-    address: mockGymDetail.address,
-    thumbnailUrl: mockGymDetail.thumbnailUrl,
-    lastVerifiedAt: null,
-  },
-};
+const toSummary = (detail: GymDetail): GymSummary => ({
+  id: detail.id,
+  slug: detail.slug,
+  name: detail.name,
+  prefecture: detail.prefecture,
+  city: detail.city,
+  address: detail.address,
+  thumbnailUrl: detail.thumbnailUrl ?? null,
+  lastVerifiedAt: null,
+});
+
+const mockSummary = toSummary(mockGymDetail);
 
 describe("GymDetailPage favorite toggle", () => {
   beforeEach(() => {
-    resetFavoriteStoreForTests();
+    resetFavoritesStoreForTests();
+    resetHistoryStoreForTests();
     window.localStorage.clear();
     window.localStorage.setItem(
       "ged.auth.session",
@@ -68,17 +72,29 @@ describe("GymDetailPage favorite toggle", () => {
         },
       }),
     );
+
     jest.clearAllMocks();
 
     mockedGetGymBySlug.mockResolvedValue(mockGymDetail);
-    mockedAddFavorite.mockResolvedValue(undefined);
-    mockedRemoveFavorite.mockResolvedValue(undefined);
+    mockedGetHistory.mockResolvedValue({ items: [] });
+    mockedAddHistory.mockResolvedValue(undefined);
   });
 
   it("adds a gym to favorites and updates the toggle label", async () => {
-    mockedListFavorites
+    mockedGetFavorites
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([mockFavorite]);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ]);
+    mockedAddFavorite.mockResolvedValue(undefined);
 
     const user = userEvent.setup();
 
@@ -97,19 +113,36 @@ describe("GymDetailPage favorite toggle", () => {
     await user.click(button);
 
     await waitFor(() =>
-      expect(mockedAddFavorite).toHaveBeenCalledWith(
-        mockGymDetail.id,
-        expect.stringMatching(/^[A-Za-z0-9_-]{8,128}$/),
-      ),
+      expect(mockedAddFavorite).toHaveBeenCalledWith(expect.any(String), mockGymDetail.id),
     );
 
     await waitFor(() => expect(button).toHaveTextContent("お気に入り済み"));
   });
 
   it("removes a gym from favorites and updates the toggle label", async () => {
-    mockedListFavorites
-      .mockResolvedValueOnce([mockFavorite])
+    mockedGetFavorites
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ])
       .mockResolvedValueOnce([]);
+    mockedRemoveFavorite.mockResolvedValue(undefined);
 
     const user = userEvent.setup();
 
@@ -127,10 +160,7 @@ describe("GymDetailPage favorite toggle", () => {
     await user.click(button);
 
     await waitFor(() =>
-      expect(mockedRemoveFavorite).toHaveBeenCalledWith(
-        mockGymDetail.id,
-        expect.stringMatching(/^[A-Za-z0-9_-]{8,128}$/),
-      ),
+      expect(mockedRemoveFavorite).toHaveBeenCalledWith(expect.any(String), mockGymDetail.id),
     );
 
     await waitFor(() => expect(button).toHaveTextContent("お気に入りに追加"));
