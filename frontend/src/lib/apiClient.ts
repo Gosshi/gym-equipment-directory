@@ -111,7 +111,13 @@ const ensureCanonicalHeader = (
 
 export async function apiRequest<TResponse>(
   path: string,
-  { timeoutMs = DEFAULT_TIMEOUT_MS, query, headers, ...init }: ApiRequestOptions = {},
+  {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    query,
+    headers,
+    signal,
+    ...init
+  }: ApiRequestOptions = {},
 ): Promise<TResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -119,6 +125,14 @@ export async function apiRequest<TResponse>(
   const url = `${getApiBaseUrl()}${path}${buildQueryString(query)}`;
 
   try {
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort();
+      } else {
+        signal.addEventListener("abort", () => controller.abort(), { once: true });
+      }
+    }
+
     let token: string | null = null;
     try {
       token = await authClient.getToken();
