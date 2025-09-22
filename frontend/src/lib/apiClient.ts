@@ -179,25 +179,31 @@ export async function apiFetch<TResponse>(
   return apiRequest<TResponse>(path, options);
 }
 
-export interface FavoritesResponse {
-  items: GymSummary[];
-}
+// Favorites エンドポイントは配列 (FavoriteItem[]) を直接返す。
+export type FavoritesArrayResponse = unknown[];
 
 export interface HistoryResponse {
   items: GymSummary[];
 }
 
-export const getFavorites = () =>
-  apiRequest<FavoritesResponse>("/me/favorites", { method: "GET" });
+export const getFavorites = (deviceId: string) =>
+  apiRequest<FavoritesArrayResponse>(
+    `/me/favorites?device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: "GET",
+    },
+  );
 
-export const addFavorite = (gymId: number) =>
+export const addFavorite = (deviceId: string, gymId: number) =>
   apiRequest<void>("/me/favorites", {
     method: "POST",
-    body: JSON.stringify({ gymId }),
+    body: JSON.stringify({ device_id: deviceId, gym_id: gymId }),
   });
 
-export const removeFavorite = (gymId: number) =>
-  apiRequest<void>(`/me/favorites/${gymId}`, { method: "DELETE" });
+export const removeFavorite = (deviceId: string, gymId: number) =>
+  apiRequest<void>(`/me/favorites/${gymId}?device_id=${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
 
 type HistoryPayload =
   | { gymId: number; gymIds?: never }

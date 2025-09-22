@@ -8,6 +8,7 @@ import {
   getFavorites as apiGetFavorites,
   removeFavorite as apiRemoveFavorite,
 } from "@/lib/apiClient";
+import { ensureDeviceId } from "@/utils/device";
 import type { GymDetail, GymSummary } from "@/types/gym";
 import type { Favorite } from "@/types/favorite";
 
@@ -56,6 +57,25 @@ const dedupeFavorites = (favorites: Favorite[]): Favorite[] => {
     result.push(cloneFavorite(favorite));
   }
   return result;
+};
+
+// サーバー FavoriteItem(shape: { gym_id, slug, name, pref, city, last_verified_at }) => GymSummary
+const mapServerItemToSummary = (input: unknown): GymSummary | null => {
+  if (!input || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  const id = typeof obj.gym_id === "number" ? obj.gym_id : undefined;
+  const slug = typeof obj.slug === "string" ? obj.slug : undefined;
+  const name = typeof obj.name === "string" ? obj.name : undefined;
+  if (id === undefined || slug === undefined || name === undefined) return null;
+  return {
+    id,
+    slug,
+    name,
+    city: typeof obj.city === "string" ? obj.city : "",
+    prefecture: typeof obj.pref === "string" ? obj.pref : "",
+    lastVerifiedAt: typeof obj.last_verified_at === "string" ? obj.last_verified_at : null,
+    // API からは favorites では address / equipments / thumbnailUrl は来ない
+  };
 };
 
 const candidateToSummary = (candidate: FavoriteCandidate): GymSummary => {
@@ -199,7 +219,8 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     }
 
     try {
-      await apiAddFavorite(summary.id);
+      const deviceId = ensureDeviceId();
+      await apiAddFavorite(deviceId, summary.id);
       set((state) => ({ pendingIds: removePendingId(state.pendingIds, summary.id) }));
       await get().refreshFromServer();
     } catch (error) {
@@ -237,7 +258,8 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     }
 
     try {
-      await apiRemoveFavorite(gymId);
+      const deviceId = ensureDeviceId();
+      await apiRemoveFavorite(deviceId, gymId);
       set((state) => ({ pendingIds: removePendingId(state.pendingIds, gymId) }));
       await get().refreshFromServer();
     } catch (error) {
@@ -274,9 +296,13 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     }));
 
     try {
-      const response = await apiGetFavorites();
+      const deviceId = ensureDeviceId();
+      const response = await apiGetFavorites(deviceId);
       const favorites = dedupeFavorites(
-        (response.items ?? []).map((summary) => ({ gym: summary, createdAt: null })),
+        (response ?? [])
+          .map((raw) => mapServerItemToSummary(raw))
+          .filter((v): v is GymSummary => v !== null)
+          .map((summary) => ({ gym: summary, createdAt: null })),
       );
       set({
         favorites,
@@ -315,9 +341,13 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
 
     try {
       const localFavorites = dedupeFavorites(get().favorites);
-      const response = await apiGetFavorites();
+      const deviceId = ensureDeviceId();
+      const response = await apiGetFavorites(deviceId);
       const serverFavorites = dedupeFavorites(
-        (response.items ?? []).map((summary) => ({ gym: summary, createdAt: null })),
+        (response ?? [])
+          .map((raw) => mapServerItemToSummary(raw))
+          .filter((v): v is GymSummary => v !== null)
+          .map((summary) => ({ gym: summary, createdAt: null })),
       );
       const serverIds = new Set(serverFavorites.map((favorite) => favorite.gym.id));
       const toAdd = localFavorites
@@ -325,12 +355,15 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
         .filter((summary) => !serverIds.has(summary.id));
 
       for (const summary of toAdd) {
-        await apiAddFavorite(summary.id);
+        await apiAddFavorite(deviceId, summary.id);
       }
 
-      const finalResponse = await apiGetFavorites();
+      const finalResponse = await apiGetFavorites(deviceId);
       const finalFavorites = dedupeFavorites(
-        (finalResponse.items ?? []).map((summary) => ({ gym: summary, createdAt: null })),
+        (finalResponse ?? [])
+          .map((raw) => mapServerItemToSummary(raw))
+          .filter((v): v is GymSummary => v !== null)
+          .map((summary) => ({ gym: summary, createdAt: null })),
       );
 
       set({
