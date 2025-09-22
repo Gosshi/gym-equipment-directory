@@ -60,6 +60,10 @@ def create_app() -> FastAPI:
 
     # CORS from ALLOW_ORIGINS env (comma-separated)
     allow_origins = [o.strip() for o in os.getenv("ALLOW_ORIGINS", "").split(",") if o.strip()]
+    if not allow_origins and env != "prod":
+        # Permit local frontend during development when explicit config is absent
+        allow_origins = ["http://127.0.0.1:3000", "http://localhost:3000"]
+
     if allow_origins:
         app.add_middleware(
             CORSMiddleware,

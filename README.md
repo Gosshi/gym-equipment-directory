@@ -11,6 +11,7 @@
 - Infra: Docker / docker-compose
 - ORM / Migration: SQLAlchemy + Alembic
 - Admin: Adminer (DB管理UI)
+- Frontend: Next.js (TypeScript + Tailwind) — `frontend/README.md` を参照
 
 ---
 
@@ -46,6 +47,19 @@ curl http://localhost:8000/health
   - User: appuser
   - Password: apppass
   - Database: gym_directory
+
+## 🌐 フロントエンド開発
+
+- `frontend/` ディレクトリに Next.js ベースのフロントエンドを追加しました。
+- 初回は以下を実行してください。
+  ```bash
+  cd frontend
+  npm install
+  cp .env.example .env.local
+  npm run dev
+  ```
+- `/health` をコールするトップページが表示されます。詳細な手順や環境変数の説明は
+  `frontend/README.md` を参照してください。
 
 ## 📂 ディレクトリ構成（現在）
 ```bash

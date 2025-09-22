@@ -1,4 +1,9 @@
 {
+  "root": true,
   "extends": ["next/core-web-vitals"],
-  "rules": {}
+  "settings": {
+    "next": {
+      "rootDir": ["./"]
+    }
+  }
 }
