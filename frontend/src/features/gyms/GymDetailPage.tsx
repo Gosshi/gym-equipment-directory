@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/apiClient";
 import { getGymBySlug } from "@/services/gyms";
 import type { GymDetail, GymEquipmentDetail } from "@/types/gym";
-import { useFavorites } from "@/store/favorites";
+import { historyStore } from "@/store/historyStore";
+import { useFavorites } from "@/store/favoritesStore";
 import { useAuthGuard } from "@/routes/withAuthGuard";
 
 type FetchStatus = "idle" | "loading" | "success" | "error";
@@ -143,6 +144,12 @@ export function GymDetailPage({ slug }: { slug: string }) {
         }
 
         setGym(response);
+        void historyStore
+          .getState()
+          .add(response)
+          .catch(() => {
+            // 履歴更新の失敗は UI を妨げないため握りつぶす
+          });
         setStatus("success");
       })
       .catch((error) => {

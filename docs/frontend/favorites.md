@@ -10,24 +10,22 @@
 ## API Contract
 | Method | Endpoint | Notes |
 | ------ | -------- | ----- |
-| `GET` | `/me/favorites?device_id={id}` | Returns an array of favorites. Each item contains `gym_id`, `slug`, `name`, `pref`, `city`, `last_verified_at`, and may include `address`, `thumbnail_url`, `created_at`. |
-| `POST` | `/me/favorites` | Body: `{ "device_id": string, "gym_id": number }`. Idempotent. |
-| `DELETE` | `/me/favorites/{gym_id}?device_id={id}` | Removes the relation. Also idempotent. |
+| `GET` | `/me/favorites` | Returns `{ items: GymSummary[] }`. |
+| `POST` | `/me/favorites` | Body: `{ "gymId": number }`. Idempotent. |
+| `DELETE` | `/me/favorites/{gymId}` | Removes the relation. Also idempotent. |
 
-- A pseudo user identifier (`device_id`) is generated client-side and persisted to
-  `localStorage (gid:favoritesDeviceId)` to satisfy the current anonymous workflow.
+- Calls are authenticated (Bearer token) when a user session exists. Unauthenticated clients rely on
+  local storage only.
 - Error responses propagate via `ApiError` and surface through toast notifications and inline
   messaging when relevant.
 
 ## Frontend Architecture
-- `@/store/favorites` exposes `useFavorites()` which relies on `useSyncExternalStore` to share state
-  across components.
-  - Handles initial hydration (`listFavorites`), optimistic adds/removals, background refreshes, and
-    pending indicators per gym id.
-  - Persists/recovers the device identifier, falling back to deterministic generation when the
-    storage call fails (private browsing, etc.).
-- Services live in `@/services/favorites` and consolidate API interactions with response
-  normalisation to the `Favorite` domain model (`src/types/favorite.ts`).
+- `@/store/favoritesStore` exposes `useFavorites()` backed by Zustand.
+  - Hydrates from local storage (`GED_FAVORITES`) for guests and keeps optimistic state in sync with
+    the API when signed in.
+  - Tracks pending gym ids for optimistic UI, handles background refreshes, and stores the latest
+    server snapshot back to local storage after successful mutations/syncs.
+- `/me/favorites` page and gym detail screens consume the shared store for optimistic updates.
 - Toast notifications (Shadcn + Radix) are wired through `Toaster` in `app/layout.tsx`, and the
   toggle actions trigger success/error feedback without blocking user interaction.
 
@@ -42,8 +40,6 @@
     without reloading the route).
 
 ## Known Limitations & Follow-ups
-- Authentication remains provisional; multiple browsers/devices cannot yet merge favorites for the
-  same user identity.
 - The backend schema currently omits richer metadata (ratings, equipment list, etc.) for favorites,
   so cards display what is available and fall back gracefully when fields are `null`.
 - Toasts rely on client rendering; server-side rendering of routes that reference `useFavorites`

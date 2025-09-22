@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
-import { useFavorites } from "@/store/favorites";
+import { useFavorites } from "@/store/favoritesStore";
 import { useAuthGuard } from "@/routes/withAuthGuard";
 import type { Favorite } from "@/types/favorite";
 

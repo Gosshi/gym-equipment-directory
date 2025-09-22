@@ -1,4 +1,5 @@
 import { authClient } from "@/auth/authClient";
+import type { GymSummary } from "@/types/gym";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
@@ -177,3 +178,44 @@ export async function apiFetch<TResponse>(
 ): Promise<TResponse> {
   return apiRequest<TResponse>(path, options);
 }
+
+export interface FavoritesResponse {
+  items: GymSummary[];
+}
+
+export interface HistoryResponse {
+  items: GymSummary[];
+}
+
+export const getFavorites = () =>
+  apiRequest<FavoritesResponse>("/me/favorites", { method: "GET" });
+
+export const addFavorite = (gymId: number) =>
+  apiRequest<void>("/me/favorites", {
+    method: "POST",
+    body: JSON.stringify({ gymId }),
+  });
+
+export const removeFavorite = (gymId: number) =>
+  apiRequest<void>(`/me/favorites/${gymId}`, { method: "DELETE" });
+
+type HistoryPayload =
+  | { gymId: number; gymIds?: never }
+  | { gymIds: number[]; gymId?: never };
+
+export const getHistory = () =>
+  apiRequest<HistoryResponse>("/me/history", { method: "GET" });
+
+export const addHistory = (payload: HistoryPayload) => {
+  const hasGymId = typeof payload.gymId === "number";
+  const hasGymIds = Array.isArray(payload.gymIds) && payload.gymIds.length > 0;
+
+  if (!hasGymId && !hasGymIds) {
+    throw new Error("History payload must include gymId or non-empty gymIds.");
+  }
+
+  return apiRequest<void>("/me/history", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
