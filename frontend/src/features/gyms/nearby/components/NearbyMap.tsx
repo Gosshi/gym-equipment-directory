@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import maplibregl from "maplibre-gl";
+import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { NearbyGym } from "@/types/gym";
@@ -16,10 +17,56 @@ export interface NearbyMapProps {
   zoom?: number;
 }
 
-const MAP_STYLE_URL = "https://demotiles.maplibre.org/style.json";
+const FALLBACK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "osm-base",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+};
+
+const resolveMapStyle = (): string | StyleSpecification => {
+  const inline = process.env.NEXT_PUBLIC_MAP_STYLE_JSON?.trim();
+  if (inline) {
+    try {
+      return JSON.parse(inline) as StyleSpecification;
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to parse NEXT_PUBLIC_MAP_STYLE_JSON", error);
+      }
+    }
+  }
+
+  const url = process.env.NEXT_PUBLIC_MAP_STYLE_URL?.trim();
+  if (url) {
+    return url;
+  }
+
+  return FALLBACK_STYLE;
+};
 const DEFAULT_ZOOM = 13;
 const MARKER_BASE_CLASS =
-  "nearby-marker flex h-9 w-9 items-center justify-center rounded-full border border-white bg-primary text-xs font-semibold text-primary-foreground shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
+  "nearby-marker flex h-10 w-10 items-center justify-center rounded-full border border-white bg-primary text-lg text-primary-foreground shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
 const MARKER_HIGHLIGHT_CLASSES = "ring-4 ring-offset-2 ring-primary scale-110";
 
 const logMapCenter = (payload: Record<string, unknown>) => {
@@ -45,6 +92,8 @@ export function NearbyMap({
   );
   const suppressMoveRef = useRef(false);
 
+  const mapStyle = useMemo(() => resolveMapStyle(), []);
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
       return;
@@ -52,7 +101,7 @@ export function NearbyMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE_URL,
+      style: mapStyle,
       center: [center.lng, center.lat],
       zoom,
     });
@@ -83,7 +132,7 @@ export function NearbyMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [center.lat, center.lng, onCenterChange, zoom]);
+  }, [center.lat, center.lng, mapStyle, onCenterChange, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -127,8 +176,9 @@ export function NearbyMap({
       const element = document.createElement("button");
       element.type = "button";
       element.className = MARKER_BASE_CLASS;
-      element.textContent = gym.name.charAt(0).toUpperCase();
-      element.title = gym.name;
+      element.textContent = "🏋️";
+      element.setAttribute("aria-label", `${gym.name} の詳細を開く`);
+      element.title = buildTooltip(gym);
 
       element.addEventListener("mouseenter", () => onMarkerHover(gym.id));
       element.addEventListener("mouseleave", () => onMarkerHover(null));
@@ -160,3 +210,34 @@ export function NearbyMap({
 
   return <div className="h-[420px] w-full rounded-lg border" ref={containerRef} />;
 }
+
+const buildTooltip = (gym: NearbyGym) => {
+  const distance = formatDistance(gym.distanceKm);
+  const area = formatArea(gym);
+  return `${gym.name} / ${area} / ${distance}`;
+};
+
+const formatDistance = (distanceKm: number) => {
+  if (distanceKm < 1) {
+    return `${Math.round(distanceKm * 1000)}m`;
+  }
+  return `${distanceKm.toFixed(1)}km`;
+};
+
+const formatSlug = (value: string | null | undefined) => {
+  if (!value) {
+    return null;
+  }
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const formatArea = (gym: NearbyGym) => {
+  const pref = formatSlug(gym.prefecture);
+  const city = formatSlug(gym.city);
+  const joined = [pref, city].filter(Boolean).join(" / ");
+  return joined || "エリア不明";
+};
