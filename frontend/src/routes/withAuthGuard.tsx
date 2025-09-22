@@ -6,7 +6,7 @@ import { useAuth } from "@/auth/AuthProvider";
 
 export function useAuthGuard<T extends (...args: any[]) => unknown>(
   action: T,
-): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>> | undefined> {
+): (...args: Parameters<T>) => Promise<ReturnType<T> | undefined> {
   const { user, requireAuth } = useAuth();
 
   return useCallback(
@@ -24,7 +24,7 @@ export function useAuthGuard<T extends (...args: any[]) => unknown>(
         }
       }
 
-      return action(...args) as Awaited<ReturnType<T>>;
+  return (await Promise.resolve(action(...args))) as ReturnType<T>;
     },
     [action, requireAuth, user],
   );

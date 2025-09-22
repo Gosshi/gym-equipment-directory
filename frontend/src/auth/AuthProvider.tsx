@@ -198,11 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSubmitting={isSigningIn}
         mode={authMode}
         onOpenChange={handleDialogOpenChange}
-        onSignIn={(nickname) => {
-          return performSignIn({ nickname }).catch(() => {
-            // エラーメッセージは performSignIn が状態管理しているため、ここでは握り潰す
-          });
-        }}
+        onSignIn={(nickname) => performSignIn({ nickname })}
         open={isDialogOpen}
         status={status}
       />

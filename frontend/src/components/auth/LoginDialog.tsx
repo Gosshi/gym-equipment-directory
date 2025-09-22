@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSignIn: (nickname: string) => Promise<void> | void;
+  // 認証ロジックでユーザーオブジェクトをそのまま返す実装にも対応できるよう Promise<User> も許容
+  onSignIn: (nickname: string) => Promise<void | unknown> | void;
   isSubmitting: boolean;
   errorMessage: string | null;
   status: AuthStatus;
