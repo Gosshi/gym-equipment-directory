@@ -8,6 +8,7 @@ from sentry_sdk.integrations.starlette import StarletteIntegration
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.cors import CORSMiddleware
 
+from app.api import errors as api_errors
 from app.api.routers.admin_reports import router as admin_reports_router
 from app.api.routers.equipments import router as equipments_router
 from app.api.routers.gyms import router as gyms_router
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(readyz_router)
     app.include_router(admin_reports_router)
     app.include_router(me_favorites_router)
+    api_errors.install(app)
 
     # Simple health for tests and uptime checks
     @app.get("/health")
