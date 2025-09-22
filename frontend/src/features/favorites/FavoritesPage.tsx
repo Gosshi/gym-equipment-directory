@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { useFavorites } from "@/store/favorites";
+import { useAuthGuard } from "@/routes/withAuthGuard";
 import type { Favorite } from "@/types/favorite";
 
 const formatRegion = (value?: string | null) => {
@@ -185,7 +186,7 @@ export function FavoritesPage() {
   const isLoading = status === "idle" || status === "loading";
   const isSyncing = status === "syncing";
 
-  const handleRemove = useCallback(
+  const removeFavoriteHandler = useCallback(
     async (gymId: number, gymName: string) => {
       try {
         await removeFavorite(gymId);
@@ -207,6 +208,8 @@ export function FavoritesPage() {
     },
     [removeFavorite],
   );
+
+  const handleRemove = useAuthGuard(removeFavoriteHandler);
 
   if (isLoading) {
     return <FavoritesSkeleton />;

@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { AuthProvider } from "@/auth/AuthProvider";
 import { GymDetailPage } from "@/features/gyms/GymDetailPage";
 import { addFavorite, listFavorites, removeFavorite } from "@/services/favorites";
 import { getGymBySlug } from "@/services/gyms";
@@ -57,6 +58,16 @@ describe("GymDetailPage favorite toggle", () => {
   beforeEach(() => {
     resetFavoriteStoreForTests();
     window.localStorage.clear();
+    window.localStorage.setItem(
+      "ged.auth.session",
+      JSON.stringify({
+        token: "stub.test-token",
+        user: {
+          id: "test-user",
+          name: "Test User",
+        },
+      }),
+    );
     jest.clearAllMocks();
 
     mockedGetGymBySlug.mockResolvedValue(mockGymDetail);
@@ -71,7 +82,11 @@ describe("GymDetailPage favorite toggle", () => {
 
     const user = userEvent.setup();
 
-    render(<GymDetailPage slug="sample-gym" />);
+    render(
+      <AuthProvider>
+        <GymDetailPage slug="sample-gym" />
+      </AuthProvider>,
+    );
 
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
@@ -98,7 +113,11 @@ describe("GymDetailPage favorite toggle", () => {
 
     const user = userEvent.setup();
 
-    render(<GymDetailPage slug="sample-gym" />);
+    render(
+      <AuthProvider>
+        <GymDetailPage slug="sample-gym" />
+      </AuthProvider>,
+    );
 
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
