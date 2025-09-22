@@ -66,7 +66,7 @@ const resolveMapStyle = (): string | StyleSpecification => {
 };
 const DEFAULT_ZOOM = 13;
 const MARKER_BASE_CLASS =
-  "nearby-marker flex h-10 w-10 items-center justify-center rounded-full border border-white bg-primary text-lg text-primary-foreground shadow-lg transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
+  "nearby-marker flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/85 text-2xl text-red-500 shadow-lg backdrop-blur-sm transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
 const MARKER_HIGHLIGHT_CLASSES = "ring-4 ring-offset-2 ring-primary scale-110";
 
 const logMapCenter = (payload: Record<string, unknown>) => {
@@ -176,7 +176,7 @@ export function NearbyMap({
       const element = document.createElement("button");
       element.type = "button";
       element.className = MARKER_BASE_CLASS;
-      element.textContent = "🏋️";
+      element.textContent = "📍";
       element.setAttribute("aria-label", `${gym.name} の詳細を開く`);
       element.title = buildTooltip(gym);
 
