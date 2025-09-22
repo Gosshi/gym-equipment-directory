@@ -18,7 +18,7 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("fetches favorites from the API", async () => {
-    const mockJson = jest.fn().mockResolvedValue({ items: [] });
+    const mockJson = jest.fn().mockResolvedValue([]);
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -26,9 +26,12 @@ describe("apiClient favorites/history endpoints", () => {
       json: mockJson,
     } as unknown as Response);
 
-    await getFavorites();
+    await getFavorites("dev-1");
 
-    expect(global.fetch).toHaveBeenCalledWith("http://example.com/me/favorites", expect.any(Object));
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://example.com/me/favorites?device_id=dev-1",
+      expect.any(Object),
+    );
   });
 
   it("posts a new favorite", async () => {
@@ -38,13 +41,13 @@ describe("apiClient favorites/history endpoints", () => {
       json: jest.fn(),
     } as unknown as Response);
 
-    await addFavorite(42);
+  await addFavorite("dev-1", 42);
 
     expect(global.fetch).toHaveBeenCalledWith(
       "http://example.com/me/favorites",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ gymId: 42 }),
+        body: JSON.stringify({ device_id: "dev-1", gym_id: 42 }),
       }),
     );
   });
@@ -56,10 +59,10 @@ describe("apiClient favorites/history endpoints", () => {
       json: jest.fn(),
     } as unknown as Response);
 
-    await removeFavorite(42);
+  await removeFavorite("dev-1", 42);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://example.com/me/favorites/42",
+      "http://example.com/me/favorites/42?device_id=dev-1",
       expect.objectContaining({ method: "DELETE" }),
     );
   });

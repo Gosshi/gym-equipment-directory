@@ -82,9 +82,18 @@ describe("GymDetailPage favorite toggle", () => {
 
   it("adds a gym to favorites and updates the toggle label", async () => {
     mockedGetFavorites
-      .mockResolvedValueOnce({ items: [] })
-      .mockResolvedValueOnce({ items: [] })
-      .mockResolvedValueOnce({ items: [mockSummary] });
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ]);
     mockedAddFavorite.mockResolvedValue(undefined);
 
     const user = userEvent.setup();
@@ -103,16 +112,36 @@ describe("GymDetailPage favorite toggle", () => {
 
     await user.click(button);
 
-    await waitFor(() => expect(mockedAddFavorite).toHaveBeenCalledWith(mockGymDetail.id));
+    await waitFor(() =>
+      expect(mockedAddFavorite).toHaveBeenCalledWith(expect.any(String), mockGymDetail.id),
+    );
 
     await waitFor(() => expect(button).toHaveTextContent("お気に入り済み"));
   });
 
   it("removes a gym from favorites and updates the toggle label", async () => {
     mockedGetFavorites
-      .mockResolvedValueOnce({ items: [mockSummary] })
-      .mockResolvedValueOnce({ items: [mockSummary] })
-      .mockResolvedValueOnce({ items: [] });
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          gym_id: mockSummary.id,
+          slug: mockSummary.slug,
+          name: mockSummary.name,
+          pref: mockSummary.prefecture,
+          city: mockSummary.city,
+          last_verified_at: mockSummary.lastVerifiedAt,
+        },
+      ])
+      .mockResolvedValueOnce([]);
     mockedRemoveFavorite.mockResolvedValue(undefined);
 
     const user = userEvent.setup();
@@ -130,7 +159,9 @@ describe("GymDetailPage favorite toggle", () => {
 
     await user.click(button);
 
-    await waitFor(() => expect(mockedRemoveFavorite).toHaveBeenCalledWith(mockGymDetail.id));
+    await waitFor(() =>
+      expect(mockedRemoveFavorite).toHaveBeenCalledWith(expect.any(String), mockGymDetail.id),
+    );
 
     await waitFor(() => expect(button).toHaveTextContent("お気に入りに追加"));
   });

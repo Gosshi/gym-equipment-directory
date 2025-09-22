@@ -101,8 +101,34 @@ describe("AuthProvider store sync", () => {
     window.localStorage.setItem("GED_HISTORY", JSON.stringify([localHistoryA, localHistoryB]));
 
     mockedGetFavorites
-      .mockResolvedValueOnce({ items: [serverFavorite] })
-      .mockResolvedValueOnce({ items: [serverFavorite, localFavorite] });
+      .mockResolvedValueOnce([
+        {
+          gym_id: serverFavorite.id,
+          slug: serverFavorite.slug,
+          name: serverFavorite.name,
+          pref: serverFavorite.prefecture,
+          city: serverFavorite.city,
+          last_verified_at: serverFavorite.lastVerifiedAt,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          gym_id: serverFavorite.id,
+          slug: serverFavorite.slug,
+          name: serverFavorite.name,
+          pref: serverFavorite.prefecture,
+          city: serverFavorite.city,
+          last_verified_at: serverFavorite.lastVerifiedAt,
+        },
+        {
+          gym_id: localFavorite.id,
+          slug: localFavorite.slug,
+          name: localFavorite.name,
+          pref: localFavorite.prefecture,
+          city: localFavorite.city,
+          last_verified_at: localFavorite.lastVerifiedAt,
+        },
+      ]);
     mockedAddFavorite.mockResolvedValue(undefined);
 
     mockedGetHistory
@@ -116,7 +142,9 @@ describe("AuthProvider store sync", () => {
       </AuthProvider>,
     );
 
-    await waitFor(() => expect(mockedAddFavorite).toHaveBeenCalledWith(localFavorite.id));
+    await waitFor(() =>
+      expect(mockedAddFavorite).toHaveBeenCalledWith(expect.any(String), localFavorite.id),
+    );
     await waitFor(() =>
       expect(mockedAddHistory).toHaveBeenCalledWith({
         gymIds: [localHistoryA.id, localHistoryB.id],
