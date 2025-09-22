@@ -7,7 +7,7 @@ const customJestConfig = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleDirectories: ["node_modules", "<rootDir>/src", "<rootDir>"],
   moduleNameMapper: {
-    "^@/components/(.*)$": "<rootDir>/components/$1",
+    "^@/components/(.*)$": ["<rootDir>/src/components/$1", "<rootDir>/components/$1"],
     "^@/lib/(.*)$": ["<rootDir>/src/lib/$1", "<rootDir>/lib/$1"],
     "^@/services/(.*)$": "<rootDir>/src/services/$1",
     "^@/types/(.*)$": "<rootDir>/src/types/$1",

@@ -13,23 +13,36 @@ const { useGymSearch } = jest.requireMock("@/hooks/useGymSearch") as {
 };
 
 const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
-  const defaultState = {
-    formState: { q: "", prefecture: "", equipments: [] as string[] },
+  const defaultState: UseGymSearchResult = {
+    formState: {
+      q: "",
+      prefecture: "",
+      city: "",
+      categories: [],
+      sort: "popular",
+      distance: 5,
+    },
     appliedFilters: {
       q: "",
-      prefecture: null as string | null,
-      equipments: [] as string[],
+      pref: null,
+      city: null,
+      categories: [],
+      sort: "popular",
       page: 1,
-      perPage: 12,
+      limit: 20,
+      distance: 5,
     },
     updateKeyword: jest.fn(),
     updatePrefecture: jest.fn(),
-    updateEquipments: jest.fn(),
+    updateCity: jest.fn(),
+    updateCategories: jest.fn(),
+    updateSort: jest.fn(),
+    updateDistance: jest.fn(),
     clearFilters: jest.fn(),
     page: 1,
-    perPage: 12,
+    limit: 20,
     setPage: jest.fn(),
-    setPerPage: jest.fn(),
+    setLimit: jest.fn(),
     items: [
       {
         id: 1,
@@ -53,6 +66,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
       { value: "tokyo", label: "Tokyo" },
       { value: "chiba", label: "Chiba" },
     ],
+    cities: [{ value: "shinjuku", label: "Shinjuku" }],
     equipmentCategories: [
       { value: "free-weight", label: "Free Weight" },
       { value: "cardio", label: "Cardio" },
@@ -60,6 +74,9 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
     isMetaLoading: false,
     metaError: null,
     reloadMeta: jest.fn(),
+    isCityLoading: false,
+    cityError: null,
+    reloadCities: jest.fn(),
   };
 
   return { ...defaultState, ...overrides };
@@ -75,7 +92,7 @@ describe("GymsPage", () => {
 
     render(<GymsPage />);
 
-    expect(screen.getByLabelText("検索キーワード")).toBeInTheDocument();
+    expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
     expect(screen.getByLabelText("都道府県")).toBeInTheDocument();
     expect(screen.getByText("テストジム")).toBeInTheDocument();
   });
@@ -84,10 +101,8 @@ describe("GymsPage", () => {
     const setPage = jest.fn();
     useGymSearch.mockReturnValue(
       buildHookState({
-        page: 1,
-        appliedFilters: { q: "", prefecture: null, equipments: [], page: 1, perPage: 12 },
-        meta: { total: 30, hasNext: true, pageToken: null },
         setPage,
+        meta: { total: 30, hasNext: true, pageToken: null },
       }),
     );
 
@@ -98,15 +113,15 @@ describe("GymsPage", () => {
     expect(setPage).toHaveBeenCalledWith(2);
   });
 
-  it("changes the per-page setting when the select value updates", async () => {
-    const setPerPage = jest.fn();
-    useGymSearch.mockReturnValue(buildHookState({ setPerPage }));
+  it("changes the page size when the select value updates", async () => {
+    const setLimit = jest.fn();
+    useGymSearch.mockReturnValue(buildHookState({ setLimit }));
 
     render(<GymsPage />);
 
-    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "24");
+    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "40");
 
-    expect(setPerPage).toHaveBeenCalledWith(24);
+    expect(setLimit).toHaveBeenCalledWith(40);
   });
 
   it("clears filters when the reset button is clicked", async () => {
@@ -115,7 +130,7 @@ describe("GymsPage", () => {
 
     render(<GymsPage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "条件をリセット" }));
+    await userEvent.click(screen.getByRole("button", { name: "条件をクリア" }));
 
     expect(clearFilters).toHaveBeenCalled();
   });
