@@ -1,5 +1,8 @@
+import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 
+import { InfiniteLoader } from "@/components/gyms/InfiniteLoader";
+import { Pagination } from "@/components/gyms/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,49 +11,43 @@ import type { GymSearchMeta, GymSummary } from "@/types/gym";
 
 const PAGE_SIZE_OPTIONS = [20, 40, 60];
 
-type GymListProps = {
-  gyms: GymSummary[];
-  meta: GymSearchMeta;
-  page: number;
-  limit: number;
-  isLoading: boolean;
-  isInitialLoading: boolean;
-  error: string | null;
-  onRetry: () => void;
-  onPageChange: (page: number) => void;
-  onLimitChange: (limit: number) => void;
-};
+const GymListLoadingState = () => (
+  <div aria-hidden className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="presentation">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <Card key={index} className="overflow-hidden">
+        <Skeleton className="h-40 w-full" />
+        <CardContent className="space-y-3">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-16 rounded-full" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
 
-type PaginationControlsProps = {
-  page: number;
-  hasNext: boolean;
-  isLoading: boolean;
-  onChange: (page: number) => void;
-};
+const GymListEmptyState = () => (
+  <p className="rounded-md bg-muted/40 p-4 text-center text-sm text-muted-foreground">
+    条件に一致するジムが見つかりませんでした。
+  </p>
+);
 
-const PaginationControls = ({ page, hasNext, isLoading, onChange }: PaginationControlsProps) => (
-  <nav aria-label="ページネーション" className="mt-8 flex justify-center">
-    <div className="flex items-center gap-3">
-      <Button
-        aria-label="前のページ"
-        disabled={isLoading || page <= 1}
-        onClick={() => onChange(page - 1)}
-        type="button"
-        variant="outline"
-      >
-        前へ
-      </Button>
-      <span className="text-sm text-muted-foreground">ページ {page}</span>
-      <Button
-        aria-label="次のページ"
-        disabled={isLoading || !hasNext}
-        onClick={() => onChange(page + 1)}
-        type="button"
-      >
-        次へ
-      </Button>
-    </div>
-  </nav>
+const GymListErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div
+    className={cn(
+      "flex flex-col items-center gap-4 rounded-md",
+      "border border-destructive/40 bg-destructive/10 p-6 text-center",
+    )}
+  >
+    <p className="text-sm text-destructive">{message}</p>
+    <Button onClick={onRetry} type="button" variant="outline">
+      もう一度試す
+    </Button>
+  </div>
 );
 
 const GymCard = ({ gym }: { gym: GymSummary }) => (
@@ -98,24 +95,20 @@ const GymCard = ({ gym }: { gym: GymSummary }) => (
   </Link>
 );
 
-const GymsSkeleton = () => (
-  <div aria-hidden className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="presentation">
-    {Array.from({ length: 6 }).map((_, index) => (
-      <Card key={index} className="overflow-hidden">
-        <Skeleton className="h-40 w-full" />
-        <CardContent className="space-y-3">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
+type GymListProps = {
+  gyms: GymSummary[];
+  meta: GymSearchMeta;
+  page: number;
+  limit: number;
+  isLoading: boolean;
+  isInitialLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
+  onLoadMore: () => void;
+  enableInfiniteScroll?: boolean;
+};
 
 export function GymList({
   gyms,
@@ -128,24 +121,75 @@ export function GymList({
   onRetry,
   onPageChange,
   onLimitChange,
+  onLoadMore,
+  enableInfiniteScroll = true,
 }: GymListProps) {
   const showSkeleton = isInitialLoading;
   const showEmpty = !error && !showSkeleton && gyms.length === 0;
-  const totalPages = Math.max(1, Math.ceil((meta.total || 0) / Math.max(limit, 1)));
-  const start = meta.total === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, meta.total);
+  const isAppending = isLoading && !isInitialLoading;
+  const limitValue = Math.max(limit, 1);
+  const totalFromMeta = meta.total > 0 ? Math.ceil(meta.total / limitValue) : 0;
+  const totalFromCount = gyms.length > 0 ? Math.ceil(gyms.length / limitValue) : 0;
+  const totalPages = Math.max(1, totalFromMeta, totalFromCount, page + (meta.hasNext ? 1 : 0));
+  const aggregated = gyms.length > limitValue;
+  const totalCount = meta.total > 0 ? meta.total : gyms.length;
+  const displayedStart = gyms.length === 0 ? 0 : aggregated || meta.total === 0 ? 1 : (page - 1) * limit + 1;
+  const displayedEnd =
+    gyms.length === 0
+      ? 0
+      : aggregated
+        ? meta.total > 0
+          ? Math.min(gyms.length, meta.total)
+          : gyms.length
+        : meta.total > 0
+          ? Math.min(page * limit, meta.total)
+          : gyms.length;
+
+  const resultSectionRef = useRef<HTMLElement | null>(null);
+  const previousPageRef = useRef(page);
+
+  useEffect(() => {
+    if (previousPageRef.current !== page && resultSectionRef.current) {
+      resultSectionRef.current.focus();
+    }
+    previousPageRef.current = page;
+  }, [page]);
+
+  let content: ReactNode;
+  if (error) {
+    content = <GymListErrorState message={error} onRetry={onRetry} />;
+  } else if (showSkeleton) {
+    content = <GymListLoadingState />;
+  } else if (showEmpty) {
+    content = <GymListEmptyState />;
+  } else {
+    content = (
+      <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}> 
+        {gyms.map((gym) => (
+          <GymCard key={gym.id} gym={gym} />
+        ))}
+      </div>
+    );
+  }
+
+  const showPagination = !error && (totalPages > 1 || meta.hasNext || page > 1);
 
   return (
     <section
       aria-busy={isLoading}
+      aria-labelledby="gym-search-results-heading"
       aria-live="polite"
       className="rounded-lg border bg-background p-6 shadow-sm"
+      ref={resultSectionRef}
+      tabIndex={-1}
     >
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4">
         <div>
-          <h2 className="text-xl font-semibold">検索結果</h2>
+          <h2 className="text-xl font-semibold" id="gym-search-results-heading">
+            検索結果
+          </h2>
           <p className="text-sm text-muted-foreground">
-            {meta.total} 件のジムが見つかりました。
+            {totalCount} 件のジムが見つかりました。
             {totalPages > 1 ? `（全 ${totalPages} ページ）` : ""}
           </p>
         </div>
@@ -171,42 +215,46 @@ export function GymList({
         </div>
       </div>
 
-      {error ? (
-        <div
-          className={cn(
-            "flex flex-col items-center gap-4 rounded-md",
-            "border border-destructive/40 bg-destructive/10 p-6 text-center",
-          )}
-        >
-          <p className="text-sm text-destructive">{error}</p>
-          <Button onClick={onRetry} type="button" variant="outline">
-            もう一度試す
-          </Button>
-        </div>
-      ) : showSkeleton ? (
-        <GymsSkeleton />
-      ) : showEmpty ? (
-        <p className="rounded-md bg-muted/40 p-4 text-center text-sm text-muted-foreground">
-          条件に一致するジムが見つかりませんでした。
-        </p>
-      ) : (
-        <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}> 
-          {gyms.map((gym) => (
-            <GymCard key={gym.id} gym={gym} />
-          ))}
-        </div>
-      )}
+      {content}
 
       {!error && !showEmpty ? (
         <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
           <span>
-            {meta.total} 件中 {start}-{end} 件を表示
+            {totalCount} 件中 {displayedStart}-{displayedEnd} 件を表示
           </span>
+          {enableInfiniteScroll && meta.hasNext ? (
+            <span className="text-xs text-muted-foreground">
+              下までスクロールすると自動で次のページを読み込みます。
+            </span>
+          ) : null}
         </div>
       ) : null}
 
-      {!error && (gyms.length > 0 || page > 1 || meta.hasNext) ? (
-        <PaginationControls hasNext={meta.hasNext} isLoading={isLoading} onChange={onPageChange} page={page} />
+      {isAppending ? (
+        <div className="mt-4 flex justify-center text-sm text-muted-foreground">
+          <span>読み込み中...</span>
+        </div>
+      ) : null}
+
+      {showPagination ? (
+        <div className="mt-8">
+          <Pagination
+            currentPage={page}
+            hasNextPage={meta.hasNext}
+            isLoading={isLoading}
+            onChange={onPageChange}
+            totalPages={totalPages}
+          />
+        </div>
+      ) : null}
+
+      {enableInfiniteScroll && !error && gyms.length > 0 ? (
+        <InfiniteLoader
+          enabled={enableInfiniteScroll}
+          hasNextPage={meta.hasNext}
+          isLoading={isLoading}
+          onLoadMore={onLoadMore}
+        />
       ) : null}
     </section>
   );

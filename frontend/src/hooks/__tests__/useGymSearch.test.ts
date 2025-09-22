@@ -126,6 +126,41 @@ describe("useGymSearch", () => {
     expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
   });
 
+  it("updates form state when search params change after navigation", async () => {
+    let currentParams = new URLSearchParams();
+    useSearchParams.mockImplementation(() => currentParams);
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      result.current.updateKeyword("bench");
+    });
+
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
+
+    currentParams = new URLSearchParams("q=bench");
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.formState.q).toBe("bench");
+    expect(searchGyms).toHaveBeenLastCalledWith(
+      expect.objectContaining({ q: "bench", page: 1 }),
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
   it("changes page immediately without debounce", async () => {
     const { result } = renderHook(() => useGymSearch());
 
@@ -179,5 +214,72 @@ describe("useGymSearch", () => {
     });
 
     expect(result.current.error).toBe("検索に失敗しました");
+  });
+
+  it("appends additional results when loadNextPage is invoked", async () => {
+    const firstPageItems = [
+      { id: 1, slug: "gym-1", name: "Gym 1", city: "Shinjuku", prefecture: "Tokyo" },
+      { id: 2, slug: "gym-2", name: "Gym 2", city: "Shibuya", prefecture: "Tokyo" },
+    ];
+    const secondPageItems = [
+      { id: 2, slug: "gym-2", name: "Gym 2 (updated)", city: "Shibuya", prefecture: "Tokyo" },
+      { id: 3, slug: "gym-3", name: "Gym 3", city: "Meguro", prefecture: "Tokyo" },
+    ];
+
+    searchGyms
+      .mockResolvedValueOnce({
+        items: firstPageItems,
+        meta: { total: 5, hasNext: true, pageToken: null },
+      })
+      .mockResolvedValueOnce({
+        items: secondPageItems,
+        meta: { total: 5, hasNext: false, pageToken: null },
+      });
+
+    let currentParams = new URLSearchParams();
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    const { result, rerender } = renderHook(() => useGymSearch());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.items).toEqual(firstPageItems);
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    expect(mockRouter.push).toHaveBeenLastCalledWith("/gyms?page=2", { scroll: false });
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.items.map((item) => item.id)).toEqual([1, 2, 3]);
+    expect(result.current.meta.hasNext).toBe(false);
+    expect(searchGyms).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not navigate when requesting the next page without additional results", async () => {
+    const { result } = renderHook(() => useGymSearch());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    mockRouter.push.mockClear();
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 });
