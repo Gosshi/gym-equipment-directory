@@ -43,6 +43,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
     limit: 20,
     setPage: jest.fn(),
     setLimit: jest.fn(),
+  loadNextPage: jest.fn(),
     items: [
       {
         id: 1,
