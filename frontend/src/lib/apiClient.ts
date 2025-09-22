@@ -100,3 +100,10 @@ export async function apiRequest<TResponse>(
     clearTimeout(timeout);
   }
 }
+
+export async function apiFetch<TResponse>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<TResponse> {
+  return apiRequest<TResponse>(path, options);
+}
