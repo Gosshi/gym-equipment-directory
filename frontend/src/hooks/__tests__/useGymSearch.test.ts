@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { ApiError } from "@/lib/apiClient";
+import { DEFAULT_DISTANCE_KM } from "@/lib/searchParams";
 import { useGymSearch } from "@/hooks/useGymSearch";
 
 jest.mock("next/navigation", () => ({
@@ -16,6 +17,7 @@ jest.mock("@/services/gyms", () => ({
 jest.mock("@/services/meta", () => ({
   getPrefectures: jest.fn(),
   getEquipmentCategories: jest.fn(),
+  getCities: jest.fn(),
 }));
 
 const { useRouter, useSearchParams, usePathname } = jest.requireMock("next/navigation") as {
@@ -28,10 +30,12 @@ const { searchGyms } = jest.requireMock("@/services/gyms") as {
   searchGyms: jest.Mock;
 };
 
-const { getPrefectures, getEquipmentCategories } = jest.requireMock("@/services/meta") as {
-  getPrefectures: jest.Mock;
-  getEquipmentCategories: jest.Mock;
-};
+const { getPrefectures, getEquipmentCategories, getCities } =
+  jest.requireMock("@/services/meta") as {
+    getPrefectures: jest.Mock;
+    getEquipmentCategories: jest.Mock;
+    getCities: jest.Mock;
+  };
 
 describe("useGymSearch", () => {
   const mockRouter = {
@@ -55,6 +59,7 @@ describe("useGymSearch", () => {
     getEquipmentCategories.mockResolvedValue([
       { value: "free-weight", label: "Free Weight" },
     ]);
+    getCities.mockResolvedValue([{ value: "shinjuku", label: "Shinjuku" }]);
   });
 
   afterEach(() => {
@@ -65,7 +70,9 @@ describe("useGymSearch", () => {
 
   it("derives the initial state from query parameters", async () => {
     useSearchParams.mockReturnValue(
-      new URLSearchParams("q=bench&prefecture=tokyo&equipment=squat-rack&page=2&per_page=24"),
+      new URLSearchParams(
+        "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=newest&page=2&limit=30&distance=15",
+      ),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -77,17 +84,22 @@ describe("useGymSearch", () => {
     expect(result.current.formState).toEqual({
       q: "bench",
       prefecture: "tokyo",
-      equipments: ["squat-rack"],
+      city: "shinjuku",
+      categories: ["squat-rack"],
+      sort: "newest",
+      distance: 15,
     });
     expect(result.current.page).toBe(2);
-    expect(result.current.perPage).toBe(24);
+    expect(result.current.limit).toBe(30);
     expect(searchGyms).toHaveBeenCalledWith(
       {
         q: "bench",
         prefecture: "tokyo",
-        equipments: ["squat-rack"],
+        city: "shinjuku",
+        categories: ["squat-rack"],
+        sort: "newest",
         page: 2,
-        perPage: 24,
+        limit: 30,
       },
       { signal: expect.any(AbortSignal) },
     );
@@ -130,7 +142,9 @@ describe("useGymSearch", () => {
 
   it("clears filters and keeps the current per-page value", async () => {
     useSearchParams.mockReturnValue(
-      new URLSearchParams("q=bench&prefecture=tokyo&equipment=squat-rack&page=2&per_page=24"),
+      new URLSearchParams(
+        "q=bench&pref=tokyo&cats=squat-rack&page=2&limit=24&distance=10",
+      ),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -143,8 +157,15 @@ describe("useGymSearch", () => {
       result.current.clearFilters();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?per_page=24", { scroll: false });
-    expect(result.current.formState).toEqual({ q: "", prefecture: "", equipments: [] });
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?limit=24", { scroll: false });
+    expect(result.current.formState).toEqual({
+      q: "",
+      prefecture: "",
+      city: "",
+      categories: [],
+      sort: "popular",
+      distance: DEFAULT_DISTANCE_KM,
+    });
   });
 
   it("surfaces API errors from searchGyms as error state", async () => {

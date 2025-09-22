@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/apiClient";
-import type { EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
 
 const formatSlugLabel = (slug: string) =>
   slug
@@ -25,5 +25,29 @@ export async function getEquipmentCategories(): Promise<EquipmentCategoryOption[
     .map((name) => ({
       value: name,
       label: name,
+    }));
+}
+
+type CityResponse = {
+  city: string;
+  count: number;
+};
+
+export async function getCities(prefecture: string): Promise<CityOption[]> {
+  const trimmed = prefecture.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const response = await apiRequest<CityResponse[]>("/meta/cities", {
+    method: "GET",
+    query: { pref: trimmed },
+  });
+
+  return response
+    .filter((item) => Boolean(item?.city))
+    .map((item) => ({
+      value: item.city,
+      label: formatSlugLabel(item.city),
     }));
 }

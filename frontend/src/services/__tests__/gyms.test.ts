@@ -24,9 +24,11 @@ describe("searchGyms", () => {
     await searchGyms({
       q: "bench press",
       prefecture: "tokyo",
-      equipments: ["squat-rack", "dumbbell"],
+      city: "shinjuku",
+      categories: ["squat-rack", "dumbbell"],
+      sort: "fresh",
       page: 2,
-      perPage: 24,
+      limit: 24,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -34,10 +36,9 @@ describe("searchGyms", () => {
       query: {
         q: "bench press",
         pref: "tokyo",
-        city: undefined,
+        city: "shinjuku",
         equipments: "squat-rack,dumbbell",
-        equipment_match: undefined,
-        sort: undefined,
+        sort: "freshness",
         page: 2,
         per_page: 24,
         page_token: undefined,

@@ -2,15 +2,18 @@ import { ApiError } from "@/lib/apiClient";
 import { addFavorite, listFavorites, removeFavorite } from "@/services/favorites";
 
 describe("favorites service", () => {
-  const originalEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const originalEnvUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const originalEnvBase = process.env.NEXT_PUBLIC_API_BASE;
   const originalFetch = global.fetch;
 
   beforeEach(() => {
     process.env.NEXT_PUBLIC_API_BASE_URL = "http://example.com";
+    process.env.NEXT_PUBLIC_API_BASE = "http://example.com";
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = originalEnv;
+    process.env.NEXT_PUBLIC_API_BASE_URL = originalEnvUrl;
+    process.env.NEXT_PUBLIC_API_BASE = originalEnvBase;
     global.fetch = originalFetch;
     jest.resetAllMocks();
   });
