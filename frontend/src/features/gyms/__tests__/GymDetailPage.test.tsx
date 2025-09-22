@@ -2,9 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { GymDetailPage } from "@/features/gyms/GymDetailPage";
-import { addFavorite, removeFavorite } from "@/services/favorites";
+import { addFavorite, listFavorites, removeFavorite } from "@/services/favorites";
 import { getGymBySlug } from "@/services/gyms";
 import { resetFavoriteStoreForTests } from "@/store/favorites";
+import type { Favorite } from "@/types/favorite";
 import type { GymDetail } from "@/types/gym";
 
 jest.mock("@/services/gyms", () => ({
@@ -12,11 +13,13 @@ jest.mock("@/services/gyms", () => ({
 }));
 
 jest.mock("@/services/favorites", () => ({
+  listFavorites: jest.fn(),
   addFavorite: jest.fn(),
   removeFavorite: jest.fn(),
 }));
 
 const mockedGetGymBySlug = getGymBySlug as jest.MockedFunction<typeof getGymBySlug>;
+const mockedListFavorites = listFavorites as jest.MockedFunction<typeof listFavorites>;
 const mockedAddFavorite = addFavorite as jest.MockedFunction<typeof addFavorite>;
 const mockedRemoveFavorite = removeFavorite as jest.MockedFunction<typeof removeFavorite>;
 
@@ -36,6 +39,20 @@ const mockGymDetail: GymDetail = {
   description: "テスト用のジム詳細です。",
 };
 
+const mockFavorite: Favorite = {
+  createdAt: "2024-09-10T10:00:00Z",
+  gym: {
+    id: mockGymDetail.id,
+    slug: mockGymDetail.slug,
+    name: mockGymDetail.name,
+    prefecture: mockGymDetail.prefecture,
+    city: mockGymDetail.city,
+    address: mockGymDetail.address,
+    thumbnailUrl: mockGymDetail.thumbnailUrl,
+    lastVerifiedAt: null,
+  },
+};
+
 describe("GymDetailPage favorite toggle", () => {
   beforeEach(() => {
     resetFavoriteStoreForTests();
@@ -47,7 +64,11 @@ describe("GymDetailPage favorite toggle", () => {
     mockedRemoveFavorite.mockResolvedValue(undefined);
   });
 
-  it("adds a gym to favorites and persists to localStorage", async () => {
+  it("adds a gym to favorites and updates the toggle label", async () => {
+    mockedListFavorites
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([mockFavorite]);
+
     const user = userEvent.setup();
 
     render(<GymDetailPage slug="sample-gym" />);
@@ -55,37 +76,42 @@ describe("GymDetailPage favorite toggle", () => {
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
     const button = await screen.findByRole("button", { name: /お気に入り/ });
+    expect(button).toHaveTextContent("☆ お気に入り");
 
     await user.click(button);
 
-    expect(mockedAddFavorite).toHaveBeenCalledWith(mockGymDetail.id);
+    await waitFor(() =>
+      expect(mockedAddFavorite).toHaveBeenCalledWith(
+        mockGymDetail.id,
+        expect.stringMatching(/^[A-Za-z0-9_-]{8,128}$/),
+      ),
+    );
 
     await waitFor(() => expect(button).toHaveTextContent("お気に入り済み"));
-    await waitFor(() => {
-      expect(window.localStorage.getItem("favoriteGymIds")).toBe(
-        JSON.stringify([mockGymDetail.id]),
-      );
-    });
   });
 
-  it("removes a gym from favorites and updates localStorage", async () => {
-    window.localStorage.setItem("favoriteGymIds", JSON.stringify([mockGymDetail.id]));
+  it("removes a gym from favorites and updates the toggle label", async () => {
+    mockedListFavorites
+      .mockResolvedValueOnce([mockFavorite])
+      .mockResolvedValueOnce([]);
+
     const user = userEvent.setup();
 
     render(<GymDetailPage slug="sample-gym" />);
 
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
-    // Wait for the button to reflect the initial favorite state.
     const button = await screen.findByRole("button", { name: /お気に入り済み/ });
 
     await user.click(button);
 
-    expect(mockedRemoveFavorite).toHaveBeenCalledWith(mockGymDetail.id);
+    await waitFor(() =>
+      expect(mockedRemoveFavorite).toHaveBeenCalledWith(
+        mockGymDetail.id,
+        expect.stringMatching(/^[A-Za-z0-9_-]{8,128}$/),
+      ),
+    );
 
     await waitFor(() => expect(button).toHaveTextContent("☆ お気に入り"));
-    await waitFor(() => {
-      expect(window.localStorage.getItem("favoriteGymIds")).toBe(JSON.stringify([]));
-    });
   });
 });
