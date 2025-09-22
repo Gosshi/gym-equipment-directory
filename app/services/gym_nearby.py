@@ -102,6 +102,8 @@ async def search_nearby(
 
     items: list[GymNearbyItem] = []
     for g, dist in recs:
+        lat_val = getattr(g, "latitude", None)
+        lng_val = getattr(g, "longitude", None)
         items.append(
             GymNearbyItem(
                 id=int(getattr(g, "id", 0)),
@@ -109,6 +111,8 @@ async def search_nearby(
                 name=str(getattr(g, "name", "")),
                 pref=str(getattr(g, "pref", "")),
                 city=str(getattr(g, "city", "")),
+                latitude=float(lat_val or 0.0),
+                longitude=float(lng_val or 0.0),
                 distance_km=float(dist or 0.0),
                 last_verified_at=_iso(getattr(g, "last_verified_at_cached", None)),
             )
