@@ -1,78 +1,122 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
 import { GymsPage } from "@/features/gyms/GymsPage";
-import { searchGyms } from "@/services/gyms";
-import type { GymSummary } from "@/types/gym";
+import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
-  useSearchParams: jest.fn(),
-  usePathname: jest.fn(),
+jest.mock("@/hooks/useGymSearch", () => ({
+  useGymSearch: jest.fn(),
 }));
 
-jest.mock("@/services/gyms", () => ({
-  searchGyms: jest.fn(),
-}));
-
-const { useRouter, useSearchParams, usePathname } = jest.requireMock("next/navigation") as {
-  useRouter: jest.Mock;
-  useSearchParams: jest.Mock;
-  usePathname: jest.Mock;
+const { useGymSearch } = jest.requireMock("@/hooks/useGymSearch") as {
+  useGymSearch: jest.Mock;
 };
 
-const mockRouter = { push: jest.fn() };
+const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
+  const defaultState = {
+    formState: { q: "", prefecture: "", equipments: [] as string[] },
+    appliedFilters: {
+      q: "",
+      prefecture: null as string | null,
+      equipments: [] as string[],
+      page: 1,
+      perPage: 12,
+    },
+    updateKeyword: jest.fn(),
+    updatePrefecture: jest.fn(),
+    updateEquipments: jest.fn(),
+    clearFilters: jest.fn(),
+    page: 1,
+    perPage: 12,
+    setPage: jest.fn(),
+    setPerPage: jest.fn(),
+    items: [
+      {
+        id: 1,
+        slug: "test-gym",
+        name: "テストジム",
+        prefecture: "tokyo",
+        city: "shinjuku",
+        equipments: ["Squat Rack"],
+        thumbnailUrl: null,
+        score: undefined,
+        address: undefined,
+        lastVerifiedAt: "2024-09-01T12:00:00Z",
+      },
+    ],
+    meta: { total: 1, hasNext: false, pageToken: null },
+    isLoading: false,
+    isInitialLoading: false,
+    error: null,
+    retry: jest.fn(),
+    prefectures: [
+      { value: "tokyo", label: "Tokyo" },
+      { value: "chiba", label: "Chiba" },
+    ],
+    equipmentCategories: [
+      { value: "free-weight", label: "Free Weight" },
+      { value: "cardio", label: "Cardio" },
+    ],
+    isMetaLoading: false,
+    metaError: null,
+    reloadMeta: jest.fn(),
+  };
 
-const buildGym = (overrides: Partial<GymSummary> = {}): GymSummary => ({
-  id: 1,
-  slug: "test-gym",
-  name: "テストジム",
-  prefecture: "tokyo",
-  city: "shinjuku",
-  equipments: ["Squat Rack"],
-  thumbnailUrl: null,
-  score: 1.2,
-  lastVerifiedAt: "2024-09-01T12:00:00Z",
-  ...overrides,
-});
+  return { ...defaultState, ...overrides };
+};
 
 describe("GymsPage", () => {
-  beforeEach(() => {
-    useRouter.mockReturnValue(mockRouter);
-    useSearchParams.mockReturnValue(new URLSearchParams());
-    usePathname.mockReturnValue("/gyms");
-    (searchGyms as jest.Mock).mockResolvedValue({
-      items: [buildGym()],
-      meta: { total: 1, hasNext: false, pageToken: null },
-    });
-  });
-
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it("renders the search form and fetched gyms", async () => {
+  it("renders the search filters and results", () => {
+    useGymSearch.mockReturnValue(buildHookState());
+
     render(<GymsPage />);
 
-    expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
-    expect(screen.getByLabelText("都道府県スラッグ")).toBeInTheDocument();
-    expect(screen.getByLabelText("市区町村スラッグ")).toBeInTheDocument();
-
-    await waitFor(() => expect(searchGyms).toHaveBeenCalled());
-    expect(await screen.findByText("テストジム")).toBeInTheDocument();
-    expect(screen.getByText("1 件のジムが見つかりました。")).toBeInTheDocument();
+    expect(screen.getByLabelText("検索キーワード")).toBeInTheDocument();
+    expect(screen.getByLabelText("都道府県")).toBeInTheDocument();
+    expect(screen.getByText("テストジム")).toBeInTheDocument();
   });
 
-  it("pushes query params when submitting the form", async () => {
-    const user = userEvent.setup();
+  it("navigates between pages via pagination controls", async () => {
+    const setPage = jest.fn();
+    useGymSearch.mockReturnValue(
+      buildHookState({
+        page: 1,
+        appliedFilters: { q: "", prefecture: null, equipments: [], page: 1, perPage: 12 },
+        meta: { total: 30, hasNext: true, pageToken: null },
+        setPage,
+      }),
+    );
+
     render(<GymsPage />);
 
-    await waitFor(() => expect(searchGyms).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: "次のページ" }));
 
-    const keywordInput = screen.getByLabelText("キーワード");
-    await user.clear(keywordInput);
-    await user.type(keywordInput, "bench");
-    await user.click(screen.getByRole("button", { name: "検索" }));
+    expect(setPage).toHaveBeenCalledWith(2);
+  });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
+  it("changes the per-page setting when the select value updates", async () => {
+    const setPerPage = jest.fn();
+    useGymSearch.mockReturnValue(buildHookState({ setPerPage }));
+
+    render(<GymsPage />);
+
+    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "24");
+
+    expect(setPerPage).toHaveBeenCalledWith(24);
+  });
+
+  it("clears filters when the reset button is clicked", async () => {
+    const clearFilters = jest.fn();
+    useGymSearch.mockReturnValue(buildHookState({ clearFilters }));
+
+    render(<GymsPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "条件をリセット" }));
+
+    expect(clearFilters).toHaveBeenCalled();
   });
 });
