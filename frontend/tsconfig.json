@@ -15,12 +15,12 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
       "@/components/*": ["components/*"],
       "@/lib/*": ["src/lib/*", "lib/*"],
       "@/services/*": ["src/services/*"],
       "@/types/*": ["src/types/*"],
-      "@/features/*": ["src/features/*"]
+      "@/features/*": ["src/features/*"],
+      "@/store/*": ["src/store/*"]
     },
     "plugins": [{ "name": "next" }]
   },
