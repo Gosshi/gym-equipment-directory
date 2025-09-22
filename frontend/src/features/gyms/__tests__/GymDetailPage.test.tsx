@@ -75,8 +75,9 @@ describe("GymDetailPage favorite toggle", () => {
 
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
-    const button = await screen.findByRole("button", { name: /お気に入り/ });
-    expect(button).toHaveTextContent("☆ お気に入り");
+    const button = await screen.findByRole("button", { name: /お気に入りに追加/ });
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(button).toHaveTextContent("お気に入りに追加");
 
     await user.click(button);
 
@@ -102,6 +103,7 @@ describe("GymDetailPage favorite toggle", () => {
     await screen.findByRole("heading", { name: mockGymDetail.name });
 
     const button = await screen.findByRole("button", { name: /お気に入り済み/ });
+    await waitFor(() => expect(button).toBeEnabled());
 
     await user.click(button);
 
@@ -112,6 +114,6 @@ describe("GymDetailPage favorite toggle", () => {
       ),
     );
 
-    await waitFor(() => expect(button).toHaveTextContent("☆ お気に入り"));
+    await waitFor(() => expect(button).toHaveTextContent("お気に入りに追加"));
   });
 });

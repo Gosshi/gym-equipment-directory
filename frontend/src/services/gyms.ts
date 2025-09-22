@@ -7,7 +7,7 @@ import {
   type RawGymSummary,
 } from "@/lib/api";
 import type { SortOption } from "@/lib/searchParams";
-import type { GymDetail, GymSearchResponse } from "@/types/gym";
+import type { GymDetail, GymEquipmentDetail, GymSearchResponse } from "@/types/gym";
 
 export interface SearchGymsParams {
   q?: string;
@@ -34,6 +34,10 @@ type RawGymDetail = RawGymSummary & {
   images?: unknown;
   image_urls?: unknown;
   gallery?: unknown;
+  equipment_details?: unknown;
+  equipmentDetails?: unknown;
+  main_equipment_details?: unknown;
+  mainEquipmentDetails?: unknown;
 };
 
 const normalizeImageUrls = (source: unknown): string[] | undefined => {
@@ -66,6 +70,83 @@ const normalizeImageUrls = (source: unknown): string[] | undefined => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
+const sanitizeText = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizeEquipmentDetails = (source: unknown): GymEquipmentDetail[] | undefined => {
+  if (!source) {
+    return undefined;
+  }
+
+  const values = Array.isArray(source) ? source : [source];
+
+  const normalized = values
+    .map((item) => {
+      if (item == null) {
+        return undefined;
+      }
+
+      if (typeof item === "string") {
+        const name = sanitizeText(item);
+        if (!name) {
+          return undefined;
+        }
+        return { name } satisfies GymEquipmentDetail;
+      }
+
+      if (typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        const name =
+          sanitizeText(record.name) ??
+          sanitizeText(record.label) ??
+          sanitizeText(record.title) ??
+          sanitizeText(record.slug) ??
+          sanitizeText(record.value);
+
+        if (!name) {
+          return undefined;
+        }
+
+        const category =
+          sanitizeText(record.category) ??
+          sanitizeText(record.type) ??
+          sanitizeText(record.category_name) ??
+          sanitizeText(record.group);
+
+        const description =
+          sanitizeText(record.description) ??
+          sanitizeText(record.note) ??
+          sanitizeText(record.notes) ??
+          sanitizeText(record.memo) ??
+          sanitizeText(record.detail) ??
+          sanitizeText(record.details);
+
+        const id = record.id;
+        const identifier =
+          typeof id === "string" || typeof id === "number" ? id : sanitizeText(record.key);
+
+        return {
+          id: identifier,
+          name,
+          category,
+          description,
+        } satisfies GymEquipmentDetail;
+      }
+
+      const coerced = String(item).trim();
+      return coerced ? ({ name: coerced } satisfies GymEquipmentDetail) : undefined;
+    })
+    .filter((value): value is GymEquipmentDetail => Boolean(value));
+
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
   const summary = normalizeGymSummary(input);
   const images =
@@ -76,6 +157,13 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
   const thumbnailUrl =
     input.thumbnail_url ?? input.thumbnailUrl ?? input.main_image_url ?? input.hero_image_url ?? null;
 
+  const equipmentDetails =
+    normalizeEquipmentDetails(input.equipment_details) ??
+    normalizeEquipmentDetails(input.equipmentDetails) ??
+    normalizeEquipmentDetails(input.main_equipment_details) ??
+    normalizeEquipmentDetails(input.mainEquipmentDetails) ??
+    normalizeEquipmentDetails(input.equipments);
+
   return {
     id: summary.id,
     slug: summary.slug,
@@ -84,6 +172,7 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     city: summary.city,
     address: summary.address,
     equipments: summary.equipments ?? [],
+    equipmentDetails,
     thumbnailUrl,
     images,
     openingHours: input.openingHours ?? input.opening_hours ?? null,
