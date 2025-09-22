@@ -20,6 +20,7 @@
       "@/services/*": ["src/services/*"],
       "@/types/*": ["src/types/*"],
       "@/features/*": ["src/features/*"],
+      "@/hooks/*": ["src/hooks/*"],
       "@/store/*": ["src/store/*"]
     },
     "plugins": [{ "name": "next" }]
