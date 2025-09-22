@@ -86,6 +86,7 @@ export interface UseGymSearchResult {
   limit: number;
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
+  loadNextPage: () => void;
   items: GymSummary[];
   meta: GymSearchMeta;
   isLoading: boolean;
@@ -137,13 +138,18 @@ export function useGymSearch(
 
   useEffect(() => cancelPendingDebounce, [cancelPendingDebounce]);
 
+  const appendModeRef = useRef(false);
+
   const applyFilters = useCallback(
-    (nextFilters: FilterState) => {
+    (nextFilters: FilterState, options: { append?: boolean } = {}) => {
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
       if (nextQuery === searchParamsKey) {
+        appendModeRef.current = false;
         return;
       }
+
+      appendModeRef.current = Boolean(options.append);
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
       router.push(nextUrl, { scroll: false });
     },
@@ -232,13 +238,16 @@ export function useGymSearch(
   }, [appliedFilters.limit, applyFilters, cancelPendingDebounce]);
 
   const setPage = useCallback(
-    (page: number) => {
+    (page: number, options: { append?: boolean } = {}) => {
       const nextPage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
       cancelPendingDebounce();
-      applyFilters({
-        ...appliedFilters,
-        page: nextPage,
-      });
+      applyFilters(
+        {
+          ...appliedFilters,
+          page: nextPage,
+        },
+        { append: options.append },
+      );
     },
     [appliedFilters, applyFilters, cancelPendingDebounce],
   );
@@ -248,11 +257,14 @@ export function useGymSearch(
       const parsed = Number.isFinite(value) ? Math.trunc(value) : DEFAULT_LIMIT;
       const clamped = Math.min(Math.max(parsed, 1), MAX_LIMIT);
       cancelPendingDebounce();
-      applyFilters({
-        ...appliedFilters,
-        limit: clamped,
-        page: 1,
-      });
+      applyFilters(
+        {
+          ...appliedFilters,
+          limit: clamped,
+          page: 1,
+        },
+        { append: false },
+      );
     },
     [appliedFilters, applyFilters, cancelPendingDebounce],
   );
@@ -270,9 +282,18 @@ export function useGymSearch(
 
   const retry = useCallback(() => setRefreshIndex((value) => value + 1), []);
 
+  const loadNextPage = useCallback(() => {
+    if (isLoading || !meta.hasNext) {
+      return;
+    }
+    setPage(appliedFilters.page + 1, { append: true });
+  }, [appliedFilters.page, isLoading, meta.hasNext, setPage]);
+
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    const shouldAppend = appendModeRef.current;
+    appendModeRef.current = false;
 
     setIsLoading(true);
     setError(null);
@@ -293,7 +314,26 @@ export function useGymSearch(
         if (!active) {
           return;
         }
-        setItems(response.items);
+        setItems((previous) => {
+          if (!shouldAppend) {
+            return response.items;
+          }
+
+          if (response.items.length === 0) {
+            return previous;
+          }
+
+          const seen = new Set(previous.map((item) => item.id));
+          const merged = [...previous];
+          for (const item of response.items) {
+            if (seen.has(item.id)) {
+              continue;
+            }
+            seen.add(item.id);
+            merged.push(item);
+          }
+          return merged;
+        });
         setMeta(response.meta);
         setHasLoadedOnce(true);
       })
@@ -458,6 +498,7 @@ export function useGymSearch(
     limit: appliedFilters.limit,
     setPage,
     setLimit,
+    loadNextPage,
     items,
     meta,
     isLoading,
