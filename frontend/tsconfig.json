@@ -17,7 +17,10 @@
     "paths": {
       "@/*": ["./*"],
       "@/components/*": ["components/*"],
-      "@/lib/*": ["lib/*"]
+      "@/lib/*": ["src/lib/*", "lib/*"],
+      "@/services/*": ["src/services/*"],
+      "@/types/*": ["src/types/*"],
+      "@/features/*": ["src/features/*"]
     },
     "plugins": [{ "name": "next" }]
   },
