@@ -22,6 +22,13 @@ export interface GymSearchResponse {
   meta: GymSearchMeta;
 }
 
+export interface GymEquipmentDetail {
+  id?: string | number;
+  name: string;
+  category?: string | null;
+  description?: string | null;
+}
+
 export interface GymDetail {
   id: number;
   slug: string;
@@ -30,6 +37,7 @@ export interface GymDetail {
   city: string;
   address?: string;
   equipments: string[];
+  equipmentDetails?: GymEquipmentDetail[];
   thumbnailUrl?: string | null;
   images?: string[];
   openingHours?: string | null;

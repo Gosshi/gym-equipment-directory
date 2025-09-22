@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 
+import { GymDetailHeader } from "@/components/gyms/GymDetailHeader";
+import { GymEquipmentTabs } from "@/components/gyms/GymEquipmentTabs";
+import { GymImageGallery } from "@/components/gyms/GymImageGallery";
+import { GymMapPlaceholder } from "@/components/gyms/GymMapPlaceholder";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/apiClient";
-import { cn } from "@/lib/utils";
 import { getGymBySlug } from "@/services/gyms";
-import type { GymDetail } from "@/types/gym";
+import type { GymDetail, GymEquipmentDetail } from "@/types/gym";
 import { useFavorites } from "@/store/favorites";
 
 type FetchStatus = "idle" | "loading" | "success" | "error";
@@ -27,35 +29,68 @@ const formatRegion = (value?: string | null) => {
 };
 
 const GymDetailSkeleton = () => (
-  <div className="flex min-h-screen flex-col gap-6 px-4 py-10">
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+  <div className="flex min-h-screen flex-col px-4 py-10">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-40" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-10 w-56" />
+          <Skeleton className="h-4 w-40" />
         </div>
-        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-72" />
       </div>
-      <Skeleton className="h-64 w-full" />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card className="border-none shadow-none">
-          <CardContent className="space-y-4 pt-6">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-none">
-          <CardContent className="space-y-4 pt-6">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-10 w-full" />
-            <div className="flex gap-2">
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-            </div>
-          </CardContent>
-        </Card>
+      <Skeleton className="aspect-[16/9] w-full rounded-lg" />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
+        <div className="space-y-4">
+          <Card className="border-none shadow-none">
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-56" />
+            </CardHeader>
+            <CardContent className="space-y-4 pt-0">
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-7 w-24 rounded-full" />
+                <Skeleton className="h-7 w-20 rounded-full" />
+                <Skeleton className="h-7 w-28 rounded-full" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Skeleton className="h-24 rounded-lg" />
+                <Skeleton className="h-24 rounded-lg" />
+                <Skeleton className="h-24 rounded-lg" />
+                <Skeleton className="h-24 rounded-lg" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="space-y-4">
+          <Card className="border-none shadow-none">
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent className="space-y-4 pt-0">
+              <Skeleton className="h-4 w-full" />
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-none">
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-4 w-40" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Skeleton className="h-48 w-full rounded-md" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   </div>
@@ -88,6 +123,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
     removeFavorite: removeFavoriteGym,
     isFavorite,
     isPending,
+    status: favoritesStatus,
     error: favoritesError,
   } = useFavorites();
 
@@ -188,6 +224,68 @@ export function GymDetailPage({ slug }: { slug: string }) {
     return prefecture ?? city ?? "エリア情報未設定";
   }, [gym]);
 
+  const galleryImages = useMemo(() => {
+    if (!gym) {
+      return [] as string[];
+    }
+
+    if (gym.images && gym.images.length > 0) {
+      return gym.images;
+    }
+
+    if (gym.thumbnailUrl) {
+      return [gym.thumbnailUrl];
+    }
+
+    return [] as string[];
+  }, [gym]);
+
+  const equipmentItems = useMemo<GymEquipmentDetail[]>(() => {
+    if (!gym) {
+      return [];
+    }
+
+    if (gym.equipmentDetails && gym.equipmentDetails.length > 0) {
+      return gym.equipmentDetails
+        .filter((item): item is GymEquipmentDetail => {
+          if (!item) {
+            return false;
+          }
+          const name = typeof item.name === "string" ? item.name.trim() : "";
+          return name.length > 0;
+        })
+        .map((item) => {
+          const name = item.name.trim();
+          const category =
+            typeof item.category === "string" && item.category.trim().length > 0
+              ? item.category.trim()
+              : undefined;
+          const description =
+            typeof item.description === "string" && item.description.trim().length > 0
+              ? item.description.trim()
+              : undefined;
+
+          return {
+            ...item,
+            name,
+            category,
+            description,
+          };
+        });
+    }
+
+    if (gym.equipments.length > 0) {
+      return gym.equipments
+        .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+        .map((name, index) => ({
+          id: `legacy-${index}`,
+          name: name.trim(),
+        }));
+    }
+
+    return [];
+  }, [gym]);
+
   if (status === "loading" || status === "idle") {
     return <GymDetailSkeleton />;
   }
@@ -198,127 +296,60 @@ export function GymDetailPage({ slug }: { slug: string }) {
 
   const favoriteActive = isFavorite(gym.id);
   const favoritePending = isPending(gym.id);
-  const heroImage = gym.images?.[0] ?? gym.thumbnailUrl ?? undefined;
+  const favoriteDisabled = favoritesStatus === "loading" || favoritesStatus === "idle";
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 px-4 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <div className="space-y-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">{gym.name}</h1>
-              <p className="text-sm text-muted-foreground">{locationLabel}</p>
-              {gym.address ? <p className="text-sm text-muted-foreground">{gym.address}</p> : null}
-            </div>
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              <Button
-                aria-pressed={favoriteActive}
-                className={cn(
-                  "flex items-center gap-2",
-                  favoriteActive ? "bg-amber-500 text-amber-900 hover:bg-amber-500/90" : undefined,
-                )}
-                disabled={favoritePending}
-                onClick={handleToggleFavorite}
-                type="button"
-                variant={favoriteActive ? "secondary" : "outline"}
-              >
-                <span aria-hidden>{favoriteActive ? "★" : "☆"}</span>
-                <span>{favoriteActive ? "お気に入り済み" : "☆ お気に入り"}</span>
-              </Button>
-              <div aria-live="polite" className="text-xs text-muted-foreground min-h-[1.25rem]">
-                {favoritesError ? <span className="text-destructive">{favoritesError}</span> : null}
-              </div>
-            </div>
+    <div className="flex min-h-screen flex-col px-4 py-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <GymDetailHeader
+          address={gym.address ?? undefined}
+          favoriteActive={favoriteActive}
+          favoriteDisabled={favoriteDisabled}
+          favoriteError={favoritesError}
+          favoritePending={favoritePending}
+          locationLabel={locationLabel}
+          name={gym.name}
+          onToggleFavorite={handleToggleFavorite}
+          website={gym.website ?? undefined}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
+          <div className="space-y-6">
+            <GymImageGallery images={galleryImages} name={gym.name} />
+            <GymEquipmentTabs equipments={equipmentItems} />
           </div>
-        </div>
 
-        <div>
-          {heroImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={`${gym.name} の外観写真`}
-              className="h-64 w-full rounded-lg object-cover"
-              src={heroImage}
-            />
-          ) : (
-            <div className="flex h-64 w-full items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">
-              表示可能な画像がまだありません。
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <section>
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>基本情報</CardTitle>
                 <CardDescription>
-                  営業時間や連絡先など、現時点で取得できる情報を表示します。
+                  営業時間や連絡先など、取得済みの最新情報をまとめています。
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {gym.description ? <p className="text-sm leading-relaxed">{gym.description}</p> : null}
+                {gym.description ? (
+                  <p className="text-sm leading-relaxed text-foreground/80">{gym.description}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">紹介文は現在準備中です。</p>
+                )}
                 <dl className="grid gap-3 text-sm md:grid-cols-2">
-                  <div>
+                  <div className="space-y-1">
                     <dt className="font-medium text-foreground">営業時間</dt>
                     <dd className="text-muted-foreground">
                       {gym.openingHours ?? "営業時間情報は準備中です。"}
                     </dd>
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <dt className="font-medium text-foreground">電話番号</dt>
                     <dd className="text-muted-foreground">{gym.phone ?? "未登録"}</dd>
                   </div>
                 </dl>
               </CardContent>
             </Card>
-          </section>
 
-          <aside className="space-y-6">
-            <section>
-              <Card>
-                <CardHeader>
-                  <CardTitle>設備</CardTitle>
-                  <CardDescription>ジムから提供されている代表的な設備一覧です。</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {gym.equipments.length > 0 ? (
-                    <div className="flex flex-wrap gap-2" role="list">
-                      {gym.equipments.map((equipment) => (
-                        <span
-                          key={equipment}
-                          className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground"
-                          role="listitem"
-                        >
-                          {equipment}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">設備情報は現在調査中です。</p>
-                  )}
-                </CardContent>
-              </Card>
-            </section>
-
-            {gym.website ? (
-              <section>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>公式サイト</CardTitle>
-                    <CardDescription>最新情報は公式サイトでご確認ください。</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button asChild type="button">
-                      <Link href={gym.website} rel="noreferrer" target="_blank">
-                        公式サイトを開く
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </section>
-            ) : null}
-          </aside>
+            <GymMapPlaceholder address={gym.address ?? undefined} />
+          </div>
         </div>
       </div>
     </div>
