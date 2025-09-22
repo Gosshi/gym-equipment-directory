@@ -143,7 +143,9 @@ type SearchPanelProps = {
   formState: {
     q: string;
     prefecture: string;
+    city: string;
     equipments: string[];
+    sort: string;
   };
   prefectures: PrefectureOption[];
   equipmentCategories: EquipmentCategoryOption[];
@@ -151,10 +153,20 @@ type SearchPanelProps = {
   metaError: string | null;
   onKeywordChange: (value: string) => void;
   onPrefectureChange: (value: string) => void;
+  onCityChange: (value: string) => void;
   onEquipmentsChange: (values: string[]) => void;
+  onSortChange: (value: string) => void;
   onClear: () => void;
   onReloadMeta: () => void;
 };
+
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "score", label: "総合スコア" },
+  { value: "freshness", label: "最新順" },
+  { value: "richness", label: "充実度" },
+  { value: "gym_name", label: "名称昇順" },
+  { value: "created_at", label: "作成日時" },
+];
 
 const SearchPanel = ({
   formState,
@@ -164,7 +176,9 @@ const SearchPanel = ({
   metaError,
   onKeywordChange,
   onPrefectureChange,
+  onCityChange,
   onEquipmentsChange,
+  onSortChange,
   onClear,
   onReloadMeta,
 }: SearchPanelProps) => {
@@ -238,6 +252,28 @@ const SearchPanel = ({
           </select>
         </div>
         <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="gym-search-city">
+            市区町村
+          </label>
+            <input
+              autoComplete="off"
+              className={cn(
+                "h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+              disabled={!formState.prefecture}
+              id="gym-search-city"
+              name="city"
+              onChange={(e) => onCityChange(e.target.value)}
+              placeholder="例: funabashi"
+              type="text"
+              value={formState.city}
+            />
+          <p className="text-xs text-muted-foreground">
+            都道府県選択後にスラッグ形式で入力（将来サジェスト予定）
+          </p>
+        </div>
+        <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="gym-search-equipments">
             設備カテゴリ
           </label>
@@ -264,6 +300,45 @@ const SearchPanel = ({
           </select>
           <p className="text-xs text-muted-foreground" id="gym-search-equipments-help">
             ⌘/Ctrl キーを押しながら複数選択できます。
+          </p>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="gym-search-sort">
+            並び順
+          </label>
+          <select
+            className={cn(
+              "h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+            id="gym-search-sort"
+            name="sort"
+            onChange={(e) => onSortChange(e.target.value)}
+            value={formState.sort}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="gym-search-distance">
+            距離 (プレースホルダ)
+          </label>
+          <input
+            aria-describedby="gym-search-distance-help"
+            className="w-full"
+            defaultValue={5}
+            id="gym-search-distance"
+            max={30}
+            min={1}
+            step={1}
+            type="range"
+          />
+          <p className="text-xs text-muted-foreground" id="gym-search-distance-help">
+            現在 API 未連携
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-3">
@@ -297,7 +372,9 @@ export function GymsPage() {
     appliedFilters,
     updateKeyword,
     updatePrefecture,
+    updateCity,
     updateEquipments,
+    updateSort,
     clearFilters,
     page,
     perPage,
@@ -340,6 +417,8 @@ export function GymsPage() {
             onEquipmentsChange={updateEquipments}
             onKeywordChange={updateKeyword}
             onPrefectureChange={updatePrefecture}
+            onCityChange={updateCity}
+            onSortChange={updateSort}
             onReloadMeta={reloadMeta}
             prefectures={prefectures}
           />

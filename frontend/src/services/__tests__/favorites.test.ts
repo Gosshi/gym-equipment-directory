@@ -6,7 +6,7 @@ describe("favorites service", () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "http://example.com";
+  process.env.NEXT_PUBLIC_API_BASE_URL = undefined; // デフォルト (127.0.0.1:8000) 利用
   });
 
   afterEach(() => {
@@ -39,7 +39,7 @@ describe("favorites service", () => {
     const result = await listFavorites("device-123");
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://example.com/me/favorites?device_id=device-123",
+      "http://127.0.0.1:8000/me/favorites?device_id=device-123",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -87,7 +87,7 @@ describe("favorites service", () => {
     await addFavorite(42, "device-xyz");
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://example.com/me/favorites",
+      "http://127.0.0.1:8000/me/favorites",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ device_id: "device-xyz", gym_id: 42 }),
@@ -105,7 +105,7 @@ describe("favorites service", () => {
     await removeFavorite(42, "device-xyz");
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://example.com/me/favorites/42?device_id=device-xyz",
+      "http://127.0.0.1:8000/me/favorites/42?device_id=device-xyz",
       expect.objectContaining({
         method: "DELETE",
       }),

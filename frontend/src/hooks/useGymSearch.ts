@@ -16,14 +16,17 @@ import type {
   PrefectureOption,
 } from "@/types/meta";
 
-const DEFAULT_PER_PAGE = 12;
+// 1ページ件数 20 に統一 (要件: 20件単位)
+const DEFAULT_PER_PAGE = 20;
 const DEFAULT_DEBOUNCE_MS = 300;
 const MAX_PER_PAGE = 50;
 
 export type GymSearchFilters = {
   q: string;
   prefecture: string | null;
+  city: string | null;
   equipments: string[];
+  sort: string; // backend allows: freshness|richness|gym_name|created_at|score (default score)
   page: number;
   perPage: number;
 };
@@ -31,7 +34,9 @@ export type GymSearchFilters = {
 type FormState = {
   q: string;
   prefecture: string;
+  city: string;
   equipments: string[];
+  sort: string;
 };
 
 const parsePositiveInt = (value: string | null, fallback: number): number => {
@@ -62,11 +67,25 @@ const normalizeEquipments = (values: string[]): string[] => {
   return Array.from(new Set(sanitized));
 };
 
+const VALID_SORT_VALUES = [
+  "score",
+  "freshness",
+  "richness",
+  "gym_name",
+  "created_at",
+];
+
 const parseSearchParams = (params: URLSearchParams): GymSearchFilters => {
   const q = params.get("q") ?? "";
   const rawPrefecture = params.get("prefecture");
   const prefecture = rawPrefecture ? rawPrefecture.trim() : null;
+  const rawCity = params.get("city");
+  const city = rawCity ? rawCity.trim() : null;
   const equipments = parseEquipments(params.get("equipment"));
+  const sortParam = params.get("sort");
+  const sort = VALID_SORT_VALUES.includes(sortParam || "")
+    ? (sortParam as string)
+    : "score";
   const page = parsePositiveInt(params.get("page"), 1);
   const perPage = Math.min(
     parsePositiveInt(params.get("per_page"), DEFAULT_PER_PAGE),
@@ -76,7 +95,9 @@ const parseSearchParams = (params: URLSearchParams): GymSearchFilters => {
   return {
     q,
     prefecture,
+    city,
     equipments,
+    sort,
     page,
     perPage,
   };
@@ -85,7 +106,9 @@ const parseSearchParams = (params: URLSearchParams): GymSearchFilters => {
 const toFormState = (filters: GymSearchFilters): FormState => ({
   q: filters.q,
   prefecture: filters.prefecture ?? "",
+  city: filters.city ?? "",
   equipments: [...filters.equipments],
+  sort: filters.sort,
 });
 
 const toSearchParams = (filters: GymSearchFilters) => {
@@ -97,8 +120,14 @@ const toSearchParams = (filters: GymSearchFilters) => {
   if (filters.prefecture) {
     params.set("prefecture", filters.prefecture);
   }
+  if (filters.city) {
+    params.set("city", filters.city);
+  }
   if (filters.equipments.length > 0) {
     params.set("equipment", filters.equipments.join(","));
+  }
+  if (filters.sort && filters.sort !== "score") {
+    params.set("sort", filters.sort);
   }
   if (filters.page > 1) {
     params.set("page", String(filters.page));
@@ -126,7 +155,9 @@ export interface UseGymSearchResult {
   appliedFilters: GymSearchFilters;
   updateKeyword: (value: string) => void;
   updatePrefecture: (value: string) => void;
+  updateCity: (value: string) => void;
   updateEquipments: (values: string[]) => void;
+  updateSort: (value: string) => void;
   clearFilters: () => void;
   page: number;
   perPage: number;
@@ -169,6 +200,8 @@ export function useGymSearch(
       if (
         prev.q === next.q &&
         prev.prefecture === next.prefecture &&
+        prev.city === next.city &&
+        prev.sort === next.sort &&
         areArraysEqual(prev.equipments, next.equipments)
       ) {
         return prev;
@@ -208,7 +241,9 @@ export function useGymSearch(
         const next: FormState = {
           q: updated.q,
           prefecture: updated.prefecture,
+          city: updated.city,
           equipments: normalizeEquipments(updated.equipments),
+          sort: updated.sort,
         };
 
         if (
@@ -224,7 +259,9 @@ export function useGymSearch(
           applyFilters({
             q: next.q.trim(),
             prefecture: next.prefecture.trim() || null,
+            city: next.city.trim() || null,
             equipments: next.equipments,
+            sort: next.sort,
             page: 1,
             perPage: appliedFilters.perPage,
           });
@@ -247,7 +284,13 @@ export function useGymSearch(
   );
 
   const updatePrefecture = useCallback(
-    (value: string) => scheduleApply((prev) => ({ ...prev, prefecture: value })),
+    (value: string) =>
+      scheduleApply((prev) => ({ ...prev, prefecture: value, city: "" })), // prefecture変更時 city リセット
+    [scheduleApply],
+  );
+
+  const updateCity = useCallback(
+    (value: string) => scheduleApply((prev) => ({ ...prev, city: value })),
     [scheduleApply],
   );
 
@@ -260,13 +303,20 @@ export function useGymSearch(
     [scheduleApply],
   );
 
+  const updateSort = useCallback(
+    (value: string) => scheduleApply((prev) => ({ ...prev, sort: value })),
+    [scheduleApply],
+  );
+
   const clearFilters = useCallback(() => {
     cancelPendingDebounce();
-    setFormState({ q: "", prefecture: "", equipments: [] });
+    setFormState({ q: "", prefecture: "", city: "", equipments: [], sort: "score" });
     applyFilters({
       q: "",
       prefecture: null,
+      city: null,
       equipments: [],
+      sort: "score",
       page: 1,
       perPage: appliedFilters.perPage,
     });
@@ -326,7 +376,15 @@ export function useGymSearch(
       {
         q: appliedFilters.q || undefined,
         prefecture: appliedFilters.prefecture || undefined,
+        city: appliedFilters.city || undefined,
         equipments: appliedFilters.equipments,
+        sort: (appliedFilters.sort as
+          | "score"
+          | "freshness"
+          | "richness"
+          | "gym_name"
+          | "created_at"
+          | undefined) || undefined,
         page: appliedFilters.page,
         perPage: appliedFilters.perPage,
       },
@@ -426,9 +484,11 @@ export function useGymSearch(
     formState,
     appliedFilters,
     updateKeyword,
-    updatePrefecture,
-    updateEquipments,
-    clearFilters,
+  updatePrefecture,
+  updateCity,
+  updateEquipments,
+  updateSort,
+  clearFilters,
     page: appliedFilters.page,
     perPage: appliedFilters.perPage,
     setPage,

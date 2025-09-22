@@ -65,7 +65,9 @@ describe("useGymSearch", () => {
 
   it("derives the initial state from query parameters", async () => {
     useSearchParams.mockReturnValue(
-      new URLSearchParams("q=bench&prefecture=tokyo&equipment=squat-rack&page=2&per_page=24"),
+      new URLSearchParams(
+        "q=bench&prefecture=tokyo&city=funabashi&equipment=squat-rack&sort=richness&page=2&per_page=24",
+      ),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -77,7 +79,9 @@ describe("useGymSearch", () => {
     expect(result.current.formState).toEqual({
       q: "bench",
       prefecture: "tokyo",
+      city: "funabashi",
       equipments: ["squat-rack"],
+      sort: "richness",
     });
     expect(result.current.page).toBe(2);
     expect(result.current.perPage).toBe(24);
@@ -85,7 +89,9 @@ describe("useGymSearch", () => {
       {
         q: "bench",
         prefecture: "tokyo",
+        city: "funabashi",
         equipments: ["squat-rack"],
+        sort: "richness",
         page: 2,
         perPage: 24,
       },
@@ -111,7 +117,7 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
+  expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
   });
 
   it("changes page immediately without debounce", async () => {
@@ -130,7 +136,9 @@ describe("useGymSearch", () => {
 
   it("clears filters and keeps the current per-page value", async () => {
     useSearchParams.mockReturnValue(
-      new URLSearchParams("q=bench&prefecture=tokyo&equipment=squat-rack&page=2&per_page=24"),
+      new URLSearchParams(
+        "q=bench&prefecture=tokyo&city=funabashi&equipment=squat-rack&sort=score&page=2&per_page=24",
+      ),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -144,7 +152,13 @@ describe("useGymSearch", () => {
     });
 
     expect(mockRouter.push).toHaveBeenCalledWith("/gyms?per_page=24", { scroll: false });
-    expect(result.current.formState).toEqual({ q: "", prefecture: "", equipments: [] });
+    expect(result.current.formState).toEqual({
+      q: "",
+      prefecture: "",
+      city: "",
+      equipments: [],
+      sort: "score",
+    });
   });
 
   it("surfaces API errors from searchGyms as error state", async () => {
@@ -159,4 +173,5 @@ describe("useGymSearch", () => {
 
     expect(result.current.error).toBe("検索に失敗しました");
   });
+
 });

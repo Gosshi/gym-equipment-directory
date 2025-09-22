@@ -46,6 +46,41 @@ describe("searchGyms", () => {
     });
   });
 
+  it("includes city and sort when provided", async () => {
+    apiRequest.mockResolvedValue({
+      items: [],
+      total: 0,
+      has_next: false,
+      page_token: null,
+    });
+
+    await searchGyms({
+      q: "deadlift",
+      prefecture: "chiba",
+      city: "funabashi",
+      equipments: [],
+      sort: "freshness",
+      page: 1,
+      perPage: 20,
+    });
+
+    expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
+      method: "GET",
+      query: {
+        q: "deadlift",
+        pref: "chiba",
+        city: "funabashi",
+        equipments: "",
+        equipment_match: undefined,
+        sort: "freshness",
+        page: 1,
+        per_page: 20,
+        page_token: undefined,
+      },
+      signal: undefined,
+    });
+  });
+
   it("normalizes the response payload into GymSummary items", async () => {
     apiRequest.mockResolvedValue({
       items: [

@@ -4,4 +4,5 @@ export interface MetaOption {
 }
 
 export type PrefectureOption = MetaOption;
+export type CityOption = MetaOption;
 export type EquipmentCategoryOption = MetaOption;
