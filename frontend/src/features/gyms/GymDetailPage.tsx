@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
-import { addFavorite, removeFavorite } from "@/services/favorites";
 import { getGymBySlug } from "@/services/gyms";
 import type { GymDetail } from "@/types/gym";
-import { useFavoriteGyms } from "@/store/favorites";
+import { useFavorites } from "@/store/favorites";
 
 type FetchStatus = "idle" | "loading" | "success" | "error";
 
@@ -81,12 +81,15 @@ export function GymDetailPage({ slug }: { slug: string }) {
   const [status, setStatus] = useState<FetchStatus>("idle");
   const [gym, setGym] = useState<GymDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [favoriteFeedback, setFavoriteFeedback] = useState<string | null>(null);
-  const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const [isFavoritePending, setIsFavoritePending] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { addFavoriteId, removeFavoriteId, isFavorite } = useFavoriteGyms();
+  const {
+    addFavorite: addFavoriteGym,
+    removeFavorite: removeFavoriteGym,
+    isFavorite,
+    isPending,
+    error: favoritesError,
+  } = useFavorites();
 
   const loadGym = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -95,8 +98,6 @@ export function GymDetailPage({ slug }: { slug: string }) {
 
     setStatus("loading");
     setErrorMessage(null);
-    setFavoriteFeedback(null);
-    setFavoriteError(null);
 
     getGymBySlug(slug, { signal: controller.signal })
       .then((response) => {
@@ -140,34 +141,37 @@ export function GymDetailPage({ slug }: { slug: string }) {
       return;
     }
 
-    setFavoriteFeedback(null);
-    setFavoriteError(null);
-    setIsFavoritePending(true);
-
     try {
-      if (isFavorite(gym.id)) {
-        await removeFavorite(gym.id);
-        removeFavoriteId(gym.id);
-        setFavoriteFeedback("お気に入りから削除しました。");
+      const wasFavorite = isFavorite(gym.id);
+      if (wasFavorite) {
+        await removeFavoriteGym(gym.id);
+        toast({
+          title: "お気に入りから削除しました",
+          description: `${gym.name} をお気に入りから解除しました。`,
+        });
       } else {
-        await addFavorite(gym.id);
-        addFavoriteId(gym.id);
-        setFavoriteFeedback("お気に入りに追加しました。");
+        await addFavoriteGym(gym);
+        toast({
+          title: "お気に入りに追加しました",
+          description: `${gym.name} をお気に入りに登録しました。`,
+        });
       }
     } catch (error) {
       let message = "お気に入りの更新に失敗しました。もう一度お試しください。";
 
-      if (error instanceof ApiError) {
-        if (error.status === 404) {
-          message = "このジムは現在利用できません。";
-        }
+      if (error instanceof ApiError && error.status === 404) {
+        message = "このジムは現在利用できません。";
+      } else if (error instanceof Error && error.message) {
+        message = error.message;
       }
 
-      setFavoriteError(message);
-    } finally {
-      setIsFavoritePending(false);
+      toast({
+        title: "お気に入りの更新に失敗しました",
+        description: message,
+        variant: "destructive",
+      });
     }
-  }, [addFavoriteId, gym, isFavorite, removeFavoriteId]);
+  }, [addFavoriteGym, gym, isFavorite, removeFavoriteGym]);
 
   const locationLabel = useMemo(() => {
     if (!gym) {
@@ -193,6 +197,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
   }
 
   const favoriteActive = isFavorite(gym.id);
+  const favoritePending = isPending(gym.id);
   const heroImage = gym.images?.[0] ?? gym.thumbnailUrl ?? undefined;
 
   return (
@@ -212,7 +217,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
                   "flex items-center gap-2",
                   favoriteActive ? "bg-amber-500 text-amber-900 hover:bg-amber-500/90" : undefined,
                 )}
-                disabled={isFavoritePending}
+                disabled={favoritePending}
                 onClick={handleToggleFavorite}
                 type="button"
                 variant={favoriteActive ? "secondary" : "outline"}
@@ -221,7 +226,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
                 <span>{favoriteActive ? "お気に入り済み" : "☆ お気に入り"}</span>
               </Button>
               <div aria-live="polite" className="text-xs text-muted-foreground min-h-[1.25rem]">
-                {favoriteError ? <span className="text-destructive">{favoriteError}</span> : favoriteFeedback}
+                {favoritesError ? <span className="text-destructive">{favoritesError}</span> : null}
               </div>
             </div>
           </div>
