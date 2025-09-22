@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/apiClient";
-import type { GymSearchResponse, GymSummary } from "@/types/gym";
+import type { GymDetail, GymSearchResponse, GymSummary } from "@/types/gym";
 
 export interface SearchGymsParams {
   q?: string;
@@ -37,6 +37,20 @@ type RawSearchGymsResponse = {
   total: number;
   has_next: boolean;
   page_token?: string | null;
+};
+
+type RawGymDetail = RawGymSummary & {
+  description?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  website_url?: string | null;
+  opening_hours?: string | null;
+  openingHours?: string | null;
+  main_image_url?: string | null;
+  hero_image_url?: string | null;
+  images?: unknown;
+  image_urls?: unknown;
+  gallery?: unknown;
 };
 
 const normalizeEquipments = (source: unknown): string[] | undefined => {
@@ -85,6 +99,63 @@ const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
   };
 };
 
+const normalizeImageUrls = (source: unknown): string[] | undefined => {
+  if (!source) {
+    return undefined;
+  }
+
+  const values = Array.isArray(source) ? source : [source];
+
+  const normalized = values
+    .map((item) => {
+      if (!item) {
+        return undefined;
+      }
+
+      if (typeof item === "string") {
+        return item;
+      }
+
+      if (typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        const url = record.url ?? record.src ?? record.image_url ?? record.thumbnail_url;
+        return typeof url === "string" ? url : undefined;
+      }
+
+      return undefined;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
+  const summary = normalizeGymSummary(input);
+  const images =
+    normalizeImageUrls(input.images) ??
+    normalizeImageUrls(input.image_urls) ??
+    normalizeImageUrls(input.gallery);
+
+  const thumbnailUrl =
+    input.thumbnail_url ?? input.thumbnailUrl ?? input.main_image_url ?? input.hero_image_url ?? null;
+
+  return {
+    id: summary.id,
+    slug: summary.slug,
+    name: summary.name,
+    prefecture: summary.prefecture,
+    city: summary.city,
+    address: summary.address,
+    equipments: summary.equipments ?? [],
+    thumbnailUrl,
+    images,
+    openingHours: input.openingHours ?? input.opening_hours ?? null,
+    phone: input.phone ?? null,
+    website: input.website ?? input.website_url ?? null,
+    description: input.description ?? null,
+  };
+};
+
 export async function searchGyms(
   params: SearchGymsParams = {},
   options: { signal?: AbortSignal } = {},
@@ -115,4 +186,16 @@ export async function searchGyms(
       pageToken: response.page_token ?? null,
     },
   };
+}
+
+export async function getGymBySlug(
+  slug: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<GymDetail> {
+  const response = await apiRequest<RawGymDetail>(`/gyms/${slug}`, {
+    method: "GET",
+    signal: options.signal,
+  });
+
+  return normalizeGymDetail(response);
 }

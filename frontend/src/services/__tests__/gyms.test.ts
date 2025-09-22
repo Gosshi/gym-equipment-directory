@@ -1,5 +1,5 @@
 import { ApiError } from "@/lib/apiClient";
-import { searchGyms } from "@/services/gyms";
+import { getGymBySlug, searchGyms } from "@/services/gyms";
 
 describe("searchGyms", () => {
   const originalEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -87,5 +87,104 @@ describe("searchGyms", () => {
     } as unknown as Response);
 
     await expect(searchGyms()).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("getGymBySlug", () => {
+  const originalEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "http://example.com";
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = originalEnv;
+    global.fetch = originalFetch;
+    jest.resetAllMocks();
+  });
+
+  it("normalises the response data", async () => {
+    const mockJson = jest.fn().mockResolvedValue({
+      id: 42,
+      slug: "tokyo-gym",
+      name: "Tokyo Gym",
+      pref: "tokyo",
+      city: "shibuya",
+      full_address: "東京都渋谷区1-2-3",
+      equipments: [{ name: "Squat Rack" }, "Dumbbells"],
+      main_image_url: "https://example.com/hero.jpg",
+      images: [
+        "https://example.com/hero.jpg",
+        { url: "https://example.com/inside.jpg" },
+      ],
+      opening_hours: "10:00-22:00",
+      phone: "03-1234-5678",
+      website_url: "https://gym.example.com",
+      description: "テスト用のジムです。",
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: mockJson,
+    } as unknown as Response);
+
+    const result = await getGymBySlug("tokyo-gym");
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://example.com/gyms/tokyo-gym",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        }),
+        method: "GET",
+      }),
+    );
+
+    expect(result).toEqual({
+      id: 42,
+      slug: "tokyo-gym",
+      name: "Tokyo Gym",
+      prefecture: "tokyo",
+      city: "shibuya",
+      address: "東京都渋谷区1-2-3",
+      equipments: ["Squat Rack", "Dumbbells"],
+      thumbnailUrl: "https://example.com/hero.jpg",
+      images: ["https://example.com/hero.jpg", "https://example.com/inside.jpg"],
+      openingHours: "10:00-22:00",
+      phone: "03-1234-5678",
+      website: "https://gym.example.com",
+      description: "テスト用のジムです。",
+    });
+  });
+
+  it("throws an ApiError on 404", async () => {
+    const mockText = jest.fn().mockResolvedValue("Not found");
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: mockText,
+    } as unknown as Response);
+
+    await expect(getGymBySlug("missing"))
+      .rejects.toEqual(expect.objectContaining({ status: 404 }));
+  });
+
+  it("throws an ApiError on server errors", async () => {
+    const mockText = jest.fn().mockResolvedValue("Server error");
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: "Server Error",
+      text: mockText,
+    } as unknown as Response);
+
+    await expect(getGymBySlug("tokyo-gym"))
+      .rejects.toEqual(expect.objectContaining({ status: 500 }));
   });
 });

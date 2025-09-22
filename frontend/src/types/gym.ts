@@ -21,3 +21,19 @@ export interface GymSearchResponse {
   items: GymSummary[];
   meta: GymSearchMeta;
 }
+
+export interface GymDetail {
+  id: number;
+  slug: string;
+  name: string;
+  prefecture: string;
+  city: string;
+  address?: string;
+  equipments: string[];
+  thumbnailUrl?: string | null;
+  images?: string[];
+  openingHours?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  description?: string | null;
+}
