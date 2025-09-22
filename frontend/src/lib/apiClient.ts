@@ -19,9 +19,12 @@ export interface ApiRequestOptions extends RequestInit {
 }
 
 export const getApiBaseUrl = () => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (baseUrl && !baseUrl.startsWith("http")) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL must be an absolute URL, including protocol");
+    throw new Error(
+      "NEXT_PUBLIC_API_BASE (or _URL) must be an absolute URL, including protocol",
+    );
   }
   return (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
 };

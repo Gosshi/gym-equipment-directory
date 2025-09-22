@@ -37,3 +37,21 @@ export interface GymDetail {
   website?: string | null;
   description?: string | null;
 }
+
+export interface NearbyGym {
+  id: number;
+  slug: string;
+  name: string;
+  prefecture: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+  lastVerifiedAt?: string | null;
+}
+
+export interface GymNearbyResponse {
+  items: NearbyGym[];
+  hasNext: boolean;
+  pageToken: string | null;
+}

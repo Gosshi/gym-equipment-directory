@@ -1,0 +1,1 @@
+export { NearbyGymsPage } from "./NearbyGymsPage";
