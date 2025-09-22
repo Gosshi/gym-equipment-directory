@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/apiClient";
 import { getGymBySlug } from "@/services/gyms";
 import type { GymDetail, GymEquipmentDetail } from "@/types/gym";
 import { useFavorites } from "@/store/favorites";
+import { useAuthGuard } from "@/routes/withAuthGuard";
 
 type FetchStatus = "idle" | "loading" | "success" | "error";
 
@@ -172,7 +173,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
     };
   }, [loadGym]);
 
-  const handleToggleFavorite = useCallback(async () => {
+  const toggleFavorite = useCallback(async () => {
     if (!gym) {
       return;
     }
@@ -208,6 +209,8 @@ export function GymDetailPage({ slug }: { slug: string }) {
       });
     }
   }, [addFavoriteGym, gym, isFavorite, removeFavoriteGym]);
+
+  const handleToggleFavorite = useAuthGuard(toggleFavorite);
 
   const locationLabel = useMemo(() => {
     if (!gym) {
