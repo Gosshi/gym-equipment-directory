@@ -75,3 +75,17 @@ export interface GymDetailApiResponse {
   longitude?: number | null;
   lng?: number | null;
 }
+
+export type ReportGymType = "wrong_info" | "closed" | "duplicate" | "abuse" | "other";
+
+export interface ReportGymRequest {
+  type: ReportGymType;
+  message: string;
+  email?: string | null;
+  source_url?: string | null;
+}
+
+export interface ReportGymResponse {
+  id: number;
+  status: string;
+}
