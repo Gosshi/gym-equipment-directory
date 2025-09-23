@@ -163,7 +163,9 @@ class BulkContext:
 BULK_CONTEXT: BulkContext | None = None
 
 
-def resolve_seed_payload(test_mode: bool) -> tuple[
+def resolve_seed_payload(
+    test_mode: bool,
+) -> tuple[
     list[tuple[str, str, str]],
     list[tuple[str, str, str, str, str, str | None, float, float]],
     list[tuple[str, str, Availability, int | None, int | None]],
@@ -262,9 +264,7 @@ DEFAULT_GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]]
 ]
 
 
-DEFAULT_GYM_EQUIPMENT_SEED: list[
-    tuple[str, str, Availability, int | None, int | None]
-] = [
+DEFAULT_GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] = [
     ("dummy-funabashi-east", "squat-rack", Availability.present, 2, None),
     ("dummy-funabashi-east", "bench-press", Availability.present, 3, None),
     ("dummy-funabashi-east", "dumbbell", Availability.present, None, 40),
@@ -361,9 +361,7 @@ TEST_GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]] = 
 ]
 
 
-TEST_GYM_EQUIPMENT_SEED: list[
-    tuple[str, str, Availability, int | None, int | None]
-] = [
+TEST_GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] = [
     ("funabashi-station-gym", "squat-rack", Availability.present, 2, None),
     ("funabashi-station-gym", "bench-press", Availability.present, 2, None),
     ("funabashi-station-gym", "dumbbell", Availability.present, None, 50),
@@ -468,8 +466,7 @@ async def link_gym_equipment(
     ):
         resolved_status = VerificationStatus.user_verified
     elif (
-        availability == Availability.absent
-        and verification_status != VerificationStatus.unverified
+        availability == Availability.absent and verification_status != VerificationStatus.unverified
     ):
         resolved_status = VerificationStatus.unverified
 
@@ -688,9 +685,7 @@ async def async_main(args: argparse.Namespace) -> int:
     else:
         rng = random.Random(args.seed) if args.seed is not None else random.Random()
 
-    equipment_seed, gym_seed, gym_equipment_seed, gym_metadata = resolve_seed_payload(
-        test_mode
-    )
+    equipment_seed, gym_seed, gym_equipment_seed, gym_metadata = resolve_seed_payload(test_mode)
 
     utc_now = datetime.utcnow()
     utc_now_tz = datetime.now(datetime.UTC)

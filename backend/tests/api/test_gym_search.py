@@ -12,9 +12,7 @@ from app.utils.geo import haversine_distance_km
 @pytest.mark.asyncio
 async def test_search_radius_filters(app_client, db_session):
     rows = await db_session.execute(select(Gym.slug, Gym.latitude, Gym.longitude))
-    coords = {
-        row.slug: (float(row.latitude), float(row.longitude)) for row in rows
-    }
+    coords = {row.slug: (float(row.latitude), float(row.longitude)) for row in rows}
     base = coords["funabashi-station-gym"]
     near = coords["funabashi-bay-gym"]
     boundary = coords["narashino-center-gym"]
