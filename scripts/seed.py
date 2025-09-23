@@ -398,9 +398,7 @@ async def bulk_seed_gyms(
 
     equipment_slugs = list(ctx.slug_to_eq.keys())
     if equip_per_gym > len(equipment_slugs):
-        raise ValueError(
-            "equip_per_gym exceeds available equipment seed entries."
-        )
+        raise ValueError("equip_per_gym exceeds available equipment seed entries.")
 
     slugs = [f"bulk-gym-{i + 1:04d}" for i in range(n_gyms)]
     existing_slugs: set[str] = set()
@@ -419,9 +417,7 @@ async def bulk_seed_gyms(
         block = rng.randint(*anchor["block_range"])
         banchi = rng.randint(*anchor["banchi_range"])
         gou = rng.randint(*anchor["gou_range"])
-        address = anchor["addr_template"].format(
-            area=area, block=block, banchi=banchi, gou=gou
-        )
+        address = anchor["addr_template"].format(area=area, block=block, banchi=banchi, gou=gou)
         latitude = round(
             anchor["lat"] + rng.uniform(-anchor["lat_jitter"], anchor["lat_jitter"]),
             6,
@@ -449,9 +445,7 @@ async def bulk_seed_gyms(
         selected_equipment = rng.sample(equipment_slugs, equip_per_gym)
         for eq_slug in selected_equipment:
             eq = ctx.slug_to_eq[eq_slug]
-            availability = rng.choices(
-                availability_choices, weights=availability_weights, k=1
-            )[0]
+            availability = rng.choices(availability_choices, weights=availability_weights, k=1)[0]
             count: int | None = None
             max_weight: int | None = None
             if availability == Availability.present:
