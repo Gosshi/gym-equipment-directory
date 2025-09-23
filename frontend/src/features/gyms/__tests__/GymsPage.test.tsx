@@ -78,7 +78,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
         lastVerifiedAt: "2024-09-01T12:00:00Z",
       },
     ],
-    meta: { total: 1, page: 1, perPage: 20, hasNext: false, hasPrev: false, pageToken: null },
+  meta: { total: 1, page: 1, perPage: 20, hasNext: false, hasPrev: false, hasMore: false, pageToken: null },
     isLoading: false,
     isInitialLoading: false,
     error: null,
@@ -124,7 +124,7 @@ describe("GymsPage", () => {
     useGymSearch.mockReturnValue(
       buildHookState({
         setPage,
-        meta: { total: 30, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
+  meta: { total: 30, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
       }),
     );
 
@@ -149,7 +149,7 @@ describe("GymsPage", () => {
   it("disables pagination buttons when there is no previous or next page", () => {
     useGymSearch.mockReturnValue(
       buildHookState({
-        meta: { total: 40, page: 2, perPage: 20, hasNext: false, hasPrev: true, pageToken: null },
+  meta: { total: 40, page: 2, perPage: 20, hasNext: false, hasPrev: true, hasMore: false, pageToken: null },
       }),
     );
 
@@ -160,7 +160,7 @@ describe("GymsPage", () => {
 
     useGymSearch.mockReturnValue(
       buildHookState({
-        meta: { total: 40, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
+  meta: { total: 40, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
       }),
     );
 

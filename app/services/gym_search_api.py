@@ -126,16 +126,31 @@ async def search_gyms_api(
     required_slugs: list[str],
     equipment_match: Literal["all", "any"],
     sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
-    per_page: int,
+    page: int,
+    page_size: int | None,
     page_token: str | None,
 ) -> GymSearchPageDTO:
     logger = structlog.get_logger(__name__)
+    per_page = int(page_size or 20)
+    if per_page <= 0:
+        per_page = 20
+    per_page = max(1, min(per_page, 100))
+
+    current_page = int(page or 1)
+    if current_page <= 0:
+        current_page = 1
+    offset = (current_page - 1) * per_page
+
+    use_keyset = bool(page_token)
+
     logger.info(
         "gyms_search_begin",
         pref=pref,
         city=city,
         sort=sort,
-        per_page=per_page,
+        page=current_page,
+        page_size=per_page,
+        use_keyset=use_keyset,
     )
     # ---- 1) ベース: Gym.id（pref/city を反映） ----
     if pref:
@@ -206,7 +221,15 @@ async def search_gyms_api(
     # ---- 3) total ----
     total = (await session.scalar(select(func.count()).select_from(base_ids.subquery()))) or 0
     if total == 0:
-        return GymSearchPageDTO(items=[], total=0, has_next=False, page_token=None)
+        return GymSearchPageDTO(
+            items=[],
+            total=0,
+            page=current_page,
+            page_size=per_page,
+            has_more=False,
+            has_prev=current_page > 1,
+            page_token=None,
+        )
 
     # ---- 4) 並びと取得 ----
     next_token = None
@@ -215,33 +238,40 @@ async def search_gyms_api(
 
     if sort == "freshness":
         stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
-        lk_ts_iso, lk_id = (None, None)
-        if page_token:
+        if use_keyset and page_token:
             lk_ts_iso, lk_id = _validate_and_decode_page_token(page_token, "freshness")  # type: ignore[misc]
             if lk_ts_iso is None:
-                stmt = stmt.where(Gym.last_verified_at_cached.is_(None), Gym.id > int(lk_id))  # type: ignore[arg-type]
+                stmt = stmt.where(
+                    Gym.last_verified_at_cached.is_(None),
+                    Gym.id > int(lk_id),  # type: ignore[arg-type]
+                )
             else:
                 try:
-                    lk_ts = datetime.fromisoformat(lk_ts_iso)  # naive想定
+                    lk_ts = datetime.fromisoformat(lk_ts_iso)
                 except Exception as exc:  # noqa: BLE001
                     raise ValueError("invalid page_token") from exc
                 stmt = stmt.where(
                     or_(
                         Gym.last_verified_at_cached < lk_ts,
-                        and_(Gym.last_verified_at_cached == lk_ts, Gym.id > int(lk_id)),  # type: ignore[arg-type]
+                        and_(
+                            Gym.last_verified_at_cached == lk_ts,
+                            Gym.id > int(lk_id),  # type: ignore[arg-type]
+                        ),
                     )
                 )
 
         if distance_label is not None:
             stmt = stmt.add_columns(distance_label)
 
-        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(
-            per_page + 1
-        )
+        stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc())
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
 
         rows = await session.execute(stmt)
         recs = rows.all()
-        page_rows = recs[:per_page]
+        page_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in page_rows]
 
         if distance_label is not None:
@@ -250,7 +280,7 @@ async def search_gyms_api(
                 if dist_val is not None:
                     distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             last = last_row[0]
             ts = getattr(last, "last_verified_at_cached", None)
@@ -284,10 +314,9 @@ async def search_gyms_api(
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
             .where(Gym.id.in_(base_ids.scalar_subquery()))
             .order_by(nf_expr, neg_sc_expr, Gym.id)
-            .limit(per_page + 1)
         )
 
-        if page_token:
+        if use_keyset and page_token:
             lk_nf, lk_neg_sc, lk_id = _validate_and_decode_page_token(page_token, "richness")
             stmt = stmt.where(
                 tuple_(nf_expr, neg_sc_expr, Gym.id)
@@ -297,9 +326,14 @@ async def search_gyms_api(
         if distance_label is not None:
             stmt = stmt.add_columns(distance_label)
 
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
+
         rows = await session.execute(stmt)
         recs = rows.all()
-        page_rows = recs[:per_page]
+        page_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in page_rows]
 
         if distance_label is not None:
@@ -308,7 +342,7 @@ async def search_gyms_api(
                 if dist_val is not None:
                     distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             next_token = _encode_page_token_for_richness(
                 int(getattr(last_row, "nf")),
@@ -317,8 +351,7 @@ async def search_gyms_api(
             )
     elif sort == "gym_name":
         stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
-        last_name, last_id = (None, None)
-        if page_token:
+        if use_keyset and page_token:
             last_name, last_id = _validate_and_decode_page_token(page_token, "gym_name")  # type: ignore[misc]
             stmt = stmt.where(
                 or_(
@@ -329,10 +362,14 @@ async def search_gyms_api(
         if distance_label is not None:
             stmt = stmt.add_columns(distance_label)
 
-        stmt = stmt.order_by(Gym.name.asc(), Gym.id.asc()).limit(per_page + 1)
+        stmt = stmt.order_by(Gym.name.asc(), Gym.id.asc())
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
         rows = await session.execute(stmt)
         recs = rows.all()
-        page_rows = recs[:per_page]
+        page_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in page_rows]
 
         if distance_label is not None:
@@ -341,7 +378,7 @@ async def search_gyms_api(
                 if dist_val is not None:
                     distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             last = last_row[0]
             next_token = _encode_page_token_for_gym_name(
@@ -350,8 +387,7 @@ async def search_gyms_api(
 
     elif sort == "created_at":
         stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
-        lk_ts_iso, lk_id = (None, None)
-        if page_token:
+        if use_keyset and page_token:
             lk_ts_iso, lk_id = _validate_and_decode_page_token(page_token, "created_at")  # type: ignore[misc]
             try:
                 lk_ts = datetime.fromisoformat(str(lk_ts_iso))
@@ -366,10 +402,14 @@ async def search_gyms_api(
         if distance_label is not None:
             stmt = stmt.add_columns(distance_label)
 
-        stmt = stmt.order_by(Gym.created_at.desc(), Gym.id.asc()).limit(per_page + 1)
+        stmt = stmt.order_by(Gym.created_at.desc(), Gym.id.asc())
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
         rows = await session.execute(stmt)
         recs = rows.all()
-        page_rows = recs[:per_page]
+        page_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in page_rows]
 
         if distance_label is not None:
@@ -378,7 +418,7 @@ async def search_gyms_api(
                 if dist_val is not None:
                     distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             last = last_row[0]
             ts = getattr(last, "created_at", None)
@@ -390,18 +430,22 @@ async def search_gyms_api(
 
         stmt = select(Gym, distance_label).where(Gym.id.in_(base_ids.scalar_subquery()))
 
-        if page_token:
+        if use_keyset and page_token:
             lk_dist, lk_id = _validate_and_decode_page_token(page_token, "distance")
             stmt = stmt.where(
                 tuple_(distance_numeric, Gym.id)
                 > tuple_(literal(float(lk_dist)), literal(int(lk_id)))
             )
 
-        stmt = stmt.order_by(distance_numeric.asc(), Gym.id.asc()).limit(per_page + 1)
+        stmt = stmt.order_by(distance_numeric.asc(), Gym.id.asc())
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
 
         rows = await session.execute(stmt)
         recs = rows.all()
-        page_rows = recs[:per_page]
+        page_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in page_rows]
 
         for row in page_rows:
@@ -409,7 +453,7 @@ async def search_gyms_api(
             if dist_val is not None:
                 distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             next_token = _encode_page_token_for_distance(
                 float(getattr(last_row, "distance_km")), int(getattr(last_row[0], "id", 0))
@@ -475,10 +519,9 @@ async def search_gyms_api(
             .join(score_subq, score_subq.c.gym_id == Gym.id, isouter=True)
             .where(Gym.id.in_(base_ids.scalar_subquery()))
             .order_by(neg_final.asc(), Gym.id.asc())
-            .limit(per_page + 1)
         )
 
-        if page_token:
+        if use_keyset and page_token:
             lk_neg_final, lk_id = _validate_and_decode_page_token(page_token, "score")
             stmt = stmt.where(
                 tuple_(neg_final, Gym.id)
@@ -488,9 +531,14 @@ async def search_gyms_api(
         if distance_label is not None:
             stmt = stmt.add_columns(distance_label)
 
+        if use_keyset:
+            stmt = stmt.limit(per_page + 1)
+        else:
+            stmt = stmt.offset(offset).limit(per_page)
+
         rows = await session.execute(stmt)
         recs = rows.all()
-        scored_rows = recs[:per_page]
+        scored_rows = recs[:per_page] if use_keyset else recs
         gyms = [r[0] for r in scored_rows]
 
         if distance_label is not None:
@@ -499,7 +547,7 @@ async def search_gyms_api(
                 if dist_val is not None:
                     distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
-        if len(recs) > per_page:
+        if use_keyset and len(recs) > per_page:
             last_row = recs[per_page - 1]
             next_token = _encode_page_token_for_score(
                 float(last_row.neg_final), int(last_row.Gym.id)
@@ -534,12 +582,28 @@ async def search_gyms_api(
                 )
             )
 
-    has_next = len(items) == per_page and (total > 0) and (next_token is not None)
-    if not has_next:
+    if use_keyset:
+        has_more = bool(next_token) and len(items) == per_page
+        has_prev = current_page > 1 or bool(page_token)
+    else:
+        has_more = (offset + len(items)) < total
+        has_prev = offset > 0
         next_token = None
+
     logger.info(
         "gyms_search_end",
         count=len(items),
-        has_next=bool(has_next),
+        has_more=bool(has_more),
+        page=current_page,
+        page_size=per_page,
+        total=total,
     )
-    return GymSearchPageDTO(items=items, total=total, has_next=has_next, page_token=next_token)
+    return GymSearchPageDTO(
+        items=items,
+        total=total,
+        page=current_page,
+        page_size=per_page,
+        has_more=has_more,
+        has_prev=has_prev,
+        page_token=next_token,
+    )

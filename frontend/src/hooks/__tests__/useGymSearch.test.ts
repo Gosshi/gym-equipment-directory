@@ -250,7 +250,7 @@ describe("useGymSearch", () => {
 
     expect(mockRouter.push).toHaveBeenCalled();
     expect(mockRouter.push).toHaveBeenCalledWith(
-      expect.stringContaining("per_page=24"),
+      expect.stringContaining("page_size=24"),
       { scroll: false },
     );
     const [url] = mockRouter.push.mock.calls[0];
@@ -315,7 +315,7 @@ describe("useGymSearch", () => {
 
     expect(mockRouter.push).toHaveBeenCalled();
     const [url, options] = mockRouter.push.mock.calls[0];
-    expect(url).toContain("per_page=24");
+    expect(url).toContain("page_size=24");
     expect(url).toContain("lat=34.000000");
     expect(url).toContain("lng=135.000000");
     expect(url).toContain("sort=rating");

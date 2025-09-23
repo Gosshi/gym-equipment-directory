@@ -77,7 +77,8 @@ def get_gym_search_api_service(
         required_slugs: list[str],
         equipment_match: str,
         sort: str,
-        per_page: int,
+        page: int,
+        page_size: int | None,
         page_token: str | None,
     ) -> GymSearchPageDTO:
         return await _search_gyms_api(
@@ -90,7 +91,8 @@ def get_gym_search_api_service(
             required_slugs=required_slugs,
             equipment_match=equipment_match,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
-            per_page=per_page,
+            page=page,
+            page_size=page_size,
             page_token=page_token,
         )
 
@@ -111,7 +113,8 @@ def get_gym_nearby_service(
         lat: float,
         lng: float,
         radius_km: float,
-        per_page: int,
+        page: int,
+        page_size: int | None,
         page_token: str | None,
     ) -> GymNearbyResponse:
         return await _search_nearby(
@@ -119,7 +122,8 @@ def get_gym_nearby_service(
             lat=lat,
             lng=lng,
             radius_km=radius_km,
-            per_page=per_page,
+            page=page,
+            page_size=page_size,
             page_token=page_token,
         )
 

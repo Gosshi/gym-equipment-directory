@@ -10,18 +10,21 @@ from app.models import Equipment, Gym, GymEquipment
 
 @pytest.mark.asyncio
 async def test_freshness_paging_has_next_and_end(session):
+    # シードで city="funabashi" のジムが既に2件投入されているため
+    # 本テストはデータ件数=2 の前提を崩さないよう、衝突しない別 city を使用する
+    test_city = "funabashi2"
     g1 = Gym(
         slug="g1",
         name="G1",
         pref="chiba",
-        city="funabashi",
+        city=test_city,
         last_verified_at_cached=datetime(2024, 9, 1, 12, 0, 0),
     )
     g2 = Gym(
         slug="g2",
         name="G2",
         pref="chiba",
-        city="funabashi",
+        city=test_city,
         last_verified_at_cached=datetime(2024, 9, 2, 12, 0, 0),
     )
     session.add_all([g1, g2])
@@ -31,39 +34,45 @@ async def test_freshness_paging_has_next_and_end(session):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         r1 = await ac.get(
             "/gyms/search",
-            params={"pref": "chiba", "city": "funabashi", "per_page": 1, "sort": "freshness"},
+            params={
+                "pref": "chiba",
+                "city": test_city,
+                "page_size": 1,
+                "sort": "freshness",
+            },
         )
         assert r1.status_code == 200
         b1 = r1.json()
-        assert b1["has_next"] is True
-        token = b1["page_token"]
+        assert b1["has_more"] is True
+        assert b1["page"] == 1
 
         r2 = await ac.get(
             "/gyms/search",
             params={
                 "pref": "chiba",
-                "city": "funabashi",
-                "per_page": 1,
+                "city": test_city,
+                "page_size": 1,
                 "sort": "freshness",
-                "page_token": token,
+                "page": 2,
             },
         )
         assert r2.status_code == 200
         b2 = r2.json()
+        assert b2["page"] == 2
 
-        if b2.get("page_token"):
+        if b2.get("has_more"):
             r3 = await ac.get(
                 "/gyms/search",
                 params={
                     "pref": "chiba",
-                    "city": "funabashi",
-                    "per_page": 1,
+                    "city": test_city,
+                    "page_size": 1,
                     "sort": "freshness",
-                    "page_token": b2["page_token"],
+                    "page": 3,
                 },
             )
             b3 = r3.json()
-            assert b3["has_next"] is False
+            assert b3["has_more"] is False
 
 
 @pytest.mark.asyncio
@@ -88,7 +97,7 @@ async def test_token_sort_mismatch_400(session):
             params={
                 "pref": "chiba",
                 "city": "funabashi",
-                "per_page": 1,
+                "page_size": 1,
                 "sort": "richness",
                 "page_token": bogus_fresh_token,
             },
@@ -129,7 +138,7 @@ async def test_richness_paging_and_any_all(session):
                 "equipments": "squat-rack,dumbbell",
                 "equipment_match": "any",
                 "sort": "richness",
-                "per_page": 10,
+                "page_size": 10,
             },
         )
         assert r_any.status_code == 200
@@ -144,7 +153,7 @@ async def test_richness_paging_and_any_all(session):
                 "equipments": "squat-rack,dumbbell",
                 "equipment_match": "all",
                 "sort": "richness",
-                "per_page": 10,
+                "page_size": 10,
             },
         )
         assert r_all.status_code == 200

@@ -33,7 +33,8 @@ describe("lib/api", () => {
       sort: "gym_name",
       order: "asc",
       page: 1,
-      per_page: 50,
+      page_size: 100,
+      per_page: 100,
       page_token: undefined,
     });
   });
@@ -98,6 +99,7 @@ describe("lib/api", () => {
         sort: "score",
         order: "desc",
         page: 2,
+        page_size: 30,
         per_page: 30,
         page_token: "token-1",
         lat: expect.any(Number),
@@ -128,6 +130,7 @@ describe("lib/api", () => {
         perPage: 30,
         hasNext: true,
         hasPrev: true,
+        hasMore: true,
         pageToken: "next",
       },
     });

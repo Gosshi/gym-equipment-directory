@@ -146,7 +146,15 @@ async def search_gyms(
 
     total_all = len(filtered)
     if total_all == 0:
-        return GymSearchPageDTO(items=[], total=0, has_next=False, page_token=None)
+        return GymSearchPageDTO(
+            items=[],
+            total=0,
+            page=page,
+            page_size=per_page,
+            has_more=False,
+            has_prev=page > 1,
+            page_token=None,
+        )
 
     offset = parse_offset_token(page_token, page=page, per_page=per_page)
     slice_ = pagable[offset : offset + per_page]
@@ -162,9 +170,15 @@ async def search_gyms(
         for item in slice_
     ]
 
+    has_more = next_token is not None
+    has_prev = offset > 0 or page > 1
+
     return GymSearchPageDTO(
         items=dto_items,
         total=total_all,
-        has_next=next_token is not None,
+        page=page,
+        page_size=per_page,
+        has_more=has_more,
+        has_prev=has_prev,
         page_token=next_token,
     )

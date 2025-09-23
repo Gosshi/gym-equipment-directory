@@ -29,9 +29,12 @@ class GymSummary(BaseModel):
 
 class GymSearchResponse(BaseModel):
     items: list[GymSummary] = Field(description="検索結果")
-    total: int = Field(description="総件数")
-    has_next: bool = Field(description="次ページ有無")
-    page_token: str | None = None
+    total: int = Field(default=0, description="総件数")
+    page: int = Field(default=1, description="現在のページ（1始まり）")
+    page_size: int = Field(default=20, description="1ページ件数")
+    has_more: bool = Field(default=False, description="次ページが存在するか")
+    has_prev: bool = Field(default=False, description="前ページが存在するか")
+    page_token: str | None = Field(default=None, description="継続トークン（互換用）")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -52,7 +55,10 @@ class GymSearchResponse(BaseModel):
                         }
                     ],
                     "total": 2,
-                    "has_next": False,
+                    "page": 1,
+                    "page_size": 20,
+                    "has_more": False,
+                    "has_prev": False,
                     "page_token": None,
                 }
             ]
@@ -64,7 +70,7 @@ class GymSearchQuery(BaseModel):
     """/gyms/search のクエリDTO（厳格バリデーション）。
 
     - 空文字は 400 扱い（HTTPException を発生）
-    - 範囲外（per_page など）は 400 扱い
+    - 範囲外（page / page_size など）は 400 扱い
     - 許容値外（sort/equipment_match など）も 400 扱い
     """
 
@@ -96,8 +102,9 @@ class GymSearchQuery(BaseModel):
     sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"] = Field(
         default="score", description="並び順"
     )
-    per_page: int = Field(default=20, description="1ページ件数（1..50）")
-    page_token: str | None = Field(default=None, description="Keyset 継続トークン")
+    page: int = Field(default=1, description="ページ番号（1始まり）")
+    page_size: int = Field(default=20, description="1ページ件数（1..100）")
+    page_token: str | None = Field(default=None, description="Keyset 継続トークン（互換用）")
 
     @field_validator("pref", "city")
     @classmethod
@@ -123,11 +130,18 @@ class GymSearchQuery(BaseModel):
             raise HTTPException(status_code=400, detail="equipments must not be empty")
         return v
 
-    @field_validator("per_page")
+    @field_validator("page")
     @classmethod
-    def _check_per_page(cls, v: int) -> int:
-        if not (1 <= int(v) <= 50):
-            raise HTTPException(status_code=400, detail="per_page must be between 1 and 50")
+    def _check_page(cls, v: int) -> int:
+        if int(v) <= 0:
+            raise HTTPException(status_code=400, detail="page must be >= 1")
+        return int(v)
+
+    @field_validator("page_size")
+    @classmethod
+    def _check_page_size(cls, v: int) -> int:
+        if not (1 <= int(v) <= 100):
+            raise HTTPException(status_code=400, detail="page_size must be between 1 and 100")
         return int(v)
 
     # FastAPI で BaseModel をそのまま Query から受け取ると 422 になるため、
@@ -162,24 +176,45 @@ class GymSearchQuery(BaseModel):
             Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
             Query(description="並び順"),
         ] = "score",
-        per_page: Annotated[int, Query(description="1ページ件数（1..50）", examples=[10])] = 20,
-        page_token: Annotated[str | None, Query(description="Keyset 継続トークン")] = None,
+        page: Annotated[int, Query(description="ページ番号（1始まり）", ge=1)] = 1,
+        page_size: Annotated[
+            int | None,
+            Query(description="1ページ件数（1..100）", ge=1, le=100, examples=[10]),
+        ] = None,
+        per_page: Annotated[
+            int | None,
+            Query(description="1ページ件数（互換用, 1..100）", ge=1, le=100),
+        ] = None,
+        limit: Annotated[
+            int | None,
+            Query(description="limit（互換用, 1..100）", ge=1, le=100),
+        ] = None,
+        page_token: Annotated[
+            str | None, Query(description="Keyset 継続トークン（互換用）")
+        ] = None,
     ) -> GymSearchQuery:
         try:
-            return cls.model_validate(
-                {
-                    "pref": pref,
-                    "city": city,
-                    "lat": lat,
-                    "lng": lng,
-                    "radius_km": radius_km,
-                    "equipments": equipments,
-                    "equipment_match": equipment_match,
-                    "sort": sort,
-                    "per_page": per_page,
-                    "page_token": page_token,
-                }
-            )
+            resolved_page_size = None
+            for value in (page_size, per_page, limit):
+                if value is not None:
+                    resolved_page_size = int(value)
+                    break
+            payload = {
+                "pref": pref,
+                "city": city,
+                "lat": lat,
+                "lng": lng,
+                "radius_km": radius_km,
+                "equipments": equipments,
+                "equipment_match": equipment_match,
+                "sort": sort,
+                "page": page,
+                # resolved_page_size が None の場合はデフォルト値をモデルに任せるためキーを入れない
+                "page_token": page_token,
+            }
+            if resolved_page_size is not None:
+                payload["page_size"] = resolved_page_size
+            return cls.model_validate(payload)
         except ValidationError as e:  # noqa: F841 - 具体内容は隠蔽
             # 仕様として 400 を返す
             raise HTTPException(status_code=400, detail="invalid parameter")
