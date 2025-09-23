@@ -36,6 +36,18 @@ describe("lib/api", () => {
     });
   });
 
+  it("includes location filters when coordinates are provided", () => {
+    const query = buildGymSearchQuery({
+      lat: 91,
+      lng: -200,
+      distance: 2,
+    });
+
+    expect(query.lat).toBeCloseTo(90);
+    expect(query.lng).toBeCloseTo(-180);
+    expect(query.distance).toBe(2);
+  });
+
   it("delegates to the gyms search endpoint", async () => {
     apiRequest.mockResolvedValue({
       items: [
@@ -68,6 +80,9 @@ describe("lib/api", () => {
       page: 2,
       limit: 30,
       pageToken: "token-1",
+      lat: 35.6895,
+      lng: 139.6917,
+      distance: 7,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -81,6 +96,9 @@ describe("lib/api", () => {
         page: 2,
         per_page: 30,
         page_token: "token-1",
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+        distance: 7,
       },
       signal: undefined,
     });

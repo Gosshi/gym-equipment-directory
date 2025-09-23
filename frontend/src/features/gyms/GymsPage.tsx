@@ -14,6 +14,10 @@ export function GymsPage() {
     updateSort,
     updateDistance,
     clearFilters,
+    location,
+    requestLocation,
+    clearLocation,
+    setManualLocation,
     page,
     limit,
     setPage,
@@ -59,9 +63,13 @@ export function GymsPage() {
             onDistanceChange={updateDistance}
             onKeywordChange={updateKeyword}
             onPrefectureChange={updatePrefecture}
+            onRequestLocation={requestLocation}
+            onClearLocation={clearLocation}
+            onManualLocationChange={setManualLocation}
             onReloadCities={reloadCities}
             onReloadMeta={reloadMeta}
             onSortChange={updateSort}
+            location={location}
             prefectures={prefectures}
             state={formState}
           />

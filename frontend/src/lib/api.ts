@@ -2,8 +2,13 @@ import { apiRequest } from "@/lib/apiClient";
 import type { GymSearchResponse, GymSummary } from "@/types/gym";
 
 import {
+  DEFAULT_DISTANCE_KM,
   DEFAULT_LIMIT,
   MAX_LIMIT,
+  MIN_DISTANCE_KM,
+  MAX_DISTANCE_KM,
+  clampLatitude,
+  clampLongitude,
   type SortOption,
 } from "./searchParams";
 
@@ -40,6 +45,17 @@ const clampLimit = (value: number | undefined): number => {
   return Math.min(parsed, MAX_LIMIT);
 };
 
+const clampDistanceKm = (value: number | null | undefined): number | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  const rounded = Math.round(value);
+  return Math.min(Math.max(rounded, MIN_DISTANCE_KM), MAX_DISTANCE_KM);
+};
+
 export interface FetchGymsParams {
   q?: string;
   pref?: string | null;
@@ -49,6 +65,9 @@ export interface FetchGymsParams {
   page?: number;
   limit?: number;
   pageToken?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  distance?: number | null;
 }
 
 export type RawGymSummary = {
@@ -165,6 +184,16 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const limit = clampLimit(params.limit);
   const cats = normalizeCats(params.cats);
   const sort = sortOptionToApiSort(params.sort ?? undefined);
+  const latInput =
+    typeof params.lat === "number" && Number.isFinite(params.lat) ? params.lat : undefined;
+  const lngInput =
+    typeof params.lng === "number" && Number.isFinite(params.lng) ? params.lng : undefined;
+  const hasLocation = latInput !== undefined && lngInput !== undefined;
+  const lat = hasLocation ? clampLatitude(latInput!) : undefined;
+  const lng = hasLocation ? clampLongitude(lngInput!) : undefined;
+  const distance = hasLocation
+    ? clampDistanceKm(params.distance ?? DEFAULT_DISTANCE_KM)
+    : undefined;
 
   return {
     q: params.q?.trim() || undefined,
@@ -175,6 +204,13 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     page,
     per_page: limit,
     page_token: params.pageToken ?? undefined,
+    ...(hasLocation && lat !== undefined && lng !== undefined
+      ? {
+          lat,
+          lng,
+          distance: distance ?? DEFAULT_DISTANCE_KM,
+        }
+      : {}),
   };
 };
 
