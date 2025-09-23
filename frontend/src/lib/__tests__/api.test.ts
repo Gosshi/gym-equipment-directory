@@ -22,6 +22,9 @@ describe("lib/api", () => {
       sort: "fresh",
       page: -10,
       limit: 200,
+      lat: 35.681236,
+      lng: 139.767125,
+      distanceKm: 60,
     });
 
     expect(query).toEqual({
@@ -33,6 +36,9 @@ describe("lib/api", () => {
       page: 1,
       per_page: 50,
       page_token: undefined,
+      lat: 35.681236,
+      lng: 139.767125,
+      distance_km: 50,
     });
   });
 
@@ -65,6 +71,9 @@ describe("lib/api", () => {
       page: 2,
       limit: 30,
       pageToken: "token-1",
+      lat: 35.681236,
+      lng: 139.767125,
+      distanceKm: 7,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -78,6 +87,9 @@ describe("lib/api", () => {
         page: 2,
         per_page: 30,
         page_token: "token-1",
+        lat: 35.681236,
+        lng: 139.767125,
+        distance_km: 7,
       },
       signal: undefined,
     });

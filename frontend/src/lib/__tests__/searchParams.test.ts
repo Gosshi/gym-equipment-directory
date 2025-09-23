@@ -13,7 +13,7 @@ import {
 describe("searchParams", () => {
   it("parses query parameters into a normalized filter state", () => {
     const params = new URLSearchParams(
-      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&limit=40&distance=25",
+      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&limit=40&distance_km=25&lat=35.681236&lng=139.767125",
     );
 
     const state = parseFilterState(params);
@@ -27,11 +27,15 @@ describe("searchParams", () => {
       page: 2,
       limit: 40,
       distance: 25,
+      lat: 35.681236,
+      lng: 139.767125,
     });
   });
 
   it("falls back to defaults when parameters are missing or invalid", () => {
-    const params = new URLSearchParams("cats=,,,&page=-3&limit=9999&distance=999");
+    const params = new URLSearchParams(
+      "cats=,,,&page=-3&limit=9999&distance_km=999&lat=invalid&lng=200",
+    );
 
     const state = parseFilterState(params);
 
@@ -43,6 +47,8 @@ describe("searchParams", () => {
     expect(state.page).toBe(1);
     expect(state.limit).toBe(MAX_LIMIT);
     expect(state.distance).toBe(MAX_DISTANCE_KM);
+    expect(state.lat).toBeNull();
+    expect(state.lng).toBeNull();
   });
 
   it("serializes a filter state into query parameters while omitting defaults", () => {
@@ -56,6 +62,8 @@ describe("searchParams", () => {
       page: 3,
       limit: 30,
       distance: DEFAULT_DISTANCE_KM + 1,
+      lat: 35.0,
+      lng: 139.0,
     });
 
     expect(params.get("q")).toBe("deadlift");
@@ -65,7 +73,9 @@ describe("searchParams", () => {
     expect(params.get("sort")).toBe("newest");
     expect(params.get("page")).toBe("3");
     expect(params.get("limit")).toBe("30");
-    expect(params.get("distance")).toBe(String(DEFAULT_DISTANCE_KM + 1));
+    expect(params.get("lat")).toBe("35.000000");
+    expect(params.get("lng")).toBe("139.000000");
+    expect(params.get("distance_km")).toBe(String(DEFAULT_DISTANCE_KM + 1));
   });
 
   it("round-trips between serialization and parsing", () => {
@@ -78,6 +88,8 @@ describe("searchParams", () => {
       page: 4,
       limit: 24,
       distance: 12,
+      lat: 43.06417,
+      lng: 141.34694,
     });
 
     const state = parseFilterState(params);
@@ -91,6 +103,8 @@ describe("searchParams", () => {
       page: 4,
       limit: 24,
       distance: 12,
+      lat: 43.06417,
+      lng: 141.34694,
     });
   });
 

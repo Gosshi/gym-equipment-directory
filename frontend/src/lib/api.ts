@@ -2,8 +2,11 @@ import { apiRequest } from "@/lib/apiClient";
 import type { GymSearchResponse, GymSummary } from "@/types/gym";
 
 import {
+  DEFAULT_DISTANCE_KM,
   DEFAULT_LIMIT,
+  MAX_DISTANCE_KM,
   MAX_LIMIT,
+  MIN_DISTANCE_KM,
   type SortOption,
 } from "./searchParams";
 
@@ -40,6 +43,30 @@ const clampLimit = (value: number | undefined): number => {
   return Math.min(parsed, MAX_LIMIT);
 };
 
+const normalizeCoordinate = (
+  value: number | null | undefined,
+  min: number,
+  max: number,
+) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  const normalized = Number.parseFloat(value.toFixed(6));
+  if (normalized < min || normalized > max) {
+    return undefined;
+  }
+  return normalized;
+};
+
+const normalizeDistanceKm = (value: number | null | undefined) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  const rounded = Math.round(value);
+  const clamped = Math.min(Math.max(rounded, MIN_DISTANCE_KM), MAX_DISTANCE_KM);
+  return clamped;
+};
+
 export interface FetchGymsParams {
   q?: string;
   pref?: string | null;
@@ -49,6 +76,9 @@ export interface FetchGymsParams {
   page?: number;
   limit?: number;
   pageToken?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  distanceKm?: number | null;
 }
 
 export type RawGymSummary = {
@@ -162,6 +192,18 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const limit = clampLimit(params.limit);
   const cats = normalizeCats(params.cats);
   const sort = sortOptionToApiSort(params.sort ?? undefined);
+  const lat = normalizeCoordinate(params.lat ?? null, -90, 90);
+  const lng = normalizeCoordinate(params.lng ?? null, -180, 180);
+  const distanceKm = normalizeDistanceKm(params.distanceKm ?? undefined);
+
+  const locationQuery =
+    lat != null && lng != null
+      ? {
+          lat,
+          lng,
+          distance_km: distanceKm ?? DEFAULT_DISTANCE_KM,
+        }
+      : {};
 
   return {
     q: params.q?.trim() || undefined,
@@ -172,6 +214,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     page,
     per_page: limit,
     page_token: params.pageToken ?? undefined,
+    ...locationQuery,
   };
 };
 

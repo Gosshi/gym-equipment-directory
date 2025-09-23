@@ -31,6 +31,7 @@ export function GymsPage() {
     isMetaLoading,
     metaError,
     reloadMeta,
+    location,
   } = useGymSearch();
 
   const { toast } = useToast();
@@ -70,6 +71,7 @@ export function GymsPage() {
           isMetaLoading={isMetaLoading}
           keyword={formState.q}
           distance={formState.distance}
+          hasLocation={Boolean(location)}
           metaError={metaError}
           onCategoriesChange={updateCategories}
           onClear={clearFilters}

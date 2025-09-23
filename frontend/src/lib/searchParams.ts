@@ -1,3 +1,5 @@
+import { normalizeLatLng, parseLatLng } from "@/lib/geo";
+
 export type SortOption = "distance" | "popular" | "fresh" | "newest";
 
 export const SORT_OPTIONS: SortOption[] = [
@@ -15,7 +17,7 @@ export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 50;
 
 export const MIN_DISTANCE_KM = 1;
-export const MAX_DISTANCE_KM = 30;
+export const MAX_DISTANCE_KM = 50;
 export const DISTANCE_STEP_KM = 1;
 export const DEFAULT_DISTANCE_KM = 5;
 
@@ -28,6 +30,8 @@ export interface FilterState {
   page: number;
   limit: number;
   distance: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -39,6 +43,8 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   page: 1,
   limit: DEFAULT_LIMIT,
   distance: DEFAULT_DISTANCE_KM,
+  lat: null,
+  lng: null,
 };
 
 const parsePositiveInt = (value: string | null, fallback: number): number => {
@@ -114,6 +120,30 @@ const parseDistance = (value: string | null): number => {
   return clampDistance(parsed);
 };
 
+const parseLocation = (params: URLSearchParams) => {
+  const center = params.get("center");
+  if (center) {
+    const parsed = parseLatLng(center);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  const latValue = params.get("lat") ?? params.get("latitude");
+  const lngValue = params.get("lng") ?? params.get("longitude");
+  if (latValue == null || lngValue == null) {
+    return null;
+  }
+
+  const lat = Number.parseFloat(latValue);
+  const lng = Number.parseFloat(lngValue);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  return normalizeLatLng(lat, lng);
+};
+
 export const parseFilterState = (params: URLSearchParams): FilterState => {
   const q = params.get("q")?.trim() ?? "";
   const pref = sanitizeSlug(params.get("pref") ?? params.get("prefecture"));
@@ -124,7 +154,8 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const limit = clampLimit(
     parsePositiveInt(params.get("limit") ?? params.get("per_page"), DEFAULT_LIMIT),
   );
-  const distance = parseDistance(params.get("distance"));
+  const distance = parseDistance(params.get("distance_km") ?? params.get("distance"));
+  const location = parseLocation(params);
 
   return {
     q,
@@ -135,6 +166,8 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
     page,
     limit,
     distance,
+    lat: location?.lat ?? null,
+    lng: location?.lng ?? null,
   };
 };
 
@@ -162,8 +195,15 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   if (state.limit !== DEFAULT_LIMIT) {
     params.set("limit", String(state.limit));
   }
+  if (state.lat != null && state.lng != null) {
+    const normalized = normalizeLatLng(state.lat, state.lng);
+    if (normalized) {
+      params.set("lat", normalized.lat.toFixed(6));
+      params.set("lng", normalized.lng.toFixed(6));
+    }
+  }
   if (state.distance !== DEFAULT_DISTANCE_KM) {
-    params.set("distance", String(state.distance));
+    params.set("distance_km", String(state.distance));
   }
 
   return params;

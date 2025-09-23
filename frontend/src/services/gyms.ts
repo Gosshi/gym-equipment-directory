@@ -38,6 +38,9 @@ export interface SearchGymsParams {
   perPage?: number;
   limit?: number;
   pageToken?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  distanceKm?: number | null;
 }
 
 const normalizeImageUrls = (source: unknown): string[] | undefined => {
@@ -173,6 +176,9 @@ export async function searchGyms(
     page: params.page,
     limit: params.limit ?? params.perPage,
     pageToken: params.pageToken ?? undefined,
+    lat: params.lat ?? undefined,
+    lng: params.lng ?? undefined,
+    distanceKm: params.distanceKm ?? undefined,
   };
 
   return fetchGymsApi(request, options);

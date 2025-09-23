@@ -26,6 +26,7 @@ import type {
 } from "@/types/meta";
 
 const DEFAULT_DEBOUNCE_MS = 300;
+const EMPTY_META: GymSearchMeta = { total: 0, hasNext: false, pageToken: null };
 
 export interface SearchError {
   type: "client" | "server";
@@ -72,6 +73,8 @@ const buildFilterStateFromForm = (
   page: 1,
   limit: base.limit,
   distance: form.distance,
+  lat: base.lat,
+  lng: base.lng,
   ...overrides,
 });
 
@@ -82,6 +85,7 @@ export interface UseGymSearchOptions {
 export interface UseGymSearchResult {
   formState: FormState;
   appliedFilters: FilterState;
+  location: { lat: number; lng: number } | null;
   updateKeyword: (value: string) => void;
   updatePrefecture: (value: string) => void;
   updateCity: (value: string) => void;
@@ -123,6 +127,14 @@ export function useGymSearch(
   const appliedFilters = useMemo(
     () => parseFilterState(new URLSearchParams(searchParamsKey)),
     [searchParamsKey],
+  );
+
+  const location = useMemo(
+    () =>
+      appliedFilters.lat != null && appliedFilters.lng != null
+        ? { lat: appliedFilters.lat, lng: appliedFilters.lng }
+        : null,
+    [appliedFilters.lat, appliedFilters.lng],
   );
 
   const [formState, setFormState] = useState<FormState>(() =>
@@ -234,10 +246,18 @@ export function useGymSearch(
     const resetFilters: FilterState = {
       ...DEFAULT_FILTER_STATE,
       limit: appliedFilters.limit,
+      lat: appliedFilters.lat,
+      lng: appliedFilters.lng,
     };
     setFormState(toFormState(resetFilters));
     applyFilters(resetFilters);
-  }, [appliedFilters.limit, applyFilters, debouncedApply]);
+  }, [
+    appliedFilters.lat,
+    appliedFilters.lng,
+    appliedFilters.limit,
+    applyFilters,
+    debouncedApply,
+  ]);
 
   const setPage = useCallback(
     (page: number, options: { append?: boolean } = {}) => {
@@ -272,11 +292,7 @@ export function useGymSearch(
   );
 
   const [items, setItems] = useState<GymSummary[]>([]);
-  const [meta, setMeta] = useState<GymSearchMeta>({
-    total: 0,
-    hasNext: false,
-    pageToken: null,
-  });
+  const [meta, setMeta] = useState<GymSearchMeta>(() => ({ ...EMPTY_META }));
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<SearchError | null>(null);
@@ -292,6 +308,16 @@ export function useGymSearch(
   }, [appliedFilters.page, isLoading, meta.hasNext, setPage]);
 
   useEffect(() => {
+    if (!location) {
+      appendModeRef.current = false;
+      setItems([]);
+      setMeta({ ...EMPTY_META });
+      setHasLoadedOnce(false);
+      setIsLoading(false);
+      setError({ message: "位置を指定してください", type: "client" });
+      return;
+    }
+
     const controller = new AbortController();
     let active = true;
     const shouldAppend = appendModeRef.current;
@@ -300,18 +326,23 @@ export function useGymSearch(
     setIsLoading(true);
     setError(null);
 
-    searchGyms(
-      {
-        q: appliedFilters.q || undefined,
-        prefecture: appliedFilters.pref ?? undefined,
-        city: appliedFilters.city ?? undefined,
-        categories: appliedFilters.categories,
-        sort: appliedFilters.sort,
-        page: appliedFilters.page,
-        limit: appliedFilters.limit,
-      },
-      { signal: controller.signal },
-    )
+    const requestPayload = {
+      q: appliedFilters.q || undefined,
+      prefecture: appliedFilters.pref ?? undefined,
+      city: appliedFilters.city ?? undefined,
+      categories: appliedFilters.categories,
+      sort: appliedFilters.sort,
+      page: appliedFilters.page,
+      limit: appliedFilters.limit,
+      lat: location.lat,
+      lng: location.lng,
+      distanceKm: appliedFilters.distance,
+    };
+
+    // TODO: Remove console.info after launch monitoring (2024-10-01).
+    console.info("search params", requestPayload);
+
+    searchGyms(requestPayload, { signal: controller.signal })
       .then((response) => {
         if (!active) {
           return;
@@ -372,7 +403,7 @@ export function useGymSearch(
       active = false;
       controller.abort();
     };
-  }, [appliedFilters, refreshIndex]);
+  }, [appliedFilters, location, refreshIndex]);
 
   const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
   const [equipmentCategories, setEquipmentCategories] =
@@ -493,6 +524,7 @@ export function useGymSearch(
   return {
     formState,
     appliedFilters,
+    location,
     updateKeyword,
     updatePrefecture,
     updateCity,

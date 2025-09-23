@@ -18,6 +18,7 @@ type SearchBarProps = {
   prefecture: string;
   categories: string[];
   distance: number;
+  hasLocation: boolean;
   prefectures: PrefectureOption[];
   categoryOptions: EquipmentCategoryOption[];
   isMetaLoading: boolean;
@@ -35,6 +36,7 @@ export function SearchBar({
   prefecture,
   categories,
   distance,
+  hasLocation,
   prefectures,
   categoryOptions,
   isMetaLoading,
@@ -160,13 +162,14 @@ export function SearchBar({
 
         <div className="space-y-3">
           <label className="text-sm font-medium" htmlFor="gym-search-distance">
-            距離（km）
+            距離（km）: {distance}km
           </label>
           <input
             aria-label="現在地からの検索距離"
             aria-valuemax={MAX_DISTANCE_KM}
             aria-valuemin={MIN_DISTANCE_KM}
             aria-valuenow={distance}
+            aria-valuetext={`${distance}キロメートル`}
             className="w-full"
             id="gym-search-distance"
             max={MAX_DISTANCE_KM}
@@ -178,9 +181,15 @@ export function SearchBar({
             type="range"
             value={distance}
           />
-          <p className="text-xs text-muted-foreground">
-            現在地から約 {distance}km 圏内のジムを検索します。
-          </p>
+          {hasLocation ? (
+            <p className="text-xs text-muted-foreground">
+              現在地から約 {distance}km 圏内のジムを検索します。
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600" role="status">
+              位置を指定してください
+            </p>
+          )}
         </div>
       </form>
 
