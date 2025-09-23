@@ -200,13 +200,21 @@ export interface HistoryResponse {
   items: GymSummary[];
 }
 
-export const getFavorites = (deviceId: string) =>
-  apiRequest<FavoritesArrayResponse>(
-    `/me/favorites?device_id=${encodeURIComponent(deviceId)}`,
-    {
-      method: "GET",
-    },
-  );
+export const getFavorites = async (deviceId: string) => {
+  try {
+    return await apiRequest<FavoritesArrayResponse>(
+      `/me/favorites?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: "GET",
+      },
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return [];
+    }
+    throw error;
+  }
+};
 
 export const addFavorite = (deviceId: string, gymId: number) =>
   apiRequest<void>("/me/favorites", {
@@ -223,8 +231,16 @@ type HistoryPayload =
   | { gymId: number; gymIds?: never }
   | { gymIds: number[]; gymId?: never };
 
-export const getHistory = () =>
-  apiRequest<HistoryResponse>("/me/history", { method: "GET" });
+export const getHistory = async () => {
+  try {
+    return await apiRequest<HistoryResponse>("/me/history", { method: "GET" });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return { items: [] };
+    }
+    throw error;
+  }
+};
 
 export const addHistory = (payload: HistoryPayload) => {
   const hasGymId = typeof payload.gymId === "number";
