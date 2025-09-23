@@ -112,9 +112,7 @@ async def search_nearby(
 
     if use_keyset and page_token:
         lk_dist, lk_id = _validate_and_decode_page_token(page_token)
-        stmt = stmt.where(
-            tuple_(dist_num, Gym.id) > tuple_(literal(lk_dist), literal(int(lk_id)))
-        )
+        stmt = stmt.where(tuple_(dist_num, Gym.id) > tuple_(literal(lk_dist), literal(int(lk_id))))
 
     stmt = stmt.order_by(dist_num.asc(), Gym.id.asc())
     if use_keyset:

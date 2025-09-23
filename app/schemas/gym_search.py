@@ -189,7 +189,9 @@ class GymSearchQuery(BaseModel):
             int | None,
             Query(description="limit（互換用, 1..100）", ge=1, le=100),
         ] = None,
-        page_token: Annotated[str | None, Query(description="Keyset 継続トークン（互換用）")] = None,
+        page_token: Annotated[
+            str | None, Query(description="Keyset 継続トークン（互換用）")
+        ] = None,
     ) -> GymSearchQuery:
         try:
             resolved_page_size = None
