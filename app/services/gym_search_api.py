@@ -14,6 +14,7 @@ from sqlalchemy.types import Numeric
 
 from app.dto import GymSearchPageDTO, GymSummaryDTO
 from app.models import Equipment, Gym, GymEquipment
+from app.models.gym_equipment import Availability
 
 FRESHNESS_WINDOW_DAYS = int(os.getenv("FRESHNESS_WINDOW_DAYS", "365"))
 W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
@@ -201,11 +202,14 @@ async def search_gyms_api(
     if required_slugs:
         eq_ids_stmt = select(Equipment.id).where(Equipment.slug.in_(required_slugs))
 
+        availability_filter = GymEquipment.availability == Availability.present
+
         if equipment_match == "any":
             base_ids = (
                 select(Gym.id)
                 .join(GymEquipment, GymEquipment.gym_id == Gym.id)
                 .where(GymEquipment.equipment_id.in_(eq_ids_stmt))
+                .where(availability_filter)
                 .where(Gym.id.in_(base_ids))
                 .distinct()
             )
@@ -213,6 +217,7 @@ async def search_gyms_api(
             ge_grouped_stmt = (
                 select(GymEquipment.gym_id)
                 .where(GymEquipment.equipment_id.in_(eq_ids_stmt))
+                .where(availability_filter)
                 .group_by(GymEquipment.gym_id)
                 .having(func.count(func.distinct(GymEquipment.equipment_id)) == len(required_slugs))
             )

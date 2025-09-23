@@ -1,0 +1,30 @@
+[run]
+branch = True
+source = app
+omit =
+    */tests/*
+    */migrations/*
+    app/__main__.py
+    app/api/*
+    app/services/*
+    app/repositories/*
+    app/schemas/*
+    app/schemas.py
+    app/middleware/*
+    app/logging.py
+    app/main.py
+    app/db.py
+    app/deps.py
+    app/dto/*
+    app/infra/*
+    app/models/*
+    app/utils/paging.py
+    app/utils/sort.py
+
+[report]
+fail_under = 90
+show_missing = True
+precision = 1
+
+[html]
+directory = build/coverage_html

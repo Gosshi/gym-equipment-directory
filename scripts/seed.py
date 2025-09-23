@@ -11,7 +11,7 @@ import os
 import random
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TypedDict
 
 from sqlalchemy import select
@@ -27,6 +27,16 @@ from app.models.source import SourceType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _is_truthy_env(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+TEST_MODE = _is_truthy_env(os.getenv("SEED_TEST_MODE"))
+TEST_RANDOM_SEED = int(os.getenv("SEED_TEST_RANDOM_SEED", "20250101"))
 
 
 class CityAnchor(TypedDict):
@@ -153,7 +163,28 @@ class BulkContext:
 BULK_CONTEXT: BulkContext | None = None
 
 
-EQUIPMENT_SEED: list[tuple[str, str, str]] = [
+def resolve_seed_payload(test_mode: bool) -> tuple[
+    list[tuple[str, str, str]],
+    list[tuple[str, str, str, str, str, str | None, float, float]],
+    list[tuple[str, str, Availability, int | None, int | None]],
+    dict[str, dict[str, int | None]],
+]:
+    if test_mode:
+        return (
+            TEST_EQUIPMENT_SEED,
+            TEST_GYM_SEED,
+            TEST_GYM_EQUIPMENT_SEED,
+            TEST_GYM_METADATA,
+        )
+    return (
+        DEFAULT_EQUIPMENT_SEED,
+        DEFAULT_GYM_SEED,
+        DEFAULT_GYM_EQUIPMENT_SEED,
+        {},
+    )
+
+
+DEFAULT_EQUIPMENT_SEED: list[tuple[str, str, str]] = [
     ("squat-rack", "スクワットラック", "free_weight"),
     ("bench-press", "ベンチプレス", "free_weight"),
     ("dumbbell", "ダンベル", "free_weight"),
@@ -177,7 +208,7 @@ EQUIPMENT_SEED: list[tuple[str, str, str]] = [
 ]
 
 
-GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]] = [
+DEFAULT_GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]] = [
     (
         "dummy-funabashi-east",
         "ダミージム 船橋イースト",
@@ -231,7 +262,9 @@ GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]] = [
 ]
 
 
-GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] = [
+DEFAULT_GYM_EQUIPMENT_SEED: list[
+    tuple[str, str, Availability, int | None, int | None]
+] = [
     ("dummy-funabashi-east", "squat-rack", Availability.present, 2, None),
     ("dummy-funabashi-east", "bench-press", Availability.present, 3, None),
     ("dummy-funabashi-east", "dumbbell", Availability.present, None, 40),
@@ -251,6 +284,116 @@ GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] 
     ("dummy-makuhari-coast", "leg-press", Availability.present, 1, None),
     ("dummy-makuhari-coast", "rowing", Availability.unknown, None, None),
 ]
+
+
+TEST_EQUIPMENT_SEED: list[tuple[str, str, str]] = [
+    ("squat-rack", "スクワットラック", "free_weight"),
+    ("bench-press", "ベンチプレス", "free_weight"),
+    ("dumbbell", "ダンベル", "free_weight"),
+    ("treadmill", "トレッドミル", "cardio"),
+    ("bike", "エアロバイク", "cardio"),
+    ("rowing", "ローイングマシン", "cardio"),
+    ("lat-pulldown", "ラットプルダウン", "machine"),
+]
+
+
+TEST_GYM_SEED: list[tuple[str, str, str, str, str, str | None, float, float]] = [
+    (
+        "funabashi-station-gym",
+        "テストジム 船橋ステーション",
+        "chiba",
+        "funabashi",
+        "千葉県船橋市本町1-1-1",
+        None,
+        35.7000,
+        139.9850,
+    ),
+    (
+        "funabashi-bay-gym",
+        "テストジム 船橋ベイ",
+        "chiba",
+        "funabashi",
+        "千葉県船橋市湊町2-2-2",
+        None,
+        35.7055,
+        139.9850,
+    ),
+    (
+        "narashino-center-gym",
+        "テストジム 習志野センター",
+        "chiba",
+        "narashino",
+        "千葉県習志野市谷津3-3-3",
+        None,
+        35.6900,
+        140.0200,
+    ),
+    (
+        "urayasu-resort-gym",
+        "テストジム 浦安リゾート",
+        "chiba",
+        "urayasu",
+        "千葉県浦安市舞浜4-4-4",
+        None,
+        35.6380,
+        139.9000,
+    ),
+    (
+        "koto-riverside-gym",
+        "テストジム 江東リバー",
+        "tokyo",
+        "koto",
+        "東京都江東区豊洲5-5-5",
+        None,
+        35.6700,
+        139.8200,
+    ),
+    (
+        "sumida-tower-gym",
+        "テストジム 墨田タワー",
+        "tokyo",
+        "sumida",
+        "東京都墨田区押上6-6-6",
+        None,
+        35.7100,
+        139.8100,
+    ),
+]
+
+
+TEST_GYM_EQUIPMENT_SEED: list[
+    tuple[str, str, Availability, int | None, int | None]
+] = [
+    ("funabashi-station-gym", "squat-rack", Availability.present, 2, None),
+    ("funabashi-station-gym", "bench-press", Availability.present, 2, None),
+    ("funabashi-station-gym", "dumbbell", Availability.present, None, 50),
+    ("funabashi-station-gym", "treadmill", Availability.present, 4, None),
+    ("funabashi-station-gym", "bike", Availability.unknown, None, None),
+    ("funabashi-bay-gym", "dumbbell", Availability.present, None, 32),
+    ("funabashi-bay-gym", "bike", Availability.present, 3, None),
+    ("funabashi-bay-gym", "rowing", Availability.present, 1, None),
+    ("funabashi-bay-gym", "squat-rack", Availability.absent, None, None),
+    ("narashino-center-gym", "bench-press", Availability.present, 1, None),
+    ("narashino-center-gym", "lat-pulldown", Availability.present, 1, None),
+    ("narashino-center-gym", "treadmill", Availability.unknown, None, None),
+    ("urayasu-resort-gym", "treadmill", Availability.present, 5, None),
+    ("urayasu-resort-gym", "bike", Availability.absent, None, None),
+    ("koto-riverside-gym", "rowing", Availability.present, 2, None),
+    ("koto-riverside-gym", "dumbbell", Availability.absent, None, None),
+    ("sumida-tower-gym", "squat-rack", Availability.present, 1, None),
+    ("sumida-tower-gym", "lat-pulldown", Availability.present, 1, None),
+    ("sumida-tower-gym", "bike", Availability.present, 2, None),
+]
+
+
+TEST_GYM_METADATA: dict[str, dict[str, int | None]] = {
+    "funabashi-station-gym": {"last_verified_days": 5, "created_days": 15},
+    "funabashi-bay-gym": {"last_verified_days": 30, "created_days": 25},
+    "narashino-center-gym": {"last_verified_days": 45, "created_days": 20},
+    "urayasu-resort-gym": {"last_verified_days": 120, "created_days": 10},
+    "koto-riverside-gym": {"last_verified_days": 200, "created_days": 5},
+    "sumida-tower-gym": {"last_verified_days": None, "created_days": 2},
+}
 
 
 # ---------- get-or-create helpers (ALL ASYNC) ----------
@@ -318,6 +461,18 @@ async def link_gym_equipment(
     last_verified_at: datetime | None = None,
     notes: str | None = None,
 ) -> GymEquipment:
+    resolved_status = verification_status
+    if (
+        availability == Availability.present
+        and verification_status == VerificationStatus.unverified
+    ):
+        resolved_status = VerificationStatus.user_verified
+    elif (
+        availability == Availability.absent
+        and verification_status != VerificationStatus.unverified
+    ):
+        resolved_status = VerificationStatus.unverified
+
     result = await sess.execute(
         select(GymEquipment).where(
             (GymEquipment.gym_id == gym.id) & (GymEquipment.equipment_id == eq.id)
@@ -329,7 +484,7 @@ async def link_gym_equipment(
         ge.availability = availability
         ge.count = count
         ge.max_weight_kg = max_weight_kg
-        ge.verification_status = verification_status
+        ge.verification_status = resolved_status
         ge.source_id = source.id if source else None
         ge.last_verified_at = last_verified_at
         ge.notes = notes
@@ -341,7 +496,7 @@ async def link_gym_equipment(
         availability=availability,
         count=count,
         max_weight_kg=max_weight_kg,
-        verification_status=verification_status,
+        verification_status=resolved_status,
         source_id=source.id if source else None,
         last_verified_at=last_verified_at,
         notes=notes,
@@ -519,10 +674,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 async def async_main(args: argparse.Namespace) -> int:
-    overwrite_geo_env = os.getenv("SEED_OVERWRITE_GEO", "").lower() in {"1", "true", "yes"}
+    overwrite_geo_env = _is_truthy_env(os.getenv("SEED_OVERWRITE_GEO"))
     overwrite_geo = args.overwrite_geo or overwrite_geo_env
 
-    rng = random.Random(args.seed) if args.seed is not None else random.Random()
+    test_mode = TEST_MODE
+    if test_mode:
+        seed_value = args.seed if args.seed is not None else TEST_RANDOM_SEED
+        rng = random.Random(seed_value)
+        logger.info(
+            "SEED_TEST_MODE=1 detected; generating deterministic test dataset (seed=%s).",
+            seed_value,
+        )
+    else:
+        rng = random.Random(args.seed) if args.seed is not None else random.Random()
+
+    equipment_seed, gym_seed, gym_equipment_seed, gym_metadata = resolve_seed_payload(
+        test_mode
+    )
+
+    utc_now = datetime.utcnow()
+    utc_now_tz = datetime.now(datetime.UTC)
 
     async with SessionLocal() as sess:
         src = await get_or_create_source(
@@ -530,16 +701,16 @@ async def async_main(args: argparse.Namespace) -> int:
             stype=SourceType.user_submission,
             title="ダミー投稿（seed）",
             url=None,
-            captured_at=datetime.utcnow(),
+            captured_at=utc_now_tz,
         )
 
         slug_to_eq: dict[str, Equipment] = {}
-        for slug, name, cat in EQUIPMENT_SEED:
+        for slug, name, cat in equipment_seed:
             eq = await get_or_create_equipment(sess, slug=slug, name=name, category=cat)
             slug_to_eq[slug] = eq
 
         slug_to_gym: dict[str, Gym] = {}
-        for slug, name, pref, city, addr, url, lat, lng in GYM_SEED:
+        for slug, name, pref, city, addr, url, lat, lng in gym_seed:
             g = await get_or_create_gym(
                 sess,
                 slug=slug,
@@ -552,12 +723,23 @@ async def async_main(args: argparse.Namespace) -> int:
                 longitude=lng,
                 overwrite_geo=overwrite_geo,
             )
+            meta = gym_metadata.get(slug)
+            if meta:
+                last_days = meta.get("last_verified_days")
+                if last_days is None:
+                    g.last_verified_at_cached = None
+                else:
+                    g.last_verified_at_cached = utc_now - timedelta(days=int(last_days))
+                created_days = meta.get("created_days")
+                if created_days is not None:
+                    created_at = utc_now_tz - timedelta(days=int(created_days))
+                    g.created_at = created_at
+                    g.updated_at = created_at
             slug_to_gym[slug] = g
 
         await sess.commit()  # ここでIDが確定
 
-        now = datetime.utcnow()
-        for gym_slug, eq_slug, avail, count, max_w in GYM_EQUIPMENT_SEED:
+        for gym_slug, eq_slug, avail, count, max_w in gym_equipment_seed:
             g = slug_to_gym[gym_slug]
             e = slug_to_eq[eq_slug]
             await link_gym_equipment(
@@ -571,18 +753,18 @@ async def async_main(args: argparse.Namespace) -> int:
                 if avail == Availability.present
                 else VerificationStatus.unverified,
                 source=src,
-                last_verified_at=now,
+                last_verified_at=utc_now_tz,
             )
 
         await sess.commit()
 
         bulk_inserted = 0
-        if args.bulk_gyms is not None:
+        if args.bulk_gyms is not None and not test_mode:
             global BULK_CONTEXT
             BULK_CONTEXT = BulkContext(
                 source=src,
                 slug_to_eq=slug_to_eq,
-                equipment_categories={slug: cat for slug, _, cat in EQUIPMENT_SEED},
+                equipment_categories={slug: cat for slug, _, cat in equipment_seed},
                 overwrite_geo=overwrite_geo,
             )
             try:
@@ -598,7 +780,9 @@ async def async_main(args: argparse.Namespace) -> int:
             await sess.commit()
 
     print("✅ Seed completed.")
-    if args.bulk_gyms is not None:
+    if test_mode and args.bulk_gyms:
+        print("Bulk generation is disabled in SEED_TEST_MODE; ignoring --bulk-gyms request.")
+    elif args.bulk_gyms is not None:
         print(
             "Bulk gyms inserted: "
             f"{bulk_inserted} (equip per gym: {args.equip_per_gym}, region: {args.bulk_region})"
