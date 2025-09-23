@@ -50,7 +50,7 @@ describe("useGymSearch", () => {
     useSearchParams.mockReturnValue(new URLSearchParams());
     searchGyms.mockResolvedValue({
       items: [],
-      meta: { total: 0, hasNext: false, pageToken: null },
+      meta: { total: 0, page: 1, perPage: 20, hasNext: false, hasPrev: false, pageToken: null },
     });
     getPrefectures.mockResolvedValue([
       { value: "tokyo", label: "Tokyo" },
@@ -71,7 +71,7 @@ describe("useGymSearch", () => {
   it("derives the initial state from query parameters", async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams(
-        "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=newest&page=2&limit=30&distance=15",
+        "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=newest&page=2&per_page=30&distance=15",
       ),
     );
 
@@ -100,6 +100,7 @@ describe("useGymSearch", () => {
         sort: "newest",
         page: 2,
         limit: 30,
+        perPage: 30,
       },
       { signal: expect.any(AbortSignal) },
     );
@@ -178,7 +179,7 @@ describe("useGymSearch", () => {
   it("clears filters and keeps the current per-page value", async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams(
-        "q=bench&pref=tokyo&cats=squat-rack&page=2&limit=24&distance=10",
+        "q=bench&pref=tokyo&cats=squat-rack&page=2&per_page=24&distance=10",
       ),
     );
 
@@ -192,7 +193,7 @@ describe("useGymSearch", () => {
       result.current.clearFilters();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?limit=24", { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?per_page=24", { scroll: false });
     expect(result.current.formState).toEqual({
       q: "",
       prefecture: "",
@@ -229,11 +230,11 @@ describe("useGymSearch", () => {
     searchGyms
       .mockResolvedValueOnce({
         items: firstPageItems,
-        meta: { total: 5, hasNext: true, pageToken: null },
+        meta: { total: 5, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
       })
       .mockResolvedValueOnce({
         items: secondPageItems,
-        meta: { total: 5, hasNext: false, pageToken: null },
+        meta: { total: 5, page: 2, perPage: 20, hasNext: false, hasPrev: true, pageToken: null },
       });
 
     let currentParams = new URLSearchParams();

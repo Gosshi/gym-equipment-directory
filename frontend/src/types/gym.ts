@@ -13,7 +13,10 @@ export interface GymSummary {
 
 export interface GymSearchMeta {
   total: number;
+  page: number;
+  perPage: number;
   hasNext: boolean;
+  hasPrev: boolean;
   pageToken?: string | null;
 }
 

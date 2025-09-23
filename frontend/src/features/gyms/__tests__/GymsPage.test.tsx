@@ -43,7 +43,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
     limit: 20,
     setPage: jest.fn(),
     setLimit: jest.fn(),
-  loadNextPage: jest.fn(),
+    loadNextPage: jest.fn(),
     items: [
       {
         id: 1,
@@ -58,7 +58,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
         lastVerifiedAt: "2024-09-01T12:00:00Z",
       },
     ],
-    meta: { total: 1, hasNext: false, pageToken: null },
+    meta: { total: 1, page: 1, perPage: 20, hasNext: false, hasPrev: false, pageToken: null },
     isLoading: false,
     isInitialLoading: false,
     error: null,
@@ -96,6 +96,7 @@ describe("GymsPage", () => {
     expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
     expect(screen.getByLabelText("都道府県")).toBeInTheDocument();
     expect(screen.getByText("テストジム")).toBeInTheDocument();
+    expect(screen.getByText("1–1 / 1件")).toBeInTheDocument();
   });
 
   it("navigates between pages via pagination controls", async () => {
@@ -103,7 +104,7 @@ describe("GymsPage", () => {
     useGymSearch.mockReturnValue(
       buildHookState({
         setPage,
-        meta: { total: 30, hasNext: true, pageToken: null },
+        meta: { total: 30, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
       }),
     );
 
@@ -120,9 +121,33 @@ describe("GymsPage", () => {
 
     render(<GymsPage />);
 
-    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "40");
+    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "50");
 
-    expect(setLimit).toHaveBeenCalledWith(40);
+    expect(setLimit).toHaveBeenCalledWith(50);
+  });
+
+  it("disables pagination buttons when there is no previous or next page", () => {
+    useGymSearch.mockReturnValue(
+      buildHookState({
+        meta: { total: 40, page: 2, perPage: 20, hasNext: false, hasPrev: true, pageToken: null },
+      }),
+    );
+
+    const { rerender } = render(<GymsPage />);
+
+    expect(screen.getByRole("button", { name: "前のページ" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
+
+    useGymSearch.mockReturnValue(
+      buildHookState({
+        meta: { total: 40, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
+      }),
+    );
+
+    rerender(<GymsPage />);
+
+    expect(screen.getByRole("button", { name: "前のページ" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "次のページ" })).not.toBeDisabled();
   });
 
   it("clears filters when the reset button is clicked", async () => {

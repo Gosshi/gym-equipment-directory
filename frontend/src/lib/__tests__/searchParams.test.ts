@@ -13,7 +13,7 @@ import {
 describe("searchParams", () => {
   it("parses query parameters into a normalized filter state", () => {
     const params = new URLSearchParams(
-      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&limit=40&distance=25",
+      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&per_page=40&distance=25",
     );
 
     const state = parseFilterState(params);
@@ -64,7 +64,7 @@ describe("searchParams", () => {
     expect(params.get("cats")).toBe("dumbbell,smith-machine");
     expect(params.get("sort")).toBe("newest");
     expect(params.get("page")).toBe("3");
-    expect(params.get("limit")).toBe("30");
+    expect(params.get("per_page")).toBe("30");
     expect(params.get("distance")).toBe(String(DEFAULT_DISTANCE_KM + 1));
   });
 

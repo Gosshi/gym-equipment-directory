@@ -17,7 +17,10 @@ describe("searchGyms", () => {
     apiRequest.mockResolvedValue({
       items: [],
       total: 0,
+      page: 1,
+      per_page: 24,
       has_next: false,
+      has_prev: false,
       page_token: null,
     });
 
@@ -63,7 +66,10 @@ describe("searchGyms", () => {
         },
       ],
       total: 1,
+      page: 1,
+      per_page: 20,
       has_next: false,
+      has_prev: false,
       page_token: null,
     });
 
@@ -86,7 +92,10 @@ describe("searchGyms", () => {
       ],
       meta: {
         total: 1,
+        page: 1,
+        perPage: 20,
         hasNext: false,
+        hasPrev: false,
         pageToken: null,
       },
     });
