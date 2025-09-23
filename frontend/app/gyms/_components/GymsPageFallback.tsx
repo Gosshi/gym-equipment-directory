@@ -33,6 +33,11 @@ export function GymsPageFallback() {
                 ))}
               </div>
             </div>
+            <div className="space-y-2">
+              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-2 w-full animate-pulse rounded bg-muted" />
+              <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+            </div>
           </div>
 
           <div className="space-y-4 rounded-lg border bg-card p-6 shadow-sm">

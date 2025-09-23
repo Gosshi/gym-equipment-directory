@@ -2,6 +2,11 @@ import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DISTANCE_STEP_KM,
+  MAX_DISTANCE_KM,
+  MIN_DISTANCE_KM,
+} from "@/lib/searchParams";
 import { cn } from "@/lib/utils";
 import type {
   EquipmentCategoryOption,
@@ -12,6 +17,7 @@ type SearchBarProps = {
   keyword: string;
   prefecture: string;
   categories: string[];
+  distance: number;
   prefectures: PrefectureOption[];
   categoryOptions: EquipmentCategoryOption[];
   isMetaLoading: boolean;
@@ -19,6 +25,7 @@ type SearchBarProps = {
   onKeywordChange: (value: string) => void;
   onPrefectureChange: (value: string) => void;
   onCategoriesChange: (values: string[]) => void;
+  onDistanceChange: (value: number) => void;
   onReloadMeta: () => void;
   onClear: () => void;
 };
@@ -27,6 +34,7 @@ export function SearchBar({
   keyword,
   prefecture,
   categories,
+  distance,
   prefectures,
   categoryOptions,
   isMetaLoading,
@@ -34,6 +42,7 @@ export function SearchBar({
   onKeywordChange,
   onPrefectureChange,
   onCategoriesChange,
+  onDistanceChange,
   onReloadMeta,
   onClear,
 }: SearchBarProps) {
@@ -147,6 +156,31 @@ export function SearchBar({
               <span className="text-xs text-muted-foreground">カテゴリが見つかりません。</span>
             ) : null}
           </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-medium" htmlFor="gym-search-distance">
+            距離（km）
+          </label>
+          <input
+            aria-label="現在地からの検索距離"
+            aria-valuemax={MAX_DISTANCE_KM}
+            aria-valuemin={MIN_DISTANCE_KM}
+            aria-valuenow={distance}
+            className="w-full"
+            id="gym-search-distance"
+            max={MAX_DISTANCE_KM}
+            min={MIN_DISTANCE_KM}
+            onChange={(event) =>
+              onDistanceChange(Number.parseInt(event.target.value, 10))
+            }
+            step={DISTANCE_STEP_KM}
+            type="range"
+            value={distance}
+          />
+          <p className="text-xs text-muted-foreground">
+            現在地から約 {distance}km 圏内のジムを検索します。
+          </p>
         </div>
       </form>
 

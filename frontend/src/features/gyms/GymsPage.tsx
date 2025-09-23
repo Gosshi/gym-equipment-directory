@@ -13,6 +13,7 @@ export function GymsPage() {
     updateKeyword,
     updatePrefecture,
     updateCategories,
+    updateDistance,
     clearFilters,
     page,
     limit,
@@ -68,9 +69,11 @@ export function GymsPage() {
           categoryOptions={equipmentCategories}
           isMetaLoading={isMetaLoading}
           keyword={formState.q}
+          distance={formState.distance}
           metaError={metaError}
           onCategoriesChange={updateCategories}
           onClear={clearFilters}
+          onDistanceChange={updateDistance}
           onKeywordChange={updateKeyword}
           onPrefectureChange={updatePrefecture}
           onReloadMeta={reloadMeta}

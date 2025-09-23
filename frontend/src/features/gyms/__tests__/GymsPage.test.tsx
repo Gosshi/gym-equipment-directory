@@ -95,6 +95,7 @@ describe("GymsPage", () => {
 
     expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
     expect(screen.getByLabelText("都道府県")).toBeInTheDocument();
+    expect(screen.getByLabelText("現在地からの検索距離")).toBeInTheDocument();
     expect(screen.getByText("テストジム")).toBeInTheDocument();
   });
 
