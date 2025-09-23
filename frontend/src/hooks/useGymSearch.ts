@@ -325,12 +325,20 @@ export function useGymSearch(
     (lat: number | null, lng: number | null, mode: LocationMode) => {
       cancelPendingDebounce();
       setFormState((prev) => {
-        const nextDistance = lat != null && lng != null ? prev.distance : DEFAULT_DISTANCE_KM;
+        const hasLocation = lat != null && lng != null;
+        const nextDistance = hasLocation ? prev.distance : DEFAULT_DISTANCE_KM;
+        const shouldResetSort = !hasLocation && prev.sort === "distance";
+        const nextSort = shouldResetSort ? DEFAULT_FILTER_STATE.sort : prev.sort;
+        const nextOrder = shouldResetSort
+          ? DEFAULT_FILTER_STATE.order
+          : normalizeSortOrder(nextSort, prev.order);
         const next: FormState = {
           ...prev,
           lat,
           lng,
           distance: nextDistance,
+          sort: nextSort,
+          order: nextOrder,
         };
         applyFilters(
           buildFilterStateFromForm(next, appliedFilters, {

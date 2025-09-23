@@ -340,6 +340,59 @@ describe("useGymSearch", () => {
     expect(result.current.formState.order).toBe(DEFAULT_FILTER_STATE.order);
   });
 
+  it("resets distance sorting when location is cleared", async () => {
+    let currentParams = new URLSearchParams(
+      "sort=distance&order=asc&lat=35.6&lng=139.7&distance=5",
+    );
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.sort).toBe("distance");
+    expect(result.current.appliedFilters.lat).toBeCloseTo(35.6);
+
+    mockRouter.push.mockClear();
+    searchGyms.mockClear();
+
+    await act(async () => {
+      result.current.clearLocation();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalledTimes(1);
+    const [url, options] = mockRouter.push.mock.calls[0];
+    expect(url).toContain("sort=rating");
+    expect(url).toContain("order=desc");
+    expect(url).not.toContain("lat=");
+    expect(url).not.toContain("lng=");
+    expect(options).toEqual({ scroll: false });
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.sort).toBe("rating");
+    expect(result.current.appliedFilters.lat).toBeNull();
+    expect(result.current.formState.sort).toBe("rating");
+    expect(result.current.formState.lat).toBeNull();
+
+    expect(searchGyms).toHaveBeenCalledTimes(1);
+    const [params] = searchGyms.mock.calls[0];
+    expect(params.sort).toBe("rating");
+    expect(params).not.toHaveProperty("lat");
+    expect(params).not.toHaveProperty("lng");
+
+    mockRouter.push.mockImplementation(() => {});
+  });
+
   it("surfaces API errors from searchGyms as error state", async () => {
     const error = new ApiError("検索に失敗しました", 500);
     searchGyms.mockRejectedValueOnce(error);
