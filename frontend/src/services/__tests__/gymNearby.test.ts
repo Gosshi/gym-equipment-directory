@@ -21,8 +21,11 @@ describe("fetchNearbyGyms", () => {
           last_verified_at: "2024-09-01T12:00:00Z",
         },
       ],
-      has_next: true,
-      page_token: "next",
+      total: 5,
+      page: 1,
+      page_size: 20,
+      has_more: true,
+      has_prev: false,
     });
   });
 
@@ -45,8 +48,8 @@ describe("fetchNearbyGyms", () => {
         lat: 35.681236,
         lng: 139.767125,
         radius_km: 3,
-        per_page: 20,
-        page_token: undefined,
+        page: 1,
+        page_size: 20,
       },
       signal: undefined,
     }));
@@ -65,8 +68,12 @@ describe("fetchNearbyGyms", () => {
           lastVerifiedAt: "2024-09-01T12:00:00Z",
         },
       ],
-      hasNext: true,
-      pageToken: "next",
+      total: 5,
+      page: 1,
+      pageSize: 20,
+      hasMore: true,
+      hasPrev: false,
+      pageToken: "2",
     });
   });
 
@@ -78,13 +85,13 @@ describe("fetchNearbyGyms", () => {
       lng: 20,
       radiusKm: 5,
       perPage: 10,
-      pageToken: "token",
+      pageToken: "3",
       signal: controller.signal,
     });
 
     expect(apiRequest).toHaveBeenLastCalledWith("/gyms/nearby", expect.objectContaining({
       signal: controller.signal,
-      query: expect.objectContaining({ page_token: "token" }),
+      query: expect.objectContaining({ page: 3 }),
     }));
   });
 });

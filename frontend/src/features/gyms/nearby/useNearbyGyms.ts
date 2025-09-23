@@ -33,7 +33,7 @@ const logDebug = (event: string, payload: Record<string, unknown>) => {
 export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilters): NearbyState {
   const [items, setItems] = useState<NearbyGym[]>([]);
   const [pageToken, setPageToken] = useState<string | null>(null);
-  const [hasNext, setHasNext] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -88,12 +88,12 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
 
         setItems((prev) => (reset ? response.items : [...prev, ...response.items]));
         setPageToken(response.pageToken);
-        setHasNext(response.hasNext);
+        setHasMore(response.hasMore);
         setIsInitialLoading(false);
 
         logDebug("nearby_fetch_end", {
           returned: response.items.length,
-          has_next: response.hasNext,
+          has_next: response.hasMore,
           next_token: response.pageToken,
         });
       } catch (err) {
@@ -104,7 +104,7 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
         const message = err instanceof ApiError ? err.message : "近隣ジムの取得に失敗しました";
         setError(message);
         setItems((prev) => (reset ? [] : prev));
-        setHasNext(false);
+        setHasMore(false);
         setIsInitialLoading(false);
       } finally {
         if (latestRequestKey.current === requestKey) {
@@ -121,11 +121,11 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
   }, [fetchPage, cancelOngoingRequest]);
 
   const loadMore = useCallback(() => {
-    if (!hasNext || isLoading) {
+    if (!hasMore || isLoading) {
       return;
     }
     fetchPage(pageToken, false);
-  }, [fetchPage, hasNext, isLoading, pageToken]);
+  }, [fetchPage, hasMore, isLoading, pageToken]);
 
   const reload = useCallback(() => {
     fetchPage(null, true);
@@ -136,7 +136,7 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
     isInitialLoading,
     isLoading,
     error,
-    hasNext,
+    hasNext: hasMore,
     loadMore,
     reload,
   };

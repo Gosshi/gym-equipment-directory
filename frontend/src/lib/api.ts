@@ -91,15 +91,19 @@ export type RawGymSummary = {
   last_verified_at?: string | null;
 };
 
-type RawSearchGymsResponse = {
-  items: RawGymSummary[];
-  total: number;
-  page?: number;
-  per_page?: number;
-  has_next: boolean;
-  has_prev?: boolean;
-  page_token?: string | null;
-};
+type RawSearchGymsResponse =
+  | RawGymSummary[]
+  | {
+      items: RawGymSummary[];
+      total?: number;
+      page?: number;
+      page_size?: number;
+      per_page?: number;
+      has_more?: boolean;
+      has_next?: boolean;
+      has_prev?: boolean;
+      page_token?: string | null;
+    };
 
 const normalizeEquipments = (source: unknown): string[] | undefined => {
   if (!source) {
@@ -209,6 +213,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     sort,
     ...(order ? { order } : {}),
     page,
+    page_size: limit,
     per_page: limit,
     page_token: params.pageToken ?? undefined,
     ...(hasLocation && lat !== undefined && lng !== undefined
@@ -235,19 +240,44 @@ export async function fetchGyms(
     signal: options.signal,
   });
 
+  if (Array.isArray(response)) {
+    const page = fallbackPage;
+    const perPage = fallbackPerPage;
+    const items = response.map(normalizeGymSummary);
+    const hasMore = perPage > 0 ? items.length === perPage : false;
+    return {
+      items,
+      meta: {
+        total: items.length,
+        page,
+        perPage,
+        hasNext: hasMore,
+        hasPrev: page > 1,
+        hasMore,
+        pageToken: null,
+      },
+    };
+  }
+
+  const rawItems = response.items ?? [];
   const page = clampPage(response.page ?? fallbackPage ?? query.page);
-  const perPage = clampLimit(response.per_page ?? fallbackPerPage ?? query.per_page);
-  const hasNext = Boolean(response.has_next);
+  const pageSizeRaw =
+    response.page_size ?? response.per_page ?? fallbackPerPage ?? query.per_page;
+  const perPage = clampLimit(pageSizeRaw);
+  const hasMoreFlag =
+    response.has_more ?? response.has_next ?? (perPage > 0 && rawItems.length === perPage);
   const hasPrev = response.has_prev ?? page > 1;
+  const total = typeof response.total === "number" ? response.total : null;
 
   return {
-    items: response.items.map(normalizeGymSummary),
+    items: rawItems.map(normalizeGymSummary),
     meta: {
-      total: response.total,
+      total,
       page,
       perPage,
-      hasNext,
+      hasNext: Boolean(hasMoreFlag),
       hasPrev,
+      hasMore: Boolean(hasMoreFlag),
       pageToken: response.page_token ?? null,
     },
   };

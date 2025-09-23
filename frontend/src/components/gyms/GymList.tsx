@@ -127,12 +127,21 @@ export function GymList({
   const perPageValue = Math.max(metaPerPage, 1);
   const metaPage = meta.page > 0 ? meta.page : page;
   const currentPage = Math.max(metaPage, 1);
-  const totalCount = meta.total > 0 ? meta.total : gyms.length;
+  const hasExactTotal = typeof meta.total === "number" && meta.total >= 0;
+  const totalCount = hasExactTotal ? meta.total : gyms.length;
   const totalPages =
-    totalCount > 0 ? Math.max(Math.ceil(totalCount / perPageValue), currentPage) : 0;
-  const rangeStart =
-    totalCount === 0 ? 0 : Math.min((currentPage - 1) * perPageValue + 1, totalCount);
-  const rangeEnd = totalCount === 0 ? 0 : Math.min(currentPage * perPageValue, totalCount);
+    hasExactTotal && totalCount > 0
+      ? Math.max(Math.ceil(totalCount / perPageValue), currentPage)
+      : null;
+  const baseRangeStart = gyms.length === 0 ? 0 : (currentPage - 1) * perPageValue + 1;
+  const baseRangeEnd = gyms.length === 0 ? 0 : baseRangeStart + gyms.length - 1;
+  const rangeStart = hasExactTotal
+    ? Math.min(baseRangeStart, totalCount)
+    : baseRangeStart;
+  const rangeEnd = hasExactTotal ? Math.min(baseRangeEnd, totalCount) : baseRangeEnd;
+  const totalLabel = hasExactTotal
+    ? `${totalCount}件`
+    : `${rangeEnd}${meta.hasNext ? "+" : ""}件`;
 
   const resultSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef(page);
@@ -166,8 +175,9 @@ export function GymList({
   const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
     (a, b) => a - b,
   );
+  const hasMore = meta.hasMore ?? meta.hasNext;
   const isPrevDisabled = isPageLoading || !meta.hasPrev;
-  const isNextDisabled = isPageLoading || !meta.hasNext;
+  const isNextDisabled = isPageLoading || !hasMore;
 
   const handlePrev = () => {
     if (isPrevDisabled) {
@@ -198,8 +208,8 @@ export function GymList({
             検索結果
           </h2>
           <p className="text-sm text-muted-foreground">
-            {totalCount} 件のジムが見つかりました。
-            {totalPages > 1 ? `（全 ${totalPages} ページ）` : ""}
+            {totalLabel.replace("件", "件のジムが見つかりました。")}
+            {totalPages ? `（全 ${totalPages} ページ）` : ""}
           </p>
         </div>
       </div>
@@ -210,7 +220,7 @@ export function GymList({
         <div className="mt-8 border-t pt-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <p aria-live="polite" className="text-sm text-muted-foreground">
-              {`${rangeStart}–${rangeEnd} / ${totalCount}件`}
+              {`${rangeStart}–${rangeEnd} / ${totalLabel}`}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div className="flex items-center gap-2">
@@ -248,6 +258,9 @@ export function GymList({
                 >
                   前へ
                 </Button>
+                <span className="text-sm text-muted-foreground" aria-live="polite">
+                  ページ {currentPage}
+                </span>
                 <Button
                   aria-label="次のページ"
                   disabled={isNextDisabled}

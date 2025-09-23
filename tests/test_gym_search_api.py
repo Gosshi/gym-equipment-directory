@@ -10,13 +10,13 @@ async def test_search_gym_name_schema_and_zeros(app_client):
             "pref": "chiba",
             "city": "funabashi",
             "sort": "gym_name",
-            "per_page": 10,
+            "page_size": 10,
         },
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["has_next"] is False
-    assert body["page_token"] is None
+    assert body["has_more"] is False
+    assert body["has_prev"] is False
     items = body["items"]
     # seed により 2 ジムが該当
     slugs = {it["slug"] for it in items}
@@ -40,7 +40,7 @@ async def test_search_score_has_scores(app_client):
             "pref": "chiba",
             "city": "funabashi",
             "sort": "score",
-            "per_page": 10,
+            "page_size": 10,
         },
     )
     assert resp.status_code == 200
@@ -64,7 +64,7 @@ async def test_search_filter_required_slugs_all_any(app_client):
         "pref": "chiba",
         "city": "funabashi",
         "sort": "gym_name",
-        "per_page": 10,
+        "page_size": 10,
     }
 
     # all: seed-lat-pulldown を持つのは east のみ
@@ -97,7 +97,7 @@ async def test_search_distance_filters_and_sort(app_client):
         "city": "funabashi",
         "lat": 35.7,
         "lng": 139.98,
-        "per_page": 10,
+        "page_size": 10,
     }
 
     resp = await app_client.get(

@@ -12,11 +12,12 @@ export interface GymSummary {
 }
 
 export interface GymSearchMeta {
-  total: number;
+  total: number | null;
   page: number;
   perPage: number;
   hasNext: boolean;
   hasPrev: boolean;
+  hasMore: boolean;
   pageToken?: string | null;
 }
 
@@ -63,6 +64,10 @@ export interface NearbyGym {
 
 export interface GymNearbyResponse {
   items: NearbyGym[];
-  hasNext: boolean;
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  hasPrev: boolean;
   pageToken: string | null;
 }

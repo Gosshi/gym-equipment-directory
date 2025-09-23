@@ -24,7 +24,11 @@ type RawNearbyGym = {
 
 type RawNearbyResponse = {
   items: RawNearbyGym[];
-  has_next: boolean;
+  total?: number;
+  page?: number;
+  page_size?: number;
+  has_more?: boolean;
+  has_prev?: boolean;
   page_token?: string | null;
 };
 
@@ -48,12 +52,17 @@ export async function fetchNearbyGyms({
   pageToken,
   signal,
 }: FetchNearbyGymsParams): Promise<GymNearbyResponse> {
+  const parsedToken =
+    pageToken != null && pageToken !== ""
+      ? Number.parseInt(pageToken, 10)
+      : Number.NaN;
+  const targetPage = Number.isFinite(parsedToken) && parsedToken > 0 ? parsedToken : 1;
   const query: Record<string, unknown> = {
     lat,
     lng,
     radius_km: radiusKm,
-    per_page: perPage,
-    page_token: pageToken ?? undefined,
+    page: targetPage,
+    page_size: perPage,
   };
 
   const response = await apiRequest<RawNearbyResponse>("/gyms/nearby", {
@@ -62,9 +71,24 @@ export async function fetchNearbyGyms({
     signal,
   });
 
+  const currentPage = Number.isFinite(response.page) ? Number(response.page) : targetPage;
+  const pageSize = Number.isFinite(response.page_size)
+    ? Number(response.page_size)
+    : perPage;
+  const hasMore =
+    response.has_more ??
+    (typeof response.has_next === "boolean" ? response.has_next : response.items.length === pageSize);
+  const hasPrev = response.has_prev ?? currentPage > 1;
+  const total = typeof response.total === "number" ? response.total : response.items.length;
+  const nextPageToken = hasMore ? String(currentPage + 1) : null;
+
   return {
     items: response.items.map(normalizeNearbyGym),
-    hasNext: response.has_next,
-    pageToken: response.page_token ?? null,
+    total,
+    page: currentPage,
+    pageSize,
+    hasMore: Boolean(hasMore),
+    hasPrev,
+    pageToken: nextPageToken,
   };
 }

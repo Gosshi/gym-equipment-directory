@@ -28,9 +28,14 @@ class GymSearchPageDTO(BaseModel):
     """Search result page for gyms including pagination metadata."""
 
     items: list[GymSummaryDTO] = Field(description="検索結果")
-    total: int = Field(description="総件数")
-    has_next: bool = Field(description="次ページ有無")
-    page_token: str | None = Field(default=None, description="Keyset 継続トークン")
+    total: int = Field(default=0, description="総件数")
+    page: int = Field(default=1, description="現在のページ（1始まり）")
+    page_size: int = Field(default=20, description="1ページ件数")
+    has_more: bool = Field(default=False, description="次ページが存在するか")
+    has_prev: bool = Field(default=False, description="前ページが存在するか")
+    page_token: str | None = Field(
+        default=None, description="継続トークン（Keyset互換用、未使用時はnull）"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -50,8 +55,10 @@ class GymSearchPageDTO(BaseModel):
                         }
                     ],
                     "total": 10,
-                    "has_next": True,
-                    "page_token": "v1:freshness:nf=0,ts=1725555555,id=42",
+                    "page": 1,
+                    "page_size": 20,
+                    "has_more": True,
+                    "has_prev": False,
                 }
             ]
         }

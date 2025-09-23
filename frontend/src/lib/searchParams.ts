@@ -38,7 +38,7 @@ export const normalizeSortOrder = (
 };
 
 export const DEFAULT_LIMIT = 20;
-export const MAX_LIMIT = 50;
+export const MAX_LIMIT = 100;
 
 export const MIN_DISTANCE_KM = 1;
 export const MAX_DISTANCE_KM = 30;
@@ -198,7 +198,10 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const order = parseSortOrder(sort, params.get("order"));
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = clampLimit(
-    parsePositiveInt(params.get("per_page") ?? params.get("limit"), DEFAULT_LIMIT),
+    parsePositiveInt(
+      params.get("page_size") ?? params.get("per_page") ?? params.get("limit"),
+      DEFAULT_LIMIT,
+    ),
   );
   const distance = parseDistance(params.get("distance"));
   const latRaw = parseLatitude(params.get("lat"));
@@ -242,7 +245,7 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
     params.set("page", String(state.page));
   }
   if (state.limit !== DEFAULT_LIMIT) {
-    params.set("per_page", String(state.limit));
+    params.set("page_size", String(state.limit));
   }
   if (state.distance !== DEFAULT_DISTANCE_KM) {
     params.set("distance", String(state.distance));

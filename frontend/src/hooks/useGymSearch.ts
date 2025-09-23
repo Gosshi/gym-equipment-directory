@@ -515,6 +515,7 @@ export function useGymSearch(
     perPage: DEFAULT_LIMIT,
     hasNext: false,
     hasPrev: false,
+    hasMore: false,
     pageToken: null,
   });
   const [isLoading, setIsLoading] = useState(false);

@@ -40,7 +40,7 @@ async def test_search_minimal(session):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         r = await ac.get(
-            "/gyms/search", params={"pref": "chiba", "city": "funabashi", "per_page": 10}
+            "/gyms/search", params={"pref": "chiba", "city": "funabashi", "page_size": 10}
         )
         assert r.status_code == 200
         assert r.json()["total"] >= 1
@@ -63,7 +63,7 @@ async def test_search_richness_any_equipment(session):
             params={
                 "pref": "chiba",
                 "city": "funabashi",
-                "per_page": 10,
+                "page_size": 10,
                 "equipments": "bench-press,dumbbell",
                 "equipment_match": "any",
                 "sort": "richness",

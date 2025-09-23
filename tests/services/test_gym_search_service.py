@@ -83,6 +83,10 @@ async def test_search_service_returns_summaries_with_scores():
     )
 
     assert result.total == 1
+    assert result.page == 1
+    assert result.page_size == 10
+    assert result.has_more is False
+    assert result.has_prev is False
     assert result.items[0].slug == "gym-alpha"
     assert result.items[0].score and result.items[0].score > 0
 
@@ -126,4 +130,6 @@ async def test_search_filters_by_required_equipment():
     )
 
     assert result.total == 1
+    assert result.page == 1
+    assert result.page_size == 5
     assert repo.received_slugs == ["bench"]

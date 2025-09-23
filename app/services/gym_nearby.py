@@ -51,17 +51,24 @@ async def search_nearby(
     lat: float,
     lng: float,
     radius_km: float,
-    per_page: int,
+    page: int,
+    page_size: int | None,
     page_token: str | None,
 ) -> GymNearbyResponse:
     logger = structlog.get_logger(__name__)
-    """Nearby gyms using Haversine distance and keyset pagination.
+    """Nearby gyms using Haversine distance with offset pagination."""
 
-    - Filters out rows with NULL latitude/longitude
-    - Applies radius_km filter
-    - Orders by distance ASC, id ASC
-    - Keyset page_token encodes (distance_km, id)
-    """
+    per_page = int(page_size or 20)
+    if per_page <= 0:
+        per_page = 20
+    per_page = max(1, min(per_page, 100))
+
+    current_page = int(page or 1)
+    if current_page <= 0:
+        current_page = 1
+    offset = (current_page - 1) * per_page
+    use_keyset = bool(page_token)
+
     # Precompute radians of input
     lat0 = float(lat)
     lng0 = float(lng)
@@ -83,25 +90,43 @@ async def search_nearby(
     # Use numeric(18,6) for stable ordering and token
     dist_num = cast(distance_km_expr, Numeric(18, 6))
 
-    # Base filter: valid coordinates only
-    stmt = (
+    base_stmt = (
         select(Gym, dist_num.label("distance_km"))
         .where(and_(Gym.latitude.is_not(None), Gym.longitude.is_not(None)))
         .where(dist_num <= float(radius_km))
     )
 
-    # Keyset if provided
-    if page_token:
-        lk_dist, lk_id = _validate_and_decode_page_token(page_token)
-        stmt = stmt.where(tuple_(dist_num, Gym.id) > tuple_(literal(lk_dist), literal(int(lk_id))))
+    total = (await session.scalar(select(func.count()).select_from(base_stmt.subquery()))) or 0
+    if total == 0:
+        return GymNearbyResponse(
+            items=[],
+            total=0,
+            page=current_page,
+            page_size=per_page,
+            has_more=False,
+            has_prev=current_page > 1,
+            page_token=None,
+        )
 
-    stmt = stmt.order_by(dist_num.asc(), Gym.id.asc()).limit(per_page + 1)
+    stmt = base_stmt
+
+    if use_keyset and page_token:
+        lk_dist, lk_id = _validate_and_decode_page_token(page_token)
+        stmt = stmt.where(
+            tuple_(dist_num, Gym.id) > tuple_(literal(lk_dist), literal(int(lk_id)))
+        )
+
+    stmt = stmt.order_by(dist_num.asc(), Gym.id.asc())
+    if use_keyset:
+        stmt = stmt.limit(per_page + 1)
+    else:
+        stmt = stmt.offset(offset).limit(per_page)
 
     rows = (await session.execute(stmt)).all()
-    recs = rows[:per_page]
+    page_rows = rows[:per_page] if use_keyset else rows
 
     items: list[GymNearbyItem] = []
-    for g, dist in recs:
+    for g, dist in page_rows:
         lat_val = getattr(g, "latitude", None)
         lng_val = getattr(g, "longitude", None)
         items.append(
@@ -118,14 +143,19 @@ async def search_nearby(
             )
         )
 
-    has_next = len(rows) > per_page
     next_token = None
-    if has_next:
-        last_row = rows[per_page - 1]
-        g_last, dist_last = last_row
-        next_token = _encode_page_token_for_nearby(
-            float(dist_last or 0.0), int(getattr(g_last, "id", 0))
-        )
+    if use_keyset:
+        has_more = len(rows) > per_page
+        has_prev = current_page > 1 or bool(page_token)
+        if has_more:
+            last_row = rows[per_page - 1]
+            g_last, dist_last = last_row
+            next_token = _encode_page_token_for_nearby(
+                float(dist_last or 0.0), int(getattr(g_last, "id", 0))
+            )
+    else:
+        has_more = (offset + len(items)) < total
+        has_prev = offset > 0
 
     logger.info(
         "gyms_nearby",
@@ -133,5 +163,15 @@ async def search_nearby(
         lng=float(lng),
         radius_km=float(radius_km),
         returned=len(items),
+        page=current_page,
+        page_size=per_page,
     )
-    return GymNearbyResponse(items=items, has_next=has_next, page_token=next_token)
+    return GymNearbyResponse(
+        items=items,
+        total=total,
+        page=current_page,
+        page_size=per_page,
+        has_more=has_more,
+        has_prev=has_prev,
+        page_token=next_token,
+    )

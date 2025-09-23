@@ -5,14 +5,16 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_score_sort_paging(app_client: AsyncClient):
-    r1 = await app_client.get("/gyms/search", params={"sort": "score", "per_page": 2})
+    r1 = await app_client.get("/gyms/search", params={"sort": "score", "page_size": 2})
     assert r1.status_code == 200
     j1 = r1.json()
-    assert "items" in j1 and "has_next" in j1 and "page_token" in j1
-    if j1["has_next"]:
-        assert j1["page_token"] is not None
+    assert j1.get("page") == 1
+    assert j1.get("page_size") == 2
+    assert "items" in j1 and "has_more" in j1
+    if j1["has_more"]:
+        next_page = (j1.get("page") or 1) + 1
         r2 = await app_client.get(
-            "/gyms/search", params={"sort": "score", "per_page": 2, "page_token": j1["page_token"]}
+            "/gyms/search", params={"sort": "score", "page_size": 2, "page": next_page}
         )
         assert r2.status_code == 200
         j2 = r2.json()
@@ -20,16 +22,17 @@ async def test_score_sort_paging(app_client: AsyncClient):
         ids1 = [it["id"] for it in j1["items"]]
         ids2 = [it["id"] for it in j2["items"]]
         assert set(ids1).isdisjoint(ids2)
-    else:
-        assert j1["page_token"] is None
 
 
 @pytest.mark.asyncio
 async def test_sorts_basic(app_client):
     for s in ["score", "freshness", "richness", "gym_name", "created_at"]:
-        r = await app_client.get("/gyms/search", params={"sort": s, "per_page": 2})
+        r = await app_client.get("/gyms/search", params={"sort": s, "page_size": 2})
         assert r.status_code == 200
         j = r.json()
-        assert "items" in j and "has_next" in j and "page_token" in j
-        if not j["has_next"]:
-            assert j["page_token"] is None
+        assert "items" in j
+        assert j.get("page") == 1
+        assert j.get("page_size") == 2
+        assert "has_more" in j
+        assert "has_prev" in j
+        assert j["has_prev"] is False

@@ -72,7 +72,8 @@ async def search_gyms(
             required_slugs=required_slugs,
             equipment_match=q.equipment_match,
             sort=q.sort,
-            per_page=q.per_page,
+            page=q.page,
+            page_size=q.page_size,
             page_token=q.page_token,
         )
     except ValueError:
@@ -92,16 +93,28 @@ async def gyms_nearby(
     lat: float = Query(..., description="緯度"),
     lng: float = Query(..., description="経度"),
     radius_km: float = Query(5.0, ge=0.0, description="検索半径（km）"),
-    per_page: int = Query(10, ge=1, le=50, description="1ページ件数"),
-    page_token: str | None = Query(None, description="Keyset継続トークン"),
+    page: int = Query(1, ge=1, description="ページ番号（1始まり）"),
+    page_size: int | None = Query(
+        None, ge=1, le=100, description="1ページ件数（1..100）"
+    ),
+    per_page: int | None = Query(
+        None, ge=1, le=100, description="1ページ件数（互換用, 1..100）"
+    ),
+    limit: int | None = Query(None, ge=1, le=100, description="limit（互換用, 1..100）"),
+    page_token: str | None = Query(None, description="Keyset継続トークン（互換用）"),
     svc=Depends(get_gym_nearby_service),
 ):
+    resolved_page_size = next(
+        (value for value in (page_size, per_page, limit) if value is not None),
+        None,
+    )
     try:
         return await svc(
             lat=lat,
             lng=lng,
             radius_km=radius_km,
-            per_page=per_page,
+            page=page,
+            page_size=resolved_page_size,
             page_token=page_token,
         )
     except ValueError:

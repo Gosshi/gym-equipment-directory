@@ -48,7 +48,7 @@ async def test_nearby_radius_filter(session: AsyncSession, app_client: AsyncClie
 
     r = await app_client.get(
         "/gyms/nearby",
-        params={"lat": lat0, "lng": lng0, "radius_km": 5, "per_page": 10},
+        params={"lat": lat0, "lng": lng0, "radius_km": 5, "page_size": 10},
     )
     assert r.status_code == 200, r.text
     j = r.json()
@@ -70,11 +70,13 @@ async def test_nearby_paging_no_duplicates(session: AsyncSession, app_client: As
     await session.close()
 
     r1 = await app_client.get(
-        "/gyms/nearby", params={"lat": lat0, "lng": lng0, "radius_km": 10, "per_page": 2}
+        "/gyms/nearby",
+        params={"lat": lat0, "lng": lng0, "radius_km": 10, "page_size": 2},
     )
     assert r1.status_code == 200
     j1 = r1.json()
-    assert j1["has_next"] is True
+    assert j1["has_more"] is True
+    assert j1["page"] == 1
     ids1 = [it["id"] for it in j1["items"]]
 
     r2 = await app_client.get(
@@ -83,8 +85,8 @@ async def test_nearby_paging_no_duplicates(session: AsyncSession, app_client: As
             "lat": lat0,
             "lng": lng0,
             "radius_km": 10,
-            "per_page": 2,
-            "page_token": j1["page_token"],
+            "page_size": 2,
+            "page": 2,
         },
     )
     assert r2.status_code == 200
@@ -99,8 +101,8 @@ async def test_nearby_paging_no_duplicates(session: AsyncSession, app_client: As
             "lat": lat0,
             "lng": lng0,
             "radius_km": 10,
-            "per_page": 2,
-            "page_token": j2["page_token"],
+            "page_size": 2,
+            "page": 3,
         },
     )
     assert r3.status_code == 200
@@ -121,7 +123,8 @@ async def test_nearby_without_page_token_starts_from_top(
     await session.close()
 
     r = await app_client.get(
-        "/gyms/nearby", params={"lat": lat0, "lng": lng0, "radius_km": 10, "per_page": 10}
+        "/gyms/nearby",
+        params={"lat": lat0, "lng": lng0, "radius_km": 10, "page_size": 10},
     )
     assert r.status_code == 200
     j = r.json()
