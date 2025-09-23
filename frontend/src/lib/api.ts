@@ -73,7 +73,10 @@ export type RawGymSummary = {
 type RawSearchGymsResponse = {
   items: RawGymSummary[];
   total: number;
+  page?: number;
+  per_page?: number;
   has_next: boolean;
+  has_prev?: boolean;
   page_token?: string | null;
 };
 
@@ -180,6 +183,8 @@ export async function fetchGyms(
   options: { signal?: AbortSignal } = {},
 ): Promise<GymSearchResponse> {
   const query = buildGymSearchQuery(params);
+  const fallbackPage = clampPage(params.page);
+  const fallbackPerPage = clampLimit(params.limit);
 
   const response = await apiRequest<RawSearchGymsResponse>("/gyms/search", {
     method: "GET",
@@ -187,11 +192,19 @@ export async function fetchGyms(
     signal: options.signal,
   });
 
+  const page = clampPage(response.page ?? fallbackPage ?? query.page);
+  const perPage = clampLimit(response.per_page ?? fallbackPerPage ?? query.per_page);
+  const hasNext = Boolean(response.has_next);
+  const hasPrev = response.has_prev ?? page > 1;
+
   return {
     items: response.items.map(normalizeGymSummary),
     meta: {
       total: response.total,
-      hasNext: response.has_next,
+      page,
+      perPage,
+      hasNext,
+      hasPrev,
       pageToken: response.page_token ?? null,
     },
   };

@@ -1,15 +1,13 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 
-import { InfiniteLoader } from "@/components/gyms/InfiniteLoader";
-import { Pagination } from "@/components/gyms/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
 
-const PAGE_SIZE_OPTIONS = [20, 40, 60];
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const GymListLoadingState = () => (
   <div aria-hidden className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="presentation">
@@ -106,8 +104,6 @@ type GymListProps = {
   onRetry: () => void;
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
-  onLoadMore: () => void;
-  enableInfiniteScroll?: boolean;
 };
 
 export function GymList({
@@ -121,35 +117,29 @@ export function GymList({
   onRetry,
   onPageChange,
   onLimitChange,
-  onLoadMore,
-  enableInfiniteScroll = true,
 }: GymListProps) {
   const showSkeleton = isInitialLoading;
   const showEmpty = !error && !showSkeleton && gyms.length === 0;
-  const isAppending = isLoading && !isInitialLoading;
+  const isPageLoading = isLoading && !isInitialLoading;
+
   const limitValue = Math.max(limit, 1);
-  const totalFromMeta = meta.total > 0 ? Math.ceil(meta.total / limitValue) : 0;
-  const totalFromCount = gyms.length > 0 ? Math.ceil(gyms.length / limitValue) : 0;
-  const totalPages = Math.max(1, totalFromMeta, totalFromCount, page + (meta.hasNext ? 1 : 0));
-  const aggregated = gyms.length > limitValue;
+  const metaPerPage = meta.perPage > 0 ? meta.perPage : limitValue;
+  const perPageValue = Math.max(metaPerPage, 1);
+  const metaPage = meta.page > 0 ? meta.page : page;
+  const currentPage = Math.max(metaPage, 1);
   const totalCount = meta.total > 0 ? meta.total : gyms.length;
-  const displayedStart = gyms.length === 0 ? 0 : aggregated || meta.total === 0 ? 1 : (page - 1) * limit + 1;
-  const displayedEnd =
-    gyms.length === 0
-      ? 0
-      : aggregated
-        ? meta.total > 0
-          ? Math.min(gyms.length, meta.total)
-          : gyms.length
-        : meta.total > 0
-          ? Math.min(page * limit, meta.total)
-          : gyms.length;
+  const totalPages =
+    totalCount > 0 ? Math.max(Math.ceil(totalCount / perPageValue), currentPage) : 0;
+  const rangeStart =
+    totalCount === 0 ? 0 : Math.min((currentPage - 1) * perPageValue + 1, totalCount);
+  const rangeEnd = totalCount === 0 ? 0 : Math.min(currentPage * perPageValue, totalCount);
 
   const resultSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef(page);
 
   useEffect(() => {
     if (previousPageRef.current !== page && resultSectionRef.current) {
+      resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       resultSectionRef.current.focus();
     }
     previousPageRef.current = page;
@@ -172,7 +162,26 @@ export function GymList({
     );
   }
 
-  const showPagination = !error && (totalPages > 1 || meta.hasNext || page > 1);
+  const showPagination = !error && totalCount > 0;
+  const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
+    (a, b) => a - b,
+  );
+  const isPrevDisabled = isPageLoading || !meta.hasPrev;
+  const isNextDisabled = isPageLoading || !meta.hasNext;
+
+  const handlePrev = () => {
+    if (isPrevDisabled) {
+      return;
+    }
+    onPageChange(Math.max(currentPage - 1, 1));
+  };
+
+  const handleNext = () => {
+    if (isNextDisabled) {
+      return;
+    }
+    onPageChange(currentPage + 1);
+  };
 
   return (
     <section
@@ -193,68 +202,69 @@ export function GymList({
             {totalPages > 1 ? `（全 ${totalPages} ページ）` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground" htmlFor="gym-search-limit">
-            表示件数
-          </label>
-          <select
-            className={cn(
-              "h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-            id="gym-search-limit"
-            onChange={(event) => onLimitChange(Number.parseInt(event.target.value, 10))}
-            value={limit}
-          >
-            {PAGE_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option} 件
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {content}
 
-      {!error && !showEmpty ? (
-        <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-          <span>
-            {totalCount} 件中 {displayedStart}-{displayedEnd} 件を表示
-          </span>
-          {enableInfiniteScroll && meta.hasNext ? (
-            <span className="text-xs text-muted-foreground">
-              下までスクロールすると自動で次のページを読み込みます。
-            </span>
+      {showPagination ? (
+        <div className="mt-8 border-t pt-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <p aria-live="polite" className="text-sm text-muted-foreground">
+              {`${rangeStart}–${rangeEnd} / ${totalCount}件`}
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground" htmlFor="gym-search-limit">
+                  表示件数
+                </label>
+                <select
+                  className={cn(
+                    "h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  )}
+                  id="gym-search-limit"
+                  onChange={(event) => {
+                    const next = Number.parseInt(event.target.value, 10);
+                    if (!Number.isNaN(next)) {
+                      onLimitChange(next);
+                    }
+                  }}
+                  value={perPageValue}
+                >
+                  {perPageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option} 件
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  aria-label="前のページ"
+                  disabled={isPrevDisabled}
+                  onClick={handlePrev}
+                  type="button"
+                  variant="outline"
+                >
+                  前へ
+                </Button>
+                <Button
+                  aria-label="次のページ"
+                  disabled={isNextDisabled}
+                  onClick={handleNext}
+                  type="button"
+                >
+                  次へ
+                </Button>
+              </div>
+            </div>
+          </div>
+          {isPageLoading ? (
+            <div className="mt-3 text-sm text-muted-foreground" role="status">
+              読み込み中...
+            </div>
           ) : null}
         </div>
-      ) : null}
-
-      {isAppending ? (
-        <div className="mt-4 flex justify-center text-sm text-muted-foreground">
-          <span>読み込み中...</span>
-        </div>
-      ) : null}
-
-      {showPagination ? (
-        <div className="mt-8">
-          <Pagination
-            currentPage={page}
-            hasNextPage={meta.hasNext}
-            isLoading={isLoading}
-            onChange={onPageChange}
-            totalPages={totalPages}
-          />
-        </div>
-      ) : null}
-
-      {enableInfiniteScroll && !error && gyms.length > 0 ? (
-        <InfiniteLoader
-          enabled={enableInfiniteScroll}
-          hasNextPage={meta.hasNext}
-          isLoading={isLoading}
-          onLoadMore={onLoadMore}
-        />
       ) : null}
     </section>
   );

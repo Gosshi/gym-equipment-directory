@@ -18,7 +18,6 @@ export function GymsPage() {
     limit,
     setPage,
     setLimit,
-    loadNextPage,
     items,
     meta,
     isLoading,
@@ -73,7 +72,6 @@ export function GymsPage() {
             isLoading={isLoading}
             limit={limit}
             meta={meta}
-            onLoadMore={loadNextPage}
             onLimitChange={setLimit}
             onPageChange={setPage}
             onRetry={retry}

@@ -52,7 +52,10 @@ describe("lib/api", () => {
         },
       ],
       total: 1,
+      page: 2,
+      per_page: 30,
       has_next: true,
+      has_prev: true,
       page_token: "next",
     });
 
@@ -99,7 +102,10 @@ describe("lib/api", () => {
       ],
       meta: {
         total: 1,
+        page: 2,
+        perPage: 30,
         hasNext: true,
+        hasPrev: true,
         pageToken: "next",
       },
     });

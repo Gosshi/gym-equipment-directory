@@ -272,7 +272,10 @@ export function useGymSearch(
   const [items, setItems] = useState<GymSummary[]>([]);
   const [meta, setMeta] = useState<GymSearchMeta>({
     total: 0,
+    page: 1,
+    perPage: DEFAULT_LIMIT,
     hasNext: false,
+    hasPrev: false,
     pageToken: null,
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -307,6 +310,7 @@ export function useGymSearch(
         sort: appliedFilters.sort,
         page: appliedFilters.page,
         limit: appliedFilters.limit,
+        perPage: appliedFilters.limit,
       },
       { signal: controller.signal },
     )
