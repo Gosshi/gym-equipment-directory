@@ -130,15 +130,16 @@ export function GymList({
   const hasExactTotal = typeof meta.total === "number" && meta.total >= 0;
   const totalCount = hasExactTotal ? meta.total : gyms.length;
   const totalPages =
-    hasExactTotal && totalCount > 0
-      ? Math.max(Math.ceil(totalCount / perPageValue), currentPage)
+    hasExactTotal && (totalCount ?? 0) > 0
+      ? Math.max(Math.ceil((totalCount as number) / perPageValue), currentPage)
       : null;
   const baseRangeStart = gyms.length === 0 ? 0 : (currentPage - 1) * perPageValue + 1;
   const baseRangeEnd = gyms.length === 0 ? 0 : baseRangeStart + gyms.length - 1;
+  const safeTotalForRange = typeof totalCount === "number" ? totalCount : 0;
   const rangeStart = hasExactTotal
-    ? Math.min(baseRangeStart, totalCount)
+    ? Math.min(baseRangeStart, safeTotalForRange)
     : baseRangeStart;
-  const rangeEnd = hasExactTotal ? Math.min(baseRangeEnd, totalCount) : baseRangeEnd;
+  const rangeEnd = hasExactTotal ? Math.min(baseRangeEnd, safeTotalForRange) : baseRangeEnd;
   const totalLabel = hasExactTotal
     ? `${totalCount}件`
     : `${rangeEnd}${meta.hasNext ? "+" : ""}件`;
@@ -171,7 +172,7 @@ export function GymList({
     );
   }
 
-  const showPagination = !error && totalCount > 0;
+  const showPagination = !error && (totalCount ?? 0) > 0;
   const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
     (a, b) => a - b,
   );

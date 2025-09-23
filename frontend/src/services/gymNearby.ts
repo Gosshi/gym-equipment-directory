@@ -27,9 +27,10 @@ type RawNearbyResponse = {
   total?: number;
   page?: number;
   page_size?: number;
-  has_more?: boolean;
+  has_more?: boolean; // preferred flag name
   has_prev?: boolean;
   page_token?: string | null;
+  // legacy or alternate names intentionally NOT typed (e.g., has_next) to surface if backend changes
 };
 
 const normalizeNearbyGym = (input: RawNearbyGym): NearbyGym => ({
@@ -76,8 +77,9 @@ export async function fetchNearbyGyms({
     ? Number(response.page_size)
     : perPage;
   const hasMore =
-    response.has_more ??
-    (typeof response.has_next === "boolean" ? response.has_next : response.items.length === pageSize);
+    typeof response.has_more === "boolean"
+      ? response.has_more
+      : response.items.length === pageSize;
   const hasPrev = response.has_prev ?? currentPage > 1;
   const total = typeof response.total === "number" ? response.total : response.items.length;
   const nextPageToken = hasMore ? String(currentPage + 1) : null;
