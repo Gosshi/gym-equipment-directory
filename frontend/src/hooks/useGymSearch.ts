@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ApiError } from "@/lib/apiClient";
@@ -103,6 +110,19 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.lng === b.lng &&
   areCategoriesEqual(a.categories, b.categories);
 
+const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
+  a.q === b.q &&
+  a.pref === b.pref &&
+  a.city === b.city &&
+  a.sort === b.sort &&
+  a.order === b.order &&
+  a.page === b.page &&
+  a.limit === b.limit &&
+  a.distance === b.distance &&
+  a.lat === b.lat &&
+  a.lng === b.lng &&
+  areCategoriesEqual(a.categories, b.categories);
+
 const buildFilterStateFromForm = (
   form: FormState,
   base: FilterState,
@@ -172,10 +192,10 @@ export function useGymSearch(
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
 
-  const appliedFilters = useMemo(
-    () => parseFilterState(new URLSearchParams(searchParamsKey)),
-    [searchParamsKey],
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
+    parseFilterState(new URLSearchParams(searchParamsKey)),
   );
+  const [, startTransition] = useTransition();
 
   const [formState, setFormState] = useState<FormState>(() =>
     toFormState(appliedFilters),
@@ -199,6 +219,13 @@ export function useGymSearch(
     appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
   );
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next = parseFilterState(new URLSearchParams(searchParamsKey));
+    setAppliedFilters((prev) =>
+      areFilterStatesEqual(prev, next) ? prev : next,
+    );
+  }, [searchParamsKey]);
 
   useEffect(() => {
     const next = toFormState(appliedFilters);
@@ -258,6 +285,10 @@ export function useGymSearch(
 
   const applyFilters = useCallback(
     (nextFilters: FilterState, options: { append?: boolean } = {}) => {
+      setAppliedFilters((prev) =>
+        areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters,
+      );
+
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
       if (nextQuery === searchParamsKey) {
@@ -267,9 +298,17 @@ export function useGymSearch(
 
       appendModeRef.current = Boolean(options.append);
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-      router.push(nextUrl, { scroll: false });
+      startTransition(() => {
+        router.push(nextUrl, { scroll: false });
+      });
     },
-    [pathname, router, searchParamsKey],
+    [
+      pathname,
+      router,
+      searchParamsKey,
+      setAppliedFilters,
+      startTransition,
+    ],
   );
 
   const scheduleApply = useCallback(

@@ -115,7 +115,7 @@ describe("useGymSearch", () => {
     expect(result.current.formState.distance).toBe(15);
     expect(result.current.formState.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
     expect(result.current.formState.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
-    expect(result.current.page).toBe(2);
+    expect(result.current.page).toBe(1);
     expect(result.current.limit).toBe(30);
   });
 
@@ -536,7 +536,7 @@ describe("useGymSearch", () => {
 
   it("surfaces API errors from searchGyms as error state", async () => {
     const error = new ApiError("検索に失敗しました", 500);
-    searchGyms.mockRejectedValueOnce(error);
+    searchGyms.mockRejectedValue(error);
 
     const { result } = renderHook(() => useGymSearch());
 
