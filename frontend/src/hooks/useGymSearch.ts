@@ -11,10 +11,12 @@ import {
   DEFAULT_DISTANCE_KM,
   type FilterState,
   type SortOption,
+  type SortOrder,
   areCategoriesEqual,
   normalizeCategories,
   parseFilterState,
   serializeFilterState,
+  normalizeSortOrder,
   clampLatitude,
   clampLongitude,
 } from "@/lib/searchParams";
@@ -47,6 +49,7 @@ type FormState = {
   city: string;
   categories: string[];
   sort: SortOption;
+  order: SortOrder;
   distance: number;
   lat: number | null;
   lng: number | null;
@@ -58,6 +61,7 @@ const toFormState = (filters: FilterState): FormState => ({
   city: filters.city ?? "",
   categories: [...filters.categories],
   sort: filters.sort,
+  order: filters.order,
   distance: filters.distance,
   lat: filters.lat,
   lng: filters.lng,
@@ -68,6 +72,7 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.prefecture === b.prefecture &&
   a.city === b.city &&
   a.sort === b.sort &&
+  a.order === b.order &&
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
@@ -83,6 +88,7 @@ const buildFilterStateFromForm = (
   city: form.city.trim() || null,
   categories: normalizeCategories(form.categories),
   sort: form.sort,
+  order: normalizeSortOrder(form.sort, form.order),
   page: 1,
   limit: base.limit,
   distance: form.distance,
@@ -102,7 +108,7 @@ export interface UseGymSearchResult {
   updatePrefecture: (value: string) => void;
   updateCity: (value: string) => void;
   updateCategories: (values: string[]) => void;
-  updateSort: (value: SortOption) => void;
+  updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
   clearFilters: () => void;
   location: LocationState;
@@ -230,6 +236,7 @@ export function useGymSearch(
           city: updated.city.trim(),
           categories: normalizeCategories(updated.categories),
           sort: updated.sort,
+          order: normalizeSortOrder(updated.sort, updated.order),
           distance: updated.distance,
           lat: updated.lat,
           lng: updated.lng,
@@ -249,6 +256,22 @@ export function useGymSearch(
     },
     [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
   );
+
+  useEffect(() => {
+    const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    if (!hasLocation && appliedFilters.sort === "distance") {
+      cancelPendingDebounce();
+      applyFilters(
+        {
+          ...appliedFilters,
+          sort: DEFAULT_FILTER_STATE.sort,
+          order: DEFAULT_FILTER_STATE.order,
+          page: 1,
+        },
+        { append: false },
+      );
+    }
+  }, [appliedFilters, applyFilters, cancelPendingDebounce]);
 
   const updateKeyword = useCallback(
     (value: string) => scheduleApply((prev) => ({ ...prev, q: value })),
@@ -280,7 +303,12 @@ export function useGymSearch(
   );
 
   const updateSort = useCallback(
-    (value: SortOption) => scheduleApply((prev) => ({ ...prev, sort: value })),
+    (value: SortOption, order: SortOrder) =>
+      scheduleApply((prev) => ({
+        ...prev,
+        sort: value,
+        order: normalizeSortOrder(value, order),
+      })),
     [scheduleApply],
   );
 
@@ -473,6 +501,7 @@ export function useGymSearch(
         city: appliedFilters.city ?? undefined,
         categories: appliedFilters.categories,
         sort: appliedFilters.sort,
+        order: appliedFilters.order,
         page: appliedFilters.page,
         limit: appliedFilters.limit,
         perPage: appliedFilters.limit,

@@ -9,8 +9,8 @@ import {
   MAX_LONGITUDE,
   MIN_LATITUDE,
   MIN_LONGITUDE,
-  SORT_OPTIONS,
   type SortOption,
+  type SortOrder,
 } from "@/lib/searchParams";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/apiClient";
@@ -22,12 +22,18 @@ import type {
   PrefectureOption,
 } from "@/types/meta";
 
-const SORT_LABELS: Record<SortOption, string> = {
-  distance: "距離が近い順",
-  popular: "人気順",
-  fresh: "更新が新しい順",
-  newest: "新着順",
-};
+const SORT_SELECT_OPTIONS: Array<{
+  value: string;
+  sort: SortOption;
+  order: SortOrder;
+  label: string;
+  requiresLocation?: boolean;
+}> = [
+  { value: "distance:asc", sort: "distance", order: "asc", label: "距離（近い順）", requiresLocation: true },
+  { value: "name:asc", sort: "name", order: "asc", label: "名前（A→Z）" },
+  { value: "rating:desc", sort: "rating", order: "desc", label: "評価（高い順）" },
+  { value: "reviews:desc", sort: "reviews", order: "desc", label: "口コミ数（多い順）" },
+];
 
 type SearchFiltersProps = {
   state: {
@@ -36,6 +42,7 @@ type SearchFiltersProps = {
     city: string;
     categories: string[];
     sort: SortOption;
+    order: SortOrder;
     distance: number;
   };
   prefectures: PrefectureOption[];
@@ -50,7 +57,7 @@ type SearchFiltersProps = {
   onPrefectureChange: (value: string) => void;
   onCityChange: (value: string) => void;
   onCategoriesChange: (values: string[]) => void;
-  onSortChange: (value: SortOption) => void;
+  onSortChange: (sort: SortOption, order: SortOrder) => void;
   onDistanceChange: (value: number) => void;
   onClear: () => void;
   onRequestLocation: () => void;
@@ -399,15 +406,29 @@ export function SearchFilters({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             )}
             id="gym-search-sort"
-            onChange={(event) => onSortChange(event.target.value as SortOption)}
-            value={state.sort}
+            onChange={(event) => {
+              const [sort, order] = event.target.value.split(":");
+              onSortChange(sort as SortOption, (order as SortOrder) ?? "asc");
+            }}
+            value={`${state.sort}:${state.order}`}
           >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {SORT_LABELS[option]}
-              </option>
-            ))}
+            {SORT_SELECT_OPTIONS.map((option) => {
+              const disabled =
+                option.requiresLocation &&
+                !(location.lat != null && location.lng != null) &&
+                `${state.sort}:${state.order}` !== option.value;
+              return (
+                <option key={option.value} disabled={disabled} value={option.value}>
+                  {option.label}
+                </option>
+              );
+            })}
           </select>
+          {location.lat == null && location.lng == null ? (
+            <p className="text-xs text-muted-foreground">
+              位置情報が未設定のため、距離順は選択できません。
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-3 rounded-lg border border-dashed p-4">
