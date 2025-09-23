@@ -6,6 +6,7 @@ import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
 jest.mock("@/hooks/useGymSearch", () => ({
   useGymSearch: jest.fn(),
+  FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
 }));
 
 const { useGymSearch } = jest.requireMock("@/hooks/useGymSearch") as {
@@ -52,6 +53,8 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
       status: "idle",
       error: null,
       isSupported: true,
+      isFallback: false,
+      fallbackLabel: null,
     },
     requestLocation: jest.fn(),
     clearLocation: jest.fn(),

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 
 import { ApiError } from "@/lib/apiClient";
 import { DEFAULT_DISTANCE_KM, DEFAULT_FILTER_STATE } from "@/lib/searchParams";
-import { useGymSearch } from "@/hooks/useGymSearch";
+import { FALLBACK_LOCATION, useGymSearch } from "@/hooks/useGymSearch";
 
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
@@ -231,21 +231,6 @@ describe("useGymSearch", () => {
     mockRouter.push.mockImplementation(() => {});
   });
 
-  it("reverts distance sorting when location is unavailable", async () => {
-    useSearchParams.mockReturnValue(new URLSearchParams("sort=distance&order=asc"));
-
-    renderHook(() => useGymSearch({ debounceMs: 0 }));
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mockRouter.push).toHaveBeenCalled();
-    const [url] = mockRouter.push.mock.calls[0];
-    expect(url).toContain("sort=rating");
-    expect(url).toContain("order=desc");
-  });
-
   it("clears filters and keeps the current per-page value", async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams(
@@ -299,6 +284,8 @@ describe("useGymSearch", () => {
     expect(result.current.formState.lng).toBeCloseTo(139.9876);
     expect(result.current.location.mode).toBe("manual");
     expect(result.current.location.status).toBe("success");
+    expect(result.current.location.isFallback).toBe(false);
+    expect(result.current.location.fallbackLabel).toBeNull();
     expect(searchGyms).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 35.1234,
@@ -340,7 +327,7 @@ describe("useGymSearch", () => {
     expect(result.current.formState.order).toBe(DEFAULT_FILTER_STATE.order);
   });
 
-  it("resets distance sorting when location is cleared", async () => {
+  it("applies fallback coordinates when the current location is cleared", async () => {
     let currentParams = new URLSearchParams(
       "sort=distance&order=asc&lat=35.6&lng=139.7&distance=5",
     );
@@ -368,10 +355,10 @@ describe("useGymSearch", () => {
 
     expect(mockRouter.push).toHaveBeenCalledTimes(1);
     const [url, options] = mockRouter.push.mock.calls[0];
-    expect(url).toContain("sort=rating");
-    expect(url).toContain("order=desc");
-    expect(url).not.toContain("lat=");
-    expect(url).not.toContain("lng=");
+    expect(url).toContain("sort=distance");
+    expect(url).toContain("order=asc");
+    expect(url).toContain(`lat=${FALLBACK_LOCATION.lat.toFixed(6)}`);
+    expect(url).toContain(`lng=${FALLBACK_LOCATION.lng.toFixed(6)}`);
     expect(options).toEqual({ scroll: false });
 
     await act(async () => {
@@ -379,16 +366,60 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.appliedFilters.sort).toBe("rating");
-    expect(result.current.appliedFilters.lat).toBeNull();
-    expect(result.current.formState.sort).toBe("rating");
-    expect(result.current.formState.lat).toBeNull();
+    expect(result.current.appliedFilters.sort).toBe("distance");
+    expect(result.current.appliedFilters.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(result.current.appliedFilters.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+    expect(result.current.location.mode).toBe("fallback");
+    expect(result.current.location.isFallback).toBe(true);
+    expect(result.current.formState.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(result.current.formState.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
 
     expect(searchGyms).toHaveBeenCalledTimes(1);
     const [params] = searchGyms.mock.calls[0];
-    expect(params.sort).toBe("rating");
-    expect(params).not.toHaveProperty("lat");
-    expect(params).not.toHaveProperty("lng");
+    expect(params.sort).toBe("distance");
+    expect(params.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(params.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+
+    mockRouter.push.mockImplementation(() => {});
+  });
+
+  it("restores fallback coordinates when distance sorting lacks an explicit location", async () => {
+    let currentParams = new URLSearchParams("sort=distance&order=asc");
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    searchGyms.mockClear();
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalled();
+    const [url] = mockRouter.push.mock.calls[0];
+    expect(url).toContain("sort=distance");
+    expect(url).toContain("order=asc");
+    expect(url).toContain(`lat=${FALLBACK_LOCATION.lat.toFixed(6)}`);
+    expect(url).toContain(`lng=${FALLBACK_LOCATION.lng.toFixed(6)}`);
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(result.current.appliedFilters.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+    expect(result.current.location.mode).toBe("fallback");
+    expect(result.current.location.isFallback).toBe(true);
+
+    expect(searchGyms).toHaveBeenCalledTimes(1);
+    const [params] = searchGyms.mock.calls[0];
+    expect(params.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(params.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
 
     mockRouter.push.mockImplementation(() => {});
   });

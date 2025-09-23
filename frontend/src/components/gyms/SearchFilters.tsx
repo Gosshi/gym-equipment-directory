@@ -14,7 +14,7 @@ import {
 } from "@/lib/searchParams";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/apiClient";
-import type { LocationState } from "@/hooks/useGymSearch";
+import { FALLBACK_LOCATION, type LocationState } from "@/hooks/useGymSearch";
 import { suggestGyms, type GymSuggestItem } from "@/services/suggest";
 import type {
   CityOption,
@@ -207,9 +207,11 @@ export function SearchFilters({
     ? `${location.lat!.toFixed(4)}, ${location.lng!.toFixed(4)}`
     : "";
   const locationSummary = hasLocation
-    ? `${location.mode === "auto" ? "現在地を使用中" : "手入力した地点を使用中"}（${coordinateLabel}）`
+    ? location.isFallback
+      ? `デフォルト地点（${location.fallbackLabel ?? FALLBACK_LOCATION.label}）を使用中（${coordinateLabel}）`
+      : `${location.mode === "auto" ? "現在地を使用中" : "手入力した地点を使用中"}（${coordinateLabel}）`
     : location.isSupported
-    ? "現在地を取得すると距離フィルタが有効になります。"
+    ? `現在地を取得するか「デフォルト地点（${FALLBACK_LOCATION.label}）」を利用できます。`
     : "この環境では位置情報を取得できません。緯度・経度を手入力してください。";
 
   const handleCategoryToggle = (value: string) => {
@@ -446,9 +448,9 @@ export function SearchFilters({
                 size="sm"
                 type="button"
                 variant="outline"
-                disabled={!hasLocation && latInput.trim() === "" && lngInput.trim() === ""}
+                disabled={location.isFallback && latInput.trim() === "" && lngInput.trim() === ""}
               >
-                現在地を解除
+                デフォルト地点を使用
               </Button>
             </div>
           </div>
@@ -538,7 +540,7 @@ export function SearchFilters({
           <span className="text-xs text-muted-foreground">
             {hasLocation
               ? `現在の距離: 約 ${state.distance}km`
-              : "現在地を設定すると距離フィルタを利用できます。"}
+              : `デフォルト地点（${FALLBACK_LOCATION.label}）または現在地を設定すると距離フィルタを利用できます。`}
           </span>
         </div>
 
