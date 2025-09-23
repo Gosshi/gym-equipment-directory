@@ -1,7 +1,10 @@
 "use client";
 
-import { SearchFilters } from "@/components/gyms/SearchFilters";
+import { useEffect, useRef } from "react";
+
+import { SearchBar } from "@/components/gyms/SearchBar";
 import { GymList } from "@/components/gyms/GymList";
+import { useToast } from "@/components/ui/use-toast";
 import { useGymSearch } from "@/hooks/useGymSearch";
 
 export function GymsPage() {
@@ -9,10 +12,7 @@ export function GymsPage() {
     formState,
     updateKeyword,
     updatePrefecture,
-    updateCity,
     updateCategories,
-    updateSort,
-    updateDistance,
     clearFilters,
     page,
     limit,
@@ -26,19 +26,35 @@ export function GymsPage() {
     error,
     retry,
     prefectures,
-    cities,
     equipmentCategories,
     isMetaLoading,
     metaError,
     reloadMeta,
-    isCityLoading,
-    cityError,
-    reloadCities,
   } = useGymSearch();
+
+  const { toast } = useToast();
+  const lastErrorKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!error || error.type !== "server") {
+      lastErrorKeyRef.current = null;
+      return;
+    }
+    const key = `${error.type}-${error.status ?? ""}-${error.message}`;
+    if (lastErrorKeyRef.current === key) {
+      return;
+    }
+    lastErrorKeyRef.current = key;
+    toast({
+      variant: "destructive",
+      title: "検索に失敗しました",
+      description: error.message,
+    });
+  }, [error, toast]);
 
   return (
     <div className="flex min-h-screen w-full flex-col gap-10 px-4 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-muted-foreground">Gym Directory</p>
           <h1 className="text-3xl font-bold sm:text-4xl">ジム一覧・検索</h1>
@@ -46,40 +62,35 @@ export function GymsPage() {
             設備カテゴリやエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
           </p>
         </header>
-        <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <SearchFilters
-            categories={equipmentCategories}
-            cities={cities}
-            cityError={cityError}
-            isCityLoading={isCityLoading}
-            isMetaLoading={isMetaLoading}
-            metaError={metaError}
-            onCategoriesChange={updateCategories}
-            onCityChange={updateCity}
-            onClear={clearFilters}
-            onDistanceChange={updateDistance}
-            onKeywordChange={updateKeyword}
-            onPrefectureChange={updatePrefecture}
-            onReloadCities={reloadCities}
-            onReloadMeta={reloadMeta}
-            onSortChange={updateSort}
-            prefectures={prefectures}
-            state={formState}
-          />
-          <GymList
-            error={error}
-            gyms={items}
-            isInitialLoading={isInitialLoading}
-            isLoading={isLoading}
-            limit={limit}
-            meta={meta}
-            onLoadMore={loadNextPage}
-            onLimitChange={setLimit}
-            onPageChange={setPage}
-            onRetry={retry}
-            page={page}
-          />
-        </div>
+
+        <SearchBar
+          categories={formState.categories}
+          categoryOptions={equipmentCategories}
+          isMetaLoading={isMetaLoading}
+          keyword={formState.q}
+          metaError={metaError}
+          onCategoriesChange={updateCategories}
+          onClear={clearFilters}
+          onKeywordChange={updateKeyword}
+          onPrefectureChange={updatePrefecture}
+          onReloadMeta={reloadMeta}
+          prefecture={formState.prefecture}
+          prefectures={prefectures}
+        />
+
+        <GymList
+          error={error}
+          gyms={items}
+          isInitialLoading={isInitialLoading}
+          isLoading={isLoading}
+          limit={limit}
+          meta={meta}
+          onLoadMore={loadNextPage}
+          onLimitChange={setLimit}
+          onPageChange={setPage}
+          onRetry={retry}
+          page={page}
+        />
       </div>
     </div>
   );

@@ -213,7 +213,67 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.error).toBe("検索に失敗しました");
+    expect(result.current.error).toEqual({
+      message: "検索に失敗しました",
+      status: 500,
+      type: "server",
+    });
+  });
+
+  it("marks 4xx API errors as client errors", async () => {
+    const error = new ApiError("無効なリクエスト", 422);
+    searchGyms.mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useGymSearch());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.error).toEqual({
+      message: "無効なリクエスト",
+      status: 422,
+      type: "client",
+    });
+  });
+
+  it("issues a single fetch after rapid keyword changes", async () => {
+    let currentParams = new URLSearchParams();
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 150 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    searchGyms.mockClear();
+
+    await act(async () => {
+      result.current.updateKeyword("b");
+      result.current.updateKeyword("be");
+      result.current.updateKeyword("bench");
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(150);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(searchGyms).toHaveBeenCalledTimes(1);
+    expect(searchGyms).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "bench", page: 1 }),
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   it("appends additional results when loadNextPage is invoked", async () => {

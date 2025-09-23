@@ -1,54 +1,54 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 
-import { InfiniteLoader } from "@/components/gyms/InfiniteLoader";
-import { Pagination } from "@/components/gyms/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import type { SearchError } from "@/hooks/useGymSearch";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
+
+import { GymListSkeleton } from "./GymListSkeleton";
+import { Pagination } from "./Pagination";
 
 const PAGE_SIZE_OPTIONS = [20, 40, 60];
 
-const GymListLoadingState = () => (
-  <div aria-hidden className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="presentation">
-    {Array.from({ length: 6 }).map((_, index) => (
-      <Card key={index} className="overflow-hidden">
-        <Skeleton className="h-40 w-full" />
-        <CardContent className="space-y-3">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
-
 const GymListEmptyState = () => (
-  <p className="rounded-md bg-muted/40 p-4 text-center text-sm text-muted-foreground">
-    条件に一致するジムが見つかりませんでした。
-  </p>
-);
-
-const GymListErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
   <div
-    className={cn(
-      "flex flex-col items-center gap-4 rounded-md",
-      "border border-destructive/40 bg-destructive/10 p-6 text-center",
-    )}
+    className="rounded-md bg-muted/40 p-4 text-center text-sm text-muted-foreground"
+    role="status"
   >
-    <p className="text-sm text-destructive">{message}</p>
-    <Button onClick={onRetry} type="button" variant="outline">
-      もう一度試す
-    </Button>
+    条件に一致するジムが見つかりませんでした。
   </div>
 );
+
+const GymListErrorState = ({ error, onRetry }: { error: SearchError; onRetry: () => void }) => {
+  const action =
+    error.type === "server" ? (
+      <Button onClick={onRetry} type="button" variant="outline">
+        再読み込み
+      </Button>
+    ) : null;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-4 rounded-md border p-6 text-sm shadow-sm",
+        error.type === "client"
+          ? "border-amber-300/70 bg-amber-100/50 text-amber-900"
+          : "border-destructive/40 bg-destructive/10 text-destructive",
+      )}
+      role="alert"
+    >
+      <p>{error.message}</p>
+      {error.type === "client" ? (
+        <p className="text-xs text-muted-foreground">
+          検索条件を見直してから再度お試しください。
+        </p>
+      ) : null}
+      {action}
+    </div>
+  );
+};
 
 const GymCard = ({ gym }: { gym: GymSummary }) => (
   <Link
@@ -102,12 +102,11 @@ type GymListProps = {
   limit: number;
   isLoading: boolean;
   isInitialLoading: boolean;
-  error: string | null;
+  error: SearchError | null;
   onRetry: () => void;
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
   onLoadMore: () => void;
-  enableInfiniteScroll?: boolean;
 };
 
 export function GymList({
@@ -122,11 +121,7 @@ export function GymList({
   onPageChange,
   onLimitChange,
   onLoadMore,
-  enableInfiniteScroll = true,
 }: GymListProps) {
-  const showSkeleton = isInitialLoading;
-  const showEmpty = !error && !showSkeleton && gyms.length === 0;
-  const isAppending = isLoading && !isInitialLoading;
   const limitValue = Math.max(limit, 1);
   const totalFromMeta = meta.total > 0 ? Math.ceil(meta.total / limitValue) : 0;
   const totalFromCount = gyms.length > 0 ? Math.ceil(gyms.length / limitValue) : 0;
@@ -156,15 +151,15 @@ export function GymList({
   }, [page]);
 
   let content: ReactNode;
-  if (error) {
-    content = <GymListErrorState message={error} onRetry={onRetry} />;
-  } else if (showSkeleton) {
-    content = <GymListLoadingState />;
-  } else if (showEmpty) {
+  if (isInitialLoading) {
+    content = <GymListSkeleton />;
+  } else if (error) {
+    content = <GymListErrorState error={error} onRetry={onRetry} />;
+  } else if (gyms.length === 0) {
     content = <GymListEmptyState />;
   } else {
     content = (
-      <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}> 
+      <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}>
         {gyms.map((gym) => (
           <GymCard key={gym.id} gym={gym} />
         ))}
@@ -173,6 +168,7 @@ export function GymList({
   }
 
   const showPagination = !error && (totalPages > 1 || meta.hasNext || page > 1);
+  const canLoadMore = !error && gyms.length > 0 && meta.hasNext;
 
   return (
     <section
@@ -198,6 +194,7 @@ export function GymList({
             表示件数
           </label>
           <select
+            aria-label="検索結果の表示件数"
             className={cn(
               "h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -217,27 +214,16 @@ export function GymList({
 
       {content}
 
-      {!error && !showEmpty ? (
+      {!error && gyms.length > 0 ? (
         <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
           <span>
             {totalCount} 件中 {displayedStart}-{displayedEnd} 件を表示
           </span>
-          {enableInfiniteScroll && meta.hasNext ? (
-            <span className="text-xs text-muted-foreground">
-              下までスクロールすると自動で次のページを読み込みます。
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {isAppending ? (
-        <div className="mt-4 flex justify-center text-sm text-muted-foreground">
-          <span>読み込み中...</span>
         </div>
       ) : null}
 
       {showPagination ? (
-        <div className="mt-8">
+        <div className="mt-6">
           <Pagination
             currentPage={page}
             hasNextPage={meta.hasNext}
@@ -248,13 +234,12 @@ export function GymList({
         </div>
       ) : null}
 
-      {enableInfiniteScroll && !error && gyms.length > 0 ? (
-        <InfiniteLoader
-          enabled={enableInfiniteScroll}
-          hasNextPage={meta.hasNext}
-          isLoading={isLoading}
-          onLoadMore={onLoadMore}
-        />
+      {canLoadMore ? (
+        <div className="mt-6 flex justify-center">
+          <Button onClick={onLoadMore} type="button" variant="outline">
+            もっと見る
+          </Button>
+        </div>
       ) : null}
     </section>
   );

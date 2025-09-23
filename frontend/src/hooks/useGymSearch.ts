@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ApiError } from "@/lib/apiClient";
 import {
@@ -25,6 +26,12 @@ import type {
 } from "@/types/meta";
 
 const DEFAULT_DEBOUNCE_MS = 300;
+
+export interface SearchError {
+  type: "client" | "server";
+  message: string;
+  status?: number;
+}
 
 type FormState = {
   q: string;
@@ -91,7 +98,7 @@ export interface UseGymSearchResult {
   meta: GymSearchMeta;
   isLoading: boolean;
   isInitialLoading: boolean;
-  error: string | null;
+  error: SearchError | null;
   retry: () => void;
   prefectures: PrefectureOption[];
   cities: CityOption[];
@@ -127,18 +134,16 @@ export function useGymSearch(
     setFormState((prev) => (areFormStatesEqual(prev, next) ? prev : next));
   }, [appliedFilters]);
 
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  const cancelPendingDebounce = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => cancelPendingDebounce, [cancelPendingDebounce]);
-
   const appendModeRef = useRef(false);
+
+  const debouncedApply = useDebouncedCallback(
+    (nextState: FormState, baseFilters: FilterState) => {
+      applyFilters(buildFilterStateFromForm(nextState, baseFilters));
+    },
+    debounceMs,
+  );
+
+  useEffect(() => () => debouncedApply.cancel(), [debouncedApply]);
 
   const applyFilters = useCallback(
     (nextFilters: FilterState, options: { append?: boolean } = {}) => {
@@ -160,11 +165,12 @@ export function useGymSearch(
     (updater: (prev: FormState) => FormState) => {
       setFormState((prev) => {
         const updated = updater(prev);
+        const normalizedCategories = normalizeCategories(updated.categories);
         const normalized: FormState = {
           q: updated.q,
           prefecture: updated.prefecture.trim(),
           city: updated.city.trim(),
-          categories: normalizeCategories(updated.categories),
+          categories: normalizedCategories,
           sort: updated.sort,
           distance: updated.distance,
         };
@@ -173,15 +179,11 @@ export function useGymSearch(
           return prev;
         }
 
-        cancelPendingDebounce();
-        debounceRef.current = setTimeout(() => {
-          applyFilters(buildFilterStateFromForm(normalized, appliedFilters));
-        }, debounceMs);
-
+        debouncedApply(normalized, appliedFilters);
         return normalized;
       });
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
+    [appliedFilters, debouncedApply],
   );
 
   const updateKeyword = useCallback(
@@ -228,19 +230,19 @@ export function useGymSearch(
   );
 
   const clearFilters = useCallback(() => {
-    cancelPendingDebounce();
+    debouncedApply.cancel();
     const resetFilters: FilterState = {
       ...DEFAULT_FILTER_STATE,
       limit: appliedFilters.limit,
     };
     setFormState(toFormState(resetFilters));
     applyFilters(resetFilters);
-  }, [appliedFilters.limit, applyFilters, cancelPendingDebounce]);
+  }, [appliedFilters.limit, applyFilters, debouncedApply]);
 
   const setPage = useCallback(
     (page: number, options: { append?: boolean } = {}) => {
       const nextPage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
-      cancelPendingDebounce();
+      debouncedApply.cancel();
       applyFilters(
         {
           ...appliedFilters,
@@ -249,14 +251,14 @@ export function useGymSearch(
         { append: options.append },
       );
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce],
+    [appliedFilters, applyFilters, debouncedApply],
   );
 
   const setLimit = useCallback(
     (value: number) => {
       const parsed = Number.isFinite(value) ? Math.trunc(value) : DEFAULT_LIMIT;
       const clamped = Math.min(Math.max(parsed, 1), MAX_LIMIT);
-      cancelPendingDebounce();
+      debouncedApply.cancel();
       applyFilters(
         {
           ...appliedFilters,
@@ -266,7 +268,7 @@ export function useGymSearch(
         { append: false },
       );
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce],
+    [appliedFilters, applyFilters, debouncedApply],
   );
 
   const [items, setItems] = useState<GymSummary[]>([]);
@@ -277,7 +279,7 @@ export function useGymSearch(
   });
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SearchError | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
   const retry = useCallback(() => setRefreshIndex((value) => value + 1), []);
@@ -348,11 +350,15 @@ export function useGymSearch(
           return;
         }
         if (err instanceof ApiError) {
-          setError(err.message || "ジムの取得に失敗しました");
+          const message = err.message || "ジムの取得に失敗しました";
+          const status = err.status;
+          const type: SearchError["type"] =
+            status && status >= 400 && status < 500 ? "client" : "server";
+          setError({ message, status, type });
         } else if (err instanceof Error) {
-          setError(err.message);
+          setError({ message: err.message, type: "server" });
         } else {
-          setError("ジムの取得に失敗しました");
+          setError({ message: "ジムの取得に失敗しました", type: "server" });
         }
       })
       .finally(() => {
