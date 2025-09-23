@@ -19,6 +19,7 @@ class GymSummaryDTO(BaseModel):
     score: float | None = Field(default=None, description="複合スコア（nullable）")
     freshness_score: float | None = Field(default=None, description="鮮度スコア（nullable）")
     richness_score: float | None = Field(default=None, description="充実度スコア（nullable）")
+    distance_km: float | None = Field(default=None, description="検索基準点からの距離（km）")
 
     model_config = ConfigDict(from_attributes=True)
 

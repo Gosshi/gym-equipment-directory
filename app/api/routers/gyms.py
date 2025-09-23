@@ -24,7 +24,7 @@ router = APIRouter(prefix="/gyms", tags=["gyms"])
 
 
 _DESC = (
-    "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n"
+    "都道府県/市区町村スラッグ、設備スラッグ（CSV）、緯度経度+半径でフィルタします。\n"
     "- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n"
     "- sort=richness: GymEquipment をスコア合算し降順\n"
     " （1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n"
@@ -32,6 +32,7 @@ _DESC = (
     "- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n"
     "- sort=gym_name: name ASC, id ASC（Keyset）\n"
     "- sort=created_at: created_at DESC, id ASC（Keyset）\n"
+    "- sort=distance: 指定座標からのHaversine距離 ASC, id ASC（lat/lng 必須）\n"
 )
 
 
@@ -65,6 +66,9 @@ async def search_gyms(
         return await search_svc(
             pref=q.pref,
             city=q.city,
+            lat=q.lat,
+            lng=q.lng,
+            radius_km=q.radius_km,
             required_slugs=required_slugs,
             equipment_match=q.equipment_match,
             sort=q.sort,

@@ -71,6 +71,9 @@ def get_gym_search_api_service(
         *,
         pref: str | None,
         city: str | None,
+        lat: float | None,
+        lng: float | None,
+        radius_km: float | None,
         required_slugs: list[str],
         equipment_match: str,
         sort: str,
@@ -81,6 +84,9 @@ def get_gym_search_api_service(
             session,
             pref=pref,
             city=city,
+            lat=lat,
+            lng=lng,
+            radius_km=radius_km,
             required_slugs=required_slugs,
             equipment_match=equipment_match,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
