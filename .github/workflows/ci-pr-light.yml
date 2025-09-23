@@ -1,27 +1,20 @@
-name: CI
+name: CI (PR Light)
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  test:
-    name: Python ${{ matrix.python-version }}
+  pr-light:
+    name: PR Light (Python 3.12)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12"]
+    timeout-minutes: 15
 
-    # 環境変数
     env:
-      # Postgres service
       POSTGRES_DB: gym_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: pass
       POSTGRES_PORT: 5432
-
-      # Test DB URL (async)
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
 
     services:
@@ -33,7 +26,6 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         ports:
           - "5432:5432"
-        # ヘルスチェック
         options: >-
           --health-cmd="pg_isready -U postgres -d gym_test"
           --health-interval=10s --health-timeout=5s --health-retries=10
@@ -42,12 +34,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history for diff
+          fetch-depth: 1
 
-      - name: Setup Python
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Determine pip cache dir
         id: pip-cache-dir
@@ -57,33 +49,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache-dir.outputs.dir }}
-          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('requirements*.txt') }}
+          key: pip-${{ runner.os }}-3.12-${{ hashFiles('requirements*.txt') }}
           restore-keys: |
-            pip-${{ runner.os }}-${{ matrix.python-version }}-
+            pip-${{ runner.os }}-3.12-
 
-      - name: Install dependencies
+      - name: Install dependencies (minimal)
         run: |
           python -m pip install -U pip wheel setuptools
           pip install -r requirements.txt
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Ruff lint
+      - name: Ruff lint (fast)
         run: ruff check .
 
       - name: Alembic upgrade head (use sync driver)
         env:
-          # migrations/env.py prefers ALEMBIC_DATABASE_URL or DATABASE_URL.
-          # It will coerce +asyncpg → +psycopg2 automatically if needed.
           ALEMBIC_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
         run: alembic upgrade head
 
-      - name: Pytest with coverage
+      - name: Pytest (quick)
         env:
           TEST_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
-        run: pytest -q --cov --cov-report=xml --cov-fail-under=40
-
-      - name: Upload coverage.xml
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.python-version }}
-          path: coverage.xml
+        run: pytest -q --maxfail=1

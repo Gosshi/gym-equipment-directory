@@ -11,7 +11,7 @@ import os
 import random
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TypedDict
 
 from sqlalchemy import select
@@ -27,16 +27,6 @@ from app.models.source import SourceType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def _is_truthy_env(value: str | None) -> bool:
-    if value is None:
-        return False
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-TEST_MODE = _is_truthy_env(os.getenv("SEED_TEST_MODE"))
-TEST_RANDOM_SEED = int(os.getenv("SEED_TEST_RANDOM_SEED", "20250101"))
 
 
 def _is_truthy_env(value: str | None) -> bool:
@@ -683,19 +673,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 async def async_main(args: argparse.Namespace) -> int:
     overwrite_geo_env = _is_truthy_env(os.getenv("SEED_OVERWRITE_GEO"))
-    overwrite_geo_env = _is_truthy_env(os.getenv("SEED_OVERWRITE_GEO"))
     overwrite_geo = args.overwrite_geo or overwrite_geo_env
 
-    test_mode = TEST_MODE
-    if test_mode:
-        seed_value = args.seed if args.seed is not None else TEST_RANDOM_SEED
-        rng = random.Random(seed_value)
-        logger.info(
-            "SEED_TEST_MODE=1 detected; generating deterministic test dataset (seed=%s).",
-            seed_value,
-        )
-    else:
-        rng = random.Random(args.seed) if args.seed is not None else random.Random()
     test_mode = TEST_MODE
     if test_mode:
         seed_value = args.seed if args.seed is not None else TEST_RANDOM_SEED
@@ -710,7 +689,9 @@ async def async_main(args: argparse.Namespace) -> int:
     equipment_seed, gym_seed, gym_equipment_seed, gym_metadata = resolve_seed_payload(test_mode)
 
     utc_now = datetime.utcnow()
-    utc_now_tz = datetime.now(datetime.UTC)
+    # freezegun により datetime クラスが差し替えられるケースでは datetime.UTC が欠落するため
+    # timezone.utc を利用する（lint 推奨の datetime.UTC は互換性の問題があるため使用しない）
+    utc_now_tz = datetime.now(timezone.utc)  # noqa: UP017 - freezegun 互換目的で timezone.utc を使用
 
     async with SessionLocal() as sess:
         src = await get_or_create_source(
@@ -740,18 +721,6 @@ async def async_main(args: argparse.Namespace) -> int:
                 longitude=lng,
                 overwrite_geo=overwrite_geo,
             )
-            meta = gym_metadata.get(slug)
-            if meta:
-                last_days = meta.get("last_verified_days")
-                if last_days is None:
-                    g.last_verified_at_cached = None
-                else:
-                    g.last_verified_at_cached = utc_now - timedelta(days=int(last_days))
-                created_days = meta.get("created_days")
-                if created_days is not None:
-                    created_at = utc_now_tz - timedelta(days=int(created_days))
-                    g.created_at = created_at
-                    g.updated_at = created_at
             meta = gym_metadata.get(slug)
             if meta:
                 last_days = meta.get("last_verified_days")

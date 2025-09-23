@@ -2,7 +2,7 @@ import asyncio
 import importlib
 import os
 import random
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +13,7 @@ from alembic.config import Config as AlembicConfig
 from dotenv import load_dotenv
 from faker import Faker
 from freezegun import freeze_time
-from httpx import AsyncClient, Request, Response
+from httpx import ASGITransport, AsyncClient, Request, Response
 from sqlalchemy import event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
@@ -76,7 +76,7 @@ async def _reset_schema(db_url: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def frozen_time() -> AsyncIterator[None]:
+def frozen_time() -> Iterator[None]:
     with freeze_time("2025-01-01T00:00:00Z"):
         yield
 
@@ -87,7 +87,7 @@ def db_url() -> str:
 
 
 @pytest.fixture(scope="session")
-def apply_migrations(db_url: str, frozen_time: None) -> AsyncIterator[None]:
+def apply_migrations(db_url: str, frozen_time: None) -> Iterator[None]:
     asyncio.run(_reset_schema(db_url))
     cfg = AlembicConfig("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", _make_sync_url(db_url))
@@ -168,7 +168,7 @@ def http_recorder(request: pytest.FixtureRequest) -> HttpExchangeRecorder:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def sql_debug(request: pytest.FixtureRequest, db_engine: AsyncEngine) -> AsyncIterator[None]:
+def sql_debug(request: pytest.FixtureRequest, db_engine: AsyncEngine) -> Iterator[None]:
     statements: list[tuple[str, Any]] = []
 
     def _listener(conn, cursor, statement, parameters, context, executemany) -> None:  # noqa: ANN001
@@ -206,7 +206,12 @@ async def app_client(
         "request": [http_recorder.on_request],
         "response": [http_recorder.on_response],
     }
-    async with AsyncClient(app=app, base_url="http://test", event_hooks=event_hooks) as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        event_hooks=event_hooks,
+    ) as client:
         yield client
     app.dependency_overrides.clear()
 

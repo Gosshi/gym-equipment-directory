@@ -8,6 +8,10 @@ migrations/__pycache__/
 dist/
 build/
 *.tsbuildinfo
+# coverage.py
+.coverage
+coverage.xml
+htmlcov/
 
 # venv
 venv*/
