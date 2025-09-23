@@ -3,9 +3,11 @@ import {
   DEFAULT_FILTER_STATE,
   DEFAULT_LIMIT,
   DEFAULT_SORT,
+  DEFAULT_ORDER,
   MAX_DISTANCE_KM,
   MAX_LIMIT,
   SORT_OPTIONS,
+  getDefaultOrderForSort,
   parseFilterState,
   serializeFilterState,
 } from "@/lib/searchParams";
@@ -13,7 +15,7 @@ import {
 describe("searchParams", () => {
   it("parses query parameters into a normalized filter state", () => {
     const params = new URLSearchParams(
-      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&per_page=40&distance=25&lat=35.681&lng=139.767",
+      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=reviews&order=desc&page=2&per_page=40&distance=25&lat=35.681&lng=139.767",
     );
 
     const state = parseFilterState(params);
@@ -23,7 +25,8 @@ describe("searchParams", () => {
       pref: "tokyo",
       city: "shinjuku",
       categories: ["squat-rack", "barbell"],
-      sort: "fresh",
+      sort: "reviews",
+      order: "desc",
       page: 2,
       limit: 40,
       distance: 25,
@@ -43,6 +46,7 @@ describe("searchParams", () => {
     expect(state.categories).toEqual([]);
     expect(state.sort).toBe(DEFAULT_SORT);
     expect(state.page).toBe(1);
+    expect(state.order).toBe(DEFAULT_ORDER);
     expect(state.limit).toBe(MAX_LIMIT);
     expect(state.distance).toBe(MAX_DISTANCE_KM);
     expect(state.lat).toBeNull();
@@ -56,7 +60,8 @@ describe("searchParams", () => {
       pref: "osaka",
       city: "osaka-city",
       categories: ["dumbbell", "smith-machine"],
-      sort: "newest",
+      sort: "name",
+      order: "asc",
       page: 3,
       limit: 30,
       distance: DEFAULT_DISTANCE_KM + 1,
@@ -68,7 +73,8 @@ describe("searchParams", () => {
     expect(params.get("pref")).toBe("osaka");
     expect(params.get("city")).toBe("osaka-city");
     expect(params.get("cats")).toBe("dumbbell,smith-machine");
-    expect(params.get("sort")).toBe("newest");
+    expect(params.get("sort")).toBe("name");
+    expect(params.get("order")).toBe("asc");
     expect(params.get("page")).toBe("3");
     expect(params.get("per_page")).toBe("30");
     expect(params.get("distance")).toBe(String(DEFAULT_DISTANCE_KM + 1));
@@ -82,7 +88,8 @@ describe("searchParams", () => {
       pref: "hokkaido",
       city: "sapporo",
       categories: ["power-rack"],
-      sort: "popular",
+      sort: "rating",
+      order: "desc",
       page: 4,
       limit: 24,
       distance: 12,
@@ -97,7 +104,8 @@ describe("searchParams", () => {
       pref: "hokkaido",
       city: "sapporo",
       categories: ["power-rack"],
-      sort: "popular",
+      sort: "rating",
+      order: "desc",
       page: 4,
       limit: 24,
       distance: 12,
@@ -111,6 +119,7 @@ describe("searchParams", () => {
     for (const option of SORT_OPTIONS) {
       params.set("sort", option);
       expect(parseFilterState(params).sort).toBe(option);
+      expect(parseFilterState(params).order).toBe(getDefaultOrderForSort(option));
     }
   });
 
@@ -124,5 +133,6 @@ describe("searchParams", () => {
     expect(state.pref).toBe("kanagawa");
     expect(state.categories).toEqual(["cable-machine"]);
     expect(state.limit).toBe(10);
+    expect(state.order).toBe(DEFAULT_ORDER);
   });
 });

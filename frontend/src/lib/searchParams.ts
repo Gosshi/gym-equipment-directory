@@ -1,15 +1,41 @@
-export type SortOption = "distance" | "popular" | "fresh" | "newest";
+export type SortOption = "distance" | "name" | "rating" | "reviews";
+export type SortOrder = "asc" | "desc";
 
-export const SORT_OPTIONS: SortOption[] = [
-  "distance",
-  "popular",
-  "fresh",
-  "newest",
-];
+export const SORT_OPTIONS: SortOption[] = ["distance", "name", "rating", "reviews"];
 
 const SORT_OPTION_SET = new Set<SortOption>(SORT_OPTIONS);
+const SORT_ORDER_SET = new Set<SortOrder>(["asc", "desc"]);
 
-export const DEFAULT_SORT: SortOption = "popular";
+export const DEFAULT_SORT: SortOption = "rating";
+export const DEFAULT_ORDER: SortOrder = "desc";
+
+export const SORT_DEFAULT_ORDERS: Record<SortOption, SortOrder> = {
+  distance: "asc",
+  name: "asc",
+  rating: "desc",
+  reviews: "desc",
+};
+
+export const SORT_ALLOWED_ORDERS: Record<SortOption, SortOrder[]> = {
+  distance: ["asc"],
+  name: ["asc"],
+  rating: ["desc"],
+  reviews: ["desc"],
+};
+
+export const getDefaultOrderForSort = (sort: SortOption): SortOrder =>
+  SORT_DEFAULT_ORDERS[sort];
+
+export const normalizeSortOrder = (
+  sort: SortOption,
+  order: SortOrder | null | undefined,
+): SortOrder => {
+  const allowed = SORT_ALLOWED_ORDERS[sort] ?? [getDefaultOrderForSort(sort)];
+  if (order && allowed.includes(order)) {
+    return order;
+  }
+  return allowed[0];
+};
 
 export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 50;
@@ -30,6 +56,7 @@ export interface FilterState {
   city: string | null;
   categories: string[];
   sort: SortOption;
+  order: SortOrder;
   page: number;
   limit: number;
   distance: number;
@@ -43,6 +70,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   city: null,
   categories: [],
   sort: DEFAULT_SORT,
+  order: DEFAULT_ORDER,
   page: 1,
   limit: DEFAULT_LIMIT,
   distance: DEFAULT_DISTANCE_KM,
@@ -99,6 +127,9 @@ const parseCategories = (params: URLSearchParams): string[] => {
 export const isSortOption = (value: string | null | undefined): value is SortOption =>
   typeof value === "string" && SORT_OPTION_SET.has(value as SortOption);
 
+export const isSortOrder = (value: string | null | undefined): value is SortOrder =>
+  typeof value === "string" && SORT_ORDER_SET.has(value as SortOrder);
+
 const parseSort = (value: string | null): SortOption => {
   if (!value) {
     return DEFAULT_SORT;
@@ -106,16 +137,23 @@ const parseSort = (value: string | null): SortOption => {
   if (SORT_OPTION_SET.has(value as SortOption)) {
     return value as SortOption;
   }
-  if (value === "freshness") {
-    return "fresh";
+  if (value === "score" || value === "popular" || value === "richness") {
+    return "rating";
   }
-  if (value === "created_at") {
-    return "newest";
+  if (value === "fresh" || value === "freshness") {
+    return "reviews";
   }
-  if (value === "score") {
-    return "popular";
+  if (value === "newest" || value === "created_at") {
+    return "name";
   }
   return DEFAULT_SORT;
+};
+
+const parseSortOrder = (sort: SortOption, value: string | null): SortOrder => {
+  if (!value || !isSortOrder(value)) {
+    return getDefaultOrderForSort(sort);
+  }
+  return normalizeSortOrder(sort, value);
 };
 
 const parseDistance = (value: string | null): number => {
@@ -157,6 +195,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const city = sanitizeSlug(params.get("city"));
   const categories = parseCategories(params);
   const sort = parseSort(params.get("sort"));
+  const order = parseSortOrder(sort, params.get("order"));
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = clampLimit(
     parsePositiveInt(params.get("per_page") ?? params.get("limit"), DEFAULT_LIMIT),
@@ -173,6 +212,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
     city,
     categories,
     sort,
+    order,
     page,
     limit,
     distance,
@@ -196,9 +236,8 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   if (state.categories.length > 0) {
     params.set("cats", state.categories.join(","));
   }
-  if (state.sort !== DEFAULT_SORT) {
-    params.set("sort", state.sort);
-  }
+  params.set("sort", state.sort);
+  params.set("order", normalizeSortOrder(state.sort, state.order));
   if (state.page > 1) {
     params.set("page", String(state.page));
   }

@@ -11,10 +11,12 @@ import {
   DEFAULT_DISTANCE_KM,
   type FilterState,
   type SortOption,
+  type SortOrder,
   areCategoriesEqual,
   normalizeCategories,
   parseFilterState,
   serializeFilterState,
+  normalizeSortOrder,
   clampLatitude,
   clampLongitude,
 } from "@/lib/searchParams";
@@ -29,7 +31,21 @@ import type {
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
-export type LocationMode = "off" | "auto" | "manual";
+export const FALLBACK_LOCATION = Object.freeze({
+  lat: 35.681236,
+  lng: 139.767125,
+  label: "東京駅",
+});
+
+const FALLBACK_COORDINATE_EPSILON = 0.000005;
+
+const isFallbackCoordinates = (lat: number | null, lng: number | null) =>
+  lat != null &&
+  lng != null &&
+  Math.abs(lat - FALLBACK_LOCATION.lat) < FALLBACK_COORDINATE_EPSILON &&
+  Math.abs(lng - FALLBACK_LOCATION.lng) < FALLBACK_COORDINATE_EPSILON;
+
+export type LocationMode = "off" | "auto" | "manual" | "fallback";
 export type LocationStatus = "idle" | "loading" | "success" | "error";
 
 export interface LocationState {
@@ -39,6 +55,8 @@ export interface LocationState {
   status: LocationStatus;
   error: string | null;
   isSupported: boolean;
+  isFallback: boolean;
+  fallbackLabel: string | null;
 }
 
 type FormState = {
@@ -47,6 +65,7 @@ type FormState = {
   city: string;
   categories: string[];
   sort: SortOption;
+  order: SortOrder;
   distance: number;
   lat: number | null;
   lng: number | null;
@@ -58,6 +77,7 @@ const toFormState = (filters: FilterState): FormState => ({
   city: filters.city ?? "",
   categories: [...filters.categories],
   sort: filters.sort,
+  order: filters.order,
   distance: filters.distance,
   lat: filters.lat,
   lng: filters.lng,
@@ -68,6 +88,7 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.prefecture === b.prefecture &&
   a.city === b.city &&
   a.sort === b.sort &&
+  a.order === b.order &&
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
@@ -83,6 +104,7 @@ const buildFilterStateFromForm = (
   city: form.city.trim() || null,
   categories: normalizeCategories(form.categories),
   sort: form.sort,
+  order: normalizeSortOrder(form.sort, form.order),
   page: 1,
   limit: base.limit,
   distance: form.distance,
@@ -102,7 +124,7 @@ export interface UseGymSearchResult {
   updatePrefecture: (value: string) => void;
   updateCity: (value: string) => void;
   updateCategories: (values: string[]) => void;
-  updateSort: (value: SortOption) => void;
+  updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
   clearFilters: () => void;
   location: LocationState;
@@ -154,9 +176,14 @@ export function useGymSearch(
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
-  const [locationMode, setLocationMode] = useState<LocationMode>(() =>
-    appliedFilters.lat != null && appliedFilters.lng != null ? "manual" : "off",
-  );
+  const [locationMode, setLocationMode] = useState<LocationMode>(() => {
+    if (appliedFilters.lat != null && appliedFilters.lng != null) {
+      return isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng)
+        ? "fallback"
+        : "manual";
+    }
+    return "off";
+  });
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
     appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
   );
@@ -169,14 +196,24 @@ export function useGymSearch(
 
   useEffect(() => {
     const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    const fallbackActive = isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng);
     setLocationMode((prev) => {
-      if (hasLocation) {
-        if (prev === "off") {
-          return "manual";
-        }
-        return prev;
+      if (!hasLocation) {
+        return "off";
       }
-      return "off";
+      if (prev === "auto") {
+        return "auto";
+      }
+      if (fallbackActive) {
+        return "fallback";
+      }
+      if (prev === "fallback") {
+        return "manual";
+      }
+      if (prev === "off") {
+        return "manual";
+      }
+      return prev;
     });
     setLocationStatus((prev) => {
       if (hasLocation) {
@@ -230,6 +267,7 @@ export function useGymSearch(
           city: updated.city.trim(),
           categories: normalizeCategories(updated.categories),
           sort: updated.sort,
+          order: normalizeSortOrder(updated.sort, updated.order),
           distance: updated.distance,
           lat: updated.lat,
           lng: updated.lng,
@@ -249,6 +287,29 @@ export function useGymSearch(
     },
     [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
   );
+
+  useEffect(() => {
+    const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    const shouldApplyFallback = !hasLocation && appliedFilters.sort === "distance";
+    if (!shouldApplyFallback) {
+      return;
+    }
+
+    cancelPendingDebounce();
+    const nextFilters: FilterState = {
+      ...appliedFilters,
+      lat: FALLBACK_LOCATION.lat,
+      lng: FALLBACK_LOCATION.lng,
+      distance: DEFAULT_DISTANCE_KM,
+      page: 1,
+    };
+    const nextFormState = toFormState(nextFilters);
+    setFormState((prev) => (areFormStatesEqual(prev, nextFormState) ? prev : nextFormState));
+    setLocationMode("fallback");
+    setLocationStatus("success");
+    setLocationError(null);
+    applyFilters(nextFilters, { append: false });
+  }, [appliedFilters, applyFilters, cancelPendingDebounce]);
 
   const updateKeyword = useCallback(
     (value: string) => scheduleApply((prev) => ({ ...prev, q: value })),
@@ -280,7 +341,12 @@ export function useGymSearch(
   );
 
   const updateSort = useCallback(
-    (value: SortOption) => scheduleApply((prev) => ({ ...prev, sort: value })),
+    (value: SortOption, order: SortOrder) =>
+      scheduleApply((prev) => ({
+        ...prev,
+        sort: value,
+        order: normalizeSortOrder(value, order),
+      })),
     [scheduleApply],
   );
 
@@ -297,12 +363,20 @@ export function useGymSearch(
     (lat: number | null, lng: number | null, mode: LocationMode) => {
       cancelPendingDebounce();
       setFormState((prev) => {
-        const nextDistance = lat != null && lng != null ? prev.distance : DEFAULT_DISTANCE_KM;
+        const hasLocation = lat != null && lng != null;
+        const nextDistance = hasLocation ? prev.distance : DEFAULT_DISTANCE_KM;
+        const shouldResetSort = !hasLocation && prev.sort === "distance";
+        const nextSort = shouldResetSort ? DEFAULT_FILTER_STATE.sort : prev.sort;
+        const nextOrder = shouldResetSort
+          ? DEFAULT_FILTER_STATE.order
+          : normalizeSortOrder(nextSort, prev.order);
         const next: FormState = {
           ...prev,
           lat,
           lng,
           distance: nextDistance,
+          sort: nextSort,
+          order: nextOrder,
         };
         applyFilters(
           buildFilterStateFromForm(next, appliedFilters, {
@@ -458,6 +532,16 @@ export function useGymSearch(
   }, [appliedFilters.page, isLoading, meta.hasNext, setPage]);
 
   useEffect(() => {
+    const missingLocationForDistance =
+      appliedFilters.sort === "distance" &&
+      (appliedFilters.lat == null || appliedFilters.lng == null);
+    if (missingLocationForDistance) {
+      appendModeRef.current = false;
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     const controller = new AbortController();
     let active = true;
     const shouldAppend = appendModeRef.current;
@@ -473,6 +557,7 @@ export function useGymSearch(
         city: appliedFilters.city ?? undefined,
         categories: appliedFilters.categories,
         sort: appliedFilters.sort,
+        order: appliedFilters.order,
         page: appliedFilters.page,
         limit: appliedFilters.limit,
         perPage: appliedFilters.limit,
@@ -660,17 +745,19 @@ export function useGymSearch(
 
   const isInitialLoading = isLoading && !hasLoadedOnce;
 
-  const location: LocationState = useMemo(
-    () => ({
+  const location: LocationState = useMemo(() => {
+    const fallbackActive = isFallbackCoordinates(formState.lat, formState.lng);
+    return {
       lat: formState.lat,
       lng: formState.lng,
       mode: locationMode,
       status: locationStatus,
       error: locationError,
       isSupported: geolocationSupportedRef.current,
-    }),
-    [formState.lat, formState.lng, locationMode, locationStatus, locationError],
-  );
+      isFallback: fallbackActive,
+      fallbackLabel: fallbackActive ? FALLBACK_LOCATION.label : null,
+    };
+  }, [formState.lat, formState.lng, locationMode, locationStatus, locationError]);
 
   return {
     formState,

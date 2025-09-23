@@ -10,6 +10,7 @@ import {
   clampLatitude,
   clampLongitude,
   type SortOption,
+  type SortOrder,
 } from "./searchParams";
 
 export type ApiSortKey = "freshness" | "richness" | "gym_name" | "created_at" | "score";
@@ -62,6 +63,7 @@ export interface FetchGymsParams {
   city?: string | null;
   cats?: string[];
   sort?: SortOption | ApiSortKey | null;
+  order?: SortOrder | null;
   page?: number;
   limit?: number;
   pageToken?: string | null;
@@ -154,13 +156,16 @@ const sortOptionToApiSort = (sort: SortOption | ApiSortKey | null | undefined) =
   }
   switch (sort) {
     case "distance":
+      // TODO: distance sort is not yet supported by the search API; omit the key so the
+      // backend falls back to its default order instead of returning 422.
       return undefined;
-    case "fresh":
-      return "freshness";
-    case "newest":
-      return "created_at";
-    case "popular":
+    case "name":
+      return "gym_name";
+    case "rating":
       return "score";
+    case "reviews":
+      // TODO: API does not expose review-count sorting; use richness as the closest match.
+      return "richness";
     default:
       return undefined;
   }
@@ -184,6 +189,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const limit = clampLimit(params.limit);
   const cats = normalizeCats(params.cats);
   const sort = sortOptionToApiSort(params.sort ?? undefined);
+  const order = params.order && typeof params.order === "string" ? params.order : undefined;
   const latInput =
     typeof params.lat === "number" && Number.isFinite(params.lat) ? params.lat : undefined;
   const lngInput =
@@ -201,6 +207,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     city: params.city?.trim() || undefined,
     equipments: cats?.join(","),
     sort,
+    ...(order ? { order } : {}),
     page,
     per_page: limit,
     page_token: params.pageToken ?? undefined,

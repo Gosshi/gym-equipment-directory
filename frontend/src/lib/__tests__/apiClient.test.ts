@@ -34,6 +34,23 @@ describe("apiClient favorites/history endpoints", () => {
     );
   });
 
+  it("returns an empty array when favorites endpoint responds 404", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: jest.fn().mockResolvedValue('{"detail":"Not Found"}'),
+    } as unknown as Response);
+
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(getFavorites("dev-1")).resolves.toEqual([]);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("posts a new favorite", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -79,6 +96,23 @@ describe("apiClient favorites/history endpoints", () => {
     await getHistory();
 
     expect(global.fetch).toHaveBeenCalledWith("http://example.com/me/history", expect.any(Object));
+  });
+
+  it("returns empty history when the endpoint responds 404", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: jest.fn().mockResolvedValue('{"detail":"Not Found"}'),
+    } as unknown as Response);
+
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(getHistory()).resolves.toEqual({ items: [] });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("appends history entries with gymIds", async () => {

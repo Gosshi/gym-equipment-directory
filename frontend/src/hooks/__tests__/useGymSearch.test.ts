@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { ApiError } from "@/lib/apiClient";
-import { DEFAULT_DISTANCE_KM } from "@/lib/searchParams";
-import { useGymSearch } from "@/hooks/useGymSearch";
+import { DEFAULT_DISTANCE_KM, DEFAULT_FILTER_STATE } from "@/lib/searchParams";
+import { FALLBACK_LOCATION, useGymSearch } from "@/hooks/useGymSearch";
 
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
@@ -71,7 +71,7 @@ describe("useGymSearch", () => {
   it("derives the initial state from query parameters", async () => {
     useSearchParams.mockReturnValue(
       new URLSearchParams(
-        "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=newest&page=2&per_page=30&distance=15",
+        "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=name&order=asc&page=2&per_page=30&distance=15",
       ),
     );
 
@@ -86,7 +86,8 @@ describe("useGymSearch", () => {
       prefecture: "tokyo",
       city: "shinjuku",
       categories: ["squat-rack"],
-      sort: "newest",
+      sort: "name",
+      order: "asc",
       distance: 15,
       lat: null,
       lng: null,
@@ -99,7 +100,8 @@ describe("useGymSearch", () => {
         prefecture: "tokyo",
         city: "shinjuku",
         categories: ["squat-rack"],
-        sort: "newest",
+        sort: "name",
+        order: "asc",
         page: 2,
         limit: 30,
         perPage: 30,
@@ -126,7 +128,9 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench&sort=rating&order=desc", {
+      scroll: false,
+    });
   });
 
   it("updates form state when search params change after navigation", async () => {
@@ -148,9 +152,11 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench", { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?q=bench&sort=rating&order=desc", {
+      scroll: false,
+    });
 
-    currentParams = new URLSearchParams("q=bench");
+    currentParams = new URLSearchParams("q=bench&sort=rating&order=desc");
 
     await act(async () => {
       rerender();
@@ -159,7 +165,7 @@ describe("useGymSearch", () => {
 
     expect(result.current.formState.q).toBe("bench");
     expect(searchGyms).toHaveBeenLastCalledWith(
-      expect.objectContaining({ q: "bench", page: 1 }),
+      expect.objectContaining({ q: "bench", page: 1, order: "desc" }),
       { signal: expect.any(AbortSignal) },
     );
   });
@@ -175,7 +181,54 @@ describe("useGymSearch", () => {
       result.current.setPage(3);
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?page=3", { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?sort=rating&order=desc&page=3", {
+      scroll: false,
+    });
+  });
+
+  it("updates sort and order while resetting the page", async () => {
+    let currentParams = new URLSearchParams("page=3&sort=rating&order=desc");
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      result.current.updateSort("reviews", "desc");
+    });
+
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+
+    const lastCall = mockRouter.push.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    const [url] = lastCall!;
+    expect(url).toContain("sort=reviews");
+    expect(url).toContain("order=desc");
+    expect(url).not.toContain("page=3");
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.sort).toBe("reviews");
+    expect(result.current.appliedFilters.page).toBe(1);
+    expect(searchGyms).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "reviews", order: "desc", page: 1 }),
+      { signal: expect.any(AbortSignal) },
+    );
+
+    mockRouter.push.mockImplementation(() => {});
   });
 
   it("clears filters and keeps the current per-page value", async () => {
@@ -195,13 +248,21 @@ describe("useGymSearch", () => {
       result.current.clearFilters();
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/gyms?per_page=24", { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalled();
+    expect(mockRouter.push).toHaveBeenCalledWith(
+      expect.stringContaining("per_page=24"),
+      { scroll: false },
+    );
+    const [url] = mockRouter.push.mock.calls[0];
+    expect(url).toContain("sort=rating");
+    expect(url).toContain("order=desc");
     expect(result.current.formState).toEqual({
       q: "",
       prefecture: "",
       city: "",
       categories: [],
-      sort: "popular",
+      sort: DEFAULT_FILTER_STATE.sort,
+      order: DEFAULT_FILTER_STATE.order,
       distance: DEFAULT_DISTANCE_KM,
       lat: null,
       lng: null,
@@ -223,6 +284,8 @@ describe("useGymSearch", () => {
     expect(result.current.formState.lng).toBeCloseTo(139.9876);
     expect(result.current.location.mode).toBe("manual");
     expect(result.current.location.status).toBe("success");
+    expect(result.current.location.isFallback).toBe(false);
+    expect(result.current.location.fallbackLabel).toBeNull();
     expect(searchGyms).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 35.1234,
@@ -255,10 +318,110 @@ describe("useGymSearch", () => {
     expect(url).toContain("per_page=24");
     expect(url).toContain("lat=34.000000");
     expect(url).toContain("lng=135.000000");
+    expect(url).toContain("sort=rating");
+    expect(url).toContain("order=desc");
     expect(options).toEqual({ scroll: false });
     expect(result.current.formState.lat).toBeCloseTo(34);
     expect(result.current.formState.lng).toBeCloseTo(135);
     expect(result.current.formState.distance).toBe(DEFAULT_DISTANCE_KM);
+    expect(result.current.formState.order).toBe(DEFAULT_FILTER_STATE.order);
+  });
+
+  it("clears coordinates and resets sorting when the current location is cleared", async () => {
+    let currentParams = new URLSearchParams(
+      "sort=distance&order=asc&lat=35.6&lng=139.7&distance=5",
+    );
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.sort).toBe("distance");
+    expect(result.current.appliedFilters.lat).toBeCloseTo(35.6);
+
+    mockRouter.push.mockClear();
+    searchGyms.mockClear();
+
+    await act(async () => {
+      result.current.clearLocation();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalledTimes(1);
+    const [url, options] = mockRouter.push.mock.calls[0];
+    expect(url).toContain(`sort=${DEFAULT_FILTER_STATE.sort}`);
+    expect(url).toContain(`order=${DEFAULT_FILTER_STATE.order}`);
+    expect(url).not.toContain("lat=");
+    expect(url).not.toContain("lng=");
+    expect(options).toEqual({ scroll: false });
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.sort).toBe(DEFAULT_FILTER_STATE.sort);
+    expect(result.current.appliedFilters.lat).toBeNull();
+    expect(result.current.appliedFilters.lng).toBeNull();
+    expect(result.current.location.mode).toBe("off");
+    expect(result.current.location.isFallback).toBe(false);
+    expect(result.current.formState.lat).toBeNull();
+    expect(result.current.formState.lng).toBeNull();
+
+    expect(searchGyms).toHaveBeenCalledTimes(1);
+    const [params] = searchGyms.mock.calls[0];
+    expect(params.sort).toBe(DEFAULT_FILTER_STATE.sort);
+    expect(params.lat ?? null).toBeNull();
+    expect(params.lng ?? null).toBeNull();
+
+    mockRouter.push.mockImplementation(() => {});
+  });
+
+  it("restores fallback coordinates when distance sorting lacks an explicit location", async () => {
+    let currentParams = new URLSearchParams("sort=distance&order=asc");
+    useSearchParams.mockImplementation(() => currentParams);
+    mockRouter.push.mockImplementation((url: string) => {
+      const [, query = ""] = url.split("?");
+      currentParams = new URLSearchParams(query);
+    });
+
+    searchGyms.mockClear();
+
+    const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalled();
+    const [url] = mockRouter.push.mock.calls[0];
+    expect(url).toContain("sort=distance");
+    expect(url).toContain("order=asc");
+    expect(url).toContain(`lat=${FALLBACK_LOCATION.lat.toFixed(6)}`);
+    expect(url).toContain(`lng=${FALLBACK_LOCATION.lng.toFixed(6)}`);
+
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
+    });
+
+    expect(result.current.appliedFilters.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(result.current.appliedFilters.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+    expect(result.current.location.mode).toBe("fallback");
+    expect(result.current.location.isFallback).toBe(true);
+
+    expect(searchGyms).toHaveBeenCalledTimes(1);
+    const [params] = searchGyms.mock.calls[0];
+    expect(params.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
+    expect(params.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+
+    mockRouter.push.mockImplementation(() => {});
   });
 
   it("surfaces API errors from searchGyms as error state", async () => {
@@ -313,7 +476,10 @@ describe("useGymSearch", () => {
       result.current.loadNextPage();
     });
 
-    expect(mockRouter.push).toHaveBeenLastCalledWith("/gyms?page=2", { scroll: false });
+    expect(mockRouter.push).toHaveBeenLastCalledWith(
+      "/gyms?sort=rating&order=desc&page=2",
+      { scroll: false },
+    );
 
     await act(async () => {
       rerender();

@@ -6,7 +6,7 @@ import {
   type FetchGymsParams,
   type RawGymSummary,
 } from "@/lib/api";
-import type { SortOption } from "@/lib/searchParams";
+import type { SortOption, SortOrder } from "@/lib/searchParams";
 import type { GymDetail, GymEquipmentDetail, GymSearchResponse } from "@/types/gym";
 
 type RawGymDetail = RawGymSummary & {
@@ -34,6 +34,7 @@ export interface SearchGymsParams {
   categories?: string[];
   equipments?: string[];
   sort?: SortOption | ApiSortKey | null;
+  order?: SortOrder | null;
   page?: number;
   perPage?: number;
   limit?: number;
@@ -179,6 +180,7 @@ export async function searchGyms(
     city: params.city ?? undefined,
     cats: params.categories ?? params.equipments,
     sort: params.sort ?? undefined,
+    order: params.order ?? undefined,
     page: params.page,
     limit: params.limit ?? params.perPage,
     pageToken: params.pageToken ?? undefined,
