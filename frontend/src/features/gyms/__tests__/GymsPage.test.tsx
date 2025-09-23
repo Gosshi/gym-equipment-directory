@@ -58,6 +58,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
     },
     requestLocation: jest.fn(),
     clearLocation: jest.fn(),
+    useFallbackLocation: jest.fn(),
     setManualLocation: jest.fn(),
     page: 1,
     limit: 20,

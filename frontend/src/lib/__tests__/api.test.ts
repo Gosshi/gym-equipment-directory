@@ -43,12 +43,12 @@ describe("lib/api", () => {
     const query = buildGymSearchQuery({
       lat: 91,
       lng: -200,
-      distance: 2,
+      radiusKm: 2,
     });
 
     expect(query.lat).toBeCloseTo(90);
     expect(query.lng).toBeCloseTo(-180);
-    expect(query.distance).toBe(2);
+    expect(query.radius_km).toBe(2);
   });
 
   it("delegates to the gyms search endpoint", async () => {
@@ -86,7 +86,7 @@ describe("lib/api", () => {
       pageToken: "token-1",
       lat: 35.6895,
       lng: 139.6917,
-      distance: 7,
+      radiusKm: 7,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -104,7 +104,7 @@ describe("lib/api", () => {
         page_token: "token-1",
         lat: expect.any(Number),
         lng: expect.any(Number),
-        distance: 7,
+        radius_km: 7,
       },
       signal: undefined,
     });

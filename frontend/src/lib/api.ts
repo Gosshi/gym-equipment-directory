@@ -46,7 +46,7 @@ const clampLimit = (value: number | undefined): number => {
   return Math.min(parsed, MAX_LIMIT);
 };
 
-const clampDistanceKm = (value: number | null | undefined): number | undefined => {
+const clampRadiusKm = (value: number | null | undefined): number | undefined => {
   if (value == null) {
     return undefined;
   }
@@ -69,6 +69,8 @@ export interface FetchGymsParams {
   pageToken?: string | null;
   lat?: number | null;
   lng?: number | null;
+  radiusKm?: number | null;
+  /** @deprecated Use radiusKm instead. */
   distance?: number | null;
 }
 
@@ -201,8 +203,10 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const hasLocation = latInput !== undefined && lngInput !== undefined;
   const lat = hasLocation ? clampLatitude(latInput!) : undefined;
   const lng = hasLocation ? clampLongitude(lngInput!) : undefined;
-  const distance = hasLocation
-    ? clampDistanceKm(params.distance ?? DEFAULT_DISTANCE_KM)
+  const radiusKm = hasLocation
+    ? clampRadiusKm(
+        params.radiusKm ?? params.distance ?? DEFAULT_DISTANCE_KM,
+      ) ?? DEFAULT_DISTANCE_KM
     : undefined;
 
   return {
@@ -220,7 +224,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
       ? {
           lat,
           lng,
-          distance: distance ?? DEFAULT_DISTANCE_KM,
+          radius_km: radiusKm ?? DEFAULT_DISTANCE_KM,
         }
       : {}),
   };

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ApiError } from "@/lib/apiClient";
@@ -44,6 +51,15 @@ const isFallbackCoordinates = (lat: number | null, lng: number | null) =>
   lng != null &&
   Math.abs(lat - FALLBACK_LOCATION.lat) < FALLBACK_COORDINATE_EPSILON &&
   Math.abs(lng - FALLBACK_LOCATION.lng) < FALLBACK_COORDINATE_EPSILON;
+
+const LOCATION_PERMISSION_DENIED_MESSAGE =
+  "位置情報が許可されていません。任意の地点を選ぶか、許可してください。";
+const LOCATION_UNAVAILABLE_MESSAGE =
+  "位置情報を取得できませんでした。デフォルト地点を利用しています。";
+const LOCATION_TIMEOUT_MESSAGE =
+  "位置情報の取得がタイムアウトしました。デフォルト地点を利用しています。";
+const LOCATION_UNSUPPORTED_MESSAGE =
+  "この環境では位置情報を取得できません。緯度・経度を手入力するか、デフォルト地点を利用してください。";
 
 export type LocationMode = "off" | "auto" | "manual" | "fallback";
 export type LocationStatus = "idle" | "loading" | "success" | "error";
@@ -94,6 +110,19 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.lng === b.lng &&
   areCategoriesEqual(a.categories, b.categories);
 
+const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
+  a.q === b.q &&
+  a.pref === b.pref &&
+  a.city === b.city &&
+  a.sort === b.sort &&
+  a.order === b.order &&
+  a.page === b.page &&
+  a.limit === b.limit &&
+  a.distance === b.distance &&
+  a.lat === b.lat &&
+  a.lng === b.lng &&
+  areCategoriesEqual(a.categories, b.categories);
+
 const buildFilterStateFromForm = (
   form: FormState,
   base: FilterState,
@@ -130,6 +159,7 @@ export interface UseGymSearchResult {
   location: LocationState;
   requestLocation: () => void;
   clearLocation: () => void;
+  useFallbackLocation: () => void;
   setManualLocation: (lat: number | null, lng: number | null) => void;
   page: number;
   limit: number;
@@ -162,10 +192,10 @@ export function useGymSearch(
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
 
-  const appliedFilters = useMemo(
-    () => parseFilterState(new URLSearchParams(searchParamsKey)),
-    [searchParamsKey],
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
+    parseFilterState(new URLSearchParams(searchParamsKey)),
   );
+  const [, startTransition] = useTransition();
 
   const [formState, setFormState] = useState<FormState>(() =>
     toFormState(appliedFilters),
@@ -176,6 +206,7 @@ export function useGymSearch(
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
+  const initialLocationRequestRef = useRef(false);
   const [locationMode, setLocationMode] = useState<LocationMode>(() => {
     if (appliedFilters.lat != null && appliedFilters.lng != null) {
       return isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng)
@@ -188,6 +219,13 @@ export function useGymSearch(
     appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
   );
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next = parseFilterState(new URLSearchParams(searchParamsKey));
+    setAppliedFilters((prev) =>
+      areFilterStatesEqual(prev, next) ? prev : next,
+    );
+  }, [searchParamsKey]);
 
   useEffect(() => {
     const next = toFormState(appliedFilters);
@@ -217,13 +255,17 @@ export function useGymSearch(
     });
     setLocationStatus((prev) => {
       if (hasLocation) {
-        return prev === "loading" || prev === "idle" || prev === "error"
-          ? "success"
-          : prev;
+        if (fallbackActive) {
+          return prev;
+        }
+        if (prev === "loading" || prev === "idle" || prev === "error") {
+          return "success";
+        }
+        return prev;
       }
       return prev === "success" ? "idle" : prev;
     });
-    if (hasLocation) {
+    if (hasLocation && !fallbackActive) {
       setLocationError(null);
     }
   }, [appliedFilters.lat, appliedFilters.lng]);
@@ -243,6 +285,10 @@ export function useGymSearch(
 
   const applyFilters = useCallback(
     (nextFilters: FilterState, options: { append?: boolean } = {}) => {
+      setAppliedFilters((prev) =>
+        areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters,
+      );
+
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
       if (nextQuery === searchParamsKey) {
@@ -252,9 +298,17 @@ export function useGymSearch(
 
       appendModeRef.current = Boolean(options.append);
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-      router.push(nextUrl, { scroll: false });
+      startTransition(() => {
+        router.push(nextUrl, { scroll: false });
+      });
     },
-    [pathname, router, searchParamsKey],
+    [
+      pathname,
+      router,
+      searchParamsKey,
+      setAppliedFilters,
+      startTransition,
+    ],
   );
 
   const scheduleApply = useCallback(
@@ -394,18 +448,59 @@ export function useGymSearch(
       } else {
         setLocationMode("off");
         setLocationStatus("idle");
+        setLocationError(null);
       }
     },
     [appliedFilters, applyFilters, cancelPendingDebounce],
   );
 
+  const applyFallbackLocation = useCallback(
+    (message: string | null = null) => {
+      applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback");
+      if (message) {
+        setLocationStatus("error");
+        setLocationError(message);
+      } else {
+        setLocationStatus("success");
+        setLocationError(null);
+      }
+    },
+    [applyLocation],
+  );
+
+  const handleGeolocationError = useCallback(
+    (error: GeolocationPositionError | null, overrideMessage?: string) => {
+      if (overrideMessage) {
+        applyFallbackLocation(overrideMessage);
+        return;
+      }
+      const code = error?.code;
+      const PERM = error?.PERMISSION_DENIED ?? 1;
+      const UNAV = error?.POSITION_UNAVAILABLE ?? 2;
+      const TOUT = error?.TIMEOUT ?? 3;
+      if (code === PERM) {
+        applyFallbackLocation(LOCATION_PERMISSION_DENIED_MESSAGE);
+        return;
+      }
+      if (code === UNAV) {
+        applyFallbackLocation(LOCATION_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      if (code === TOUT) {
+        applyFallbackLocation(LOCATION_TIMEOUT_MESSAGE);
+        return;
+      }
+      applyFallbackLocation(LOCATION_UNAVAILABLE_MESSAGE);
+    },
+    [applyFallbackLocation],
+  );
+
   const requestLocation = useCallback(() => {
     if (typeof window === "undefined" || !geolocationSupportedRef.current) {
-      setLocationMode("off");
-      setLocationStatus("error");
-      setLocationError("この環境では位置情報を取得できません。緯度・経度を手入力してください。");
+      handleGeolocationError(null, LOCATION_UNSUPPORTED_MESSAGE);
       return;
     }
+    setLocationMode("auto");
     setLocationStatus("loading");
     setLocationError(null);
     window.navigator.geolocation.getCurrentPosition(
@@ -417,21 +512,11 @@ export function useGymSearch(
         );
       },
       (error) => {
-        let message = "位置情報の取得に失敗しました。";
-        if (error?.code === error.PERMISSION_DENIED) {
-          message = "位置情報の利用が拒否されました。";
-        } else if (error?.code === error.POSITION_UNAVAILABLE) {
-          message = "位置情報を取得できませんでした。";
-        } else if (error?.code === error.TIMEOUT) {
-          message = "位置情報の取得がタイムアウトしました。";
-        }
-        setLocationMode("off");
-        setLocationStatus("error");
-        setLocationError(message);
+        handleGeolocationError(error);
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
     );
-  }, [applyLocation]);
+  }, [applyLocation, handleGeolocationError]);
 
   const setManualLocation = useCallback(
     (lat: number | null, lng: number | null) => {
@@ -443,6 +528,10 @@ export function useGymSearch(
     },
     [applyLocation],
   );
+
+  const useFallbackLocation = useCallback(() => {
+    applyFallbackLocation(null);
+  }, [applyFallbackLocation]);
 
   const clearLocation = useCallback(() => {
     applyLocation(null, null, "off");
@@ -475,6 +564,22 @@ export function useGymSearch(
     formState.lat,
     formState.lng,
   ]);
+
+  useEffect(() => {
+    if (initialLocationRequestRef.current) {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    const hasQueryLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    if (hasQueryLocation) {
+      initialLocationRequestRef.current = true;
+      return;
+    }
+    initialLocationRequestRef.current = true;
+    requestLocation();
+  }, [appliedFilters.lat, appliedFilters.lng, requestLocation]);
 
   const setPage = useCallback(
     (page: number, options: { append?: boolean } = {}) => {
@@ -566,7 +671,7 @@ export function useGymSearch(
           ? {
               lat: appliedFilters.lat,
               lng: appliedFilters.lng,
-              distance: appliedFilters.distance,
+              radiusKm: appliedFilters.distance,
             }
           : {}),
       },
@@ -773,6 +878,7 @@ export function useGymSearch(
     location,
     requestLocation,
     clearLocation,
+    useFallbackLocation,
     setManualLocation,
     page: appliedFilters.page,
     limit: appliedFilters.limit,

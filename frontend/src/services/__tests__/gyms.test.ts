@@ -35,7 +35,7 @@ describe("searchGyms", () => {
       limit: 24,
       lat: 34.7,
       lng: 135.5,
-      distance: 9,
+      radiusKm: 9,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -48,11 +48,12 @@ describe("searchGyms", () => {
         sort: "richness",
         order: "desc",
         page: 2,
+        page_size: 24,
         per_page: 24,
         page_token: undefined,
-        lat: expect.any(Number),
-        lng: expect.any(Number),
-        distance: 9,
+        lat: 34.7,
+        lng: 135.5,
+        radius_km: 9,
       },
       signal: undefined,
     });
@@ -104,6 +105,7 @@ describe("searchGyms", () => {
         perPage: 20,
         hasNext: false,
         hasPrev: false,
+        hasMore: false,
         pageToken: null,
       },
     });

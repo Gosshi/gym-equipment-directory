@@ -17,6 +17,7 @@ export function GymsPage() {
     location,
     requestLocation,
     clearLocation,
+    useFallbackLocation,
     setManualLocation,
     page,
     limit,
@@ -64,6 +65,7 @@ export function GymsPage() {
             onKeywordChange={updateKeyword}
             onPrefectureChange={updatePrefecture}
             onRequestLocation={requestLocation}
+            onUseFallbackLocation={useFallbackLocation}
             onClearLocation={clearLocation}
             onManualLocationChange={setManualLocation}
             onReloadCities={reloadCities}
