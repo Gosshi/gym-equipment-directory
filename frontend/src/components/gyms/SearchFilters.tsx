@@ -412,9 +412,9 @@ export function SearchFilters({
 
         <div className="space-y-3 rounded-lg border border-dashed p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
+            <div className="flex-1 min-w-0 space-y-1">
               <p className="text-sm font-medium">現在地と距離</p>
-              <p className="text-xs text-muted-foreground">{locationSummary}</p>
+              <p className="break-words text-xs text-muted-foreground">{locationSummary}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={onRequestLocation} size="sm" type="button" disabled={isLocating}>
@@ -435,14 +435,14 @@ export function SearchFilters({
             <p className="text-xs text-destructive">{location.error}</p>
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-1">
+            <div className="grid min-w-0 gap-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="manual-lat">
                 緯度（-90〜90）
               </label>
               <input
                 autoComplete="off"
                 className={cn(
-                  "h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm",
+                  "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
                 id="manual-lat"
@@ -455,14 +455,14 @@ export function SearchFilters({
                 value={latInput}
               />
             </div>
-            <div className="grid gap-1">
+            <div className="grid min-w-0 gap-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="manual-lng">
                 経度（-180〜180）
               </label>
               <input
                 autoComplete="off"
                 className={cn(
-                  "h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm",
+                  "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
                 id="manual-lng"
@@ -486,7 +486,9 @@ export function SearchFilters({
               この座標で検索
             </Button>
             {hasLocation ? (
-              <span className="text-xs text-muted-foreground">適用中: {coordinateLabel}</span>
+              <span className="break-words text-xs text-muted-foreground">
+                適用中: {coordinateLabel}
+              </span>
             ) : null}
           </div>
           {manualError ? <p className="text-xs text-destructive">{manualError}</p> : null}
