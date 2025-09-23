@@ -474,15 +474,19 @@ export function useGymSearch(
         applyFallbackLocation(overrideMessage);
         return;
       }
-      if (error?.code === error.PERMISSION_DENIED) {
+      const code = error?.code;
+      const PERM = error?.PERMISSION_DENIED ?? 1;
+      const UNAV = error?.POSITION_UNAVAILABLE ?? 2;
+      const TOUT = error?.TIMEOUT ?? 3;
+      if (code === PERM) {
         applyFallbackLocation(LOCATION_PERMISSION_DENIED_MESSAGE);
         return;
       }
-      if (error?.code === error.POSITION_UNAVAILABLE) {
+      if (code === UNAV) {
         applyFallbackLocation(LOCATION_UNAVAILABLE_MESSAGE);
         return;
       }
-      if (error?.code === error.TIMEOUT) {
+      if (code === TOUT) {
         applyFallbackLocation(LOCATION_TIMEOUT_MESSAGE);
         return;
       }

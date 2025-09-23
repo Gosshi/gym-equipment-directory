@@ -60,7 +60,9 @@ describe("useGymSearch", () => {
         getCurrentPosition: jest.fn((_, error) => {
           error?.(geolocationError);
         }),
-      } satisfies Geolocation,
+        watchPosition: jest.fn(),
+        clearWatch: jest.fn(),
+      } as Geolocation,
     });
     useRouter.mockReturnValue(mockRouter);
     usePathname.mockReturnValue("/gyms");
@@ -89,7 +91,11 @@ describe("useGymSearch", () => {
         value: originalGeolocation,
       });
     } else {
-      delete (navigator as Partial<Navigator>).geolocation;
+      // read-only プロパティで delete 不可のため、undefined で再定義
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: undefined,
+      });
     }
   });
 
