@@ -1,11 +1,23 @@
 import { apiRequest } from "@/lib/apiClient";
-import type { ReportGymRequest, ReportGymResponse } from "@/types/api";
 
-export const reportGym = async (
+export type ReportGymIssueReason = "hours" | "equipment" | "address" | "closed" | "other";
+
+export interface ReportGymIssuePayload {
+  reason: ReportGymIssueReason;
+  details: string;
+  contact?: string;
+}
+
+export interface ReportGymIssueResponse {
+  id?: number;
+  status?: string;
+}
+
+export const reportGymIssue = async (
   slug: string,
-  payload: ReportGymRequest,
-): Promise<ReportGymResponse> =>
-  apiRequest<ReportGymResponse>(`/gyms/${encodeURIComponent(slug)}/report`, {
+  payload: ReportGymIssuePayload,
+): Promise<ReportGymIssueResponse | undefined> =>
+  apiRequest<ReportGymIssueResponse | undefined>(`/gyms/${encodeURIComponent(slug)}/report`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
