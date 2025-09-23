@@ -199,22 +199,22 @@ class GymSearchQuery(BaseModel):
                 if value is not None:
                     resolved_page_size = int(value)
                     break
-
-            return cls.model_validate(
-                {
-                    "pref": pref,
-                    "city": city,
-                    "lat": lat,
-                    "lng": lng,
-                    "radius_km": radius_km,
-                    "equipments": equipments,
-                    "equipment_match": equipment_match,
-                    "sort": sort,
-                    "page": page,
-                    "page_size": resolved_page_size,
-                    "page_token": page_token,
-                }
-            )
+            payload = {
+                "pref": pref,
+                "city": city,
+                "lat": lat,
+                "lng": lng,
+                "radius_km": radius_km,
+                "equipments": equipments,
+                "equipment_match": equipment_match,
+                "sort": sort,
+                "page": page,
+                # resolved_page_size が None の場合はデフォルト値をモデルに任せるためキーを入れない
+                "page_token": page_token,
+            }
+            if resolved_page_size is not None:
+                payload["page_size"] = resolved_page_size
+            return cls.model_validate(payload)
         except ValidationError as e:  # noqa: F841 - 具体内容は隠蔽
             # 仕様として 400 を返す
             raise HTTPException(status_code=400, detail="invalid parameter")

@@ -596,6 +596,7 @@ async def search_gyms_api(
         has_more=bool(has_more),
         page=current_page,
         page_size=per_page,
+        total=total,
     )
     return GymSearchPageDTO(
         items=items,
