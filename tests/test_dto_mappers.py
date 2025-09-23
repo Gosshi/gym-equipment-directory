@@ -18,6 +18,7 @@ def test_map_gym_to_summary_converts_timestamp_to_iso() -> None:
         score=1.2,
         freshness_score=0.8,
         richness_score=0.7,
+        distance_km=12.3,
     )
 
     assert dto.slug == "test-gym"
@@ -25,6 +26,7 @@ def test_map_gym_to_summary_converts_timestamp_to_iso() -> None:
     assert dto.score == 1.2
     assert dto.freshness_score == 0.8
     assert dto.richness_score == 0.7
+    assert dto.distance_km == 12.3
 
 
 def test_assemble_gym_detail_builds_nested_dtos() -> None:

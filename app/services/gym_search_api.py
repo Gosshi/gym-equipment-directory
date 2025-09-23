@@ -26,6 +26,7 @@ class GymSortKey(StrEnum):
     freshness = "freshness"
     richness = "richness"
     score = "score"
+    distance = "distance"
 
 
 def _b64e(obj: dict) -> str:
@@ -59,6 +60,15 @@ def _encode_page_token_for_score(score: float, last_id: int) -> str:
     return _b64e({"sort": GymSortKey.score.value, "k": [score, last_id]})
 
 
+def _encode_page_token_for_distance(distance_km: float, last_id: int) -> str:
+    return _b64e(
+        {
+            "sort": GymSortKey.distance.value,
+            "k": [round(float(distance_km), 6), int(last_id)],
+        }
+    )
+
+
 def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
     payload = _b64d(page_token)
     s = str(payload.get("sort"))
@@ -79,6 +89,8 @@ def _validate_and_decode_page_token(page_token: str, sort: str) -> tuple:
         raise ValueError("invalid page_token")
     if sort == GymSortKey.score and not (isinstance(k, list) and len(k) == 2):
         raise ValueError("invalid page_token")
+    if sort == GymSortKey.distance and not (isinstance(k, list) and len(k) == 2):
+        raise ValueError("invalid page_token")
     return tuple(k)  # type: ignore[return-value]
 
 
@@ -88,7 +100,7 @@ def _lv(dt: datetime | None) -> str | None:
     return dt.isoformat()
 
 
-def _gym_summary_from_gym(g: Gym) -> GymSummaryDTO:
+def _gym_summary_from_gym(g: Gym, *, distance_km: float | None) -> GymSummaryDTO:
     return GymSummaryDTO(
         id=int(getattr(g, "id", 0)),
         slug=str(getattr(g, "slug", "")),
@@ -99,6 +111,7 @@ def _gym_summary_from_gym(g: Gym) -> GymSummaryDTO:
         score=0.0,
         freshness_score=0.0,
         richness_score=0.0,
+        distance_km=distance_km,
     )
 
 
@@ -107,9 +120,12 @@ async def search_gyms_api(
     *,
     pref: str | None,
     city: str | None,
+    lat: float | None,
+    lng: float | None,
+    radius_km: float | None,
     required_slugs: list[str],
     equipment_match: Literal["all", "any"],
-    sort: Literal["freshness", "richness", "gym_name", "created_at", "score"],
+    sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
     per_page: int,
     page_token: str | None,
 ) -> GymSearchPageDTO:
@@ -127,11 +143,44 @@ async def search_gyms_api(
     if city:
         city = city.lower()
 
+    lat_value = float(lat) if lat is not None else None
+    lng_value = float(lng) if lng is not None else None
+    radius_value = float(radius_km) if radius_km is not None else None
+
+    if sort == GymSortKey.distance.value and (lat_value is None or lng_value is None):
+        raise ValueError("lat/lng are required for distance sort")
+
+    distance_expr = None
+    distance_numeric = None
+    distance_label = None
+    distance_map: dict[int, float] = {}
+
     base_ids = select(Gym.id)
     if pref:
         base_ids = base_ids.where(Gym.pref == pref)
     if city:
         base_ids = base_ids.where(Gym.city == city)
+
+    if lat_value is not None and lng_value is not None:
+        lat1 = func.radians(literal(lat_value))
+        lng1 = func.radians(literal(lng_value))
+        lat2 = func.radians(Gym.latitude)
+        lng2 = func.radians(Gym.longitude)
+
+        dlat = lat2 - lat1
+        dlng = lng2 - lng1
+
+        a = func.pow(func.sin(dlat / 2.0), 2) + func.cos(lat1) * func.cos(lat2) * func.pow(
+            func.sin(dlng / 2.0), 2
+        )
+        c = 2.0 * func.atan2(func.sqrt(a), func.sqrt(func.greatest(0.0, 1.0 - a)))
+        distance_expr = 6371.0 * c
+        distance_numeric = cast(distance_expr, Numeric(18, 6))
+        distance_label = distance_numeric.label("distance_km")
+
+        base_ids = base_ids.where(Gym.latitude.is_not(None), Gym.longitude.is_not(None))
+        if radius_value is not None:
+            base_ids = base_ids.where(distance_numeric <= radius_value)
 
     # ---- 2) 設備フィルタ（all/any）----
     if required_slugs:
@@ -183,16 +232,27 @@ async def search_gyms_api(
                     )
                 )
 
+        if distance_label is not None:
+            stmt = stmt.add_columns(distance_label)
+
         stmt = stmt.order_by(Gym.last_verified_at_cached.desc().nulls_last(), Gym.id.asc()).limit(
             per_page + 1
         )
 
         rows = await session.execute(stmt)
-        recs = rows.scalars().all()
-        gyms = recs[:per_page]
+        recs = rows.all()
+        page_rows = recs[:per_page]
+        gyms = [r[0] for r in page_rows]
+
+        if distance_label is not None:
+            for row in page_rows:
+                dist_val = getattr(row, "distance_km", None)
+                if dist_val is not None:
+                    distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
         if len(recs) > per_page:
-            last = recs[per_page - 1]
+            last_row = recs[per_page - 1]
+            last = last_row[0]
             ts = getattr(last, "last_verified_at_cached", None)
             ts_iso = ts.isoformat() if ts else None
             next_token = _encode_page_token_for_freshness(ts_iso, int(getattr(last, "id", 0)))
@@ -234,14 +294,26 @@ async def search_gyms_api(
                 > tuple_(literal(int(lk_nf)), literal(float(lk_neg_sc)), literal(int(lk_id)))
             )
 
+        if distance_label is not None:
+            stmt = stmt.add_columns(distance_label)
+
         rows = await session.execute(stmt)
         recs = rows.all()
-        gyms = [r[0] for r in recs[:per_page]]
+        page_rows = recs[:per_page]
+        gyms = [r[0] for r in page_rows]
+
+        if distance_label is not None:
+            for row in page_rows:
+                dist_val = getattr(row, "distance_km", None)
+                if dist_val is not None:
+                    distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
             next_token = _encode_page_token_for_richness(
-                int(last_row[1]), float(last_row[2]), last_row[0].id
+                int(getattr(last_row, "nf")),
+                float(getattr(last_row, "neg_sc")),
+                last_row[0].id,
             )
     elif sort == "gym_name":
         stmt = select(Gym).where(Gym.id.in_(base_ids.scalar_subquery()))
@@ -254,12 +326,24 @@ async def search_gyms_api(
                     and_(Gym.name == str(last_name), Gym.id > int(last_id)),  # type: ignore[arg-type]
                 )
             )
+        if distance_label is not None:
+            stmt = stmt.add_columns(distance_label)
+
         stmt = stmt.order_by(Gym.name.asc(), Gym.id.asc()).limit(per_page + 1)
         rows = await session.execute(stmt)
-        recs = rows.scalars().all()
-        gyms = recs[:per_page]
+        recs = rows.all()
+        page_rows = recs[:per_page]
+        gyms = [r[0] for r in page_rows]
+
+        if distance_label is not None:
+            for row in page_rows:
+                dist_val = getattr(row, "distance_km", None)
+                if dist_val is not None:
+                    distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
+
         if len(recs) > per_page:
-            last = recs[per_page - 1]
+            last_row = recs[per_page - 1]
+            last = last_row[0]
             next_token = _encode_page_token_for_gym_name(
                 str(getattr(last, "name", "")), int(getattr(last, "id", 0))
             )
@@ -279,15 +363,57 @@ async def search_gyms_api(
                     and_(Gym.created_at == lk_ts, Gym.id > int(lk_id)),  # type: ignore[arg-type]
                 )
             )
+        if distance_label is not None:
+            stmt = stmt.add_columns(distance_label)
+
         stmt = stmt.order_by(Gym.created_at.desc(), Gym.id.asc()).limit(per_page + 1)
         rows = await session.execute(stmt)
-        recs = rows.scalars().all()
-        gyms = recs[:per_page]
+        recs = rows.all()
+        page_rows = recs[:per_page]
+        gyms = [r[0] for r in page_rows]
+
+        if distance_label is not None:
+            for row in page_rows:
+                dist_val = getattr(row, "distance_km", None)
+                if dist_val is not None:
+                    distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
+
         if len(recs) > per_page:
-            last = recs[per_page - 1]
+            last_row = recs[per_page - 1]
+            last = last_row[0]
             ts = getattr(last, "created_at", None)
             ts_iso = ts.isoformat() if ts else datetime.now().isoformat()
             next_token = _encode_page_token_for_created_at(ts_iso, int(getattr(last, "id", 0)))
+    elif sort == "distance":
+        if distance_label is None or distance_numeric is None:
+            raise ValueError("lat/lng are required for distance sort")
+
+        stmt = select(Gym, distance_label).where(Gym.id.in_(base_ids.scalar_subquery()))
+
+        if page_token:
+            lk_dist, lk_id = _validate_and_decode_page_token(page_token, "distance")
+            stmt = stmt.where(
+                tuple_(distance_numeric, Gym.id)
+                > tuple_(literal(float(lk_dist)), literal(int(lk_id)))
+            )
+
+        stmt = stmt.order_by(distance_numeric.asc(), Gym.id.asc()).limit(per_page + 1)
+
+        rows = await session.execute(stmt)
+        recs = rows.all()
+        page_rows = recs[:per_page]
+        gyms = [r[0] for r in page_rows]
+
+        for row in page_rows:
+            dist_val = getattr(row, "distance_km", None)
+            if dist_val is not None:
+                distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
+
+        if len(recs) > per_page:
+            last_row = recs[per_page - 1]
+            next_token = _encode_page_token_for_distance(
+                float(getattr(last_row, "distance_km")), int(getattr(last_row[0], "id", 0))
+            )
     elif sort == "score":
         score_expr = (
             1.0
@@ -359,10 +485,19 @@ async def search_gyms_api(
                 > tuple_(literal(float(lk_neg_final)), literal(int(lk_id)))
             )
 
+        if distance_label is not None:
+            stmt = stmt.add_columns(distance_label)
+
         rows = await session.execute(stmt)
         recs = rows.all()
         scored_rows = recs[:per_page]
         gyms = [r[0] for r in scored_rows]
+
+        if distance_label is not None:
+            for row in scored_rows:
+                dist_val = getattr(row, "distance_km", None)
+                if dist_val is not None:
+                    distance_map[int(getattr(row[0], "id", 0))] = float(dist_val)
 
         if len(recs) > per_page:
             last_row = recs[per_page - 1]
@@ -372,14 +507,21 @@ async def search_gyms_api(
 
     # ---- 5) マッピング ----
     if sort != "score":
-        items: list[GymSummaryDTO] = [_gym_summary_from_gym(g) for g in gyms]
+        items: list[GymSummaryDTO] = [
+            _gym_summary_from_gym(
+                g,
+                distance_km=distance_map.get(int(getattr(g, "id", 0))),
+            )
+            for g in gyms
+        ]
     else:
         items = []
         for row in scored_rows or []:
             g = row[0]
+            gid = int(getattr(g, "id", 0))
             items.append(
                 GymSummaryDTO(
-                    id=int(getattr(g, "id", 0)),
+                    id=gid,
                     slug=str(getattr(g, "slug", "")),
                     name=str(getattr(g, "name", "")),
                     city=str(getattr(g, "city", "")),
@@ -388,6 +530,7 @@ async def search_gyms_api(
                     score=float(row.score or 0.0),
                     freshness_score=float(row.freshness_score or 0.0),
                     richness_score=float(row.richness_score or 0.0),
+                    distance_km=distance_map.get(gid),
                 )
             )
 

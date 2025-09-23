@@ -175,6 +175,8 @@ async def seed_test_data(engine):
                 pref="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",
+                latitude=35.7,
+                longitude=139.98,
                 last_verified_at_cached=datetime.utcnow() - timedelta(days=30),
             )
             g2 = Gym(
@@ -183,6 +185,8 @@ async def seed_test_data(engine):
                 pref="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",
+                latitude=35.72,
+                longitude=139.95,
                 last_verified_at_cached=None,  # freshness=0 ケースもあった方が便利
             )
             sess.add_all([g1, g2])

@@ -33,6 +33,7 @@ def map_gym_to_summary(
     score: float | None,
     freshness_score: float | None = None,
     richness_score: float | None = None,
+    distance_km: float | None = None,
 ) -> GymSummaryDTO:
     return GymSummaryDTO(
         id=int(getattr(gym, "id", 0)),
@@ -44,6 +45,7 @@ def map_gym_to_summary(
         score=score,
         freshness_score=freshness_score,
         richness_score=richness_score,
+        distance_km=distance_km,
     )
 
 

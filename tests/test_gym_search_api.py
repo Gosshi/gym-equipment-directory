@@ -26,6 +26,7 @@ async def test_search_gym_name_schema_and_zeros(app_client):
         assert it["score"] == 0.0
         assert it["freshness_score"] == 0.0
         assert it["richness_score"] == 0.0
+        assert it["distance_km"] is None
         for k in ["id", "name", "city", "pref", "last_verified_at"]:
             assert k in it
 
@@ -53,6 +54,7 @@ async def test_search_score_has_scores(app_client):
             v = it[k]
             assert isinstance(v, int | float)
             assert 0.0 <= float(v) <= 1.0
+        assert it["distance_km"] is None
 
 
 @pytest.mark.anyio
@@ -86,3 +88,38 @@ async def test_search_filter_required_slugs_all_any(app_client):
     assert resp_any.status_code == 200
     slugs_any = {it["slug"] for it in resp_any.json()["items"]}
     assert slugs_any == {"dummy-funabashi-east", "dummy-funabashi-west"}
+
+
+@pytest.mark.anyio
+async def test_search_distance_filters_and_sort(app_client):
+    base_params = {
+        "pref": "chiba",
+        "city": "funabashi",
+        "lat": 35.7,
+        "lng": 139.98,
+        "per_page": 10,
+    }
+
+    resp = await app_client.get(
+        "/gyms/search",
+        params={**base_params, "radius_km": 5, "sort": "distance"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    items = data["items"]
+    assert [it["slug"] for it in items] == [
+        "dummy-funabashi-east",
+        "dummy-funabashi-west",
+    ]
+    distances = [it["distance_km"] for it in items]
+    assert all(isinstance(d, int | float) for d in distances)
+    assert distances == sorted(distances)
+
+    resp_narrow = await app_client.get(
+        "/gyms/search",
+        params={**base_params, "radius_km": 1, "sort": "distance"},
+    )
+    assert resp_narrow.status_code == 200
+    narrowed = resp_narrow.json()["items"]
+    assert [it["slug"] for it in narrowed] == ["dummy-funabashi-east"]
+    assert all(it["distance_km"] is not None and it["distance_km"] <= 1 for it in narrowed)

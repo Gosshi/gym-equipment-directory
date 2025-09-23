@@ -24,6 +24,7 @@ class GymSummary(BaseModel):
     score: float | None = Field(default=None, description="スコア（nullable）")
     freshness_score: float | None = Field(default=None, description="新鮮さスコア（nullable）")
     richness_score: float | None = Field(default=None, description="充実度スコア（nullable）")
+    distance_km: float | None = Field(default=None, description="検索基準点からの距離（km）")
 
 
 class GymSearchResponse(BaseModel):
@@ -47,6 +48,7 @@ class GymSearchResponse(BaseModel):
                             "score": 0.84,
                             "freshness_score": 0.93,
                             "richness_score": 0.68,
+                            "distance_km": 1.23,
                         }
                     ],
                     "total": 2,
@@ -68,13 +70,30 @@ class GymSearchQuery(BaseModel):
 
     pref: str | None = Field(default=None, description="都道府県スラッグ（lower）")
     city: str | None = Field(default=None, description="市区町村スラッグ（lower）")
+    lat: float | None = Field(
+        default=None,
+        ge=-90.0,
+        le=90.0,
+        description="検索基準点の緯度（度）",
+    )
+    lng: float | None = Field(
+        default=None,
+        ge=-180.0,
+        le=180.0,
+        description="検索基準点の経度（度）",
+    )
+    radius_km: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="検索半径（km）",
+    )
     equipments: str | None = Field(
         default=None, description="設備スラッグのCSV（例: squat-rack,dumbbell）"
     )
     equipment_match: Literal["all", "any"] = Field(
         default="all", description="equipments の一致条件"
     )
-    sort: Literal["freshness", "richness", "gym_name", "created_at", "score"] = Field(
+    sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"] = Field(
         default="score", description="並び順"
     )
     per_page: int = Field(default=20, description="1ページ件数（1..50）")
@@ -120,6 +139,18 @@ class GymSearchQuery(BaseModel):
         city: Annotated[
             str | None, Query(description="市区町村スラッグ（lower）例: funabashi")
         ] = None,
+        lat: Annotated[
+            float | None,
+            Query(description="検索基準点の緯度（度）", ge=-90.0, le=90.0),
+        ] = None,
+        lng: Annotated[
+            float | None,
+            Query(description="検索基準点の経度（度）", ge=-180.0, le=180.0),
+        ] = None,
+        radius_km: Annotated[
+            float | None,
+            Query(description="検索半径（km）", ge=0.0),
+        ] = None,
         equipments: Annotated[
             str | None,
             Query(description="設備スラッグCSV（例: squat-rack,dumbbell）"),
@@ -128,7 +159,7 @@ class GymSearchQuery(BaseModel):
             Literal["all", "any"], Query(description="equipments の一致条件")
         ] = "all",
         sort: Annotated[
-            Literal["freshness", "richness", "gym_name", "created_at", "score"],
+            Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
             Query(description="並び順"),
         ] = "score",
         per_page: Annotated[int, Query(description="1ページ件数（1..50）", examples=[10])] = 20,
@@ -139,6 +170,9 @@ class GymSearchQuery(BaseModel):
                 {
                     "pref": pref,
                     "city": city,
+                    "lat": lat,
+                    "lng": lng,
+                    "radius_km": radius_km,
                     "equipments": equipments,
                     "equipment_match": equipment_match,
                     "sort": sort,

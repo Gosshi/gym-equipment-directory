@@ -157,6 +157,7 @@ async def search_gyms(
             item["gym"],
             last_verified_at=item.get("last_verified_at"),
             score=float(item.get("score", 0.0)),
+            distance_km=item.get("distance_km"),
         )
         for item in slice_
     ]
