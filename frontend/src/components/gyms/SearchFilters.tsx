@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import {
   DISTANCE_STEP_KM,
   MAX_DISTANCE_KM,
@@ -61,6 +63,7 @@ type SearchFiltersProps = {
   onDistanceChange: (value: number) => void;
   onClear: () => void;
   onRequestLocation: () => void;
+  onUseFallbackLocation: () => void;
   onClearLocation: () => void;
   onManualLocationChange: (lat: number | null, lng: number | null) => void;
   onReloadMeta: () => void;
@@ -85,6 +88,7 @@ export function SearchFilters({
   onDistanceChange,
   onClear,
   onRequestLocation,
+  onUseFallbackLocation,
   onClearLocation,
   onManualLocationChange,
   onReloadMeta,
@@ -99,6 +103,8 @@ export function SearchFilters({
   const [latInput, setLatInput] = useState<string>("");
   const [lngInput, setLngInput] = useState<string>("");
   const [manualError, setManualError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const lastLocationToastRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (location.lat != null) {
@@ -113,6 +119,25 @@ export function SearchFilters({
     }
     setManualError(null);
   }, [location.lat, location.lng]);
+
+  useEffect(() => {
+    const message = location.error;
+    if (!message || location.status !== "error") {
+      if (!message) {
+        lastLocationToastRef.current = null;
+      }
+      return;
+    }
+    if (lastLocationToastRef.current === message) {
+      return;
+    }
+    lastLocationToastRef.current = message;
+    toast({
+      title: "位置情報を取得できませんでした",
+      description: message,
+      variant: "destructive",
+    });
+  }, [location.error, location.status, toast]);
 
   useEffect(() => {
     return () => {
@@ -246,6 +271,13 @@ export function SearchFilters({
     }
     setManualError(null);
     onManualLocationChange(latValue, lngValue);
+  };
+
+  const handleUseFallbackLocation = () => {
+    setLatInput(FALLBACK_LOCATION.lat.toFixed(5));
+    setLngInput(FALLBACK_LOCATION.lng.toFixed(5));
+    setManualError(null);
+    onUseFallbackLocation();
   };
 
   const handleClearLocation = () => {
@@ -435,22 +467,55 @@ export function SearchFilters({
 
         <div className="space-y-3 rounded-lg border border-dashed p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className="text-sm font-medium">現在地と距離</p>
-              <p className="break-words text-xs text-muted-foreground">{locationSummary}</p>
+              <div
+                aria-live="polite"
+                className="flex items-start gap-2 text-xs text-muted-foreground"
+              >
+                {isLocating ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="mt-0.5 h-3.5 w-3.5 animate-spin"
+                  />
+                ) : null}
+                {location.status === "error" ? (
+                  <AlertTriangle
+                    aria-hidden="true"
+                    className="mt-0.5 h-3.5 w-3.5 text-amber-500"
+                  />
+                ) : null}
+                <span className="break-words">{locationSummary}</span>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={onRequestLocation} size="sm" type="button" disabled={isLocating}>
-                {isLocating ? "取得中..." : "現在地を取得"}
+                {isLocating ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                    取得中…
+                  </span>
+                ) : (
+                  "現在地を再取得"
+                )}
               </Button>
               <Button
-                onClick={handleClearLocation}
+                onClick={handleUseFallbackLocation}
                 size="sm"
                 type="button"
                 variant="outline"
-                disabled={location.isFallback && latInput.trim() === "" && lngInput.trim() === ""}
+                disabled={location.isFallback && location.status !== "error"}
               >
                 デフォルト地点を使用
+              </Button>
+              <Button
+                disabled={!hasLocation}
+                onClick={handleClearLocation}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                位置情報をクリア
               </Button>
             </div>
           </div>
@@ -518,13 +583,19 @@ export function SearchFilters({
         </div>
 
         <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="gym-search-distance">
-            距離（km）
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-medium" htmlFor="gym-search-distance">
+              検索半径（km）
+            </label>
+            <span aria-live="polite" className="text-xs text-muted-foreground">
+              半径: 約 {state.distance}km
+            </span>
+          </div>
           <input
             aria-valuemin={MIN_DISTANCE_KM}
             aria-valuemax={MAX_DISTANCE_KM}
             aria-valuenow={state.distance}
+            aria-label="検索半径（キロメートル）"
             className={cn("w-full", !hasLocation && "opacity-50")}
             id="gym-search-distance"
             max={MAX_DISTANCE_KM}
@@ -539,7 +610,7 @@ export function SearchFilters({
           />
           <span className="text-xs text-muted-foreground">
             {hasLocation
-              ? `現在の距離: 約 ${state.distance}km`
+              ? "現在の地点から検索する範囲を調整できます。"
               : `デフォルト地点（${FALLBACK_LOCATION.label}）または現在地を設定すると距離フィルタを利用できます。`}
           </span>
         </div>

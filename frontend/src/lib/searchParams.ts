@@ -203,7 +203,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
       DEFAULT_LIMIT,
     ),
   );
-  const distance = parseDistance(params.get("distance"));
+  const distance = parseDistance(params.get("radius_km") ?? params.get("distance"));
   const latRaw = parseLatitude(params.get("lat"));
   const lngRaw = parseLongitude(params.get("lng"));
   const lat = latRaw != null && lngRaw != null ? latRaw : null;
@@ -247,12 +247,12 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   if (state.limit !== DEFAULT_LIMIT) {
     params.set("page_size", String(state.limit));
   }
-  if (state.distance !== DEFAULT_DISTANCE_KM) {
-    params.set("distance", String(state.distance));
-  }
   if (state.lat != null && state.lng != null) {
+    params.set("radius_km", String(state.distance));
     params.set("lat", state.lat.toFixed(6));
     params.set("lng", state.lng.toFixed(6));
+  } else if (state.distance !== DEFAULT_DISTANCE_KM) {
+    params.set("radius_km", String(state.distance));
   }
 
   return params;

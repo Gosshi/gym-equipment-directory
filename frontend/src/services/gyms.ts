@@ -41,6 +41,8 @@ export interface SearchGymsParams {
   pageToken?: string | null;
   lat?: number | null;
   lng?: number | null;
+  radiusKm?: number | null;
+  /** @deprecated Use radiusKm instead. */
   distance?: number | null;
 }
 
@@ -188,7 +190,7 @@ export async function searchGyms(
       ? {
           lat: params.lat!,
           lng: params.lng!,
-          distance: params.distance ?? undefined,
+          radiusKm: params.radiusKm ?? params.distance ?? undefined,
         }
       : {}),
   };
