@@ -88,6 +88,8 @@ describe("useGymSearch", () => {
       categories: ["squat-rack"],
       sort: "newest",
       distance: 15,
+      lat: null,
+      lng: null,
     });
     expect(result.current.page).toBe(2);
     expect(result.current.limit).toBe(30);
@@ -201,7 +203,62 @@ describe("useGymSearch", () => {
       categories: [],
       sort: "popular",
       distance: DEFAULT_DISTANCE_KM,
+      lat: null,
+      lng: null,
     });
+  });
+
+  it("applies location coordinates from query parameters", async () => {
+    useSearchParams.mockReturnValue(
+      new URLSearchParams("lat=35.1234&lng=139.9876&distance=8"),
+    );
+
+    const { result } = renderHook(() => useGymSearch());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.formState.lat).toBeCloseTo(35.1234);
+    expect(result.current.formState.lng).toBeCloseTo(139.9876);
+    expect(result.current.location.mode).toBe("manual");
+    expect(result.current.location.status).toBe("success");
+    expect(searchGyms).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 35.1234,
+        lng: 139.9876,
+        distance: 8,
+      }),
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it("retains location information when clearing filters", async () => {
+    useSearchParams.mockReturnValue(
+      new URLSearchParams("lat=34&lng=135&per_page=24&distance=12"),
+    );
+
+    const { result } = renderHook(() => useGymSearch());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    mockRouter.push.mockClear();
+
+    await act(async () => {
+      result.current.clearFilters();
+    });
+
+    expect(mockRouter.push).toHaveBeenCalled();
+    const [url, options] = mockRouter.push.mock.calls[0];
+    expect(url).toContain("per_page=24");
+    expect(url).toContain("lat=34.000000");
+    expect(url).toContain("lng=135.000000");
+    expect(options).toEqual({ scroll: false });
+    expect(result.current.formState.lat).toBeCloseTo(34);
+    expect(result.current.formState.lng).toBeCloseTo(135);
+    expect(result.current.formState.distance).toBe(DEFAULT_DISTANCE_KM);
   });
 
   it("surfaces API errors from searchGyms as error state", async () => {

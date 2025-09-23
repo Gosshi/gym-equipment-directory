@@ -8,12 +8,15 @@ import {
   DEFAULT_FILTER_STATE,
   DEFAULT_LIMIT,
   MAX_LIMIT,
+  DEFAULT_DISTANCE_KM,
   type FilterState,
   type SortOption,
   areCategoriesEqual,
   normalizeCategories,
   parseFilterState,
   serializeFilterState,
+  clampLatitude,
+  clampLongitude,
 } from "@/lib/searchParams";
 import { searchGyms } from "@/services/gyms";
 import { getCities, getEquipmentCategories, getPrefectures } from "@/services/meta";
@@ -26,6 +29,18 @@ import type {
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
+export type LocationMode = "off" | "auto" | "manual";
+export type LocationStatus = "idle" | "loading" | "success" | "error";
+
+export interface LocationState {
+  lat: number | null;
+  lng: number | null;
+  mode: LocationMode;
+  status: LocationStatus;
+  error: string | null;
+  isSupported: boolean;
+}
+
 type FormState = {
   q: string;
   prefecture: string;
@@ -33,6 +48,8 @@ type FormState = {
   categories: string[];
   sort: SortOption;
   distance: number;
+  lat: number | null;
+  lng: number | null;
 };
 
 const toFormState = (filters: FilterState): FormState => ({
@@ -42,6 +59,8 @@ const toFormState = (filters: FilterState): FormState => ({
   categories: [...filters.categories],
   sort: filters.sort,
   distance: filters.distance,
+  lat: filters.lat,
+  lng: filters.lng,
 });
 
 const areFormStatesEqual = (a: FormState, b: FormState) =>
@@ -50,6 +69,8 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.city === b.city &&
   a.sort === b.sort &&
   a.distance === b.distance &&
+  a.lat === b.lat &&
+  a.lng === b.lng &&
   areCategoriesEqual(a.categories, b.categories);
 
 const buildFilterStateFromForm = (
@@ -65,6 +86,8 @@ const buildFilterStateFromForm = (
   page: 1,
   limit: base.limit,
   distance: form.distance,
+  lat: form.lat,
+  lng: form.lng,
   ...overrides,
 });
 
@@ -82,6 +105,10 @@ export interface UseGymSearchResult {
   updateSort: (value: SortOption) => void;
   updateDistance: (value: number) => void;
   clearFilters: () => void;
+  location: LocationState;
+  requestLocation: () => void;
+  clearLocation: () => void;
+  setManualLocation: (lat: number | null, lng: number | null) => void;
   page: number;
   limit: number;
   setPage: (page: number) => void;
@@ -122,10 +149,47 @@ export function useGymSearch(
     toFormState(appliedFilters),
   );
 
+  const geolocationSupportedRef = useRef(
+    typeof window !== "undefined" &&
+      typeof window.navigator !== "undefined" &&
+      "geolocation" in window.navigator,
+  );
+  const [locationMode, setLocationMode] = useState<LocationMode>(() =>
+    appliedFilters.lat != null && appliedFilters.lng != null ? "manual" : "off",
+  );
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
+    appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
+  );
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   useEffect(() => {
     const next = toFormState(appliedFilters);
     setFormState((prev) => (areFormStatesEqual(prev, next) ? prev : next));
   }, [appliedFilters]);
+
+  useEffect(() => {
+    const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    setLocationMode((prev) => {
+      if (hasLocation) {
+        if (prev === "off") {
+          return "manual";
+        }
+        return prev;
+      }
+      return "off";
+    });
+    setLocationStatus((prev) => {
+      if (hasLocation) {
+        return prev === "loading" || prev === "idle" || prev === "error"
+          ? "success"
+          : prev;
+      }
+      return prev === "success" ? "idle" : prev;
+    });
+    if (hasLocation) {
+      setLocationError(null);
+    }
+  }, [appliedFilters.lat, appliedFilters.lng]);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -167,6 +231,8 @@ export function useGymSearch(
           categories: normalizeCategories(updated.categories),
           sort: updated.sort,
           distance: updated.distance,
+          lat: updated.lat,
+          lng: updated.lng,
         };
 
         if (areFormStatesEqual(prev, normalized)) {
@@ -227,15 +293,114 @@ export function useGymSearch(
     [scheduleApply],
   );
 
+  const applyLocation = useCallback(
+    (lat: number | null, lng: number | null, mode: LocationMode) => {
+      cancelPendingDebounce();
+      setFormState((prev) => {
+        const nextDistance = lat != null && lng != null ? prev.distance : DEFAULT_DISTANCE_KM;
+        const next: FormState = {
+          ...prev,
+          lat,
+          lng,
+          distance: nextDistance,
+        };
+        applyFilters(
+          buildFilterStateFromForm(next, appliedFilters, {
+            lat,
+            lng,
+            distance: nextDistance,
+          }),
+        );
+        return next;
+      });
+      if (lat != null && lng != null) {
+        setLocationMode(mode);
+        setLocationStatus("success");
+        setLocationError(null);
+      } else {
+        setLocationMode("off");
+        setLocationStatus("idle");
+      }
+    },
+    [appliedFilters, applyFilters, cancelPendingDebounce],
+  );
+
+  const requestLocation = useCallback(() => {
+    if (typeof window === "undefined" || !geolocationSupportedRef.current) {
+      setLocationMode("off");
+      setLocationStatus("error");
+      setLocationError("この環境では位置情報を取得できません。緯度・経度を手入力してください。");
+      return;
+    }
+    setLocationStatus("loading");
+    setLocationError(null);
+    window.navigator.geolocation.getCurrentPosition(
+      (position) => {
+        applyLocation(
+          clampLatitude(position.coords.latitude),
+          clampLongitude(position.coords.longitude),
+          "auto",
+        );
+      },
+      (error) => {
+        let message = "位置情報の取得に失敗しました。";
+        if (error?.code === error.PERMISSION_DENIED) {
+          message = "位置情報の利用が拒否されました。";
+        } else if (error?.code === error.POSITION_UNAVAILABLE) {
+          message = "位置情報を取得できませんでした。";
+        } else if (error?.code === error.TIMEOUT) {
+          message = "位置情報の取得がタイムアウトしました。";
+        }
+        setLocationMode("off");
+        setLocationStatus("error");
+        setLocationError(message);
+      },
+      { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
+    );
+  }, [applyLocation]);
+
+  const setManualLocation = useCallback(
+    (lat: number | null, lng: number | null) => {
+      if (lat == null || lng == null) {
+        applyLocation(null, null, "off");
+        return;
+      }
+      applyLocation(clampLatitude(lat), clampLongitude(lng), "manual");
+    },
+    [applyLocation],
+  );
+
+  const clearLocation = useCallback(() => {
+    applyLocation(null, null, "off");
+  }, [applyLocation]);
+
   const clearFilters = useCallback(() => {
     cancelPendingDebounce();
+    const hasLocation = formState.lat != null && formState.lng != null;
     const resetFilters: FilterState = {
       ...DEFAULT_FILTER_STATE,
       limit: appliedFilters.limit,
+      lat: hasLocation ? formState.lat : null,
+      lng: hasLocation ? formState.lng : null,
+      distance: DEFAULT_DISTANCE_KM,
     };
     setFormState(toFormState(resetFilters));
     applyFilters(resetFilters);
-  }, [appliedFilters.limit, applyFilters, cancelPendingDebounce]);
+    if (hasLocation) {
+      setLocationMode((mode) => (mode === "off" ? "manual" : mode));
+      setLocationStatus("success");
+      setLocationError(null);
+    } else {
+      setLocationMode("off");
+      setLocationStatus((status) => (status === "success" ? "idle" : status));
+    }
+  }, [
+    appliedFilters.limit,
+    applyFilters,
+    cancelPendingDebounce,
+    formState.lat,
+    formState.lng,
+  ]);
 
   const setPage = useCallback(
     (page: number, options: { append?: boolean } = {}) => {
@@ -311,6 +476,13 @@ export function useGymSearch(
         page: appliedFilters.page,
         limit: appliedFilters.limit,
         perPage: appliedFilters.limit,
+        ...(appliedFilters.lat != null && appliedFilters.lng != null
+          ? {
+              lat: appliedFilters.lat,
+              lng: appliedFilters.lng,
+              distance: appliedFilters.distance,
+            }
+          : {}),
       },
       { signal: controller.signal },
     )
@@ -488,6 +660,18 @@ export function useGymSearch(
 
   const isInitialLoading = isLoading && !hasLoadedOnce;
 
+  const location: LocationState = useMemo(
+    () => ({
+      lat: formState.lat,
+      lng: formState.lng,
+      mode: locationMode,
+      status: locationStatus,
+      error: locationError,
+      isSupported: geolocationSupportedRef.current,
+    }),
+    [formState.lat, formState.lng, locationMode, locationStatus, locationError],
+  );
+
   return {
     formState,
     appliedFilters,
@@ -498,6 +682,10 @@ export function useGymSearch(
     updateSort,
     updateDistance,
     clearFilters,
+    location,
+    requestLocation,
+    clearLocation,
+    setManualLocation,
     page: appliedFilters.page,
     limit: appliedFilters.limit,
     setPage,

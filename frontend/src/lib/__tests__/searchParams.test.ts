@@ -13,7 +13,7 @@ import {
 describe("searchParams", () => {
   it("parses query parameters into a normalized filter state", () => {
     const params = new URLSearchParams(
-      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&per_page=40&distance=25",
+      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=freshness&page=2&per_page=40&distance=25&lat=35.681&lng=139.767",
     );
 
     const state = parseFilterState(params);
@@ -27,6 +27,8 @@ describe("searchParams", () => {
       page: 2,
       limit: 40,
       distance: 25,
+      lat: 35.681,
+      lng: 139.767,
     });
   });
 
@@ -43,6 +45,8 @@ describe("searchParams", () => {
     expect(state.page).toBe(1);
     expect(state.limit).toBe(MAX_LIMIT);
     expect(state.distance).toBe(MAX_DISTANCE_KM);
+    expect(state.lat).toBeNull();
+    expect(state.lng).toBeNull();
   });
 
   it("serializes a filter state into query parameters while omitting defaults", () => {
@@ -56,6 +60,8 @@ describe("searchParams", () => {
       page: 3,
       limit: 30,
       distance: DEFAULT_DISTANCE_KM + 1,
+      lat: 35.01,
+      lng: 135.75,
     });
 
     expect(params.get("q")).toBe("deadlift");
@@ -66,6 +72,8 @@ describe("searchParams", () => {
     expect(params.get("page")).toBe("3");
     expect(params.get("per_page")).toBe("30");
     expect(params.get("distance")).toBe(String(DEFAULT_DISTANCE_KM + 1));
+    expect(params.get("lat")).toBe("35.010000");
+    expect(params.get("lng")).toBe("135.750000");
   });
 
   it("round-trips between serialization and parsing", () => {
@@ -78,6 +86,8 @@ describe("searchParams", () => {
       page: 4,
       limit: 24,
       distance: 12,
+      lat: 43.0621,
+      lng: 141.3544,
     });
 
     const state = parseFilterState(params);
@@ -91,6 +101,8 @@ describe("searchParams", () => {
       page: 4,
       limit: 24,
       distance: 12,
+      lat: 43.0621,
+      lng: 141.3544,
     });
   });
 

@@ -32,6 +32,9 @@ describe("searchGyms", () => {
       sort: "fresh",
       page: 2,
       limit: 24,
+      lat: 34.7,
+      lng: 135.5,
+      distance: 9,
     });
 
     expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
@@ -45,6 +48,9 @@ describe("searchGyms", () => {
         page: 2,
         per_page: 24,
         page_token: undefined,
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+        distance: 9,
       },
       signal: undefined,
     });
