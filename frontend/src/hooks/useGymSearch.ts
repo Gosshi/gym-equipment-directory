@@ -445,7 +445,7 @@ export function useGymSearch(
   );
 
   const clearLocation = useCallback(() => {
-    applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback");
+    applyLocation(null, null, "off");
   }, [applyLocation]);
 
   const clearFilters = useCallback(() => {

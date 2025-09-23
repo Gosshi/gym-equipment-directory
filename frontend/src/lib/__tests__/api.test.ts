@@ -95,7 +95,7 @@ describe("lib/api", () => {
         pref: "tokyo",
         city: "chiyoda",
         equipments: "squat-rack",
-        sort: "rating",
+        sort: "score",
         order: "desc",
         page: 2,
         per_page: 30,

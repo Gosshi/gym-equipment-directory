@@ -156,13 +156,16 @@ const sortOptionToApiSort = (sort: SortOption | ApiSortKey | null | undefined) =
   }
   switch (sort) {
     case "distance":
-      return "distance";
+      // TODO: distance sort is not yet supported by the search API; omit the key so the
+      // backend falls back to its default order instead of returning 422.
+      return undefined;
     case "name":
       return "gym_name";
     case "rating":
-      return "rating";
+      return "score";
     case "reviews":
-      return "reviews";
+      // TODO: API does not expose review-count sorting; use richness as the closest match.
+      return "richness";
     default:
       return undefined;
   }

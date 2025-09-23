@@ -45,7 +45,7 @@ describe("searchGyms", () => {
         pref: "tokyo",
         city: "shinjuku",
         equipments: "squat-rack,dumbbell",
-        sort: "reviews",
+        sort: "richness",
         order: "desc",
         page: 2,
         per_page: 24,

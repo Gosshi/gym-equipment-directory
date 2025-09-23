@@ -327,7 +327,7 @@ describe("useGymSearch", () => {
     expect(result.current.formState.order).toBe(DEFAULT_FILTER_STATE.order);
   });
 
-  it("applies fallback coordinates when the current location is cleared", async () => {
+  it("clears coordinates and resets sorting when the current location is cleared", async () => {
     let currentParams = new URLSearchParams(
       "sort=distance&order=asc&lat=35.6&lng=139.7&distance=5",
     );
@@ -355,10 +355,10 @@ describe("useGymSearch", () => {
 
     expect(mockRouter.push).toHaveBeenCalledTimes(1);
     const [url, options] = mockRouter.push.mock.calls[0];
-    expect(url).toContain("sort=distance");
-    expect(url).toContain("order=asc");
-    expect(url).toContain(`lat=${FALLBACK_LOCATION.lat.toFixed(6)}`);
-    expect(url).toContain(`lng=${FALLBACK_LOCATION.lng.toFixed(6)}`);
+    expect(url).toContain(`sort=${DEFAULT_FILTER_STATE.sort}`);
+    expect(url).toContain(`order=${DEFAULT_FILTER_STATE.order}`);
+    expect(url).not.toContain("lat=");
+    expect(url).not.toContain("lng=");
     expect(options).toEqual({ scroll: false });
 
     await act(async () => {
@@ -366,19 +366,19 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.appliedFilters.sort).toBe("distance");
-    expect(result.current.appliedFilters.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
-    expect(result.current.appliedFilters.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
-    expect(result.current.location.mode).toBe("fallback");
-    expect(result.current.location.isFallback).toBe(true);
-    expect(result.current.formState.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
-    expect(result.current.formState.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+    expect(result.current.appliedFilters.sort).toBe(DEFAULT_FILTER_STATE.sort);
+    expect(result.current.appliedFilters.lat).toBeNull();
+    expect(result.current.appliedFilters.lng).toBeNull();
+    expect(result.current.location.mode).toBe("off");
+    expect(result.current.location.isFallback).toBe(false);
+    expect(result.current.formState.lat).toBeNull();
+    expect(result.current.formState.lng).toBeNull();
 
     expect(searchGyms).toHaveBeenCalledTimes(1);
     const [params] = searchGyms.mock.calls[0];
-    expect(params.sort).toBe("distance");
-    expect(params.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
-    expect(params.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
+    expect(params.sort).toBe(DEFAULT_FILTER_STATE.sort);
+    expect(params.lat ?? null).toBeNull();
+    expect(params.lng ?? null).toBeNull();
 
     mockRouter.push.mockImplementation(() => {});
   });
