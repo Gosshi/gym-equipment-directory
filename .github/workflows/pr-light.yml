@@ -9,13 +9,22 @@ jobs:
   detect-backend-changes:
     name: Detect backend changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Compute path filters
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             backend:
               - 'backend/**'
