@@ -9,6 +9,11 @@ dist/
 build/
 *.tsbuildinfo
 
+# Playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+
 # venv
 venv*/
 .venv*/
