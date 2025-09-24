@@ -109,6 +109,10 @@ export function SearchFilters({
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const suggestAbortRef = useRef<AbortController | null>(null);
   const suggestTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // SSR -> CSR の hydration で geolocation サポート可否 (location.isSupported) が
+  // サーバとクライアントで異なり得るため、初回マウント前は常に
+  // "現在地は利用不可" 側のラベルで固定し mismatch を回避する。
+  const [mounted, setMounted] = useState(false);
 
   const [latInput, setLatInput] = useState<string>("");
   const [lngInput, setLngInput] = useState<string>("");
@@ -167,6 +171,11 @@ export function SearchFilters({
         suggestAbortRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    // クライアントマウント後にフラグを立て、以降は実際のサポート状況に応じたラベルへ切替。
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -540,9 +549,11 @@ export function SearchFilters({
                     <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                     取得中…
                   </span>
-                ) : location.isSupported ? (
-                  "現在地を再取得"
+                ) : mounted ? (
+                  // マウント後は実際のサポート状況に基づいて表示
+                  location.isSupported ? "現在地を再取得" : "現在地は利用不可"
                 ) : (
+                  // SSR と初回 CSR を一致させるため固定表示
                   "現在地は利用不可"
                 )}
               </Button>
