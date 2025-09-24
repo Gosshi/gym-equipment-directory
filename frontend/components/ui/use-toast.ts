@@ -24,7 +24,7 @@ let memoryState: ToastState = { toasts: [] };
 
 const dispatch = (action: Action) => {
   memoryState = reducer(memoryState, action);
-  listeners.forEach((listener) => listener(memoryState));
+  listeners.forEach(listener => listener(memoryState));
 };
 
 type Action =
@@ -60,14 +60,14 @@ function reducer(state: ToastState, action: Action): ToastState {
       if (toastId) {
         addToRemoveQueue(toastId);
       } else {
-        state.toasts.forEach((toast) => {
+        state.toasts.forEach(toast => {
           addToRemoveQueue(toast.id);
         });
       }
 
       return {
         ...state,
-        toasts: state.toasts.map((toast) =>
+        toasts: state.toasts.map(toast =>
           toast.id === action.toastId ? { ...toast, open: false } : toast,
         ),
       };
@@ -79,7 +79,7 @@ function reducer(state: ToastState, action: Action): ToastState {
 
       return {
         ...state,
-        toasts: state.toasts.filter((toast) => toast.id !== action.toastId),
+        toasts: state.toasts.filter(toast => toast.id !== action.toastId),
       };
   }
 }

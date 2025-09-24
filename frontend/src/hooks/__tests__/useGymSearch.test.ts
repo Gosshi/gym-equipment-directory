@@ -87,7 +87,15 @@ describe("useGymSearch", () => {
     mockedUseSearchParams.mockReturnValue(createSearchParams());
     mockedSearchGyms.mockResolvedValue({
       items: [],
-      meta: { total: 0, page: 1, perPage: 20, hasNext: false, hasPrev: false, hasMore: false, pageToken: null },
+      meta: {
+        total: 0,
+        page: 1,
+        perPage: 20,
+        hasNext: false,
+        hasPrev: false,
+        hasMore: false,
+        pageToken: null,
+      },
     });
     mockedGetPrefectures.mockResolvedValue([
       { value: "tokyo", label: "Tokyo" },
@@ -314,9 +322,7 @@ describe("useGymSearch", () => {
 
   it("clears filters and keeps the current per-page value", async () => {
     mockedUseSearchParams.mockReturnValue(
-      createSearchParams(
-        "q=bench&pref=tokyo&cats=squat-rack&page=2&per_page=24&radius_km=10",
-      ),
+      createSearchParams("q=bench&pref=tokyo&cats=squat-rack&page=2&per_page=24&radius_km=10"),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -332,10 +338,9 @@ describe("useGymSearch", () => {
     });
 
     expect(mockRouter.push).toHaveBeenCalled();
-    expect(mockRouter.push).toHaveBeenCalledWith(
-      expect.stringContaining("page_size=24"),
-      { scroll: false },
-    );
+    expect(mockRouter.push).toHaveBeenCalledWith(expect.stringContaining("page_size=24"), {
+      scroll: false,
+    });
     const [url] = mockRouter.push.mock.calls[0];
     expect(url).toContain("sort=rating");
     expect(url).toContain("order=desc");
@@ -473,9 +478,7 @@ describe("useGymSearch", () => {
   });
 
   it("updates the search radius and resets the page", async () => {
-    let currentParams = createSearchParams(
-      "lat=35.6&lng=139.7&radius_km=5&page=3",
-    );
+    let currentParams = createSearchParams("lat=35.6&lng=139.7&radius_km=5&page=3");
     mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
@@ -586,11 +589,27 @@ describe("useGymSearch", () => {
     mockedSearchGyms
       .mockResolvedValueOnce({
         items: firstPageItems,
-        meta: { total: 5, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
+        meta: {
+          total: 5,
+          page: 1,
+          perPage: 20,
+          hasNext: true,
+          hasPrev: false,
+          hasMore: true,
+          pageToken: null,
+        },
       })
       .mockResolvedValueOnce({
         items: secondPageItems,
-        meta: { total: 5, page: 2, perPage: 20, hasNext: false, hasPrev: true, hasMore: false, pageToken: null },
+        meta: {
+          total: 5,
+          page: 2,
+          perPage: 20,
+          hasNext: false,
+          hasPrev: true,
+          hasMore: false,
+          pageToken: null,
+        },
       });
 
     let currentParams = createSearchParams(
@@ -632,7 +651,7 @@ describe("useGymSearch", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.items.map((item) => item.id)).toEqual([1, 2, 3]);
+    expect(result.current.items.map(item => item.id)).toEqual([1, 2, 3]);
     expect(result.current.meta.hasNext).toBe(false);
     expect(mockedSearchGyms).toHaveBeenCalledTimes(2);
   });

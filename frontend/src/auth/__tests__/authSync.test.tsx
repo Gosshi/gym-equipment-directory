@@ -155,14 +155,14 @@ describe("AuthProvider store sync", () => {
     );
 
     await waitFor(() =>
-      expect(favoritesStore.getState().favorites.map((favorite) => favorite.gym.id)).toEqual([
+      expect(favoritesStore.getState().favorites.map(favorite => favorite.gym.id)).toEqual([
         serverFavorite.id,
         localFavorite.id,
       ]),
     );
 
     await waitFor(() =>
-      expect(historyStore.getState().items.map((item) => item.id)).toEqual([
+      expect(historyStore.getState().items.map(item => item.id)).toEqual([
         serverHistory.id,
         localHistoryA.id,
         localHistoryB.id,

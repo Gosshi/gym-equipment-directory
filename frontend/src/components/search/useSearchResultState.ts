@@ -10,11 +10,7 @@ type UseSearchResultStateOptions = {
   items: GymSummary[];
 };
 
-export function useSearchResultState({
-  isLoading,
-  error,
-  items,
-}: UseSearchResultStateOptions) {
+export function useSearchResultState({ isLoading, error, items }: UseSearchResultStateOptions) {
   return useMemo(() => {
     if (error) {
       return {

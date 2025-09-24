@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Inter", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans:
+    "Inter", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --muted: 210 40% 96.1%;

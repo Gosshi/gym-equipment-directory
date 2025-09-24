@@ -54,7 +54,7 @@ const normalizeImageUrls = (source: unknown): string[] | undefined => {
   const values = Array.isArray(source) ? source : [source];
 
   const normalized = values
-    .map((item) => {
+    .map(item => {
       if (!item) {
         return undefined;
       }
@@ -109,19 +109,21 @@ const normalizeEquipmentDetails = (source: unknown): GymEquipmentDetail[] | unde
         sanitizeText(record.category) ??
         sanitizeText(record.type) ??
         sanitizeText(record.category_name) ??
-        sanitizeText(record.group) ?? null;
+        sanitizeText(record.group) ??
+        null;
       const description =
         sanitizeText(record.description) ??
         sanitizeText(record.note) ??
         sanitizeText(record.notes) ??
         sanitizeText(record.memo) ??
         sanitizeText(record.detail) ??
-        sanitizeText(record.details) ?? null;
+        sanitizeText(record.details) ??
+        null;
       const idRaw = record.id;
       const identifier =
         typeof idRaw === "string" || typeof idRaw === "number"
           ? idRaw
-          : sanitizeText(record.key) ?? undefined;
+          : (sanitizeText(record.key) ?? undefined);
       result.push({ id: identifier, name, category, description });
       continue;
     }
@@ -139,7 +141,11 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     normalizeImageUrls(input.gallery);
 
   const thumbnailUrl =
-    input.thumbnail_url ?? input.thumbnailUrl ?? input.main_image_url ?? input.hero_image_url ?? null;
+    input.thumbnail_url ??
+    input.thumbnailUrl ??
+    input.main_image_url ??
+    input.hero_image_url ??
+    null;
 
   const equipmentDetails =
     normalizeEquipmentDetails(input.equipment_details) ??

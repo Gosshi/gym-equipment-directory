@@ -141,8 +141,10 @@ export function NearbyMap({
     }
 
     const current = map.getCenter();
-    const sameLat = Number.parseFloat(current.lat.toFixed(6)) === Number.parseFloat(center.lat.toFixed(6));
-    const sameLng = Number.parseFloat(current.lng.toFixed(6)) === Number.parseFloat(center.lng.toFixed(6));
+    const sameLat =
+      Number.parseFloat(current.lat.toFixed(6)) === Number.parseFloat(center.lat.toFixed(6));
+    const sameLng =
+      Number.parseFloat(current.lng.toFixed(6)) === Number.parseFloat(center.lng.toFixed(6));
     if (sameLat && sameLng) {
       return;
     }
@@ -157,7 +159,7 @@ export function NearbyMap({
       return;
     }
 
-    const nextIds = new Set(markers.map((gym) => gym.id));
+    const nextIds = new Set(markers.map(gym => gym.id));
 
     markerMapRef.current.forEach((value, key) => {
       if (!nextIds.has(key)) {
@@ -166,7 +168,7 @@ export function NearbyMap({
       }
     });
 
-    markers.forEach((gym) => {
+    markers.forEach(gym => {
       const existing = markerMapRef.current.get(gym.id);
       if (existing) {
         existing.marker.setLngLat([gym.longitude, gym.latitude]);
@@ -198,7 +200,7 @@ export function NearbyMap({
 
   useEffect(() => {
     markerMapRef.current.forEach(({ element }, id) => {
-      highlightClasses.forEach((cls) => {
+      highlightClasses.forEach(cls => {
         if (id === hoveredId) {
           element.classList.add(cls);
         } else {
@@ -231,7 +233,7 @@ const formatSlug = (value: string | null | undefined) => {
   return value
     .split("-")
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 };
 

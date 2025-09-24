@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ApiError } from "@/lib/apiClient";
@@ -30,11 +23,7 @@ import {
 import { searchGyms } from "@/services/gyms";
 import { getCities, getEquipmentCategories, getPrefectures } from "@/services/meta";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
-import type {
-  CityOption,
-  EquipmentCategoryOption,
-  PrefectureOption,
-} from "@/types/meta";
+import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
@@ -196,9 +185,7 @@ export interface UseGymSearchResult {
   reloadCities: () => void;
 }
 
-export function useGymSearch(
-  options: UseGymSearchOptions = {},
-): UseGymSearchResult {
+export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchResult {
   const { debounceMs = DEFAULT_DEBOUNCE_MS } = options;
   const router = useRouter();
   const pathname = usePathname();
@@ -210,9 +197,7 @@ export function useGymSearch(
   );
   const [, startTransition] = useTransition();
 
-  const [formState, setFormState] = useState<FormState>(() =>
-    toFormState(appliedFilters),
-  );
+  const [formState, setFormState] = useState<FormState>(() => toFormState(appliedFilters));
 
   const geolocationSupportedRef = useRef(
     typeof window !== "undefined" &&
@@ -222,9 +207,7 @@ export function useGymSearch(
   const initialLocationRequestRef = useRef(false);
   const [locationMode, setLocationMode] = useState<LocationMode>(() => {
     if (appliedFilters.lat != null && appliedFilters.lng != null) {
-      return isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng)
-        ? "fallback"
-        : "manual";
+      return isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng) ? "fallback" : "manual";
     }
     return "off";
   });
@@ -235,20 +218,18 @@ export function useGymSearch(
 
   useEffect(() => {
     const next = parseFilterState(new URLSearchParams(searchParamsKey));
-    setAppliedFilters((prev) =>
-      areFilterStatesEqual(prev, next) ? prev : next,
-    );
+    setAppliedFilters(prev => (areFilterStatesEqual(prev, next) ? prev : next));
   }, [searchParamsKey]);
 
   useEffect(() => {
     const next = toFormState(appliedFilters);
-    setFormState((prev) => (areFormStatesEqual(prev, next) ? prev : next));
+    setFormState(prev => (areFormStatesEqual(prev, next) ? prev : next));
   }, [appliedFilters]);
 
   useEffect(() => {
     const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
     const fallbackActive = isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng);
-    setLocationMode((prev) => {
+    setLocationMode(prev => {
       if (!hasLocation) {
         return "off";
       }
@@ -266,7 +247,7 @@ export function useGymSearch(
       }
       return prev;
     });
-    setLocationStatus((prev) => {
+    setLocationStatus(prev => {
       if (hasLocation) {
         if (fallbackActive) {
           return prev;
@@ -298,9 +279,7 @@ export function useGymSearch(
 
   const applyFilters = useCallback(
     (nextFilters: FilterState, options: { append?: boolean } = {}) => {
-      setAppliedFilters((prev) =>
-        areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters,
-      );
+      setAppliedFilters(prev => (areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters));
 
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
@@ -315,18 +294,12 @@ export function useGymSearch(
         router.push(nextUrl, { scroll: false });
       });
     },
-    [
-      pathname,
-      router,
-      searchParamsKey,
-      setAppliedFilters,
-      startTransition,
-    ],
+    [pathname, router, searchParamsKey, setAppliedFilters, startTransition],
   );
 
   const scheduleApply = useCallback(
     (updater: (prev: FormState) => FormState) => {
-      setFormState((prev) => {
+      setFormState(prev => {
         const normalized = normalizeFormState(updater(prev));
 
         if (areFormStatesEqual(prev, normalized)) {
@@ -360,7 +333,7 @@ export function useGymSearch(
       page: 1,
     };
     const nextFormState = toFormState(nextFilters);
-    setFormState((prev) => (areFormStatesEqual(prev, nextFormState) ? prev : nextFormState));
+    setFormState(prev => (areFormStatesEqual(prev, nextFormState) ? prev : nextFormState));
     setLocationMode("fallback");
     setLocationStatus("success");
     setLocationError(null);
@@ -368,13 +341,13 @@ export function useGymSearch(
   }, [appliedFilters, applyFilters, cancelPendingDebounce]);
 
   const updateKeyword = useCallback(
-    (value: string) => scheduleApply((prev) => ({ ...prev, q: value })),
+    (value: string) => scheduleApply(prev => ({ ...prev, q: value })),
     [scheduleApply],
   );
 
   const updatePrefecture = useCallback(
     (value: string) =>
-      scheduleApply((prev) => ({
+      scheduleApply(prev => ({
         ...prev,
         prefecture: value,
         city: "",
@@ -383,13 +356,13 @@ export function useGymSearch(
   );
 
   const updateCity = useCallback(
-    (value: string) => scheduleApply((prev) => ({ ...prev, city: value })),
+    (value: string) => scheduleApply(prev => ({ ...prev, city: value })),
     [scheduleApply],
   );
 
   const updateCategories = useCallback(
     (values: string[]) =>
-      scheduleApply((prev) => ({
+      scheduleApply(prev => ({
         ...prev,
         categories: values,
       })),
@@ -398,7 +371,7 @@ export function useGymSearch(
 
   const updateSort = useCallback(
     (value: SortOption, order: SortOrder) =>
-      scheduleApply((prev) => ({
+      scheduleApply(prev => ({
         ...prev,
         sort: value,
         order: normalizeSortOrder(value, order),
@@ -408,7 +381,7 @@ export function useGymSearch(
 
   const updateDistance = useCallback(
     (value: number) =>
-      scheduleApply((prev) => ({
+      scheduleApply(prev => ({
         ...prev,
         distance: value,
       })),
@@ -418,7 +391,7 @@ export function useGymSearch(
   const applyLocation = useCallback(
     (lat: number | null, lng: number | null, mode: LocationMode) => {
       cancelPendingDebounce();
-      setFormState((prev) => {
+      setFormState(prev => {
         const hasLocation = lat != null && lng != null;
         const nextDistance = hasLocation ? prev.distance : DEFAULT_DISTANCE_KM;
         const shouldResetSort = !hasLocation && prev.sort === "distance";
@@ -506,14 +479,14 @@ export function useGymSearch(
     setLocationStatus("loading");
     setLocationError(null);
     window.navigator.geolocation.getCurrentPosition(
-      (position) => {
+      position => {
         applyLocation(
           clampLatitude(position.coords.latitude),
           clampLongitude(position.coords.longitude),
           "auto",
         );
       },
-      (error) => {
+      error => {
         handleGeolocationError(error);
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
@@ -552,20 +525,14 @@ export function useGymSearch(
     setFormState(toFormState(resetFilters));
     applyFilters(resetFilters);
     if (hasLocation) {
-      setLocationMode((mode) => (mode === "off" ? "manual" : mode));
+      setLocationMode(mode => (mode === "off" ? "manual" : mode));
       setLocationStatus("success");
       setLocationError(null);
     } else {
       setLocationMode("off");
-      setLocationStatus((status) => (status === "success" ? "idle" : status));
+      setLocationStatus(status => (status === "success" ? "idle" : status));
     }
-  }, [
-    appliedFilters.limit,
-    applyFilters,
-    cancelPendingDebounce,
-    formState.lat,
-    formState.lng,
-  ]);
+  }, [appliedFilters.limit, applyFilters, cancelPendingDebounce, formState.lat, formState.lng]);
 
   useEffect(() => {
     if (initialLocationRequestRef.current) {
@@ -637,14 +604,14 @@ export function useGymSearch(
 
     const currentAppliedForm = toFormState(appliedFilters);
     if (areFormStatesEqual(currentAppliedForm, normalized)) {
-      setRefreshIndex((value) => value + 1);
+      setRefreshIndex(value => value + 1);
       return;
     }
 
     applyFilters(buildFilterStateFromForm(normalized, appliedFilters));
   }, [appliedFilters, applyFilters, cancelPendingDebounce, formState]);
 
-  const retry = useCallback(() => setRefreshIndex((value) => value + 1), []);
+  const retry = useCallback(() => setRefreshIndex(value => value + 1), []);
 
   const loadNextPage = useCallback(() => {
     if (isLoading || !meta.hasNext) {
@@ -693,11 +660,11 @@ export function useGymSearch(
       },
       { signal: controller.signal },
     )
-      .then((response) => {
+      .then(response => {
         if (!active) {
           return;
         }
-        setItems((previous) => {
+        setItems(previous => {
           if (!shouldAppend) {
             return response.items;
           }
@@ -706,7 +673,7 @@ export function useGymSearch(
             return previous;
           }
 
-          const seen = new Set(previous.map((item) => item.id));
+          const seen = new Set(previous.map(item => item.id));
           const merged = [...previous];
           for (const item of response.items) {
             if (seen.has(item.id)) {
@@ -720,14 +687,11 @@ export function useGymSearch(
         setMeta(response.meta);
         setHasLoadedOnce(true);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!active) {
           return;
         }
-        if (
-          err instanceof DOMException &&
-          err.name === "AbortError"
-        ) {
+        if (err instanceof DOMException && err.name === "AbortError") {
           return;
         }
         if (err instanceof ApiError) {
@@ -752,16 +716,12 @@ export function useGymSearch(
   }, [appliedFilters, refreshIndex]);
 
   const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
-  const [equipmentCategories, setEquipmentCategories] =
-    useState<EquipmentCategoryOption[]>([]);
+  const [equipmentCategories, setEquipmentCategories] = useState<EquipmentCategoryOption[]>([]);
   const [isMetaLoading, setIsMetaLoading] = useState(false);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaReloadIndex, setMetaReloadIndex] = useState(0);
 
-  const reloadMeta = useCallback(
-    () => setMetaReloadIndex((value) => value + 1),
-    [],
-  );
+  const reloadMeta = useCallback(() => setMetaReloadIndex(value => value + 1), []);
 
   useEffect(() => {
     let active = true;
@@ -776,7 +736,7 @@ export function useGymSearch(
         setPrefectures(prefData);
         setEquipmentCategories(equipmentData);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!active) {
           return;
         }
@@ -811,7 +771,7 @@ export function useGymSearch(
     if (prefSlug) {
       citiesCacheRef.current.delete(prefSlug);
     }
-    setCityReloadIndex((value) => value + 1);
+    setCityReloadIndex(value => value + 1);
   }, [formState.prefecture]);
 
   useEffect(() => {
@@ -834,14 +794,14 @@ export function useGymSearch(
     setCityError(null);
 
     getCities(prefSlug)
-      .then((data) => {
+      .then(data => {
         if (!active) {
           return;
         }
         citiesCacheRef.current.set(prefSlug, data);
         setCities(data);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!active) {
           return;
         }

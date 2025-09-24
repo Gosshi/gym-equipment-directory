@@ -17,7 +17,7 @@ describe("SearchBar", () => {
         <SearchBar
           id="keyword"
           label="キーワード"
-          onChange={(nextValue) => {
+          onChange={nextValue => {
             setValue(nextValue);
             handleChange(nextValue);
           }}

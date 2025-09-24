@@ -21,13 +21,17 @@ export function GymFacilities({ facilities }: GymFacilitiesProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {hasFacilities ? (
-          facilities.map((group) => (
-            <section aria-label={`${group.category}の設備`} className="space-y-3" key={group.category}>
+          facilities.map(group => (
+            <section
+              aria-label={`${group.category}の設備`}
+              className="space-y-3"
+              key={group.category}
+            >
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.category}
               </h3>
               <div className="flex flex-wrap gap-2">
-                {group.items.map((item) => (
+                {group.items.map(item => (
                   <Badge key={`${group.category}-${item}`} variant="outline">
                     {item}
                   </Badge>

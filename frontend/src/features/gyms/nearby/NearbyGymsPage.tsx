@@ -12,7 +12,7 @@ import { NearbyList } from "./components/NearbyList";
 import { NearbySearchPanel } from "./components/NearbySearchPanel";
 import { useNearbyGyms } from "./useNearbyGyms";
 
-const NearbyMap = dynamic(() => import("./components/NearbyMap").then((mod) => mod.NearbyMap), {
+const NearbyMap = dynamic(() => import("./components/NearbyMap").then(mod => mod.NearbyMap), {
   ssr: false,
 });
 
@@ -75,7 +75,7 @@ export function NearbyGymsPage() {
     if (hoveredId === null) {
       return;
     }
-    if (!items.some((gym) => gym.id === hoveredId)) {
+    if (!items.some(gym => gym.id === hoveredId)) {
       setHoveredId(null);
     }
   }, [hoveredId, items]);
@@ -116,7 +116,7 @@ export function NearbyGymsPage() {
     }
     setIsLocating(true);
     window.navigator.geolocation.getCurrentPosition(
-      (position) => {
+      position => {
         setIsLocating(false);
         const coords = {
           lat: Number(position.coords.latitude.toFixed(6)),
@@ -125,7 +125,7 @@ export function NearbyGymsPage() {
         setCenter(coords);
         setFormError(null);
       },
-      (geoError) => {
+      geoError => {
         setIsLocating(false);
         if (geoError.code === geoError.PERMISSION_DENIED) {
           setFormError("現在地の取得が拒否されました。手動で座標を入力してください。");
@@ -145,12 +145,9 @@ export function NearbyGymsPage() {
     requestCurrentLocation();
   }, [requestCurrentLocation]);
 
-  const handleMapCenterChange = useCallback(
-    (nextCenter: { lat: number; lng: number }) => {
-      setCenter(nextCenter);
-    },
-    [],
-  );
+  const handleMapCenterChange = useCallback((nextCenter: { lat: number; lng: number }) => {
+    setCenter(nextCenter);
+  }, []);
 
   const handleMarkerSelect = useCallback(
     (gym: NearbyGym) => {

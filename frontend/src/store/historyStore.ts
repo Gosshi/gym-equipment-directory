@@ -56,7 +56,11 @@ const summaryFromStoredValue = (input: unknown): GymSummary | null => {
   }
 
   const value = input as Partial<GymSummary>;
-  if (typeof value.id !== "number" || typeof value.slug !== "string" || typeof value.name !== "string") {
+  if (
+    typeof value.id !== "number" ||
+    typeof value.slug !== "string" ||
+    typeof value.name !== "string"
+  ) {
     return null;
   }
 
@@ -142,7 +146,7 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
     });
   },
   setAuthenticated(value) {
-    set((state) => ({
+    set(state => ({
       isAuthenticated: value,
       lastSyncedUserId: value ? state.lastSyncedUserId : null,
     }));
@@ -150,7 +154,7 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
   async add(candidate) {
     await get().initialize();
     const summary = candidateToSummary(candidate);
-    const previousItems = get().items.map((item) => ({ ...item }));
+    const previousItems = get().items.map(item => ({ ...item }));
     const nextItems = dedupeSummaries([summary, ...previousItems]);
 
     set({
@@ -217,11 +221,11 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
       const localItems = dedupeSummaries(get().items);
       const response = await apiGetHistory();
       const serverItems = dedupeSummaries(response.items ?? []);
-      const serverIds = new Set(serverItems.map((item) => item.id));
-      const toAdd = localItems.filter((item) => !serverIds.has(item.id));
+      const serverIds = new Set(serverItems.map(item => item.id));
+      const toAdd = localItems.filter(item => !serverIds.has(item.id));
 
       if (toAdd.length > 0) {
-        await apiAddHistory({ gymIds: toAdd.map((item) => item.id) });
+        await apiAddHistory({ gymIds: toAdd.map(item => item.id) });
       }
 
       const finalResponse = await apiGetHistory();
@@ -249,10 +253,10 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
 export const historyStore = useHistoryStore;
 
 export function useHistory() {
-  const items = useHistoryStore((state) => state.items);
-  const status = useHistoryStore((state) => state.status);
-  const error = useHistoryStore((state) => state.error);
-  const initialize = useHistoryStore((state) => state.initialize);
+  const items = useHistoryStore(state => state.items);
+  const status = useHistoryStore(state => state.status);
+  const error = useHistoryStore(state => state.error);
+  const initialize = useHistoryStore(state => state.initialize);
 
   useEffect(() => {
     void initialize();

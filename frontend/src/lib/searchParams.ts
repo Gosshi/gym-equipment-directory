@@ -23,8 +23,7 @@ export const SORT_ALLOWED_ORDERS: Record<SortOption, SortOrder[]> = {
   reviews: ["desc"],
 };
 
-export const getDefaultOrderForSort = (sort: SortOption): SortOrder =>
-  SORT_DEFAULT_ORDERS[sort];
+export const getDefaultOrderForSort = (sort: SortOption): SortOrder => SORT_DEFAULT_ORDERS[sort];
 
 export const normalizeSortOrder = (
   sort: SortOption,
@@ -114,7 +113,7 @@ const normalizeCsvList = (value: string | null): string[] => {
   }
   const sanitized = value
     .split(",")
-    .map((part) => part.trim())
+    .map(part => part.trim())
     .filter(Boolean);
   return Array.from(new Set(sanitized));
 };
@@ -269,4 +268,4 @@ export const areCategoriesEqual = (a: string[], b: string[]) => {
 };
 
 export const normalizeCategories = (values: string[]): string[] =>
-  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  Array.from(new Set(values.map(value => value.trim()).filter(Boolean)));

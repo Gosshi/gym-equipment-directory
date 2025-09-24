@@ -43,7 +43,7 @@ export function GymCard({ gym, className }: GymCardProps) {
         <CardContent className="flex flex-1 flex-col gap-4">
           {gym.equipments && gym.equipments.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {gym.equipments.slice(0, 6).map((equipment) => (
+              {gym.equipments.slice(0, 6).map(equipment => (
                 <span
                   key={equipment}
                   className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"

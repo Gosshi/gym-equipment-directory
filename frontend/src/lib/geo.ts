@@ -36,7 +36,7 @@ export const parseLatLng = (text: string): LatLng | null => {
 
   const parts = trimmed
     .split(/[\s,]+/)
-    .map((part) => part.trim())
+    .map(part => part.trim())
     .filter(Boolean);
 
   if (parts.length !== 2) {

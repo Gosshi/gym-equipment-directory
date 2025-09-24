@@ -14,7 +14,10 @@ import { cn } from "@/lib/utils";
 
 const Form = FormProvider;
 
-interface FormFieldContextValue<TFieldValues extends FieldValues = FieldValues, TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>> {
+interface FormFieldContextValue<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> {
   name: TName;
 }
 
@@ -72,20 +75,21 @@ const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
 );
 FormItem.displayName = "FormItem";
 
-const FormLabel = React.forwardRef<HTMLLabelElement, React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>>(
-  ({ className, ...props }, ref) => {
-    const { formItemId, fieldState } = useFormFieldContext();
+const FormLabel = React.forwardRef<
+  HTMLLabelElement,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
+>(({ className, ...props }, ref) => {
+  const { formItemId, fieldState } = useFormFieldContext();
 
-    return (
-      <LabelPrimitive.Root
-        ref={ref}
-        className={cn(fieldState.invalid && "text-destructive", className)}
-        htmlFor={formItemId}
-        {...props}
-      />
-    );
-  },
-);
+  return (
+    <LabelPrimitive.Root
+      ref={ref}
+      className={cn(fieldState.invalid && "text-destructive", className)}
+      htmlFor={formItemId}
+      {...props}
+    />
+  );
+});
 FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef<
@@ -99,9 +103,8 @@ const FormControl = React.forwardRef<
       ref={ref}
       id={formItemId}
       aria-describedby={
-        [props["aria-describedby"], formDescriptionId, formMessageId]
-          .filter(Boolean)
-          .join(" ") || undefined
+        [props["aria-describedby"], formDescriptionId, formMessageId].filter(Boolean).join(" ") ||
+        undefined
       }
       aria-invalid={fieldState.invalid || undefined}
       className={className}
@@ -111,47 +114,58 @@ const FormControl = React.forwardRef<
 });
 FormControl.displayName = "FormControl";
 
-const FormDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => {
-    const { formDescriptionId } = useFormFieldContext();
+const FormDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  const { formDescriptionId } = useFormFieldContext();
 
-    return (
-      <p
-        ref={ref}
-        id={formDescriptionId}
-        className={cn("text-sm text-muted-foreground", className)}
-        {...props}
-      />
-    );
-  },
-);
+  return (
+    <p
+      ref={ref}
+      id={formDescriptionId}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+});
 FormDescription.displayName = "FormDescription";
 
-const FormMessage = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, children, ...props }, ref) => {
-    const { fieldState, formMessageId } = useFormFieldContext();
-    const body = fieldState.error ? children ?? fieldState.error.message : null;
+const FormMessage = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, children, ...props }, ref) => {
+  const { fieldState, formMessageId } = useFormFieldContext();
+  const body = fieldState.error ? (children ?? fieldState.error.message) : null;
 
-    if (!body) {
-      return null;
-    }
+  if (!body) {
+    return null;
+  }
 
-    return (
-      <p
-        ref={ref}
-        id={formMessageId}
-        className={cn("text-sm text-destructive", className)}
-        role="alert"
-        aria-live="assertive"
-        {...props}
-      >
-        {body}
-      </p>
-    );
-  },
-);
+  return (
+    <p
+      ref={ref}
+      id={formMessageId}
+      className={cn("text-sm text-destructive", className)}
+      role="alert"
+      aria-live="assertive"
+      {...props}
+    >
+      {body}
+    </p>
+  );
+});
 FormMessage.displayName = "FormMessage";
 
 const useFormField = () => useFormFieldContext();
 
-export { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, useFormField };
+export {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  useFormField,
+};

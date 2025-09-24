@@ -5,7 +5,9 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col items-center px-4 py-16">
       <section className="flex w-full max-w-3xl flex-1 flex-col gap-8">
         <header className="space-y-3 text-center sm:text-left">
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">Gym Equipment Directory</p>
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">
+            Gym Equipment Directory
+          </p>
           <h1 className="text-3xl font-bold sm:text-4xl">API ヘルスチェック</h1>
           <p className="text-base text-muted-foreground">
             下記のカードで /health エンドポイントの結果を確認できます。環境変数

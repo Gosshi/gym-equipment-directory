@@ -20,11 +20,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/apiClient";
 import { FALLBACK_LOCATION, type LocationState } from "@/hooks/useGymSearch";
 import { suggestGyms, type GymSuggestItem } from "@/services/suggest";
-import type {
-  CityOption,
-  EquipmentCategoryOption,
-  PrefectureOption,
-} from "@/types/meta";
+import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
 
 const SORT_SELECT_OPTIONS: Array<{
   value: string;
@@ -33,7 +29,13 @@ const SORT_SELECT_OPTIONS: Array<{
   label: string;
   requiresLocation?: boolean;
 }> = [
-  { value: "distance:asc", sort: "distance", order: "asc", label: "距離（近い順）", requiresLocation: true },
+  {
+    value: "distance:asc",
+    sort: "distance",
+    order: "asc",
+    label: "距離（近い順）",
+    requiresLocation: true,
+  },
   { value: "name:asc", sort: "name", order: "asc", label: "名前（A→Z）" },
   { value: "rating:desc", sort: "rating", order: "desc", label: "評価（高い順）" },
   { value: "reviews:desc", sort: "reviews", order: "desc", label: "口コミ数（多い順）" },
@@ -196,10 +198,10 @@ export function SearchFilters({
         pref: state.prefecture || undefined,
         signal: controller.signal,
       })
-        .then((items) => {
+        .then(items => {
           setSuggestions(items);
         })
-        .catch((error) => {
+        .catch(error => {
           if (controller.signal.aborted) {
             return;
           }
@@ -207,8 +209,8 @@ export function SearchFilters({
             error instanceof ApiError
               ? error.message || "候補の取得に失敗しました"
               : error instanceof Error
-              ? error.message
-              : "候補の取得に失敗しました";
+                ? error.message
+                : "候補の取得に失敗しました";
           setSuggestError(message);
           setSuggestions([]);
         })
@@ -242,7 +244,7 @@ export function SearchFilters({
   const distanceOptions = useMemo(
     () =>
       Array.from(new Set([...DISTANCE_PRESET_OPTIONS, state.distance]))
-        .filter((value) => value >= MIN_DISTANCE_KM && value <= MAX_DISTANCE_KM)
+        .filter(value => value >= MIN_DISTANCE_KM && value <= MAX_DISTANCE_KM)
         .sort((a, b) => a - b),
     [state.distance],
   );
@@ -258,13 +260,13 @@ export function SearchFilters({
       ? `デフォルト地点（${location.fallbackLabel ?? FALLBACK_LOCATION.label}）を使用中（${coordinateLabel}）`
       : `${location.mode === "auto" ? "現在地を使用中" : "手入力した地点を使用中"}（${coordinateLabel}）`
     : location.isSupported
-    ? `現在地を取得するか「デフォルト地点（${FALLBACK_LOCATION.label}）」を利用できます。`
-    : "この環境では位置情報を取得できません。緯度・経度を手入力してください。";
+      ? `現在地を取得するか「デフォルト地点（${FALLBACK_LOCATION.label}）」を利用できます。`
+      : "この環境では位置情報を取得できません。緯度・経度を手入力してください。";
 
   const handleCategoryToggle = (value: string) => {
     const isSelected = state.categories.includes(value);
     if (isSelected) {
-      onCategoriesChange(state.categories.filter((item) => item !== value));
+      onCategoriesChange(state.categories.filter(item => item !== value));
     } else {
       onCategoriesChange([...state.categories, value]);
     }
@@ -317,7 +319,7 @@ export function SearchFilters({
     <aside className="space-y-4 lg:sticky lg:top-28 lg:max-h-[calc(100vh-7rem)] lg:space-y-6 lg:overflow-y-auto lg:pr-2">
       <form
         className="flex flex-col gap-6 rounded-2xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-7"
-        onSubmit={(event) => {
+        onSubmit={event => {
           event.preventDefault();
           onSubmitSearch();
         }}
@@ -337,12 +339,10 @@ export function SearchFilters({
                 {isSuggestLoading ? (
                   <p className="text-xs text-muted-foreground">候補を検索中です…</p>
                 ) : null}
-                {suggestError ? (
-                  <p className="text-xs text-destructive">{suggestError}</p>
-                ) : null}
+                {suggestError ? <p className="text-xs text-destructive">{suggestError}</p> : null}
                 {suggestions.length > 0 ? (
                   <ul className="divide-y overflow-hidden rounded-md border bg-background text-sm shadow-sm">
-                    {suggestions.map((item) => (
+                    {suggestions.map(item => (
                       <li key={item.slug}>
                         <button
                           className={cn(
@@ -365,11 +365,7 @@ export function SearchFilters({
             ) : null}
           </SearchBar>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Button
-              aria-label="検索を実行"
-              disabled={isSearchLoading}
-              type="submit"
-            >
+            <Button aria-label="検索を実行" disabled={isSearchLoading} type="submit">
               {isSearchLoading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -397,12 +393,12 @@ export function SearchFilters({
             disabled={isMetaLoading && sortedPrefectures.length === 0}
             id="gym-search-prefecture"
             name="prefecture"
-            onChange={(event) => onPrefectureChange(event.target.value)}
+            onChange={event => onPrefectureChange(event.target.value)}
             value={state.prefecture}
             aria-describedby={prefectureHelpTextId}
           >
             <option value="">指定しない</option>
-            {sortedPrefectures.map((prefecture) => (
+            {sortedPrefectures.map(prefecture => (
               <option key={prefecture.value} value={prefecture.value}>
                 {prefecture.label}
               </option>
@@ -425,12 +421,12 @@ export function SearchFilters({
             disabled={!state.prefecture || (isCityLoading && sortedCities.length === 0)}
             id="gym-search-city"
             name="city"
-            onChange={(event) => onCityChange(event.target.value)}
+            onChange={event => onCityChange(event.target.value)}
             value={state.city}
             aria-describedby={cityHelpTextId}
           >
             <option value="">指定しない</option>
-            {sortedCities.map((city) => (
+            {sortedCities.map(city => (
               <option key={city.value} value={city.value}>
                 {city.label}
               </option>
@@ -444,7 +440,7 @@ export function SearchFilters({
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium">設備カテゴリ</legend>
           <div className="flex flex-wrap gap-2">
-            {sortedCategories.map((category) => {
+            {sortedCategories.map(category => {
               const checked = state.categories.includes(category.value);
               return (
                 <label
@@ -469,9 +465,7 @@ export function SearchFilters({
               );
             })}
             {sortedCategories.length === 0 ? (
-              <span className="text-xs text-muted-foreground">
-                設備カテゴリが読み込み中です…
-              </span>
+              <span className="text-xs text-muted-foreground">設備カテゴリが読み込み中です…</span>
             ) : null}
           </div>
         </fieldset>
@@ -486,13 +480,13 @@ export function SearchFilters({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             )}
             id="gym-search-sort"
-            onChange={(event) => {
+            onChange={event => {
               const [sort, order] = event.target.value.split(":");
               onSortChange(sort as SortOption, (order as SortOrder) ?? "asc");
             }}
             value={`${state.sort}:${state.order}`}
           >
-            {SORT_SELECT_OPTIONS.map((option) => {
+            {SORT_SELECT_OPTIONS.map(option => {
               const disabled =
                 option.requiresLocation &&
                 !(location.lat != null && location.lng != null) &&
@@ -546,8 +540,10 @@ export function SearchFilters({
                     <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                     取得中…
                   </span>
+                ) : location.isSupported ? (
+                  "現在地を再取得"
                 ) : (
-                  location.isSupported ? "現在地を再取得" : "現在地は利用不可"
+                  "現在地は利用不可"
                 )}
               </Button>
               <Button
@@ -609,7 +605,7 @@ export function SearchFilters({
                   )}
                   id="manual-lat"
                   inputMode="decimal"
-                  onChange={(event) => {
+                  onChange={event => {
                     setLatInput(event.target.value);
                     setManualError(null);
                   }}
@@ -630,7 +626,7 @@ export function SearchFilters({
                   )}
                   id="manual-lng"
                   inputMode="decimal"
-                  onChange={(event) => {
+                  onChange={event => {
                     setLngInput(event.target.value);
                     setManualError(null);
                   }}
@@ -682,7 +678,7 @@ export function SearchFilters({
               id="gym-search-distance"
               max={MAX_DISTANCE_KM}
               min={MIN_DISTANCE_KM}
-              onChange={(event) => onDistanceChange(Number.parseInt(event.target.value, 10))}
+              onChange={event => onDistanceChange(Number.parseInt(event.target.value, 10))}
               step={DISTANCE_STEP_KM}
               type="range"
               value={state.distance}
@@ -695,7 +691,7 @@ export function SearchFilters({
               )}
               disabled={!hasLocation}
               id="gym-search-distance-select"
-              onChange={(event) => {
+              onChange={event => {
                 const next = Number.parseInt(event.target.value, 10);
                 if (!Number.isNaN(next)) {
                   onDistanceChange(next);
@@ -703,7 +699,7 @@ export function SearchFilters({
               }}
               value={state.distance}
             >
-              {distanceOptions.map((option) => (
+              {distanceOptions.map(option => (
                 <option key={option} value={option}>
                   半径 {option}km
                 </option>

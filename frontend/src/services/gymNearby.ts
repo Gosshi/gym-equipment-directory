@@ -54,9 +54,7 @@ export async function fetchNearbyGyms({
   signal,
 }: FetchNearbyGymsParams): Promise<GymNearbyResponse> {
   const parsedToken =
-    pageToken != null && pageToken !== ""
-      ? Number.parseInt(pageToken, 10)
-      : Number.NaN;
+    pageToken != null && pageToken !== "" ? Number.parseInt(pageToken, 10) : Number.NaN;
   const targetPage = Number.isFinite(parsedToken) && parsedToken > 0 ? parsedToken : 1;
   const query: Record<string, unknown> = {
     lat,
@@ -73,13 +71,9 @@ export async function fetchNearbyGyms({
   });
 
   const currentPage = Number.isFinite(response.page) ? Number(response.page) : targetPage;
-  const pageSize = Number.isFinite(response.page_size)
-    ? Number(response.page_size)
-    : perPage;
+  const pageSize = Number.isFinite(response.page_size) ? Number(response.page_size) : perPage;
   const hasMore =
-    typeof response.has_more === "boolean"
-      ? response.has_more
-      : response.items.length === pageSize;
+    typeof response.has_more === "boolean" ? response.has_more : response.items.length === pageSize;
   const hasPrev = response.has_prev ?? currentPage > 1;
   const total = typeof response.total === "number" ? response.total : response.items.length;
   const nextPageToken = hasMore ? String(currentPage + 1) : null;

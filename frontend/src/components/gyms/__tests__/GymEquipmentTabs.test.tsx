@@ -6,7 +6,12 @@ import type { GymEquipmentDetail } from "@/types/gym";
 
 describe("GymEquipmentTabs", () => {
   const sampleEquipments: GymEquipmentDetail[] = [
-    { id: 1, name: "スミスマシン", category: "マシン", description: "スミスマシンは安全にスクワットが行えます。" },
+    {
+      id: 1,
+      name: "スミスマシン",
+      category: "マシン",
+      description: "スミスマシンは安全にスクワットが行えます。",
+    },
     { id: 2, name: "パワーラック", category: "フリーウェイト" },
     { id: 3, name: "トレッドミル", category: "有酸素", description: "ランニングマシン" },
     { id: 4, name: "ストレッチマット" },
@@ -18,7 +23,10 @@ describe("GymEquipmentTabs", () => {
     render(<GymEquipmentTabs equipments={sampleEquipments} />);
 
     expect(screen.getByRole("tab", { name: "全て (4)" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "マシン (1)" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "マシン (1)" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
     expect(screen.getByRole("tab", { name: "フリーウェイト (1)" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "有酸素 (1)" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "その他 (1)" })).toBeInTheDocument();
@@ -31,7 +39,10 @@ describe("GymEquipmentTabs", () => {
 
     await user.click(screen.getByRole("tab", { name: "有酸素 (1)" }));
 
-    expect(screen.getByRole("tab", { name: "有酸素 (1)" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "有酸素 (1)" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(screen.getByText("トレッドミル")).toBeInTheDocument();
     expect(screen.queryByText("スミスマシン")).not.toBeInTheDocument();
     expect(screen.queryByText("パワーラック")).not.toBeInTheDocument();

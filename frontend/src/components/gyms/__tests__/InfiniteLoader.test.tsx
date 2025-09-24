@@ -15,18 +15,21 @@ describe("InfiniteLoader", () => {
   let trigger: ((entries: IntersectionObserverEntry[]) => void) | null = null;
 
   beforeAll(() => {
-    (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver = vi
-      .fn((callback: IntersectionObserverCallback) => {
+    (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver = vi.fn(
+      (callback: IntersectionObserverCallback) => {
         trigger = (entries: IntersectionObserverEntry[]) => callback(entries, observer);
         return observer;
-      }) as unknown as typeof IntersectionObserver;
+      },
+    ) as unknown as typeof IntersectionObserver;
   });
 
   afterAll(() => {
     if (originalObserver) {
-      (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver = originalObserver;
+      (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+        originalObserver;
     } else {
-      delete (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver;
+      delete (global as { IntersectionObserver?: typeof IntersectionObserver })
+        .IntersectionObserver;
     }
   });
 
@@ -39,16 +42,12 @@ describe("InfiniteLoader", () => {
   it("invokes onLoadMore when the sentinel intersects", () => {
     const onLoadMore = vi.fn();
 
-    render(
-      <InfiniteLoader enabled hasNextPage isLoading={false} onLoadMore={onLoadMore} />,
-    );
+    render(<InfiniteLoader enabled hasNextPage isLoading={false} onLoadMore={onLoadMore} />);
 
     expect(observe).toHaveBeenCalledTimes(1);
     expect(trigger).not.toBeNull();
 
-    trigger?.([
-      { isIntersecting: true } as IntersectionObserverEntry,
-    ]);
+    trigger?.([{ isIntersecting: true } as IntersectionObserverEntry]);
 
     expect(onLoadMore).toHaveBeenCalled();
   });
@@ -56,20 +55,21 @@ describe("InfiniteLoader", () => {
   it("does not trigger additional loads while already fetching", () => {
     const onLoadMore = vi.fn();
 
-    render(
-      <InfiniteLoader enabled hasNextPage isLoading onLoadMore={onLoadMore} />,
-    );
+    render(<InfiniteLoader enabled hasNextPage isLoading onLoadMore={onLoadMore} />);
 
-    trigger?.([
-      { isIntersecting: true } as IntersectionObserverEntry,
-    ]);
+    trigger?.([{ isIntersecting: true } as IntersectionObserverEntry]);
 
     expect(onLoadMore).not.toHaveBeenCalled();
   });
 
   it("does not observe when infinite loading is disabled", () => {
     render(
-      <InfiniteLoader enabled={false} hasNextPage={false} isLoading={false} onLoadMore={() => {}} />,
+      <InfiniteLoader
+        enabled={false}
+        hasNextPage={false}
+        isLoading={false}
+        onLoadMore={() => {}}
+      />,
     );
 
     expect(observe).not.toHaveBeenCalled();

@@ -2,7 +2,14 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface GymMapProps {
   name: string;
@@ -13,11 +20,7 @@ interface GymMapProps {
 
 export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
   const hasCoordinates = typeof latitude === "number" && typeof longitude === "number";
-  const query = hasCoordinates
-    ? `${latitude},${longitude}`
-    : address
-      ? `${address}`
-      : undefined;
+  const query = hasCoordinates ? `${latitude},${longitude}` : address ? `${address}` : undefined;
 
   const mapUrl = query
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`

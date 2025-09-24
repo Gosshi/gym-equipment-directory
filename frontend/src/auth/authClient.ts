@@ -103,7 +103,10 @@ const createStubClient = (): AuthClient => ({
 
     const token = `stub.${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
     const user: User = {
-      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now().toString(36),
+      id:
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Date.now().toString(36),
       name: nickname,
       avatarUrl: createAvatarUrl(nickname),
     };

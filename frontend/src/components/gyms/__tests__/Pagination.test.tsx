@@ -17,17 +17,13 @@ describe("Pagination", () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
 
-    render(
-      <Pagination
-        currentPage={2}
-        hasNextPage
-        onChange={onChange}
-        totalPages={5}
-      />,
-    );
+    render(<Pagination currentPage={2} hasNextPage onChange={onChange} totalPages={5} />);
 
     expect(screen.getByRole("button", { name: "ページ 1" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ページ 2" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "ページ 2" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
     await user.click(screen.getByRole("button", { name: "ページ 3" }));
     expect(onChange).toHaveBeenCalledWith(3);

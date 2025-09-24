@@ -43,7 +43,7 @@ export function SearchBar({
           )}
           id={id}
           ref={inputRef}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={event => onChange(event.target.value)}
           placeholder={placeholder}
           type={inputProps?.type ?? "search"}
           value={value}

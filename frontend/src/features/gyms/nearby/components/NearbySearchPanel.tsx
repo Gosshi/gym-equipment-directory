@@ -50,7 +50,7 @@ export function NearbySearchPanel({
           id="nearby-lat"
           inputMode="decimal"
           name="lat"
-          onChange={(event) => onLatChange(event.target.value)}
+          onChange={event => onLatChange(event.target.value)}
           placeholder="35.681236"
           required
           value={latInput}
@@ -66,7 +66,7 @@ export function NearbySearchPanel({
           id="nearby-lng"
           inputMode="decimal"
           name="lng"
-          onChange={(event) => onLngChange(event.target.value)}
+          onChange={event => onLngChange(event.target.value)}
           placeholder="139.767125"
           required
           value={lngInput}
@@ -81,7 +81,7 @@ export function NearbySearchPanel({
           id="nearby-radius"
           inputMode="numeric"
           name="radius"
-          onChange={(event) => onRadiusChange(event.target.value)}
+          onChange={event => onRadiusChange(event.target.value)}
           placeholder="3000"
           value={radiusInput}
         />
@@ -98,7 +98,7 @@ export function NearbySearchPanel({
         <Button
           className="w-full sm:w-auto"
           disabled={isLocating}
-          onClick={(event) => {
+          onClick={event => {
             event.preventDefault();
             onUseCurrentLocation();
           }}

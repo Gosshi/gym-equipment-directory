@@ -38,14 +38,17 @@ export function InfiniteLoader({
       return;
     }
 
-    const observer = new IntersectionObserver((entries) => {
-      const entry = entries[0];
-      if (!entry?.isIntersecting || isLoading || pendingRef.current) {
-        return;
-      }
-      pendingRef.current = true;
-      loadMoreRef.current();
-    }, { rootMargin });
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting || isLoading || pendingRef.current) {
+          return;
+        }
+        pendingRef.current = true;
+        loadMoreRef.current();
+      },
+      { rootMargin },
+    );
 
     observer.observe(target);
 

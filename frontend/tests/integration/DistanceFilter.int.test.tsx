@@ -70,7 +70,7 @@ const applyGeolocationMock = (mock: GeolocationMock) => {
 
 const createSuccessGeolocation = (lat: number, lng: number) => {
   const mock: GeolocationMock = {
-    getCurrentPosition: vi.fn((success) => {
+    getCurrentPosition: vi.fn(success => {
       success({
         coords: {
           accuracy: 5,
@@ -186,9 +186,11 @@ describe("Distance filter integration", () => {
 
     await screen.findByText("半径10kmフィットネスセンター");
     expect(distanceSlider.value).toBe("10");
-    await waitFor(() => expect(screen.queryByText("半径5kmトレーニングジム")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("半径5kmトレーニングジム")).not.toBeInTheDocument(),
+    );
 
-    expect(searchRequests.some((url) => url.searchParams.get("radius_km") === "10")).toBe(true);
+    expect(searchRequests.some(url => url.searchParams.get("radius_km") === "10")).toBe(true);
     expect(searchRequests.at(-1)?.searchParams.get("radius_km")).toBe("10");
   });
 });

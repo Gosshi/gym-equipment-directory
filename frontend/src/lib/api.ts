@@ -15,13 +15,7 @@ import {
 
 export type ApiSortKey = "freshness" | "richness" | "gym_name" | "created_at" | "score";
 
-const API_SORT_KEYS: ApiSortKey[] = [
-  "freshness",
-  "richness",
-  "gym_name",
-  "created_at",
-  "score",
-];
+const API_SORT_KEYS: ApiSortKey[] = ["freshness", "richness", "gym_name", "created_at", "score"];
 
 const API_SORT_KEY_SET = new Set<ApiSortKey>(API_SORT_KEYS);
 
@@ -115,7 +109,7 @@ const normalizeEquipments = (source: unknown): string[] | undefined => {
   const values = Array.isArray(source) ? source : [source];
 
   const normalized = values
-    .map((item) => {
+    .map(item => {
       if (item == null) {
         return undefined;
       }
@@ -181,9 +175,7 @@ const normalizeCats = (values: string[] | undefined): string[] | undefined => {
   if (!values) {
     return undefined;
   }
-  const sanitized = values
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const sanitized = values.map(value => value.trim()).filter(Boolean);
   if (sanitized.length === 0) {
     return undefined;
   }
@@ -204,9 +196,8 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const lat = hasLocation ? clampLatitude(latInput!) : undefined;
   const lng = hasLocation ? clampLongitude(lngInput!) : undefined;
   const radiusKm = hasLocation
-    ? clampRadiusKm(
-        params.radiusKm ?? params.distance ?? DEFAULT_DISTANCE_KM,
-      ) ?? DEFAULT_DISTANCE_KM
+    ? (clampRadiusKm(params.radiusKm ?? params.distance ?? DEFAULT_DISTANCE_KM) ??
+      DEFAULT_DISTANCE_KM)
     : undefined;
 
   return {
@@ -265,8 +256,7 @@ export async function fetchGyms(
 
   const rawItems = response.items ?? [];
   const page = clampPage(response.page ?? fallbackPage ?? query.page);
-  const pageSizeRaw =
-    response.page_size ?? response.per_page ?? fallbackPerPage ?? query.per_page;
+  const pageSizeRaw = response.page_size ?? response.per_page ?? fallbackPerPage ?? query.per_page;
   const perPage = clampLimit(pageSizeRaw);
   const hasMoreFlag =
     response.has_more ?? response.has_next ?? (perPage > 0 && rawItems.length === perPage);
