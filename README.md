@@ -306,3 +306,8 @@ curl -sG --data-urlencode "sort=score" --data-urlencode "per_page=3" \
          --data-urlencode "page_token=$pt" \
          "http://localhost:8000/gyms/search" | jq
 ```
+
+## 🧪 テスト
+
+- E2E テストの背景や手順は [docs/testing/e2e.md](docs/testing/e2e.md) を参照してください。
+- ローカルでの最小実行例: `(cd frontend && npm ci && npm run e2e:install && npm run test:e2e)`
