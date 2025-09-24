@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
+import { SearchBar } from "@/components/common/SearchBar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -293,57 +294,46 @@ export function SearchFilters({
         className="space-y-6 rounded-lg border bg-card p-6 shadow-sm"
         onSubmit={(event) => event.preventDefault()}
       >
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="gym-search-keyword">
-            キーワード
-          </label>
-          <div className="space-y-2">
-            <input
-              autoComplete="off"
-              className={cn(
-                "h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-              id="gym-search-keyword"
-              name="keyword"
-              onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder="設備やジム名で検索"
-              type="search"
-              value={state.q}
-            />
-            {state.q.trim().length >= 2 ? (
-              <div className="space-y-1">
-                {isSuggestLoading ? (
-                  <p className="text-xs text-muted-foreground">候補を検索中です…</p>
-                ) : null}
-                {suggestError ? (
-                  <p className="text-xs text-destructive">{suggestError}</p>
-                ) : null}
-                {suggestions.length > 0 ? (
-                  <ul className="divide-y overflow-hidden rounded-md border bg-background text-sm">
-                    {suggestions.map((item) => (
-                      <li key={item.slug}>
-                        <button
-                          className={cn(
-                            "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left",
-                            "transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          )}
-                          onClick={() => handleSuggestionSelect(item)}
-                          type="button"
-                        >
-                          <span className="font-medium">{item.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {[item.pref, item.city].filter(Boolean).join(" / ") || "地域情報なし"}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <SearchBar
+          id="gym-search-keyword"
+          inputProps={{ name: "keyword" }}
+          label="キーワード"
+          onChange={onKeywordChange}
+          placeholder="設備やジム名で検索"
+          value={state.q}
+        >
+          {state.q.trim().length >= 2 ? (
+            <div className="space-y-1">
+              {isSuggestLoading ? (
+                <p className="text-xs text-muted-foreground">候補を検索中です…</p>
+              ) : null}
+              {suggestError ? (
+                <p className="text-xs text-destructive">{suggestError}</p>
+              ) : null}
+              {suggestions.length > 0 ? (
+                <ul className="divide-y overflow-hidden rounded-md border bg-background text-sm">
+                  {suggestions.map((item) => (
+                    <li key={item.slug}>
+                      <button
+                        className={cn(
+                          "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left",
+                          "transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        )}
+                        onClick={() => handleSuggestionSelect(item)}
+                        type="button"
+                      >
+                        <span className="font-medium">{item.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {[item.pref, item.city].filter(Boolean).join(" / ") || "地域情報なし"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </SearchBar>
 
         <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="gym-search-prefecture">

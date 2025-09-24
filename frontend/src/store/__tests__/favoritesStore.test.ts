@@ -1,17 +1,18 @@
 import { act, waitFor } from "@testing-library/react";
+import { vi, type MockedFunction } from "vitest";
 
 import { getFavorites as apiGetFavorites, addFavorite as apiAddFavorite } from "@/lib/apiClient";
 import { favoritesStore, resetFavoritesStoreForTests } from "@/store/favoritesStore";
 import type { GymSummary } from "@/types/gym";
 
-jest.mock("@/lib/apiClient", () => ({
-  getFavorites: jest.fn(),
-  addFavorite: jest.fn(),
-  removeFavorite: jest.fn(),
+vi.mock("@/lib/apiClient", () => ({
+  getFavorites: vi.fn(),
+  addFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
 }));
 
-const mockedGetFavorites = apiGetFavorites as jest.MockedFunction<typeof apiGetFavorites>;
-const mockedAddFavorite = apiAddFavorite as jest.MockedFunction<typeof apiAddFavorite>;
+const mockedGetFavorites = apiGetFavorites as MockedFunction<typeof apiGetFavorites>;
+const mockedAddFavorite = apiAddFavorite as MockedFunction<typeof apiAddFavorite>;
 
 const createSummary = (id: number, name: string): GymSummary => ({
   id,
@@ -30,7 +31,7 @@ describe("favoritesStore", () => {
     window.localStorage.clear();
     // 安定した device_id を固定 (ensureDeviceId 内で利用される)
     window.localStorage.setItem("GED_DEVICE_ID", "test-device-1");
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetFavorites.mockReset();
     mockedAddFavorite.mockReset();
   });
@@ -87,7 +88,7 @@ describe("favoritesStore", () => {
       await favoritesStore.getState().addFavorite(summary);
     });
 
-  expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", summary.id);
+    expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", summary.id);
     await waitFor(() =>
       expect(favoritesStore.getState().favorites[0]?.gym.id).toBe(summary.id),
     );
@@ -135,7 +136,7 @@ describe("favoritesStore", () => {
       await favoritesStore.getState().syncWithServer("user-1");
     });
 
-  expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", localB.id);
+    expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", localB.id);
     expect(favoritesStore.getState().favorites.map((favorite) => favorite.gym.id)).toEqual([
       localA.id,
       localB.id,

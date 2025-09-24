@@ -1,3 +1,5 @@
+import { vi } from "vitest";
+
 import { getFavorites, addFavorite, removeFavorite, getHistory, addHistory } from "@/lib/apiClient";
 
 describe("apiClient favorites/history endpoints", () => {
@@ -14,13 +16,13 @@ describe("apiClient favorites/history endpoints", () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = originalEnvUrl;
     process.env.NEXT_PUBLIC_API_BASE = originalEnvBase;
     global.fetch = originalFetch;
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it("fetches favorites from the API", async () => {
-    const mockJson = jest.fn().mockResolvedValue([]);
+    const mockJson = vi.fn().mockResolvedValue([]);
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: mockJson,
@@ -35,14 +37,14 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("returns an empty array when favorites endpoint responds 404", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
       statusText: "Not Found",
-      text: jest.fn().mockResolvedValue('{"detail":"Not Found"}'),
+      text: vi.fn().mockResolvedValue('{"detail":"Not Found"}'),
     } as unknown as Response);
 
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       await expect(getFavorites("dev-1")).resolves.toEqual([]);
@@ -52,10 +54,10 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("posts a new favorite", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
-      json: jest.fn(),
+      json: vi.fn(),
     } as unknown as Response);
 
   await addFavorite("dev-1", 42);
@@ -70,10 +72,10 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("removes a favorite", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
-      json: jest.fn(),
+      json: vi.fn(),
     } as unknown as Response);
 
   await removeFavorite("dev-1", 42);
@@ -85,9 +87,9 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("fetches history entries", async () => {
-    const mockJson = jest.fn().mockResolvedValue({ items: [] });
+    const mockJson = vi.fn().mockResolvedValue({ items: [] });
 
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: mockJson,
@@ -99,14 +101,14 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("returns empty history when the endpoint responds 404", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
       statusText: "Not Found",
-      text: jest.fn().mockResolvedValue('{"detail":"Not Found"}'),
+      text: vi.fn().mockResolvedValue('{"detail":"Not Found"}'),
     } as unknown as Response);
 
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       await expect(getHistory()).resolves.toEqual({ items: [] });
@@ -116,10 +118,10 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("appends history entries with gymIds", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
-      json: jest.fn(),
+      json: vi.fn(),
     } as unknown as Response);
 
     await addHistory({ gymIds: [1, 2, 3] });
@@ -134,10 +136,10 @@ describe("apiClient favorites/history endpoints", () => {
   });
 
   it("appends a single history entry with gymId", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
-      json: jest.fn(),
+      json: vi.fn(),
     } as unknown as Response);
 
     await addHistory({ gymId: 7 });

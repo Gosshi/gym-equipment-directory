@@ -1,10 +1,11 @@
 import { render } from "@testing-library/react";
+import { vi } from "vitest";
 
 import { InfiniteLoader } from "@/components/gyms/InfiniteLoader";
 
 describe("InfiniteLoader", () => {
-  const observe = jest.fn();
-  const disconnect = jest.fn();
+  const observe = vi.fn();
+  const disconnect = vi.fn();
   const observer = {
     observe: observe as unknown as (target: Element) => void,
     disconnect: disconnect as unknown as () => void,
@@ -14,7 +15,7 @@ describe("InfiniteLoader", () => {
   let trigger: ((entries: IntersectionObserverEntry[]) => void) | null = null;
 
   beforeAll(() => {
-    (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver = jest
+    (global as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver = vi
       .fn((callback: IntersectionObserverCallback) => {
         trigger = (entries: IntersectionObserverEntry[]) => callback(entries, observer);
         return observer;
@@ -36,7 +37,7 @@ describe("InfiniteLoader", () => {
   });
 
   it("invokes onLoadMore when the sentinel intersects", () => {
-    const onLoadMore = jest.fn();
+    const onLoadMore = vi.fn();
 
     render(
       <InfiniteLoader enabled hasNextPage isLoading={false} onLoadMore={onLoadMore} />,
@@ -53,7 +54,7 @@ describe("InfiniteLoader", () => {
   });
 
   it("does not trigger additional loads while already fetching", () => {
-    const onLoadMore = jest.fn();
+    const onLoadMore = vi.fn();
 
     render(
       <InfiniteLoader enabled hasNextPage isLoading onLoadMore={onLoadMore} />,

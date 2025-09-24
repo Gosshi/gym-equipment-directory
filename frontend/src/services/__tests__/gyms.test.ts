@@ -1,20 +1,21 @@
+import { vi } from "vitest";
+
+import { apiRequest } from "@/lib/apiClient";
 import { searchGyms } from "@/services/gyms";
 
-jest.mock("@/lib/apiClient", () => ({
-  apiRequest: jest.fn(),
+vi.mock("@/lib/apiClient", () => ({
+  apiRequest: vi.fn(),
 }));
 
-const { apiRequest } = jest.requireMock("@/lib/apiClient") as {
-  apiRequest: jest.Mock;
-};
+const mockedApiRequest = vi.mocked(apiRequest);
 
 describe("searchGyms", () => {
   beforeEach(() => {
-    apiRequest.mockReset();
+    mockedApiRequest.mockReset();
   });
 
   it("calls the gyms search endpoint with normalized parameters", async () => {
-    apiRequest.mockResolvedValue({
+    mockedApiRequest.mockResolvedValue({
       items: [],
       total: 0,
       page: 1,
@@ -38,7 +39,7 @@ describe("searchGyms", () => {
       radiusKm: 9,
     });
 
-    expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
+    expect(mockedApiRequest).toHaveBeenCalledWith("/gyms/search", {
       method: "GET",
       query: {
         q: "bench press",
@@ -60,7 +61,7 @@ describe("searchGyms", () => {
   });
 
   it("normalizes the response payload into GymSummary items", async () => {
-    apiRequest.mockResolvedValue({
+    mockedApiRequest.mockResolvedValue({
       items: [
         {
           id: 1,
@@ -113,7 +114,7 @@ describe("searchGyms", () => {
 
   it("throws the error received from the client", async () => {
     const error = new Error("Request failed");
-    apiRequest.mockRejectedValue(error);
+    mockedApiRequest.mockRejectedValue(error);
 
     await expect(searchGyms()).rejects.toBe(error);
   });

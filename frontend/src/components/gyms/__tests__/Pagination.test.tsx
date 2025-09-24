@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 
 import { Pagination, buildPaginationRange } from "@/components/gyms/Pagination";
 
@@ -14,7 +15,7 @@ describe("Pagination", () => {
 
   it("renders page controls and emits changes on interaction", async () => {
     const user = userEvent.setup();
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <Pagination
@@ -36,7 +37,7 @@ describe("Pagination", () => {
   });
 
   it("disables navigation buttons at the boundaries", () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <Pagination
