@@ -1,0 +1,9 @@
+{
+  "name": "gym-equipment-directory",
+  "private": true,
+  "scripts": {
+    "lint": "npm run lint --prefix frontend",
+    "typecheck": "npm run typecheck --prefix frontend",
+    "test:unit": "npm run test:unit --prefix frontend"
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import Link from "next/link";
 
+import { GymCard } from "@/components/gyms/GymCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,51 +46,6 @@ const GymListErrorState = ({ message, onRetry }: { message: string; onRetry: () 
       もう一度試す
     </Button>
   </div>
-);
-
-const GymCard = ({ gym }: { gym: GymSummary }) => (
-  <Link
-    className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    href={`/gyms/${gym.slug}`}
-  >
-    <Card className="flex h-full flex-col overflow-hidden transition group-hover:border-primary">
-      <div className="flex h-40 items-center justify-center bg-muted text-sm text-muted-foreground">
-        {gym.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            alt={gym.name}
-            className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-            src={gym.thumbnailUrl}
-          />
-        ) : (
-          <span>画像なし</span>
-        )}
-      </div>
-      <CardHeader className="space-y-2">
-        <CardTitle className="text-xl group-hover:text-primary">{gym.name}</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          {gym.prefecture ? gym.prefecture : "エリア未設定"}
-          {gym.city ? ` / ${gym.city}` : null}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        {gym.equipments && gym.equipments.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {gym.equipments.slice(0, 6).map((equipment) => (
-              <span
-                key={equipment}
-                className="rounded-full bg-secondary px-2 py-1 text-xs text-secondary-foreground"
-              >
-                {equipment}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">設備情報はまだ登録されていません。</p>
-        )}
-      </CardContent>
-    </Card>
-  </Link>
 );
 
 type GymListProps = {

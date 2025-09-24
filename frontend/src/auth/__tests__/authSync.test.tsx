@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { render, waitFor } from "@testing-library/react";
+import { vi, type MockedFunction } from "vitest";
 
 import { AuthProvider, useAuth } from "@/auth/AuthProvider";
+import { authClient } from "@/auth/authClient";
 import {
   getFavorites as apiGetFavorites,
   addFavorite as apiAddFavorite,
@@ -12,11 +14,11 @@ import { favoritesStore, resetFavoritesStoreForTests } from "@/store/favoritesSt
 import { historyStore, resetHistoryStoreForTests } from "@/store/historyStore";
 import type { GymSummary } from "@/types/gym";
 
-jest.mock("@/auth/authClient", () => {
-  const signIn = jest.fn();
-  const getSession = jest.fn();
-  const signOut = jest.fn();
-  const getToken = jest.fn();
+vi.mock("@/auth/authClient", () => {
+  const signIn = vi.fn();
+  const getSession = vi.fn();
+  const signOut = vi.fn();
+  const getToken = vi.fn();
   return {
     authClient: {
       mode: "stub" as const,
@@ -29,25 +31,26 @@ jest.mock("@/auth/authClient", () => {
   };
 });
 
-jest.mock("@/lib/apiClient", () => ({
-  getFavorites: jest.fn(),
-  addFavorite: jest.fn(),
-  removeFavorite: jest.fn(),
-  getHistory: jest.fn(),
-  addHistory: jest.fn(),
+vi.mock("@/lib/apiClient", () => ({
+  getFavorites: vi.fn(),
+  addFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
+  getHistory: vi.fn(),
+  addHistory: vi.fn(),
 }));
 
-const mockedAuthClient = jest.requireMock("@/auth/authClient").authClient as {
-  signIn: jest.Mock;
-  getSession: jest.Mock;
-  signOut: jest.Mock;
-  getToken: jest.Mock;
+const mockedAuthClient = authClient as {
+  mode: "stub";
+  signIn: ReturnType<typeof vi.fn>;
+  getSession: ReturnType<typeof vi.fn>;
+  signOut: ReturnType<typeof vi.fn>;
+  getToken: ReturnType<typeof vi.fn>;
 };
 
-const mockedGetFavorites = apiGetFavorites as jest.MockedFunction<typeof apiGetFavorites>;
-const mockedAddFavorite = apiAddFavorite as jest.MockedFunction<typeof apiAddFavorite>;
-const mockedGetHistory = apiGetHistory as jest.MockedFunction<typeof apiGetHistory>;
-const mockedAddHistory = apiAddHistory as jest.MockedFunction<typeof apiAddHistory>;
+const mockedGetFavorites = apiGetFavorites as MockedFunction<typeof apiGetFavorites>;
+const mockedAddFavorite = apiAddFavorite as MockedFunction<typeof apiAddFavorite>;
+const mockedGetHistory = apiGetHistory as MockedFunction<typeof apiGetHistory>;
+const mockedAddHistory = apiAddHistory as MockedFunction<typeof apiAddHistory>;
 
 const createSummary = (id: number, name: string): GymSummary => ({
   id,
@@ -77,7 +80,7 @@ describe("AuthProvider store sync", () => {
     resetFavoritesStoreForTests();
     resetHistoryStoreForTests();
     window.localStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetFavorites.mockReset();
     mockedAddFavorite.mockReset();
     mockedGetHistory.mockReset();

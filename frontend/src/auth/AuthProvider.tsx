@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     openLoginDialog,
     closeLoginDialog,
     requireAuth,
-  }), [getToken, openLoginDialog, performSignIn, requireAuth, signOut, status, user]);
+  }), [closeLoginDialog, getToken, openLoginDialog, performSignIn, requireAuth, signOut, status, user]);
 
   return (
     <AuthContext.Provider value={contextValue}>

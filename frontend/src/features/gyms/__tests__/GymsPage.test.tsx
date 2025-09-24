@@ -1,19 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 
 import { GymsPage } from "@/features/gyms/GymsPage";
+import { useGymSearch } from "@/hooks/useGymSearch";
 import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
-jest.mock("@/hooks/useGymSearch", () => ({
-  useGymSearch: jest.fn(),
+vi.mock("@/hooks/useGymSearch", () => ({
+  useGymSearch: vi.fn(),
   FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
 }));
 
-const { useGymSearch } = jest.requireMock("@/hooks/useGymSearch") as {
-  useGymSearch: jest.Mock;
-};
+const mockedUseGymSearch = vi.mocked(useGymSearch);
 
-const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
+const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSearchResult => {
   const defaultState: UseGymSearchResult = {
     formState: {
       q: "",
@@ -39,13 +39,13 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
       lat: null,
       lng: null,
     },
-    updateKeyword: jest.fn(),
-    updatePrefecture: jest.fn(),
-    updateCity: jest.fn(),
-    updateCategories: jest.fn(),
-    updateSort: jest.fn(),
-    updateDistance: jest.fn(),
-    clearFilters: jest.fn(),
+    updateKeyword: vi.fn(),
+    updatePrefecture: vi.fn(),
+    updateCity: vi.fn(),
+    updateCategories: vi.fn(),
+    updateSort: vi.fn(),
+    updateDistance: vi.fn(),
+    clearFilters: vi.fn(),
     location: {
       lat: null,
       lng: null,
@@ -56,15 +56,15 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
       isFallback: false,
       fallbackLabel: null,
     },
-    requestLocation: jest.fn(),
-    clearLocation: jest.fn(),
-    useFallbackLocation: jest.fn(),
-    setManualLocation: jest.fn(),
+    requestLocation: vi.fn(),
+    clearLocation: vi.fn(),
+    useFallbackLocation: vi.fn(),
+    setManualLocation: vi.fn(),
     page: 1,
     limit: 20,
-    setPage: jest.fn(),
-    setLimit: jest.fn(),
-    loadNextPage: jest.fn(),
+    setPage: vi.fn(),
+    setLimit: vi.fn(),
+    loadNextPage: vi.fn(),
     items: [
       {
         id: 1,
@@ -79,11 +79,19 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
         lastVerifiedAt: "2024-09-01T12:00:00Z",
       },
     ],
-  meta: { total: 1, page: 1, perPage: 20, hasNext: false, hasPrev: false, hasMore: false, pageToken: null },
+    meta: {
+      total: 1,
+      page: 1,
+      perPage: 20,
+      hasNext: false,
+      hasPrev: false,
+      hasMore: false,
+      pageToken: null,
+    },
     isLoading: false,
     isInitialLoading: false,
     error: null,
-    retry: jest.fn(),
+    retry: vi.fn(),
     prefectures: [
       { value: "tokyo", label: "Tokyo" },
       { value: "chiba", label: "Chiba" },
@@ -95,10 +103,10 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
     ],
     isMetaLoading: false,
     metaError: null,
-    reloadMeta: jest.fn(),
+    reloadMeta: vi.fn(),
     isCityLoading: false,
     cityError: null,
-    reloadCities: jest.fn(),
+    reloadCities: vi.fn(),
   };
 
   return { ...defaultState, ...overrides };
@@ -106,11 +114,11 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}) => {
 
 describe("GymsPage", () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders the search filters and results", () => {
-    useGymSearch.mockReturnValue(buildHookState());
+    mockedUseGymSearch.mockReturnValue(buildHookState());
 
     render(<GymsPage />);
 
@@ -121,11 +129,19 @@ describe("GymsPage", () => {
   });
 
   it("navigates between pages via pagination controls", async () => {
-    const setPage = jest.fn();
-    useGymSearch.mockReturnValue(
+    const setPage = vi.fn();
+    mockedUseGymSearch.mockReturnValue(
       buildHookState({
         setPage,
-  meta: { total: 30, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
+        meta: {
+          total: 30,
+          page: 1,
+          perPage: 20,
+          hasNext: true,
+          hasPrev: false,
+          hasMore: true,
+          pageToken: null,
+        },
       }),
     );
 
@@ -137,8 +153,8 @@ describe("GymsPage", () => {
   });
 
   it("changes the page size when the select value updates", async () => {
-    const setLimit = jest.fn();
-    useGymSearch.mockReturnValue(buildHookState({ setLimit }));
+    const setLimit = vi.fn();
+    mockedUseGymSearch.mockReturnValue(buildHookState({ setLimit }));
 
     render(<GymsPage />);
 
@@ -148,9 +164,17 @@ describe("GymsPage", () => {
   });
 
   it("disables pagination buttons when there is no previous or next page", () => {
-    useGymSearch.mockReturnValue(
+    mockedUseGymSearch.mockReturnValue(
       buildHookState({
-  meta: { total: 40, page: 2, perPage: 20, hasNext: false, hasPrev: true, hasMore: false, pageToken: null },
+        meta: {
+          total: 40,
+          page: 2,
+          perPage: 20,
+          hasNext: false,
+          hasPrev: true,
+          hasMore: false,
+          pageToken: null,
+        },
       }),
     );
 
@@ -159,9 +183,17 @@ describe("GymsPage", () => {
     expect(screen.getByRole("button", { name: "前のページ" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
 
-    useGymSearch.mockReturnValue(
+    mockedUseGymSearch.mockReturnValue(
       buildHookState({
-  meta: { total: 40, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
+        meta: {
+          total: 40,
+          page: 1,
+          perPage: 20,
+          hasNext: true,
+          hasPrev: false,
+          hasMore: true,
+          pageToken: null,
+        },
       }),
     );
 
@@ -172,8 +204,8 @@ describe("GymsPage", () => {
   });
 
   it("clears filters when the reset button is clicked", async () => {
-    const clearFilters = jest.fn();
-    useGymSearch.mockReturnValue(buildHookState({ clearFilters }));
+    const clearFilters = vi.fn();
+    mockedUseGymSearch.mockReturnValue(buildHookState({ clearFilters }));
 
     render(<GymsPage />);
 

@@ -1,13 +1,17 @@
+import { vi } from "vitest";
+
 import { apiRequest } from "@/lib/apiClient";
 import { fetchNearbyGyms } from "@/services/gymNearby";
 
-jest.mock("@/lib/apiClient", () => ({
-  apiRequest: jest.fn(),
+vi.mock("@/lib/apiClient", () => ({
+  apiRequest: vi.fn(),
 }));
+
+const mockedApiRequest = vi.mocked(apiRequest);
 
 describe("fetchNearbyGyms", () => {
   beforeEach(() => {
-    (apiRequest as jest.Mock).mockResolvedValue({
+    mockedApiRequest.mockResolvedValue({
       items: [
         {
           id: 1,
@@ -30,7 +34,7 @@ describe("fetchNearbyGyms", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("requests the nearby gyms endpoint with the expected query", async () => {
@@ -42,7 +46,7 @@ describe("fetchNearbyGyms", () => {
       pageToken: null,
     });
 
-    expect(apiRequest).toHaveBeenCalledWith("/gyms/nearby", expect.objectContaining({
+    expect(mockedApiRequest).toHaveBeenCalledWith("/gyms/nearby", expect.objectContaining({
       method: "GET",
       query: {
         lat: 35.681236,
@@ -89,7 +93,7 @@ describe("fetchNearbyGyms", () => {
       signal: controller.signal,
     });
 
-    expect(apiRequest).toHaveBeenLastCalledWith("/gyms/nearby", expect.objectContaining({
+    expect(mockedApiRequest).toHaveBeenLastCalledWith("/gyms/nearby", expect.objectContaining({
       signal: controller.signal,
       query: expect.objectContaining({ page: 3 }),
     }));

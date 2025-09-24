@@ -1,51 +1,69 @@
 import { act, renderHook } from "@testing-library/react";
+import { vi } from "vitest";
 
 import { ApiError } from "@/lib/apiClient";
 import { DEFAULT_DISTANCE_KM, DEFAULT_FILTER_STATE } from "@/lib/searchParams";
 import { FALLBACK_LOCATION, useGymSearch } from "@/hooks/useGymSearch";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import type { ReadonlyURLSearchParams } from "next/navigation";
+import { searchGyms } from "@/services/gyms";
+import { getPrefectures, getEquipmentCategories, getCities } from "@/services/meta";
 
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
-  useSearchParams: jest.fn(),
-  usePathname: jest.fn(),
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(),
+  useSearchParams: vi.fn(),
+  usePathname: vi.fn(),
 }));
 
-jest.mock("@/services/gyms", () => ({
-  searchGyms: jest.fn(),
+vi.mock("@/services/gyms", () => ({
+  searchGyms: vi.fn(),
 }));
 
-jest.mock("@/services/meta", () => ({
-  getPrefectures: jest.fn(),
-  getEquipmentCategories: jest.fn(),
-  getCities: jest.fn(),
+vi.mock("@/services/meta", () => ({
+  getPrefectures: vi.fn(),
+  getEquipmentCategories: vi.fn(),
+  getCities: vi.fn(),
 }));
 
-const { useRouter, useSearchParams, usePathname } = jest.requireMock("next/navigation") as {
-  useRouter: jest.Mock;
-  useSearchParams: jest.Mock;
-  usePathname: jest.Mock;
+const mockedUseRouter = vi.mocked(useRouter);
+const mockedUseSearchParams = vi.mocked(useSearchParams);
+const mockedUsePathname = vi.mocked(usePathname);
+const mockedSearchGyms = vi.mocked(searchGyms);
+const mockedGetPrefectures = vi.mocked(getPrefectures);
+const mockedGetEquipmentCategories = vi.mocked(getEquipmentCategories);
+const mockedGetCities = vi.mocked(getCities);
+
+class TestReadonlyURLSearchParams extends URLSearchParams {
+  append(): void {
+    throw new Error("append is not supported in tests");
+  }
+
+  delete(): void {
+    throw new Error("delete is not supported in tests");
+  }
+
+  set(): void {
+    throw new Error("set is not supported in tests");
+  }
+
+  sort(): void {
+    super.sort();
+  }
+}
+
+const createSearchParams = (init: string = ""): ReadonlyURLSearchParams => {
+  return new TestReadonlyURLSearchParams(init) as unknown as ReadonlyURLSearchParams;
 };
-
-const { searchGyms } = jest.requireMock("@/services/gyms") as {
-  searchGyms: jest.Mock;
-};
-
-const { getPrefectures, getEquipmentCategories, getCities } =
-  jest.requireMock("@/services/meta") as {
-    getPrefectures: jest.Mock;
-    getEquipmentCategories: jest.Mock;
-    getCities: jest.Mock;
-  };
 
 describe("useGymSearch", () => {
   const mockRouter = {
-    push: jest.fn(),
-    replace: jest.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
   };
   let originalGeolocation: Geolocation | undefined;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     originalGeolocation = navigator.geolocation;
     const geolocationError = {
       code: 1,
@@ -57,34 +75,34 @@ describe("useGymSearch", () => {
     Object.defineProperty(navigator, "geolocation", {
       configurable: true,
       value: {
-        getCurrentPosition: jest.fn((_, error) => {
+        getCurrentPosition: vi.fn((_, error) => {
           error?.(geolocationError);
         }),
-        watchPosition: jest.fn(),
-        clearWatch: jest.fn(),
+        watchPosition: vi.fn(),
+        clearWatch: vi.fn(),
       } as Geolocation,
     });
-    useRouter.mockReturnValue(mockRouter);
-    usePathname.mockReturnValue("/gyms");
-    useSearchParams.mockReturnValue(new URLSearchParams());
-    searchGyms.mockResolvedValue({
+    mockedUseRouter.mockReturnValue(mockRouter as unknown as ReturnType<typeof useRouter>);
+    mockedUsePathname.mockReturnValue("/gyms");
+    mockedUseSearchParams.mockReturnValue(createSearchParams());
+    mockedSearchGyms.mockResolvedValue({
       items: [],
-      meta: { total: 0, page: 1, perPage: 20, hasNext: false, hasPrev: false, pageToken: null },
+      meta: { total: 0, page: 1, perPage: 20, hasNext: false, hasPrev: false, hasMore: false, pageToken: null },
     });
-    getPrefectures.mockResolvedValue([
+    mockedGetPrefectures.mockResolvedValue([
       { value: "tokyo", label: "Tokyo" },
       { value: "chiba", label: "Chiba" },
     ]);
-    getEquipmentCategories.mockResolvedValue([
+    mockedGetEquipmentCategories.mockResolvedValue([
       { value: "free-weight", label: "Free Weight" },
     ]);
-    getCities.mockResolvedValue([{ value: "shinjuku", label: "Shinjuku" }]);
+    mockedGetCities.mockResolvedValue([{ value: "shinjuku", label: "Shinjuku" }]);
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
-    jest.clearAllMocks();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+    vi.clearAllMocks();
     if (originalGeolocation) {
       Object.defineProperty(navigator, "geolocation", {
         configurable: true,
@@ -100,8 +118,8 @@ describe("useGymSearch", () => {
   });
 
   it("derives the initial state from query parameters", async () => {
-    useSearchParams.mockReturnValue(
-      new URLSearchParams(
+    mockedUseSearchParams.mockReturnValue(
+      createSearchParams(
         "q=bench&pref=tokyo&city=shinjuku&cats=squat-rack&sort=name&order=asc&page=2&per_page=30&radius_km=15",
       ),
     );
@@ -141,7 +159,7 @@ describe("useGymSearch", () => {
     expect(mockRouter.push).not.toHaveBeenCalled();
 
     await act(async () => {
-      jest.advanceTimersByTime(200);
+      vi.advanceTimersByTime(200);
       await Promise.resolve();
     });
 
@@ -154,10 +172,10 @@ describe("useGymSearch", () => {
   });
 
   it("updates form state when search params change after navigation", async () => {
-    let currentParams = new URLSearchParams(
+    let currentParams = createSearchParams(
       `lat=${FALLBACK_LOCATION.lat}&lng=${FALLBACK_LOCATION.lng}&radius_km=${DEFAULT_DISTANCE_KM}`,
     );
-    useSearchParams.mockImplementation(() => currentParams);
+    mockedUseSearchParams.mockImplementation(() => currentParams);
 
     const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
 
@@ -172,7 +190,7 @@ describe("useGymSearch", () => {
     });
 
     await act(async () => {
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await Promise.resolve();
     });
 
@@ -181,7 +199,7 @@ describe("useGymSearch", () => {
       { scroll: false },
     );
 
-    currentParams = new URLSearchParams(
+    currentParams = createSearchParams(
       `q=bench&sort=rating&order=desc&radius_km=${DEFAULT_DISTANCE_KM}&lat=${FALLBACK_LOCATION.lat.toFixed(6)}&lng=${FALLBACK_LOCATION.lng.toFixed(6)}`,
     );
 
@@ -193,7 +211,7 @@ describe("useGymSearch", () => {
     expect(result.current.formState.q).toBe("bench");
     expect(result.current.formState.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
     expect(result.current.formState.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
-    expect(searchGyms).toHaveBeenLastCalledWith(
+    expect(mockedSearchGyms).toHaveBeenLastCalledWith(
       expect.objectContaining({
         q: "bench",
         page: 1,
@@ -207,13 +225,13 @@ describe("useGymSearch", () => {
   });
 
   it("changes page immediately without debounce", async () => {
-    let currentParams = new URLSearchParams(
+    let currentParams = createSearchParams(
       `lat=${FALLBACK_LOCATION.lat}&lng=${FALLBACK_LOCATION.lng}&radius_km=${DEFAULT_DISTANCE_KM}`,
     );
-    useSearchParams.mockImplementation(() => currentParams);
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
     const { result } = renderHook(() => useGymSearch());
@@ -241,11 +259,11 @@ describe("useGymSearch", () => {
   });
 
   it("updates sort and order while resetting the page", async () => {
-    let currentParams = new URLSearchParams("page=3&sort=rating&order=desc");
-    useSearchParams.mockImplementation(() => currentParams);
+    let currentParams = createSearchParams("page=3&sort=rating&order=desc");
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
     const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
@@ -261,7 +279,7 @@ describe("useGymSearch", () => {
     });
 
     await act(async () => {
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await Promise.resolve();
     });
 
@@ -279,7 +297,7 @@ describe("useGymSearch", () => {
 
     expect(result.current.appliedFilters.sort).toBe("reviews");
     expect(result.current.appliedFilters.page).toBe(1);
-    expect(searchGyms).toHaveBeenLastCalledWith(
+    expect(mockedSearchGyms).toHaveBeenLastCalledWith(
       expect.objectContaining({
         sort: "reviews",
         order: "desc",
@@ -295,8 +313,8 @@ describe("useGymSearch", () => {
   });
 
   it("clears filters and keeps the current per-page value", async () => {
-    useSearchParams.mockReturnValue(
-      new URLSearchParams(
+    mockedUseSearchParams.mockReturnValue(
+      createSearchParams(
         "q=bench&pref=tokyo&cats=squat-rack&page=2&per_page=24&radius_km=10",
       ),
     );
@@ -338,8 +356,8 @@ describe("useGymSearch", () => {
   });
 
   it("applies location coordinates from query parameters", async () => {
-    useSearchParams.mockReturnValue(
-      new URLSearchParams("lat=35.1234&lng=139.9876&radius_km=8"),
+    mockedUseSearchParams.mockReturnValue(
+      createSearchParams("lat=35.1234&lng=139.9876&radius_km=8"),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -354,7 +372,7 @@ describe("useGymSearch", () => {
     expect(result.current.location.status).toBe("success");
     expect(result.current.location.isFallback).toBe(false);
     expect(result.current.location.fallbackLabel).toBeNull();
-    expect(searchGyms).toHaveBeenCalledWith(
+    expect(mockedSearchGyms).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 35.1234,
         lng: 139.9876,
@@ -365,8 +383,8 @@ describe("useGymSearch", () => {
   });
 
   it("retains location information when clearing filters", async () => {
-    useSearchParams.mockReturnValue(
-      new URLSearchParams("lat=34&lng=135&per_page=24&radius_km=12"),
+    mockedUseSearchParams.mockReturnValue(
+      createSearchParams("lat=34&lng=135&per_page=24&radius_km=12"),
     );
 
     const { result } = renderHook(() => useGymSearch());
@@ -397,13 +415,13 @@ describe("useGymSearch", () => {
   });
 
   it("clears coordinates and resets sorting when the current location is cleared", async () => {
-    let currentParams = new URLSearchParams(
+    let currentParams = createSearchParams(
       "sort=distance&order=asc&lat=35.6&lng=139.7&radius_km=5",
     );
-    useSearchParams.mockImplementation(() => currentParams);
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
     const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
@@ -416,7 +434,7 @@ describe("useGymSearch", () => {
     expect(result.current.appliedFilters.lat).toBeCloseTo(35.6);
 
     mockRouter.push.mockClear();
-    searchGyms.mockClear();
+    mockedSearchGyms.mockClear();
 
     await act(async () => {
       result.current.clearLocation();
@@ -444,8 +462,9 @@ describe("useGymSearch", () => {
     expect(result.current.formState.lat).toBeNull();
     expect(result.current.formState.lng).toBeNull();
 
-    expect(searchGyms).toHaveBeenCalledTimes(1);
-    const [params] = searchGyms.mock.calls[0];
+    expect(mockedSearchGyms).toHaveBeenCalledTimes(1);
+    const firstCall = mockedSearchGyms.mock.calls[0]!;
+    const params = firstCall[0]!;
     expect(params.sort).toBe(DEFAULT_FILTER_STATE.sort);
     expect(params.lat ?? null).toBeNull();
     expect(params.lng ?? null).toBeNull();
@@ -454,13 +473,13 @@ describe("useGymSearch", () => {
   });
 
   it("updates the search radius and resets the page", async () => {
-    let currentParams = new URLSearchParams(
+    let currentParams = createSearchParams(
       "lat=35.6&lng=139.7&radius_km=5&page=3",
     );
-    useSearchParams.mockImplementation(() => currentParams);
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
     const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
@@ -476,7 +495,7 @@ describe("useGymSearch", () => {
     });
 
     await act(async () => {
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await Promise.resolve();
     });
 
@@ -499,14 +518,14 @@ describe("useGymSearch", () => {
   });
 
   it("restores fallback coordinates when distance sorting lacks an explicit location", async () => {
-    let currentParams = new URLSearchParams("sort=distance&order=asc");
-    useSearchParams.mockImplementation(() => currentParams);
+    let currentParams = createSearchParams("sort=distance&order=asc");
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
-    searchGyms.mockClear();
+    mockedSearchGyms.mockClear();
 
     const { result, rerender } = renderHook(() => useGymSearch({ debounceMs: 0 }));
 
@@ -531,8 +550,9 @@ describe("useGymSearch", () => {
     expect(result.current.location.mode).toBe("fallback");
     expect(result.current.location.isFallback).toBe(true);
 
-    expect(searchGyms).toHaveBeenCalledTimes(1);
-    const [params] = searchGyms.mock.calls[0];
+    expect(mockedSearchGyms).toHaveBeenCalledTimes(1);
+    const firstCall = mockedSearchGyms.mock.calls[0]!;
+    const params = firstCall[0]!;
     expect(params.lat).toBeCloseTo(FALLBACK_LOCATION.lat);
     expect(params.lng).toBeCloseTo(FALLBACK_LOCATION.lng);
     expect(params.radiusKm).toBe(DEFAULT_DISTANCE_KM);
@@ -542,7 +562,7 @@ describe("useGymSearch", () => {
 
   it("surfaces API errors from searchGyms as error state", async () => {
     const error = new ApiError("検索に失敗しました", 500);
-    searchGyms.mockRejectedValue(error);
+    mockedSearchGyms.mockRejectedValue(error);
 
     const { result } = renderHook(() => useGymSearch());
 
@@ -563,23 +583,23 @@ describe("useGymSearch", () => {
       { id: 3, slug: "gym-3", name: "Gym 3", city: "Meguro", prefecture: "Tokyo" },
     ];
 
-    searchGyms
+    mockedSearchGyms
       .mockResolvedValueOnce({
         items: firstPageItems,
-        meta: { total: 5, page: 1, perPage: 20, hasNext: true, hasPrev: false, pageToken: null },
+        meta: { total: 5, page: 1, perPage: 20, hasNext: true, hasPrev: false, hasMore: true, pageToken: null },
       })
       .mockResolvedValueOnce({
         items: secondPageItems,
-        meta: { total: 5, page: 2, perPage: 20, hasNext: false, hasPrev: true, pageToken: null },
+        meta: { total: 5, page: 2, perPage: 20, hasNext: false, hasPrev: true, hasMore: false, pageToken: null },
       });
 
-    let currentParams = new URLSearchParams(
+    let currentParams = createSearchParams(
       `lat=${FALLBACK_LOCATION.lat}&lng=${FALLBACK_LOCATION.lng}&radius_km=${DEFAULT_DISTANCE_KM}`,
     );
-    useSearchParams.mockImplementation(() => currentParams);
+    mockedUseSearchParams.mockImplementation(() => currentParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      currentParams = new URLSearchParams(query);
+      currentParams = createSearchParams(query);
     });
 
     const { result, rerender } = renderHook(() => useGymSearch());
@@ -614,17 +634,17 @@ describe("useGymSearch", () => {
 
     expect(result.current.items.map((item) => item.id)).toEqual([1, 2, 3]);
     expect(result.current.meta.hasNext).toBe(false);
-    expect(searchGyms).toHaveBeenCalledTimes(2);
+    expect(mockedSearchGyms).toHaveBeenCalledTimes(2);
   });
 
   it("does not navigate when requesting the next page without additional results", async () => {
-    let standaloneParams = new URLSearchParams(
+    let standaloneParams = createSearchParams(
       `lat=${FALLBACK_LOCATION.lat}&lng=${FALLBACK_LOCATION.lng}&radius_km=${DEFAULT_DISTANCE_KM}`,
     );
-    useSearchParams.mockImplementation(() => standaloneParams);
+    mockedUseSearchParams.mockImplementation(() => standaloneParams);
     mockRouter.push.mockImplementation((url: string) => {
       const [, query = ""] = url.split("?");
-      standaloneParams = new URLSearchParams(query);
+      standaloneParams = createSearchParams(query);
     });
 
     const { result } = renderHook(() => useGymSearch());

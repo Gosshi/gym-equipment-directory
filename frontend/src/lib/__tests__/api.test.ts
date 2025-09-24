@@ -1,16 +1,17 @@
-import { fetchGyms, buildGymSearchQuery } from "@/lib/api";
+import { vi } from "vitest";
 
-jest.mock("@/lib/apiClient", () => ({
-  apiRequest: jest.fn(),
+import { fetchGyms, buildGymSearchQuery } from "@/lib/api";
+import { apiRequest } from "@/lib/apiClient";
+
+vi.mock("@/lib/apiClient", () => ({
+  apiRequest: vi.fn(),
 }));
 
-const { apiRequest } = jest.requireMock("@/lib/apiClient") as {
-  apiRequest: jest.Mock;
-};
+const mockedApiRequest = vi.mocked(apiRequest);
 
 describe("lib/api", () => {
   beforeEach(() => {
-    apiRequest.mockReset();
+    mockedApiRequest.mockReset();
   });
 
   it("builds a query with CSV categories and clamped pagination", () => {
@@ -52,7 +53,7 @@ describe("lib/api", () => {
   });
 
   it("delegates to the gyms search endpoint", async () => {
-    apiRequest.mockResolvedValue({
+    mockedApiRequest.mockResolvedValue({
       items: [
         {
           id: 1,
@@ -89,7 +90,7 @@ describe("lib/api", () => {
       radiusKm: 7,
     });
 
-    expect(apiRequest).toHaveBeenCalledWith("/gyms/search", {
+    expect(mockedApiRequest).toHaveBeenCalledWith("/gyms/search", {
       method: "GET",
       query: {
         q: "deadlift",
