@@ -11,6 +11,7 @@ export interface SearchBarProps {
   className?: string;
   inputClassName?: string;
   inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "value" | "onChange">;
+  inputRef?: React.Ref<HTMLInputElement>;
   children?: ReactNode;
 }
 
@@ -23,6 +24,7 @@ export function SearchBar({
   className,
   inputClassName,
   inputProps,
+  inputRef,
   children,
 }: SearchBarProps) {
   return (
@@ -40,6 +42,7 @@ export function SearchBar({
             inputClassName,
           )}
           id={id}
+          ref={inputRef}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           type={inputProps?.type ?? "search"}

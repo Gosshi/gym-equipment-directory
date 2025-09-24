@@ -46,6 +46,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSear
     updateSort: vi.fn(),
     updateDistance: vi.fn(),
     clearFilters: vi.fn(),
+    submitSearch: vi.fn(),
     location: {
       lat: null,
       lng: null,
@@ -212,5 +213,17 @@ describe("GymsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "条件をクリア" }));
 
     expect(clearFilters).toHaveBeenCalled();
+  });
+
+  it("submits the search when the search button is pressed", async () => {
+    const submitSearch = vi.fn();
+    mockedUseGymSearch.mockReturnValue(buildHookState({ submitSearch }));
+
+    render(<GymsPage />);
+
+    const [searchButton] = screen.getAllByRole("button", { name: "検索を実行" });
+    await userEvent.click(searchButton);
+
+    expect(submitSearch).toHaveBeenCalled();
   });
 });

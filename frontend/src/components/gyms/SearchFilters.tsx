@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { SearchBar } from "@/components/common/SearchBar";
+import { SearchDistanceBadge } from "@/components/search/SearchDistanceBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -56,6 +57,7 @@ type SearchFiltersProps = {
   metaError: string | null;
   cityError: string | null;
   location: LocationState;
+  isSearchLoading: boolean;
   onKeywordChange: (value: string) => void;
   onPrefectureChange: (value: string) => void;
   onCityChange: (value: string) => void;
@@ -69,6 +71,7 @@ type SearchFiltersProps = {
   onManualLocationChange: (lat: number | null, lng: number | null) => void;
   onReloadMeta: () => void;
   onReloadCities: () => void;
+  onSubmitSearch: () => void;
 };
 
 export function SearchFilters({
@@ -81,6 +84,7 @@ export function SearchFilters({
   metaError,
   cityError,
   location,
+  isSearchLoading,
   onKeywordChange,
   onPrefectureChange,
   onCityChange,
@@ -94,6 +98,7 @@ export function SearchFilters({
   onManualLocationChange,
   onReloadMeta,
   onReloadCities,
+  onSubmitSearch,
 }: SearchFiltersProps) {
   const [suggestions, setSuggestions] = useState<GymSuggestItem[]>([]);
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
@@ -105,6 +110,7 @@ export function SearchFilters({
   const [lngInput, setLngInput] = useState<string>("");
   const [manualError, setManualError] = useState<string | null>(null);
   const { toast } = useToast();
+  const keywordInputRef = useRef<HTMLInputElement | null>(null);
   const lastLocationToastRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -292,11 +298,15 @@ export function SearchFilters({
     <aside className="space-y-4">
       <form
         className="space-y-6 rounded-lg border bg-card p-6 shadow-sm"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmitSearch();
+        }}
       >
         <SearchBar
           id="gym-search-keyword"
           inputProps={{ name: "keyword" }}
+          inputRef={keywordInputRef}
           label="キーワード"
           onChange={onKeywordChange}
           placeholder="設備やジム名で検索"
@@ -334,6 +344,23 @@ export function SearchFilters({
             </div>
           ) : null}
         </SearchBar>
+
+        <div className="flex justify-end">
+          <Button
+            aria-label="検索を実行"
+            disabled={isSearchLoading}
+            type="submit"
+          >
+            {isSearchLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                検索中…
+              </span>
+            ) : (
+              "検索"
+            )}
+          </Button>
+        </div>
 
         <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="gym-search-prefecture">
@@ -510,7 +537,25 @@ export function SearchFilters({
             </div>
           </div>
           {location.status === "error" && location.error ? (
-            <p className="text-xs text-destructive">{location.error}</p>
+            <div
+              className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+              role="alert"
+            >
+              <div className="flex items-start gap-2 text-sm">
+                <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4" />
+                <span>{location.error}</span>
+              </div>
+              <button
+                className="self-start text-xs font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => {
+                  keywordInputRef.current?.focus();
+                  keywordInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+                type="button"
+              >
+                住所や駅名で検索する
+              </button>
+            </div>
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid min-w-0 gap-1">
@@ -577,9 +622,7 @@ export function SearchFilters({
             <label className="text-sm font-medium" htmlFor="gym-search-distance">
               検索半径（km）
             </label>
-            <span aria-live="polite" className="text-xs text-muted-foreground">
-              半径: 約 {state.distance}km
-            </span>
+            <SearchDistanceBadge distanceKm={state.distance} />
           </div>
           <input
             aria-valuemin={MIN_DISTANCE_KM}

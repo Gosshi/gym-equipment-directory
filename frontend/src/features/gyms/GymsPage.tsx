@@ -14,6 +14,7 @@ export function GymsPage() {
     updateSort,
     updateDistance,
     clearFilters,
+    submitSearch,
     location,
     requestLocation,
     clearLocation,
@@ -58,6 +59,7 @@ export function GymsPage() {
             isCityLoading={isCityLoading}
             isMetaLoading={isMetaLoading}
             metaError={metaError}
+            isSearchLoading={isLoading}
             onCategoriesChange={updateCategories}
             onCityChange={updateCity}
             onClear={clearFilters}
@@ -71,6 +73,7 @@ export function GymsPage() {
             onReloadCities={reloadCities}
             onReloadMeta={reloadMeta}
             onSortChange={updateSort}
+            onSubmitSearch={submitSearch}
             location={location}
             prefectures={prefectures}
             state={formState}
@@ -82,6 +85,7 @@ export function GymsPage() {
             isLoading={isLoading}
             limit={limit}
             meta={meta}
+            onClearFilters={clearFilters}
             onLimitChange={setLimit}
             onPageChange={setPage}
             onRetry={retry}
