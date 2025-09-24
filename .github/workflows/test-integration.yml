@@ -1,0 +1,69 @@
+name: Backend integration tests (Postgres)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  integration-tests:
+    name: Backend integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: gym_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gym_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
+      DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
+      ALEMBIC_DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Determine pip cache directory
+        id: pip-cache-dir
+        run: echo "dir=$(python -m pip cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pip-cache-dir.outputs.dir }}
+          key: pip-${{ runner.os }}-3.11-${{ hashFiles('requirements*.txt', 'requirements-dev.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-3.11-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip wheel setuptools
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run format check
+        run: ruff format --check .
+
+      - name: Run lint check
+        run: ruff check .
+
+      - name: Run database migrations
+        run: alembic upgrade head
+
+      - name: Run integration tests
+        run: pytest -q -m "integration"
