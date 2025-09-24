@@ -13,8 +13,9 @@ export function SearchEmpty({ onResetFilters, className }: SearchEmptyProps) {
     <div
       aria-live="polite"
       className={cn(
-        "flex flex-col items-center gap-4 rounded-lg border border-dashed",
-        "border-muted-foreground/40 bg-muted/20 p-8 text-center",
+        "flex flex-col items-center gap-5 rounded-2xl border border-dashed",
+        "border-muted-foreground/40 bg-muted/20 p-8 text-center shadow-sm sm:p-10",
+        "max-w-2xl mx-auto",
         className,
       )}
       role="status"

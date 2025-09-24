@@ -15,8 +15,8 @@ export function SearchError({ message, onRetry, className }: SearchErrorProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-4 rounded-lg border border-destructive/40",
-        "bg-destructive/10 p-6 text-center text-sm text-destructive",
+        "flex flex-col items-center gap-4 rounded-2xl border border-destructive/40",
+        "bg-destructive/10 p-6 text-center text-sm text-destructive shadow-sm sm:p-8",
         className,
       )}
       role="alert"

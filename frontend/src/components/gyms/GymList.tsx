@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import { GymCard } from "@/components/gyms/GymCard";
 import { Pagination } from "@/components/gyms/Pagination";
@@ -72,6 +72,8 @@ export function GymList({
 
   const resultSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef(page);
+  const headerDescriptionId = useId();
+  const paginationSummaryId = useId();
 
   useEffect(() => {
     if (previousPageRef.current !== page && resultSectionRef.current) {
@@ -94,7 +96,15 @@ export function GymList({
       break;
     default:
       content = (
-        <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}>
+        <div
+          className={cn(
+            "grid gap-4",
+            "sm:grid-cols-2 sm:gap-6",
+            "lg:grid-cols-2",
+            "xl:grid-cols-3 xl:gap-7",
+            "2xl:grid-cols-4",
+          )}
+        >
           {gyms.map((gym) => (
             <GymCard key={gym.id} gym={gym} />
           ))}
@@ -130,30 +140,39 @@ export function GymList({
   return (
     <section
       aria-busy={resultState.isLoading}
+      aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="rounded-lg border bg-background p-6 shadow-sm"
+      className="rounded-2xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
       ref={resultSectionRef}
       tabIndex={-1}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4">
-        <div>
-          <h2 className="text-xl font-semibold" id="gym-search-results-heading">
+      <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        <div className="space-y-1.5">
+          <h2 className="text-2xl font-semibold tracking-tight" id="gym-search-results-heading">
             検索結果
           </h2>
-          <p className="text-sm text-muted-foreground">{headerDescription}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground" id={headerDescriptionId}>
+            {headerDescription}
+          </p>
         </div>
+        {resultState.isSuccess ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{totalLabel}</span>
+            <span className="hidden sm:inline">が見つかりました</span>
+          </div>
+        ) : null}
       </div>
 
       {content}
 
       {showPagination ? (
-        <div className="mt-8 border-t pt-4">
+        <div className="mt-10 border-t border-border/70 pt-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p aria-live="polite" className="text-sm text-muted-foreground">
+            <p aria-live="polite" className="text-sm text-muted-foreground" id={paginationSummaryId}>
               {paginationSummary}
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-muted-foreground" htmlFor="gym-search-limit">
                   表示件数
@@ -181,6 +200,7 @@ export function GymList({
                 </select>
               </div>
               <Pagination
+                ariaDescribedBy={paginationSummaryId}
                 currentPage={currentPage}
                 totalPages={paginationTotalPages}
                 hasNextPage={hasMore}

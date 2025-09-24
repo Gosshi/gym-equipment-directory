@@ -42,16 +42,18 @@ export function GymsPage() {
   } = useGymSearch();
 
   return (
-    <div className="flex min-h-screen w-full flex-col gap-10 px-4 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="space-y-2">
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">Gym Directory</p>
-          <h1 className="text-3xl font-bold sm:text-4xl">ジム一覧・検索</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="flex min-h-screen w-full flex-col bg-muted/10">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:gap-10 sm:pt-12 lg:px-6 xl:px-0">
+        <header className="space-y-3 sm:space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-sm">
+            Gym Directory
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">ジム一覧・検索</h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
             設備カテゴリやエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
           </p>
         </header>
-        <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:gap-8">
           <SearchFilters
             categories={equipmentCategories}
             cities={cities}
