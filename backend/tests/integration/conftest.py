@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import os
 import sys
@@ -14,7 +15,7 @@ import pytest_asyncio
 from scripts.seed_min_test import seed_minimal_dataset
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def integration_client() -> AsyncIterator[httpx.AsyncClient]:
     """Provide an AsyncClient wired to the FastAPI app using TEST_DATABASE_URL."""
     test_url = os.getenv("TEST_DATABASE_URL")
@@ -55,6 +56,21 @@ async def integration_client() -> AsyncIterator[httpx.AsyncClient]:
     # Ensure the database contains the minimal dataset required for integration checks.
     await seed_minimal_dataset(database_url=test_url)
 
-    transport = httpx.ASGITransport(app=app, lifespan="auto")
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        yield client
+    lifespan_ctx = app.router.lifespan_context
+    if lifespan_ctx is None:
+        @contextlib.asynccontextmanager
+        async def _lifespan():
+            await app.router.startup()
+            try:
+                yield
+            finally:
+                await app.router.shutdown()
+
+        lifespan_manager = _lifespan()
+    else:
+        lifespan_manager = lifespan_ctx(app)
+
+    async with lifespan_manager:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            yield client
