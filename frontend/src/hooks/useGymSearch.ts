@@ -123,6 +123,18 @@ const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
   a.lng === b.lng &&
   areCategoriesEqual(a.categories, b.categories);
 
+const normalizeFormState = (state: FormState): FormState => ({
+  q: state.q,
+  prefecture: state.prefecture.trim(),
+  city: state.city.trim(),
+  categories: normalizeCategories(state.categories),
+  sort: state.sort,
+  order: normalizeSortOrder(state.sort, state.order),
+  distance: state.distance,
+  lat: state.lat,
+  lng: state.lng,
+});
+
 const buildFilterStateFromForm = (
   form: FormState,
   base: FilterState,
@@ -156,6 +168,7 @@ export interface UseGymSearchResult {
   updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
   clearFilters: () => void;
+  submitSearch: () => void;
   location: LocationState;
   requestLocation: () => void;
   clearLocation: () => void;
@@ -314,18 +327,7 @@ export function useGymSearch(
   const scheduleApply = useCallback(
     (updater: (prev: FormState) => FormState) => {
       setFormState((prev) => {
-        const updated = updater(prev);
-        const normalized: FormState = {
-          q: updated.q,
-          prefecture: updated.prefecture.trim(),
-          city: updated.city.trim(),
-          categories: normalizeCategories(updated.categories),
-          sort: updated.sort,
-          order: normalizeSortOrder(updated.sort, updated.order),
-          distance: updated.distance,
-          lat: updated.lat,
-          lng: updated.lng,
-        };
+        const normalized = normalizeFormState(updater(prev));
 
         if (areFormStatesEqual(prev, normalized)) {
           return prev;
@@ -628,6 +630,20 @@ export function useGymSearch(
   const [error, setError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
+  const submitSearch = useCallback(() => {
+    cancelPendingDebounce();
+    const normalized = normalizeFormState(formState);
+    setFormState(normalized);
+
+    const currentAppliedForm = toFormState(appliedFilters);
+    if (areFormStatesEqual(currentAppliedForm, normalized)) {
+      setRefreshIndex((value) => value + 1);
+      return;
+    }
+
+    applyFilters(buildFilterStateFromForm(normalized, appliedFilters));
+  }, [appliedFilters, applyFilters, cancelPendingDebounce, formState]);
+
   const retry = useCallback(() => setRefreshIndex((value) => value + 1), []);
 
   const loadNextPage = useCallback(() => {
@@ -875,6 +891,7 @@ export function useGymSearch(
     updateSort,
     updateDistance,
     clearFilters,
+    submitSearch,
     location,
     requestLocation,
     clearLocation,

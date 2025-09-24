@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { vi } from "vitest";
@@ -174,7 +174,11 @@ describe("Search flow integration", () => {
 
     renderGymsPage();
 
+    const skeletons = await screen.findAllByTestId("search-result-skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+
     expect(await screen.findByText("東京フィットジム")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId("search-result-skeleton")).not.toBeInTheDocument());
 
     const user = userEvent.setup();
     const keywordInput = screen.getByLabelText("キーワード");
@@ -187,6 +191,66 @@ describe("Search flow integration", () => {
     expect(
       searchRequests.some((url) => url.searchParams.get("q")?.toLowerCase() === "power"),
     ).toBe(true);
+  });
+
+  it("displays an empty state when no gyms match the filters", async () => {
+    createSuccessGeolocation(35.68, 139.76);
+
+    const emptyResponse = {
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      per_page: 20,
+      has_next: false,
+      has_prev: false,
+      has_more: false,
+      page_token: null,
+    };
+
+    server.use(
+      http.get("*/gyms/search", () => HttpResponse.json(emptyResponse)),
+    );
+
+    renderGymsPage();
+
+    const emptyMessage = await screen.findByText("該当するジムが見つかりませんでした");
+    const emptyState = emptyMessage.closest('[role="status"]');
+    expect(emptyState).not.toBeNull();
+    expect(
+      within(emptyState as HTMLElement).getByRole("button", { name: "条件をクリア" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error state when the API request fails and allows retrying", async () => {
+    applyGeolocationMock({
+      getCurrentPosition: vi.fn(),
+      watchPosition: vi.fn(),
+      clearWatch: vi.fn(),
+    });
+
+    let requestCount = 0;
+    server.use(
+      http.get("*/gyms/search", () => {
+        requestCount += 1;
+        if (requestCount === 1) {
+          return HttpResponse.json({ message: "Server error" }, { status: 500 });
+        }
+        return HttpResponse.json(defaultGymSearchResponse);
+      }),
+    );
+
+    renderGymsPage();
+
+    const alert = await screen.findByRole("alert");
+    const retryButton = within(alert).getByRole("button", { name: "再試行" });
+
+    const user = userEvent.setup();
+    await user.click(retryButton);
+
+    expect(await screen.findByText("東京フィットジム")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(requestCount).toBeGreaterThanOrEqual(2);
   });
 
   it("requests the current position and includes coordinates in the search query", async () => {
@@ -296,5 +360,13 @@ describe("Search flow integration", () => {
     ).toBe(true);
 
     expect(await screen.findByText(/デフォルト地点（東京駅）を使用中/)).toBeInTheDocument();
+
+    const guidanceButton = await screen.findByRole("button", { name: "住所や駅名で検索する" });
+    expect(guidanceButton).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    const keywordInput = screen.getByLabelText("キーワード");
+    await user.click(guidanceButton);
+    await waitFor(() => expect(keywordInput).toHaveFocus());
   });
 });

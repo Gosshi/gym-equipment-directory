@@ -1,52 +1,15 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { GymCard } from "@/components/gyms/GymCard";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/gyms/Pagination";
+import { SearchEmpty } from "@/components/search/SearchEmpty";
+import { SearchError } from "@/components/search/SearchError";
+import { SearchSkeleton } from "@/components/search/SearchSkeleton";
+import { useSearchResultState } from "@/components/search/useSearchResultState";
 import { cn } from "@/lib/utils";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-
-const GymListLoadingState = () => (
-  <div aria-hidden className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="presentation">
-    {Array.from({ length: 6 }).map((_, index) => (
-      <Card key={index} className="overflow-hidden">
-        <Skeleton className="h-40 w-full" />
-        <CardContent className="space-y-3">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
-
-const GymListEmptyState = () => (
-  <p className="rounded-md bg-muted/40 p-4 text-center text-sm text-muted-foreground">
-    条件に一致するジムが見つかりませんでした。
-  </p>
-);
-
-const GymListErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <div
-    className={cn(
-      "flex flex-col items-center gap-4 rounded-md",
-      "border border-destructive/40 bg-destructive/10 p-6 text-center",
-    )}
-  >
-    <p className="text-sm text-destructive">{message}</p>
-    <Button onClick={onRetry} type="button" variant="outline">
-      もう一度試す
-    </Button>
-  </div>
-);
 
 type GymListProps = {
   gyms: GymSummary[];
@@ -59,6 +22,7 @@ type GymListProps = {
   onRetry: () => void;
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
+  onClearFilters?: () => void;
 };
 
 export function GymList({
@@ -72,9 +36,9 @@ export function GymList({
   onRetry,
   onPageChange,
   onLimitChange,
+  onClearFilters,
 }: GymListProps) {
-  const showSkeleton = isInitialLoading;
-  const showEmpty = !error && !showSkeleton && gyms.length === 0;
+  const resultState = useSearchResultState({ isLoading, error, items: gyms });
   const isPageLoading = isLoading && !isInitialLoading;
 
   const limitValue = Math.max(limit, 1);
@@ -88,8 +52,10 @@ export function GymList({
     hasExactTotal && (totalCount ?? 0) > 0
       ? Math.max(Math.ceil((totalCount as number) / perPageValue), currentPage)
       : null;
-  const baseRangeStart = gyms.length === 0 ? 0 : (currentPage - 1) * perPageValue + 1;
-  const baseRangeEnd = gyms.length === 0 ? 0 : baseRangeStart + gyms.length - 1;
+  const hasMore = Boolean(meta.hasMore ?? meta.hasNext);
+  const hasResults = gyms.length > 0;
+  const baseRangeStart = hasResults ? (currentPage - 1) * perPageValue + 1 : 0;
+  const baseRangeEnd = hasResults ? baseRangeStart + gyms.length - 1 : 0;
   const safeTotalForRange = typeof totalCount === "number" ? totalCount : 0;
   const rangeStart = hasExactTotal
     ? Math.min(baseRangeStart, safeTotalForRange)
@@ -98,6 +64,11 @@ export function GymList({
   const totalLabel = hasExactTotal
     ? `${totalCount}件`
     : `${rangeEnd}${meta.hasNext ? "+" : ""}件`;
+  const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
+    (a, b) => a - b,
+  );
+  const skeletonCount = Math.max(perPageValue, gyms.length || 0);
+  const paginationTotalPages = totalPages ?? Math.max(currentPage, 1);
 
   const resultSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef(page);
@@ -111,47 +82,54 @@ export function GymList({
   }, [page]);
 
   let content: ReactNode;
-  if (error) {
-    content = <GymListErrorState message={error} onRetry={onRetry} />;
-  } else if (showSkeleton) {
-    content = <GymListLoadingState />;
-  } else if (showEmpty) {
-    content = <GymListEmptyState />;
-  } else {
-    content = (
-      <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}> 
-        {gyms.map((gym) => (
-          <GymCard key={gym.id} gym={gym} />
-        ))}
-      </div>
-    );
+  switch (resultState.status) {
+    case "error":
+      content = <SearchError message={error} onRetry={onRetry} />;
+      break;
+    case "loading":
+      content = <SearchSkeleton count={skeletonCount} />;
+      break;
+    case "empty":
+      content = <SearchEmpty onResetFilters={onClearFilters} />;
+      break;
+    default:
+      content = (
+        <div className={cn("grid gap-4", "sm:grid-cols-2", "xl:grid-cols-3")}>
+          {gyms.map((gym) => (
+            <GymCard key={gym.id} gym={gym} />
+          ))}
+        </div>
+      );
+      break;
   }
 
-  const showPagination = !error && (totalCount ?? 0) > 0;
-  const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
-    (a, b) => a - b,
-  );
-  const hasMore = meta.hasMore ?? meta.hasNext;
-  const isPrevDisabled = isPageLoading || !meta.hasPrev;
-  const isNextDisabled = isPageLoading || !hasMore;
+  const paginationSummary = resultState.isSuccess
+    ? `${rangeStart}–${rangeEnd} / ${totalLabel}`
+    : resultState.isLoading
+    ? "検索結果を読み込み中です…"
+    : "0件";
 
-  const handlePrev = () => {
-    if (isPrevDisabled) {
-      return;
-    }
-    onPageChange(Math.max(currentPage - 1, 1));
-  };
+  const showPagination =
+    resultState.isSuccess && ((totalCount ?? 0) > 0 || hasMore || currentPage > 1);
 
-  const handleNext = () => {
-    if (isNextDisabled) {
-      return;
+  const headerDescription = (() => {
+    if (resultState.isLoading) {
+      return "検索結果を読み込み中です…";
     }
-    onPageChange(currentPage + 1);
-  };
+    if (resultState.isError) {
+      return "検索結果の取得に失敗しました。";
+    }
+    if (resultState.isEmpty) {
+      return "条件に一致するジムは見つかりませんでした。";
+    }
+    return `${totalLabel.replace("件", "件のジムが見つかりました。")}`.concat(
+      totalPages ? `（全 ${totalPages} ページ）` : "",
+    );
+  })();
 
   return (
     <section
-      aria-busy={isLoading}
+      aria-busy={resultState.isLoading}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
       className="rounded-lg border bg-background p-6 shadow-sm"
@@ -163,10 +141,7 @@ export function GymList({
           <h2 className="text-xl font-semibold" id="gym-search-results-heading">
             検索結果
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {totalLabel.replace("件", "件のジムが見つかりました。")}
-            {totalPages ? `（全 ${totalPages} ページ）` : ""}
-          </p>
+          <p className="text-sm text-muted-foreground">{headerDescription}</p>
         </div>
       </div>
 
@@ -176,7 +151,7 @@ export function GymList({
         <div className="mt-8 border-t pt-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <p aria-live="polite" className="text-sm text-muted-foreground">
-              {`${rangeStart}–${rangeEnd} / ${totalLabel}`}
+              {paginationSummary}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div className="flex items-center gap-2">
@@ -184,6 +159,7 @@ export function GymList({
                   表示件数
                 </label>
                 <select
+                  aria-label="1ページあたりの表示件数を変更"
                   className={cn(
                     "h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -204,35 +180,15 @@ export function GymList({
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  aria-label="前のページ"
-                  disabled={isPrevDisabled}
-                  onClick={handlePrev}
-                  type="button"
-                  variant="outline"
-                >
-                  前へ
-                </Button>
-                <span className="text-sm text-muted-foreground" aria-live="polite">
-                  ページ {currentPage}
-                </span>
-                <Button
-                  aria-label="次のページ"
-                  disabled={isNextDisabled}
-                  onClick={handleNext}
-                  type="button"
-                >
-                  次へ
-                </Button>
-              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={paginationTotalPages}
+                hasNextPage={hasMore}
+                onChange={onPageChange}
+                isLoading={isPageLoading}
+              />
             </div>
           </div>
-          {isPageLoading ? (
-            <div className="mt-3 text-sm text-muted-foreground" role="status">
-              読み込み中...
-            </div>
-          ) : null}
         </div>
       ) : null}
     </section>

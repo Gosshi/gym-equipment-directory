@@ -211,7 +211,8 @@ describe("Pagination integration", () => {
 
     await screen.findByText("ページ2・ガンマジム");
     expect(screen.getByText("ページ2・デルタジム")).toBeInTheDocument();
-    expect(await screen.findByText(/ページ 2/)).toBeInTheDocument();
+    const currentPageButton = await screen.findByRole("button", { name: "ページ 2" });
+    expect(currentPageButton).toHaveAttribute("aria-current", "page");
 
     expect(searchRequests.at(-1)?.searchParams.get("page")).toBe("2");
   });
