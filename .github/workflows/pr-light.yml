@@ -72,7 +72,7 @@ jobs:
         run: ruff check .
 
   backend-tests:
-    name: Backend smoke tests
+    name: Backend unit tests
     needs: detect-backend-changes
     if: needs.detect-backend-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
@@ -104,8 +104,8 @@ jobs:
           pip install -r requirements.txt
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run backend smoke tests
-        run: pytest -q -m "smoke"
+      - name: Run backend unit tests
+        run: pytest -q -m "unit"
 
   skip-message:
     name: Skip backend tests when not needed
@@ -114,4 +114,4 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - run: echo "No backend-related changes detected; database tests were skipped."
+      - run: echo "No backend-related changes detected; backend unit tests were skipped."
