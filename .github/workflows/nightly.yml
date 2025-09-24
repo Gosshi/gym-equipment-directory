@@ -21,13 +21,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: gym_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pass
         ports:
           - '5432:5432'
         options: >-
-          --health-cmd="pg_isready -U postgres -d ${{ env.POSTGRES_DB }}"
+          --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
           --health-interval=10s --health-timeout=5s --health-retries=10
     steps:
       - name: Checkout repository
