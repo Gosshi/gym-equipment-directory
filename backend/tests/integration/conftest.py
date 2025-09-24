@@ -5,15 +5,18 @@ from __future__ import annotations
 import importlib
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+
+from scripts.seed_min_test import seed_minimal_dataset
 
 
-@pytest.fixture(scope="session")
-def integration_client() -> Iterator[TestClient]:
-    """Provide a TestClient wired to the FastAPI app using TEST_DATABASE_URL."""
+@pytest_asyncio.fixture(scope="session")
+async def integration_client() -> AsyncIterator[httpx.AsyncClient]:
+    """Provide an AsyncClient wired to the FastAPI app using TEST_DATABASE_URL."""
     test_url = os.getenv("TEST_DATABASE_URL")
     if not test_url:
         pytest.skip("TEST_DATABASE_URL is required for integration tests")
@@ -49,5 +52,9 @@ def integration_client() -> Iterator[TestClient]:
     main_module = importlib.reload(main_module)
     app = main_module.create_app()
 
-    with TestClient(app) as client:
+    # Ensure the database contains the minimal dataset required for integration checks.
+    await seed_minimal_dataset(database_url=test_url)
+
+    transport = httpx.ASGITransport(app=app, lifespan="auto")
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client

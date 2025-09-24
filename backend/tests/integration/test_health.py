@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 pytestmark = [pytest.mark.integration]
 
 
-def test_health_endpoint_reports_ok(integration_client: TestClient) -> None:
+async def test_health_endpoint_reports_ok(integration_client: AsyncClient) -> None:
     """/health should respond with a JSON payload when the app boots."""
-    response = integration_client.get("/health")
+    response = await integration_client.get("/health")
     assert response.status_code == 200
     payload = response.json()
     assert payload.get("status") == "ok"
     assert "env" in payload
 
 
-def test_readyz_endpoint_checks_database(integration_client: TestClient) -> None:
+async def test_readyz_endpoint_checks_database(integration_client: AsyncClient) -> None:
     """/readyz performs a database round trip and should succeed."""
-    response = integration_client.get("/readyz")
+    response = await integration_client.get("/readyz")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
