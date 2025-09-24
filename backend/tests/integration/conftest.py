@@ -58,6 +58,7 @@ async def integration_client() -> AsyncIterator[httpx.AsyncClient]:
 
     lifespan_ctx = app.router.lifespan_context
     if lifespan_ctx is None:
+
         @contextlib.asynccontextmanager
         async def _lifespan():
             await app.router.startup()
