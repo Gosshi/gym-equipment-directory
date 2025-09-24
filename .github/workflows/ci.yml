@@ -4,12 +4,15 @@ name: Main CI
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   backend:
     name: Backend tests with coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: github.event_name == 'push'
     env:
       POSTGRES_DB: gym_test
       POSTGRES_USER: postgres
@@ -75,3 +78,30 @@ jobs:
         with:
           name: coverage
           path: coverage.xml
+
+  frontend-e2e:
+    name: Frontend E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npm run e2e:install
+
+      - name: Run frontend E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
