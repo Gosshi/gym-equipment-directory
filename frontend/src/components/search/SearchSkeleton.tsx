@@ -19,7 +19,14 @@ export function SearchSkeleton({ count = DEFAULT_SKELETON_COUNT, className }: Se
       </span>
       <div
         aria-hidden="true"
-        className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", className)}
+        className={cn(
+          "grid gap-4",
+          "sm:grid-cols-2 sm:gap-6",
+          "lg:grid-cols-2",
+          "xl:grid-cols-3 xl:gap-7",
+          "2xl:grid-cols-4",
+          className,
+        )}
       >
         {items.map((_, index) => (
           <Card data-testid="search-result-skeleton" key={index} className="overflow-hidden">

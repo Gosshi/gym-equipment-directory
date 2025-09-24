@@ -18,13 +18,13 @@ export function GymCard({ gym, className }: GymCardProps) {
       )}
       href={`/gyms/${gym.slug}`}
     >
-      <Card className="flex h-full flex-col overflow-hidden transition group-hover:border-primary">
-        <div className="flex h-40 items-center justify-center bg-muted text-sm text-muted-foreground">
+      <Card className="flex h-full flex-col overflow-hidden rounded-2xl border-border/70 transition group-hover:border-primary">
+        <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
           {gym.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               alt={gym.name}
-              className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+              className="h-full w-full object-cover transition group-hover:scale-[1.03]"
               src={gym.thumbnailUrl}
             />
           ) : (
@@ -32,7 +32,9 @@ export function GymCard({ gym, className }: GymCardProps) {
           )}
         </div>
         <CardHeader className="space-y-2">
-          <CardTitle className="text-xl group-hover:text-primary">{gym.name}</CardTitle>
+          <CardTitle className="text-lg font-semibold leading-snug group-hover:text-primary sm:text-xl">
+            {gym.name}
+          </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             {gym.prefecture ? gym.prefecture : "エリア未設定"}
             {gym.city ? ` / ${gym.city}` : null}
@@ -44,7 +46,7 @@ export function GymCard({ gym, className }: GymCardProps) {
               {gym.equipments.slice(0, 6).map((equipment) => (
                 <span
                   key={equipment}
-                  className="rounded-full bg-secondary px-2 py-1 text-xs text-secondary-foreground"
+                  className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
                 >
                   {equipment}
                 </span>

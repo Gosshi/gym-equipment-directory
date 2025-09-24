@@ -13,6 +13,7 @@ type PaginationProps = {
   onChange: (page: number) => void;
   isLoading?: boolean;
   siblingCount?: number;
+  ariaDescribedBy?: string;
 };
 
 const range = (start: number, end: number): number[] =>
@@ -63,6 +64,7 @@ export function Pagination({
   onChange,
   isLoading = false,
   siblingCount = 1,
+  ariaDescribedBy,
 }: PaginationProps) {
   const paginationRange = useMemo(
     () => buildPaginationRange(currentPage, totalPages, siblingCount),
@@ -83,9 +85,15 @@ export function Pagination({
   const isPrevDisabled = isLoading || currentPage <= 1;
   const isNextDisabled = isLoading || (!hasNextPage && currentPage >= totalPages);
 
+  const mobileSummary = totalPages > 0 ? `${currentPage} / ${totalPages}` : `${currentPage}ページ目`;
+
   return (
-    <nav aria-label="ページネーション" className="flex justify-center">
-      <div className="flex flex-wrap items-center gap-2">
+    <nav
+      aria-describedby={ariaDescribedBy}
+      aria-label="ページネーション"
+      className="flex justify-center"
+    >
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         <Button
           aria-label="前のページ"
           disabled={isPrevDisabled}
@@ -95,7 +103,10 @@ export function Pagination({
         >
           前へ
         </Button>
-        <ul className="flex items-center gap-1">
+        <span className="text-sm font-medium text-muted-foreground sm:hidden">
+          {mobileSummary}
+        </span>
+        <ul className="hidden items-center gap-1 sm:flex">
           {paginationRange.map((item, index) => {
             if (item === ELLIPSIS) {
               return (
