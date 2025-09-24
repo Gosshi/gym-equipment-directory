@@ -12,6 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.models.gym import Gym
 
+
+def _naive_utc(dt: datetime) -> datetime:
+    """Return a timezone-naive copy of the given datetime in UTC."""
+
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(UTC).replace(tzinfo=None)
+
+
 MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
     {
         "name": "Integration Hub Gym",
@@ -21,7 +30,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
         "address": "1-2-3 Integration Ave, Shibuya-ku, Tokyo",
         "latitude": 35.6595,
         "longitude": 139.7005,
-        "last_verified_at_cached": datetime(2024, 5, 1, tzinfo=UTC),
+        "last_verified_at_cached": _naive_utc(datetime(2024, 5, 1, tzinfo=UTC)),
     },
     {
         "name": "Integration Riverside Gym",
@@ -31,7 +40,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
         "address": "4-5-6 Riverside Road, Shibuya-ku, Tokyo",
         "latitude": 35.658,
         "longitude": 139.702,
-        "last_verified_at_cached": datetime(2024, 4, 10, tzinfo=UTC),
+        "last_verified_at_cached": _naive_utc(datetime(2024, 4, 10, tzinfo=UTC)),
     },
     {
         "name": "Integration West Gym",
@@ -41,7 +50,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
         "address": "7-8-9 West Street, Shibuya-ku, Tokyo",
         "latitude": 35.657,
         "longitude": 139.695,
-        "last_verified_at_cached": datetime(2024, 3, 5, tzinfo=UTC),
+        "last_verified_at_cached": _naive_utc(datetime(2024, 3, 5, tzinfo=UTC)),
     },
 ]
 
