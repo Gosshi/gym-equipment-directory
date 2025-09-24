@@ -37,7 +37,9 @@ export function ReportIssueButton({ slug, gymName }: ReportIssueButtonProps) {
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>フォームでは住所・設備・営業時間などの最新情報をお知らせいただけます。</p>
-          <p>正式な投稿機能は後続ステップで追加予定です。それまではリンク先で詳細をご入力ください。</p>
+          <p>
+            正式な投稿機能は後続ステップで追加予定です。それまではリンク先で詳細をご入力ください。
+          </p>
         </div>
         <DialogFooter>
           <Button asChild>

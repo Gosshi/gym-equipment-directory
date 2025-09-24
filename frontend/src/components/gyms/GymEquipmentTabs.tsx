@@ -21,18 +21,18 @@ export function GymEquipmentTabs({ equipments, className }: GymEquipmentTabsProp
       return [] as GymEquipmentDetail[];
     }
     return equipments
-      .map((equipment) => ({
+      .map(equipment => ({
         ...equipment,
         name: equipment.name.trim(),
         category: equipment.category?.trim() ?? undefined,
         description: equipment.description?.trim() ?? undefined,
       }))
-      .filter((equipment) => equipment.name.length > 0);
+      .filter(equipment => equipment.name.length > 0);
   }, [equipments]);
 
   const categories = useMemo(() => {
     const map = new Map<string, { key: string; label: string; items: GymEquipmentDetail[] }>();
-    items.forEach((item) => {
+    items.forEach(item => {
       const label = item.category && item.category.length > 0 ? item.category : DEFAULT_CATEGORY;
       const key = toCategoryKey(label);
       if (!map.has(key)) {
@@ -68,17 +68,18 @@ export function GymEquipmentTabs({ equipments, className }: GymEquipmentTabsProp
   const allTabKey = "all";
   const tabItems = [
     { key: allTabKey, label: `全て (${items.length})` },
-    ...categories.map((category) => ({
+    ...categories.map(category => ({
       key: category.key,
       label: `${category.label} (${category.items.length})`,
     })),
   ];
-  const activeTabLabel = tabItems.find((tab) => tab.key === activeTab)?.label ?? tabItems[0]?.label ?? "全て";
+  const activeTabLabel =
+    tabItems.find(tab => tab.key === activeTab)?.label ?? tabItems[0]?.label ?? "全て";
 
   const activeItems =
     activeTab === allTabKey
       ? items
-      : categories.find((category) => category.key === activeTab)?.items ?? items;
+      : (categories.find(category => category.key === activeTab)?.items ?? items);
 
   return (
     <Card className={className}>
@@ -88,7 +89,7 @@ export function GymEquipmentTabs({ equipments, className }: GymEquipmentTabsProp
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="設備カテゴリ">
-          {tabItems.map((tab) => (
+          {tabItems.map(tab => (
             <button
               key={tab.key}
               role="tab"
@@ -106,9 +107,16 @@ export function GymEquipmentTabs({ equipments, className }: GymEquipmentTabsProp
             </button>
           ))}
         </div>
-        <div role="tabpanel" className="grid gap-3 md:grid-cols-2" aria-label={`${activeTabLabel}の設備リスト`}>
+        <div
+          role="tabpanel"
+          className="grid gap-3 md:grid-cols-2"
+          aria-label={`${activeTabLabel}の設備リスト`}
+        >
           {activeItems.map((equipment, index) => {
-            const categoryLabel = equipment.category && equipment.category.length > 0 ? equipment.category : DEFAULT_CATEGORY;
+            const categoryLabel =
+              equipment.category && equipment.category.length > 0
+                ? equipment.category
+                : DEFAULT_CATEGORY;
             const description = equipment.description ?? "詳細情報は準備中です。";
             const key = `${equipment.id ?? equipment.name}-${index}`;
 

@@ -55,7 +55,7 @@ const formatRegion = (value?: string | null): string | undefined => {
 
   return sanitized
     .split("-")
-    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .map(part => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
     .join(" ");
 };
 
@@ -199,12 +199,7 @@ const extractFacilityGroups = (data: GymDetailApiResponse): FacilityGroup[] => {
     if (typeof entry === "object") {
       const record = entry as GymFacilityCategoryApiResponse & Record<string, unknown>;
       const category =
-        record.category ??
-        record.name ??
-        record.label ??
-        record.title ??
-        record.group ??
-        undefined;
+        record.category ?? record.name ?? record.label ?? record.title ?? record.group ?? undefined;
 
       const aggregated: string[] = [];
       if (record.items !== undefined) {
@@ -245,9 +240,7 @@ const extractFacilityGroups = (data: GymDetailApiResponse): FacilityGroup[] => {
         const record = item as GymEquipmentDetailApiResponse & Record<string, unknown>;
         const category = record.category ?? record.group ?? record.type ?? undefined;
         const label =
-          sanitizeText(record.name) ??
-          sanitizeText(record.label) ??
-          sanitizeText(record.title);
+          sanitizeText(record.name) ?? sanitizeText(record.label) ?? sanitizeText(record.title);
         const nested = extractFacilityItems(record.items);
         const combined = [...(label ? [label] : []), ...nested];
         addItemsToGroup(category, combined);
@@ -372,14 +365,14 @@ export function GymDetailPage({ slug }: { slug: string }) {
     setErrorMessage(null);
 
     fetchGymDetail(slug, controller.signal)
-      .then((data) => {
+      .then(data => {
         if (controller.signal.aborted) {
           return;
         }
         setGym(data);
         setStatus("success");
       })
-      .catch((error) => {
+      .catch(error => {
         if (controller.signal.aborted) {
           return;
         }
@@ -418,7 +411,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
       return;
     }
 
-    setIsFavorite((previous) => {
+    setIsFavorite(previous => {
       const next = !previous;
       toast({
         title: next ? "お気に入りに追加しました" : "お気に入りから削除しました",
@@ -481,7 +474,9 @@ export function GymDetailPage({ slug }: { slug: string }) {
             <Card>
               <CardHeader>
                 <CardTitle>基本情報</CardTitle>
-                <CardDescription>営業時間や料金、公式サイトへの導線をまとめています。</CardDescription>
+                <CardDescription>
+                  営業時間や料金、公式サイトへの導線をまとめています。
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
@@ -517,7 +512,9 @@ export function GymDetailPage({ slug }: { slug: string }) {
                           公式サイトを見る
                         </a>
                       ) : (
-                        <span className="text-sm text-muted-foreground">公式サイト情報は未登録です。</span>
+                        <span className="text-sm text-muted-foreground">
+                          公式サイト情報は未登録です。
+                        </span>
                       )}
                     </dd>
                   </div>

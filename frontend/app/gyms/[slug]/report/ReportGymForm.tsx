@@ -120,7 +120,7 @@ const parseApiError = (error: ApiError): ParsedError => {
       return;
     }
     if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, hint));
+      value.forEach(item => visit(item, hint));
       return;
     }
     if (typeof value === "object") {
@@ -128,7 +128,10 @@ const parseApiError = (error: ApiError): ParsedError => {
       const fieldFromLoc = extractFieldNameFromLoc(record.loc);
       const fieldName = ((): ReportGymIssueField | undefined => {
         const directField = record.field ?? record.name ?? record.param ?? record.path;
-        if (typeof directField === "string" && FIELD_NAME_SET.has(directField as ReportGymIssueField)) {
+        if (
+          typeof directField === "string" &&
+          FIELD_NAME_SET.has(directField as ReportGymIssueField)
+        ) {
           return directField as ReportGymIssueField;
         }
         if (fieldFromLoc) {
@@ -154,7 +157,10 @@ const parseApiError = (error: ApiError): ParsedError => {
       const nestedErrors = record.errors;
       if (nestedErrors && typeof nestedErrors === "object") {
         Object.entries(nestedErrors as Record<string, unknown>).forEach(([key, nested]) => {
-          visit(nested, FIELD_NAME_SET.has(key as ReportGymIssueField) ? (key as ReportGymIssueField) : hint);
+          visit(
+            nested,
+            FIELD_NAME_SET.has(key as ReportGymIssueField) ? (key as ReportGymIssueField) : hint,
+          );
         });
       }
 
@@ -170,9 +176,20 @@ const parseApiError = (error: ApiError): ParsedError => {
 
       for (const [key, nested] of Object.entries(record)) {
         if (
-          ["field", "name", "param", "path", "loc", "msg", "message", "detail", "error", "description", "errors", "details"].includes(
-            key,
-          )
+          [
+            "field",
+            "name",
+            "param",
+            "path",
+            "loc",
+            "msg",
+            "message",
+            "detail",
+            "error",
+            "description",
+            "errors",
+            "details",
+          ].includes(key)
         ) {
           continue;
         }
@@ -197,7 +214,7 @@ const parseApiError = (error: ApiError): ParsedError => {
 
   return {
     fieldErrors,
-    message: messages.find((item) => item.trim().length > 0),
+    message: messages.find(item => item.trim().length > 0),
   };
 };
 
@@ -248,7 +265,8 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
         const parsed = parseApiError(error);
 
         if (error.status && error.status >= 500) {
-          const message = parsed.message ?? "サーバーエラーが発生しました。時間をおいて再度お試しください。";
+          const message =
+            parsed.message ?? "サーバーエラーが発生しました。時間をおいて再度お試しください。";
           toast({
             variant: "destructive",
             title: "送信に失敗しました",
@@ -280,7 +298,10 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
             error.status === 400 || error.status === 422
               ? "送信に失敗しました。入力内容をご確認ください。"
               : "送信に失敗しました。時間をおいて再度お試しください。";
-          setError("root", { type: "server", message: formatStatusMessage(error.status, fallback) });
+          setError("root", {
+            type: "server",
+            message: formatStatusMessage(error.status, fallback),
+          });
         }
       } else {
         const message = error instanceof Error ? error.message : "送信に失敗しました。";
@@ -305,10 +326,13 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
           <h1 className="text-2xl font-semibold tracking-tight">問題を報告</h1>
           {gymName ? (
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{gymName}</span> に関する誤りや更新情報をご連絡ください。
+              <span className="font-medium text-foreground">{gymName}</span>{" "}
+              に関する誤りや更新情報をご連絡ください。
             </p>
           ) : (
-            <p className="text-sm text-muted-foreground">掲載内容に誤りがある場合は、以下のフォームからお知らせください。</p>
+            <p className="text-sm text-muted-foreground">
+              掲載内容に誤りがある場合は、以下のフォームからお知らせください。
+            </p>
           )}
         </div>
 
@@ -329,7 +353,7 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {REASON_OPTIONS.map((option) => (
+                      {REASON_OPTIONS.map(option => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>

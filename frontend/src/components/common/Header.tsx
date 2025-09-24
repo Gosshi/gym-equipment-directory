@@ -138,11 +138,13 @@ export function AppHeader() {
                   "flex items-center gap-2 rounded-full border border-transparent px-2 py-1 text-sm transition",
                   menuOpen ? "border-border bg-muted" : "hover:bg-muted",
                 )}
-                onClick={() => setMenuOpen((prev) => !prev)}
+                onClick={() => setMenuOpen(prev => !prev)}
                 type="button"
               >
                 <UserAvatar user={user} />
-                <span className="hidden text-sm font-medium text-foreground sm:inline">{user.name}</span>
+                <span className="hidden text-sm font-medium text-foreground sm:inline">
+                  {user.name}
+                </span>
               </button>
               {menuOpen ? (
                 <div className="absolute right-0 mt-2 w-48 rounded-md border border-border bg-popover p-2 shadow-lg">

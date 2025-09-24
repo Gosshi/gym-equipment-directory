@@ -72,7 +72,7 @@ const applyGeolocationMock = (mock: GeolocationMock) => {
 
 const createSuccessGeolocation = (lat: number, lng: number) => {
   const mock: GeolocationMock = {
-    getCurrentPosition: vi.fn((success) => {
+    getCurrentPosition: vi.fn(success => {
       success({
         coords: {
           accuracy: 5,
@@ -178,7 +178,9 @@ describe("Search flow integration", () => {
     expect(skeletons.length).toBeGreaterThan(0);
 
     expect(await screen.findByText("東京フィットジム")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByTestId("search-result-skeleton")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByTestId("search-result-skeleton")).not.toBeInTheDocument(),
+    );
 
     const user = userEvent.setup();
     const keywordInput = screen.getByLabelText("キーワード");
@@ -188,9 +190,9 @@ describe("Search flow integration", () => {
     await screen.findByText("パワーハウスジム");
     await waitFor(() => expect(screen.queryByText("東京フィットジム")).not.toBeInTheDocument());
 
-    expect(
-      searchRequests.some((url) => url.searchParams.get("q")?.toLowerCase() === "power"),
-    ).toBe(true);
+    expect(searchRequests.some(url => url.searchParams.get("q")?.toLowerCase() === "power")).toBe(
+      true,
+    );
   });
 
   it("displays an empty state when no gyms match the filters", async () => {
@@ -208,9 +210,7 @@ describe("Search flow integration", () => {
       page_token: null,
     };
 
-    server.use(
-      http.get("*/gyms/search", () => HttpResponse.json(emptyResponse)),
-    );
+    server.use(http.get("*/gyms/search", () => HttpResponse.json(emptyResponse)));
 
     renderGymsPage();
 
@@ -298,8 +298,8 @@ describe("Search flow integration", () => {
     await screen.findByText("現在地フィットネス");
 
     expect(
-      searchRequests.some((url) =>
-        url.searchParams.get("lat") === "35.68" && url.searchParams.get("lng") === "139.76",
+      searchRequests.some(
+        url => url.searchParams.get("lat") === "35.68" && url.searchParams.get("lng") === "139.76",
       ),
     ).toBe(true);
     expect(await screen.findByText(/現在地を使用中/)).toBeInTheDocument();
@@ -353,9 +353,10 @@ describe("Search flow integration", () => {
     await screen.findByText("東京駅トレーニングセンター");
 
     expect(
-      searchRequests.some((url) =>
-        url.searchParams.get("lat") === FALLBACK_LOCATION.lat.toString() &&
-        url.searchParams.get("lng") === FALLBACK_LOCATION.lng.toString(),
+      searchRequests.some(
+        url =>
+          url.searchParams.get("lat") === FALLBACK_LOCATION.lat.toString() &&
+          url.searchParams.get("lng") === FALLBACK_LOCATION.lng.toString(),
       ),
     ).toBe(true);
 

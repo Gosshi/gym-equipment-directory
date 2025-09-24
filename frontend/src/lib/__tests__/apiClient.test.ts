@@ -60,7 +60,7 @@ describe("apiClient favorites/history endpoints", () => {
       json: vi.fn(),
     } as unknown as Response);
 
-  await addFavorite("dev-1", 42);
+    await addFavorite("dev-1", 42);
 
     expect(global.fetch).toHaveBeenCalledWith(
       "http://example.com/me/favorites",
@@ -78,7 +78,7 @@ describe("apiClient favorites/history endpoints", () => {
       json: vi.fn(),
     } as unknown as Response);
 
-  await removeFavorite("dev-1", 42);
+    await removeFavorite("dev-1", 42);
 
     expect(global.fetch).toHaveBeenCalledWith(
       "http://example.com/me/favorites/42?device_id=dev-1",

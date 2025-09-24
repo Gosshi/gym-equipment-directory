@@ -57,13 +57,9 @@ export function GymList({
   const baseRangeStart = hasResults ? (currentPage - 1) * perPageValue + 1 : 0;
   const baseRangeEnd = hasResults ? baseRangeStart + gyms.length - 1 : 0;
   const safeTotalForRange = typeof totalCount === "number" ? totalCount : 0;
-  const rangeStart = hasExactTotal
-    ? Math.min(baseRangeStart, safeTotalForRange)
-    : baseRangeStart;
+  const rangeStart = hasExactTotal ? Math.min(baseRangeStart, safeTotalForRange) : baseRangeStart;
   const rangeEnd = hasExactTotal ? Math.min(baseRangeEnd, safeTotalForRange) : baseRangeEnd;
-  const totalLabel = hasExactTotal
-    ? `${totalCount}件`
-    : `${rangeEnd}${meta.hasNext ? "+" : ""}件`;
+  const totalLabel = hasExactTotal ? `${totalCount}件` : `${rangeEnd}${meta.hasNext ? "+" : ""}件`;
   const perPageOptions = Array.from(new Set([...PAGE_SIZE_OPTIONS, perPageValue])).sort(
     (a, b) => a - b,
   );
@@ -105,7 +101,7 @@ export function GymList({
             "2xl:grid-cols-4",
           )}
         >
-          {gyms.map((gym) => (
+          {gyms.map(gym => (
             <GymCard key={gym.id} gym={gym} />
           ))}
         </div>
@@ -116,8 +112,8 @@ export function GymList({
   const paginationSummary = resultState.isSuccess
     ? `${rangeStart}–${rangeEnd} / ${totalLabel}`
     : resultState.isLoading
-    ? "検索結果を読み込み中です…"
-    : "0件";
+      ? "検索結果を読み込み中です…"
+      : "0件";
 
   const showPagination =
     resultState.isSuccess && ((totalCount ?? 0) > 0 || hasMore || currentPage > 1);
@@ -169,7 +165,11 @@ export function GymList({
       {showPagination ? (
         <div className="mt-10 border-t border-border/70 pt-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p aria-live="polite" className="text-sm text-muted-foreground" id={paginationSummaryId}>
+            <p
+              aria-live="polite"
+              className="text-sm text-muted-foreground"
+              id={paginationSummaryId}
+            >
               {paginationSummary}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
@@ -184,7 +184,7 @@ export function GymList({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                   id="gym-search-limit"
-                  onChange={(event) => {
+                  onChange={event => {
                     const next = Number.parseInt(event.target.value, 10);
                     if (!Number.isNaN(next)) {
                       onLimitChange(next);
@@ -192,7 +192,7 @@ export function GymList({
                   }}
                   value={perPageValue}
                 >
-                  {perPageOptions.map((option) => (
+                  {perPageOptions.map(option => (
                     <option key={option} value={option}>
                       {option} 件
                     </option>

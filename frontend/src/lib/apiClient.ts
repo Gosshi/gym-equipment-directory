@@ -25,9 +25,7 @@ export const getApiBaseUrl = () => {
   const baseUrl =
     process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (baseUrl && !baseUrl.startsWith("http")) {
-    throw new Error(
-      "NEXT_PUBLIC_API_BASE (or _URL) must be an absolute URL, including protocol",
-    );
+    throw new Error("NEXT_PUBLIC_API_BASE (or _URL) must be an absolute URL, including protocol");
   }
   return (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
 };
@@ -90,14 +88,10 @@ const normalizeHeaders = (input?: HeadersInit): Record<string, string> => {
 };
 
 const hasHeader = (headers: Record<string, string>, name: string) =>
-  Object.keys(headers).some((key) => key.toLowerCase() === name.toLowerCase());
+  Object.keys(headers).some(key => key.toLowerCase() === name.toLowerCase());
 
-const ensureCanonicalHeader = (
-  headers: Record<string, string>,
-  name: string,
-  fallback: string,
-) => {
-  const existingKey = Object.keys(headers).find((key) => key.toLowerCase() === name.toLowerCase());
+const ensureCanonicalHeader = (headers: Record<string, string>, name: string, fallback: string) => {
+  const existingKey = Object.keys(headers).find(key => key.toLowerCase() === name.toLowerCase());
   if (existingKey) {
     if (existingKey !== name) {
       const value = headers[existingKey];
@@ -111,13 +105,7 @@ const ensureCanonicalHeader = (
 
 export async function apiRequest<TResponse>(
   path: string,
-  {
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    query,
-    headers,
-    signal,
-    ...init
-  }: ApiRequestOptions = {},
+  { timeoutMs = DEFAULT_TIMEOUT_MS, query, headers, signal, ...init }: ApiRequestOptions = {},
 ): Promise<TResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -227,9 +215,7 @@ export const removeFavorite = (deviceId: string, gymId: number) =>
     method: "DELETE",
   });
 
-type HistoryPayload =
-  | { gymId: number; gymIds?: never }
-  | { gymIds: number[]; gymId?: never };
+type HistoryPayload = { gymId: number; gymIds?: never } | { gymIds: number[]; gymId?: never };
 
 export const getHistory = async () => {
   try {

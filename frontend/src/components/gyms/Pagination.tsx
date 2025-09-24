@@ -85,7 +85,8 @@ export function Pagination({
   const isPrevDisabled = isLoading || currentPage <= 1;
   const isNextDisabled = isLoading || (!hasNextPage && currentPage >= totalPages);
 
-  const mobileSummary = totalPages > 0 ? `${currentPage} / ${totalPages}` : `${currentPage}ページ目`;
+  const mobileSummary =
+    totalPages > 0 ? `${currentPage} / ${totalPages}` : `${currentPage}ページ目`;
 
   return (
     <nav
@@ -103,14 +104,16 @@ export function Pagination({
         >
           前へ
         </Button>
-        <span className="text-sm font-medium text-muted-foreground sm:hidden">
-          {mobileSummary}
-        </span>
+        <span className="text-sm font-medium text-muted-foreground sm:hidden">{mobileSummary}</span>
         <ul className="hidden items-center gap-1 sm:flex">
           {paginationRange.map((item, index) => {
             if (item === ELLIPSIS) {
               return (
-                <li key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground" aria-hidden>
+                <li
+                  key={`ellipsis-${index}`}
+                  className="px-2 text-sm text-muted-foreground"
+                  aria-hidden
+                >
                   …
                 </li>
               );

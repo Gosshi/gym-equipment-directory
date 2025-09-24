@@ -46,17 +46,20 @@ describe("fetchNearbyGyms", () => {
       pageToken: null,
     });
 
-    expect(mockedApiRequest).toHaveBeenCalledWith("/gyms/nearby", expect.objectContaining({
-      method: "GET",
-      query: {
-        lat: 35.681236,
-        lng: 139.767125,
-        radius_km: 3,
-        page: 1,
-        page_size: 20,
-      },
-      signal: undefined,
-    }));
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "/gyms/nearby",
+      expect.objectContaining({
+        method: "GET",
+        query: {
+          lat: 35.681236,
+          lng: 139.767125,
+          radius_km: 3,
+          page: 1,
+          page_size: 20,
+        },
+        signal: undefined,
+      }),
+    );
 
     expect(result).toEqual({
       items: [
@@ -93,9 +96,12 @@ describe("fetchNearbyGyms", () => {
       signal: controller.signal,
     });
 
-    expect(mockedApiRequest).toHaveBeenLastCalledWith("/gyms/nearby", expect.objectContaining({
-      signal: controller.signal,
-      query: expect.objectContaining({ page: 3 }),
-    }));
+    expect(mockedApiRequest).toHaveBeenLastCalledWith(
+      "/gyms/nearby",
+      expect.objectContaining({
+        signal: controller.signal,
+        query: expect.objectContaining({ page: 3 }),
+      }),
+    );
   });
 });

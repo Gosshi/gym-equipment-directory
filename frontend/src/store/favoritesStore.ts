@@ -103,7 +103,11 @@ const summaryFromStoredValue = (input: unknown): GymSummary | null => {
   }
 
   const value = input as Partial<GymSummary>;
-  if (typeof value.id !== "number" || typeof value.slug !== "string" || typeof value.name !== "string") {
+  if (
+    typeof value.id !== "number" ||
+    typeof value.slug !== "string" ||
+    typeof value.name !== "string"
+  ) {
     return null;
   }
 
@@ -137,7 +141,7 @@ const readLocalFavorites = (): Favorite[] => {
     const summaries = parsed
       .map(summaryFromStoredValue)
       .filter((value): value is GymSummary => value !== null);
-    return dedupeFavorites(summaries.map((summary) => ({ gym: summary, createdAt: null })));
+    return dedupeFavorites(summaries.map(summary => ({ gym: summary, createdAt: null })));
   } catch {
     return [];
   }
@@ -149,14 +153,15 @@ const writeLocalFavorites = (favorites: Favorite[]) => {
   }
 
   try {
-    const payload = dedupeFavorites(favorites).map((favorite) => ({ ...favorite.gym }));
+    const payload = dedupeFavorites(favorites).map(favorite => ({ ...favorite.gym }));
     window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // Ignore storage failures (e.g. private browsing)
   }
 };
 
-const removePendingId = (pendingIds: number[], gymId: number) => pendingIds.filter((id) => id !== gymId);
+const removePendingId = (pendingIds: number[], gymId: number) =>
+  pendingIds.filter(id => id !== gymId);
 
 const addPendingId = (pendingIds: number[], gymId: number) =>
   pendingIds.includes(gymId) ? pendingIds : [...pendingIds, gymId];
@@ -183,7 +188,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     });
   },
   setAuthenticated(value) {
-    set((state) => ({
+    set(state => ({
       isAuthenticated: value,
       lastSyncedUserId: value ? state.lastSyncedUserId : null,
     }));
@@ -201,7 +206,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
 
     const nextFavorites = dedupeFavorites([
       optimistic,
-      ...previousFavorites.filter((favorite) => favorite.gym.id !== summary.id),
+      ...previousFavorites.filter(favorite => favorite.gym.id !== summary.id),
     ]);
 
     set({
@@ -214,22 +219,21 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     writeLocalFavorites(nextFavorites);
 
     if (!get().isAuthenticated) {
-      set((state) => ({ pendingIds: removePendingId(state.pendingIds, summary.id) }));
+      set(state => ({ pendingIds: removePendingId(state.pendingIds, summary.id) }));
       return;
     }
 
     try {
       const deviceId = ensureDeviceId();
       await apiAddFavorite(deviceId, summary.id);
-      set((state) => ({ pendingIds: removePendingId(state.pendingIds, summary.id) }));
+      set(state => ({ pendingIds: removePendingId(state.pendingIds, summary.id) }));
       await get().refreshFromServer();
     } catch (error) {
       set({
         favorites: previousFavorites,
         pendingIds: previousPending,
         status: "ready",
-        error:
-          error instanceof Error && error.message ? error.message : DEFAULT_MUTATION_ERROR,
+        error: error instanceof Error && error.message ? error.message : DEFAULT_MUTATION_ERROR,
         isInitialized: true,
       });
       writeLocalFavorites(previousFavorites);
@@ -241,7 +245,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     const previousFavorites = get().favorites.map(cloneFavorite);
     const previousPending = [...get().pendingIds];
 
-    const nextFavorites = previousFavorites.filter((favorite) => favorite.gym.id !== gymId);
+    const nextFavorites = previousFavorites.filter(favorite => favorite.gym.id !== gymId);
 
     set({
       favorites: nextFavorites,
@@ -253,22 +257,21 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
     writeLocalFavorites(nextFavorites);
 
     if (!get().isAuthenticated) {
-      set((state) => ({ pendingIds: removePendingId(state.pendingIds, gymId) }));
+      set(state => ({ pendingIds: removePendingId(state.pendingIds, gymId) }));
       return;
     }
 
     try {
       const deviceId = ensureDeviceId();
       await apiRemoveFavorite(deviceId, gymId);
-      set((state) => ({ pendingIds: removePendingId(state.pendingIds, gymId) }));
+      set(state => ({ pendingIds: removePendingId(state.pendingIds, gymId) }));
       await get().refreshFromServer();
     } catch (error) {
       set({
         favorites: previousFavorites,
         pendingIds: previousPending,
         status: "ready",
-        error:
-          error instanceof Error && error.message ? error.message : DEFAULT_MUTATION_ERROR,
+        error: error instanceof Error && error.message ? error.message : DEFAULT_MUTATION_ERROR,
         isInitialized: true,
       });
       writeLocalFavorites(previousFavorites);
@@ -277,7 +280,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
   },
   async toggleFavorite(candidate) {
     const summary = candidateToSummary(candidate);
-    const isFavorite = get().favorites.some((favorite) => favorite.gym.id === summary.id);
+    const isFavorite = get().favorites.some(favorite => favorite.gym.id === summary.id);
     if (isFavorite) {
       await get().removeFavorite(summary.id);
     } else {
@@ -290,7 +293,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       return;
     }
 
-    set((state) => ({
+    set(state => ({
       status: state.isInitialized ? "syncing" : "loading",
       error: null,
     }));
@@ -300,9 +303,9 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       const response = await apiGetFavorites(deviceId);
       const favorites = dedupeFavorites(
         (response ?? [])
-          .map((raw) => mapServerItemToSummary(raw))
+          .map(raw => mapServerItemToSummary(raw))
           .filter((v): v is GymSummary => v !== null)
-          .map((summary) => ({ gym: summary, createdAt: null })),
+          .map(summary => ({ gym: summary, createdAt: null })),
       );
       set({
         favorites,
@@ -313,9 +316,8 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       });
       writeLocalFavorites(favorites);
     } catch (error) {
-      const message =
-        error instanceof Error && error.message ? error.message : DEFAULT_LOAD_ERROR;
-      set((state) => ({
+      const message = error instanceof Error && error.message ? error.message : DEFAULT_LOAD_ERROR;
+      set(state => ({
         status: state.isInitialized ? state.status : "error",
         error: message,
         isInitialized: true,
@@ -334,7 +336,7 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       return;
     }
 
-    set((state) => ({
+    set(state => ({
       status: state.isInitialized ? "syncing" : "loading",
       error: null,
     }));
@@ -345,14 +347,14 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       const response = await apiGetFavorites(deviceId);
       const serverFavorites = dedupeFavorites(
         (response ?? [])
-          .map((raw) => mapServerItemToSummary(raw))
+          .map(raw => mapServerItemToSummary(raw))
           .filter((v): v is GymSummary => v !== null)
-          .map((summary) => ({ gym: summary, createdAt: null })),
+          .map(summary => ({ gym: summary, createdAt: null })),
       );
-      const serverIds = new Set(serverFavorites.map((favorite) => favorite.gym.id));
+      const serverIds = new Set(serverFavorites.map(favorite => favorite.gym.id));
       const toAdd = localFavorites
-        .map((favorite) => favorite.gym)
-        .filter((summary) => !serverIds.has(summary.id));
+        .map(favorite => favorite.gym)
+        .filter(summary => !serverIds.has(summary.id));
 
       for (const summary of toAdd) {
         await apiAddFavorite(deviceId, summary.id);
@@ -361,9 +363,9 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       const finalResponse = await apiGetFavorites(deviceId);
       const finalFavorites = dedupeFavorites(
         (finalResponse ?? [])
-          .map((raw) => mapServerItemToSummary(raw))
+          .map(raw => mapServerItemToSummary(raw))
           .filter((v): v is GymSummary => v !== null)
-          .map((summary) => ({ gym: summary, createdAt: null })),
+          .map(summary => ({ gym: summary, createdAt: null })),
       );
 
       set({
@@ -376,9 +378,8 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
       });
       writeLocalFavorites(finalFavorites);
     } catch (error) {
-      const message =
-        error instanceof Error && error.message ? error.message : DEFAULT_SYNC_ERROR;
-      set((state) => ({
+      const message = error instanceof Error && error.message ? error.message : DEFAULT_SYNC_ERROR;
+      set(state => ({
         status: state.isInitialized ? state.status : "error",
         error: message,
         isInitialized: true,
@@ -391,22 +392,22 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
 export const favoritesStore = useFavoritesStore;
 
 export function useFavorites() {
-  const favorites = useFavoritesStore((state) => state.favorites);
-  const status = useFavoritesStore((state) => state.status);
-  const error = useFavoritesStore((state) => state.error);
-  const pendingIds = useFavoritesStore((state) => state.pendingIds);
-  const isInitialized = useFavoritesStore((state) => state.isInitialized);
-  const addFavorite = useFavoritesStore((state) => state.addFavorite);
-  const removeFavorite = useFavoritesStore((state) => state.removeFavorite);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
-  const refresh = useFavoritesStore((state) => state.refreshFromServer);
-  const initialize = useFavoritesStore((state) => state.initialize);
+  const favorites = useFavoritesStore(state => state.favorites);
+  const status = useFavoritesStore(state => state.status);
+  const error = useFavoritesStore(state => state.error);
+  const pendingIds = useFavoritesStore(state => state.pendingIds);
+  const isInitialized = useFavoritesStore(state => state.isInitialized);
+  const addFavorite = useFavoritesStore(state => state.addFavorite);
+  const removeFavorite = useFavoritesStore(state => state.removeFavorite);
+  const toggleFavorite = useFavoritesStore(state => state.toggleFavorite);
+  const refresh = useFavoritesStore(state => state.refreshFromServer);
+  const initialize = useFavoritesStore(state => state.initialize);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
 
-  const favoriteIds = useMemo(() => favorites.map((favorite) => favorite.gym.id), [favorites]);
+  const favoriteIds = useMemo(() => favorites.map(favorite => favorite.gym.id), [favorites]);
   const pendingSet = useMemo(() => new Set(pendingIds), [pendingIds]);
 
   const isFavorite = useCallback((gymId: number) => favoriteIds.includes(gymId), [favoriteIds]);

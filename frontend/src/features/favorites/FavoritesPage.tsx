@@ -17,7 +17,7 @@ const formatRegion = (value?: string | null) => {
   }
   return value
     .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 };
 
@@ -95,13 +95,7 @@ const FavoritesEmptyState = () => (
   </Card>
 );
 
-const FavoritesErrorState = ({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) => (
+const FavoritesErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
   <Card className="border-destructive/50 bg-destructive/5">
     <CardHeader>
       <CardTitle className="text-xl text-destructive">お気に入りを取得できませんでした</CardTitle>
@@ -260,7 +254,7 @@ export function FavoritesPage() {
           <FavoritesEmptyState />
         ) : (
           <div className="space-y-4">
-            {sortedFavorites.map((favorite) => (
+            {sortedFavorites.map(favorite => (
               <FavoriteCard
                 key={favorite.gym.id}
                 favorite={favorite}

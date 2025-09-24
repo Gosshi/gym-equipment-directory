@@ -22,7 +22,7 @@ const formatSlug = (value: string | null | undefined) => {
   return value
     .split("-")
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 };
 
@@ -104,17 +104,20 @@ export function NearbyList({
   return (
     <div className="space-y-4">
       <ul className="space-y-3">
-        {items.map((gym) => {
+        {items.map(gym => {
           const isHighlighted = hoveredId === gym.id;
           const prefectureLabel = formatSlug(gym.prefecture);
           const cityLabel = formatSlug(gym.city);
-          const areaLabel = [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
+          const areaLabel =
+            [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
           return (
             <li key={gym.id}>
               <Link
                 className={cn(
                   "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isHighlighted ? "border-primary bg-primary/5" : "hover:border-primary hover:bg-primary/5",
+                  isHighlighted
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-primary hover:bg-primary/5",
                 )}
                 href={`/gyms/${gym.slug}`}
                 onBlur={() => onHover(null)}
@@ -144,12 +147,7 @@ export function NearbyList({
       </ul>
       {hasNext ? (
         <div className="flex justify-center">
-          <Button
-            disabled={isLoading}
-            onClick={onLoadMore}
-            type="button"
-            variant="outline"
-          >
+          <Button disabled={isLoading} onClick={onLoadMore} type="button" variant="outline">
             {isLoading ? "読み込み中..." : "もっと見る"}
           </Button>
         </div>

@@ -14,7 +14,8 @@ interface GymImageGalleryProps {
 
 export function GymImageGallery({ images, name, className }: GymImageGalleryProps) {
   const sanitized = useMemo(
-    () => (images ?? []).filter((item): item is string => typeof item === "string" && item.length > 0),
+    () =>
+      (images ?? []).filter((item): item is string => typeof item === "string" && item.length > 0),
     [images],
   );
   const [activeIndex, setActiveIndex] = useState(0);
@@ -38,7 +39,7 @@ export function GymImageGallery({ images, name, className }: GymImageGalleryProp
   }
 
   const goTo = (index: number) => {
-    setActiveIndex((prev) => {
+    setActiveIndex(prev => {
       if (index < 0) {
         return sanitized.length - 1;
       }

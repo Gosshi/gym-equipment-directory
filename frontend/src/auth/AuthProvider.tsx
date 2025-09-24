@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { LoginDialog } from "@/components/auth/LoginDialog";
 import { toast } from "@/components/ui/use-toast";
@@ -47,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     favorites.setAuthenticated(true);
     history.setAuthenticated(true);
 
-    favorites.syncWithServer(userId).catch((error) => {
+    favorites.syncWithServer(userId).catch(error => {
       const message =
         error instanceof Error && error.message
           ? error.message
@@ -59,11 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    history.syncWithServer(userId).catch((error) => {
+    history.syncWithServer(userId).catch(error => {
       const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "閲覧履歴の同期に失敗しました。";
+        error instanceof Error && error.message ? error.message : "閲覧履歴の同期に失敗しました。";
       toast({
         title: "閲覧履歴の同期に失敗しました",
         description: message,
@@ -78,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     authClient
       .getSession()
-      .then((session) => {
+      .then(session => {
         if (cancelled) {
           return;
         }
@@ -114,22 +120,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [syncUserData]);
 
-  const resolvePendingAuth = useCallback(
-    (value: User | null, error?: unknown) => {
-      const pending = pendingAuthRef.current;
-      if (!pending) {
-        return;
-      }
+  const resolvePendingAuth = useCallback((value: User | null, error?: unknown) => {
+    const pending = pendingAuthRef.current;
+    if (!pending) {
+      return;
+    }
 
-      pendingAuthRef.current = null;
-      if (value) {
-        pending.resolve(value);
-      } else {
-        pending.reject(error);
-      }
-    },
-    [],
-  );
+    pendingAuthRef.current = null;
+    if (value) {
+      pending.resolve(value);
+    } else {
+      pending.reject(error);
+    }
+  }, []);
 
   const performSignIn = useCallback(
     async (params: AuthSignInParams) => {
@@ -223,17 +226,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [closeLoginDialog, openLoginDialog],
   );
 
-  const contextValue = useMemo<AuthContextValue>(() => ({
-    status,
-    user,
-    mode: authMode,
-    signIn: performSignIn,
-    signOut,
-    getToken,
-    openLoginDialog,
-    closeLoginDialog,
-    requireAuth,
-  }), [closeLoginDialog, getToken, openLoginDialog, performSignIn, requireAuth, signOut, status, user]);
+  const contextValue = useMemo<AuthContextValue>(
+    () => ({
+      status,
+      user,
+      mode: authMode,
+      signIn: performSignIn,
+      signOut,
+      getToken,
+      openLoginDialog,
+      closeLoginDialog,
+      requireAuth,
+    }),
+    [
+      closeLoginDialog,
+      getToken,
+      openLoginDialog,
+      performSignIn,
+      requireAuth,
+      signOut,
+      status,
+      user,
+    ],
+  );
 
   return (
     <AuthContext.Provider value={contextValue}>
@@ -243,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSubmitting={isSigningIn}
         mode={authMode}
         onOpenChange={handleDialogOpenChange}
-        onSignIn={async (nickname) => {
+        onSignIn={async nickname => {
           try {
             await performSignIn({ nickname });
           } catch {

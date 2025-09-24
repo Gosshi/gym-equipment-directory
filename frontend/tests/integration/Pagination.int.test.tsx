@@ -70,7 +70,7 @@ const applyGeolocationMock = (mock: GeolocationMock) => {
 
 const createSuccessGeolocation = (lat: number, lng: number) => {
   const mock: GeolocationMock = {
-    getCurrentPosition: vi.fn((success) => {
+    getCurrentPosition: vi.fn(success => {
       success({
         coords: {
           accuracy: 5,
@@ -206,7 +206,7 @@ describe("Pagination integration", () => {
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(searchRequests.length).toBeGreaterThan(2));
     await waitFor(() =>
-      expect(searchRequests.some((url) => url.searchParams.get("page") === "2")).toBe(true),
+      expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),
     );
 
     await screen.findByText("ページ2・ガンマジム");
@@ -286,11 +286,14 @@ describe("Pagination integration", () => {
     await userEvent.selectOptions(limitSelect, "10");
 
     await screen.findByText("10件表示・アルファジム");
-    await waitFor(() => expect(screen.queryByText("20件表示・アルファジム")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("20件表示・アルファジム")).not.toBeInTheDocument(),
+    );
 
     expect(
-      searchRequests.some((url) =>
-        url.searchParams.get("page_size") === "10" || url.searchParams.get("per_page") === "10",
+      searchRequests.some(
+        url =>
+          url.searchParams.get("page_size") === "10" || url.searchParams.get("per_page") === "10",
       ),
     ).toBe(true);
     const lastRequest = searchRequests.at(-1);

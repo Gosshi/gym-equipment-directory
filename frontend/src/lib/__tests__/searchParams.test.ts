@@ -124,9 +124,7 @@ describe("searchParams", () => {
   });
 
   it("understands legacy parameter names for compatibility", () => {
-    const params = new URLSearchParams(
-      "prefecture=kanagawa&equipments=cable-machine&per_page=10",
-    );
+    const params = new URLSearchParams("prefecture=kanagawa&equipments=cable-machine&per_page=10");
 
     const state = parseFilterState(params);
 

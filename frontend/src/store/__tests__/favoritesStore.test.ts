@@ -59,7 +59,7 @@ describe("favoritesStore", () => {
     });
 
     const state = favoritesStore.getState();
-    expect(state.favorites.map((favorite) => favorite.gym.id)).toEqual([summary.id]);
+    expect(state.favorites.map(favorite => favorite.gym.id)).toEqual([summary.id]);
     expect(state.pendingIds).toHaveLength(0);
     expect(mockedAddFavorite).not.toHaveBeenCalled();
 
@@ -89,9 +89,7 @@ describe("favoritesStore", () => {
     });
 
     expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", summary.id);
-    await waitFor(() =>
-      expect(favoritesStore.getState().favorites[0]?.gym.id).toBe(summary.id),
-    );
+    await waitFor(() => expect(favoritesStore.getState().favorites[0]?.gym.id).toBe(summary.id));
   });
 
   it("merges local favorites into the server on sync", async () => {
@@ -137,7 +135,7 @@ describe("favoritesStore", () => {
     });
 
     expect(mockedAddFavorite).toHaveBeenCalledWith("test-device-1", localB.id);
-    expect(favoritesStore.getState().favorites.map((favorite) => favorite.gym.id)).toEqual([
+    expect(favoritesStore.getState().favorites.map(favorite => favorite.gym.id)).toEqual([
       localA.id,
       localB.id,
     ]);

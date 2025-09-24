@@ -24,7 +24,7 @@ export function useAuthGuard<T extends (...args: any[]) => unknown>(
         }
       }
 
-  return (await Promise.resolve(action(...args))) as ReturnType<T>;
+      return (await Promise.resolve(action(...args))) as ReturnType<T>;
     },
     [action, requireAuth, user],
   );

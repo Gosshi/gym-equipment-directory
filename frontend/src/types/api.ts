@@ -75,4 +75,3 @@ export interface GymDetailApiResponse {
   longitude?: number | null;
   lng?: number | null;
 }
-

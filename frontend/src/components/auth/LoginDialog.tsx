@@ -70,7 +70,7 @@ export function LoginDialog({
     return null;
   }
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async event => {
     event.preventDefault();
     const trimmed = nickname.trim();
     if (!trimmed) {
@@ -82,7 +82,7 @@ export function LoginDialog({
     await onSignIn(trimmed);
   };
 
-  const handleBackdropClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+  const handleBackdropClick: React.MouseEventHandler<HTMLDivElement> = event => {
     if (event.target === event.currentTarget) {
       onOpenChange(false);
     }
@@ -125,17 +125,13 @@ export function LoginDialog({
               )}
               disabled={isSubmitting}
               id="login-nickname"
-              onChange={(event) => setNickname(event.target.value)}
+              onChange={event => setNickname(event.target.value)}
               value={nickname}
             />
           </div>
           {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
           <div className="flex items-center justify-end gap-2">
-            <Button
-              onClick={() => onOpenChange(false)}
-              type="button"
-              variant="outline"
-            >
+            <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
               キャンセル
             </Button>
             <Button disabled={isSubmitting} type="submit">

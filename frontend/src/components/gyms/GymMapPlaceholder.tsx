@@ -17,7 +17,9 @@ export function GymMapPlaceholder({ address }: GymMapPlaceholderProps) {
           <p className="text-center text-xs text-muted-foreground">
             現在は地図の準備中です。正式な地図連携に向けて開発を進めています。
           </p>
-          {address ? <p className="text-center text-xs text-muted-foreground">最寄り住所: {address}</p> : null}
+          {address ? (
+            <p className="text-center text-xs text-muted-foreground">最寄り住所: {address}</p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

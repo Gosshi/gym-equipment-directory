@@ -86,7 +86,7 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
           return;
         }
 
-        setItems((prev) => (reset ? response.items : [...prev, ...response.items]));
+        setItems(prev => (reset ? response.items : [...prev, ...response.items]));
         setPageToken(response.pageToken);
         setHasMore(response.hasMore);
         setIsInitialLoading(false);
@@ -103,7 +103,7 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
 
         const message = err instanceof ApiError ? err.message : "近隣ジムの取得に失敗しました";
         setError(message);
-        setItems((prev) => (reset ? [] : prev));
+        setItems(prev => (reset ? [] : prev));
         setHasMore(false);
         setIsInitialLoading(false);
       } finally {
