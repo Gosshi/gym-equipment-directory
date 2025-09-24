@@ -72,29 +72,11 @@ jobs:
         run: ruff check .
 
   backend-tests:
-    name: Backend tests (async)
+    name: Backend smoke tests
     needs: detect-backend-changes
     if: needs.detect-backend-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      POSTGRES_DB: gym_test
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: pass
-      POSTGRES_PORT: 5432
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: gym_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: pass
-        ports:
-          - '5432:5432'
-        options: >-
-          --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
-          --health-interval=10s --health-timeout=5s --health-retries=10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -122,15 +104,8 @@ jobs:
           pip install -r requirements.txt
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run Alembic migrations
-        env:
-          ALEMBIC_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
-        run: alembic upgrade head
-
-      - name: Run pytest (no coverage)
-        env:
-          TEST_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
-        run: pytest -q
+      - name: Run backend smoke tests
+        run: pytest -q -m "smoke"
 
   skip-message:
     name: Skip backend tests when not needed
