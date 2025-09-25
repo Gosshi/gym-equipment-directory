@@ -29,6 +29,8 @@ const UserAvatar = ({ user }: { user: User }) => {
       <img
         alt={`${user.name} のアバター`}
         className="h-8 w-8 rounded-full object-cover"
+        decoding="async"
+        loading="lazy"
         src={user.avatarUrl}
       />
     );

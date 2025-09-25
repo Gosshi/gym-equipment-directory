@@ -297,8 +297,34 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     [pathname, router, searchParamsKey, setAppliedFilters, startTransition],
   );
 
+  const queueFilters = useCallback(
+    (
+      nextFormState: FormState,
+      options: {
+        overrides?: Partial<FilterState>;
+        debounceMs?: number;
+        append?: boolean;
+      } = {},
+    ) => {
+      cancelPendingDebounce();
+      const delay = options.debounceMs ?? debounceMs;
+      const run = () => {
+        applyFilters(buildFilterStateFromForm(nextFormState, appliedFilters, options.overrides), {
+          append: options.append,
+        });
+      };
+
+      if (delay <= 0) {
+        run();
+      } else {
+        debounceRef.current = setTimeout(run, delay);
+      }
+    },
+    [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
+  );
+
   const scheduleApply = useCallback(
-    (updater: (prev: FormState) => FormState) => {
+    (updater: (prev: FormState) => FormState, options?: { debounceMs?: number }) => {
       setFormState(prev => {
         const normalized = normalizeFormState(updater(prev));
 
@@ -306,15 +332,12 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           return prev;
         }
 
-        cancelPendingDebounce();
-        debounceRef.current = setTimeout(() => {
-          applyFilters(buildFilterStateFromForm(normalized, appliedFilters));
-        }, debounceMs);
+        queueFilters(normalized, { debounceMs: options?.debounceMs });
 
         return normalized;
       });
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
+    [queueFilters],
   );
 
   useEffect(() => {
@@ -324,7 +347,6 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       return;
     }
 
-    cancelPendingDebounce();
     const nextFilters: FilterState = {
       ...appliedFilters,
       lat: FALLBACK_LOCATION.lat,
@@ -338,7 +360,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setLocationStatus("success");
     setLocationError(null);
     applyFilters(nextFilters, { append: false });
-  }, [appliedFilters, applyFilters, cancelPendingDebounce]);
+  }, [appliedFilters, applyFilters]);
 
   const updateKeyword = useCallback(
     (value: string) => scheduleApply(prev => ({ ...prev, q: value })),
@@ -390,7 +412,6 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   const applyLocation = useCallback(
     (lat: number | null, lng: number | null, mode: LocationMode) => {
-      cancelPendingDebounce();
       setFormState(prev => {
         const hasLocation = lat != null && lng != null;
         const nextDistance = hasLocation ? prev.distance : DEFAULT_DISTANCE_KM;
@@ -399,23 +420,33 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         const nextOrder = shouldResetSort
           ? DEFAULT_FILTER_STATE.order
           : normalizeSortOrder(nextSort, prev.order);
-        const next: FormState = {
+        const next = normalizeFormState({
           ...prev,
           lat,
           lng,
           distance: nextDistance,
           sort: nextSort,
           order: nextOrder,
-        };
-        applyFilters(
-          buildFilterStateFromForm(next, appliedFilters, {
+        });
+
+        if (!areFormStatesEqual(prev, next)) {
+          const nextFilters = buildFilterStateFromForm(next, appliedFilters, {
             lat,
             lng,
             distance: nextDistance,
-          }),
-        );
+          });
+          setAppliedFilters(previous =>
+            areFilterStatesEqual(previous, nextFilters) ? previous : nextFilters,
+          );
+          queueFilters(next, {
+            overrides: { lat, lng, distance: nextDistance },
+            debounceMs: Math.min(150, debounceMs),
+          });
+        }
+
         return next;
       });
+
       if (lat != null && lng != null) {
         setLocationMode(mode);
         setLocationStatus("success");
@@ -426,7 +457,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         setLocationError(null);
       }
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce],
+    [appliedFilters, debounceMs, queueFilters, setAppliedFilters],
   );
 
   const applyFallbackLocation = useCallback(

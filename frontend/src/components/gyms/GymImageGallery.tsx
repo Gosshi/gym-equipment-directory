@@ -60,6 +60,8 @@ export function GymImageGallery({ images, name, className }: GymImageGalleryProp
         <img
           alt={`${name} のギャラリー画像 ${activeIndex + 1}`}
           className="h-full w-full object-cover"
+          decoding="async"
+          loading="lazy"
           src={sanitized[activeIndex]}
         />
         {sanitized.length > 1 ? (

@@ -435,7 +435,9 @@ describe("Search flow integration", () => {
       http.get("*/gyms/search", ({ request }) => {
         const url = new URL(request.url);
         searchRequests.push(url);
-        const radius = Number(url.searchParams.get("radius_km") ?? url.searchParams.get("distance"));
+        const radius = Number(
+          url.searchParams.get("radius_km") ?? url.searchParams.get("distance"),
+        );
         const page = Number(url.searchParams.get("page") ?? "1");
         if (page >= 2) {
           return HttpResponse.json(nextPageResponse);

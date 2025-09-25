@@ -1,4 +1,8 @@
+"use client";
+
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+import type { JSX } from "react";
 
 import { GymCard } from "@/components/gyms/GymCard";
 import { Pagination } from "@/components/gyms/Pagination";
@@ -10,6 +14,26 @@ import { cn } from "@/lib/utils";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const VIRTUALIZE_THRESHOLD = 50;
+const PREFETCH_LIMIT = 6;
+
+const VirtualizedGymGrid = dynamic<{
+  gyms: GymSummary[];
+  renderCard: (gym: GymSummary, index: number) => JSX.Element;
+}>(
+  async () => {
+    const mod = await import("@/components/gyms/VirtualizedGymGrid");
+    return { default: mod.VirtualizedGymGrid };
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="max-h-[70vh] overflow-y-hidden">
+        <SearchSkeleton announce={false} />
+      </div>
+    ),
+  },
+);
 
 type GymListProps = {
   gyms: GymSummary[];
@@ -79,6 +103,13 @@ export function GymList({
     previousPageRef.current = page;
   }, [page]);
 
+  const shouldVirtualize =
+    gyms.length >= VIRTUALIZE_THRESHOLD || (totalCount ?? 0) >= VIRTUALIZE_THRESHOLD;
+
+  const renderCard = (gym: GymSummary, index: number) => (
+    <GymCard gym={gym} prefetch={index < PREFETCH_LIMIT} />
+  );
+
   let content: ReactNode;
   switch (resultState.status) {
     case "error":
@@ -92,17 +123,32 @@ export function GymList({
       break;
     default:
       content = (
-        <div
-          className={cn(
-            "grid grid-cols-1 gap-4",
-            "sm:grid-cols-2 sm:gap-6",
-            "lg:grid-cols-2",
-            "xl:grid-cols-3 xl:gap-7",
+        <div className="relative">
+          {shouldVirtualize ? (
+            <VirtualizedGymGrid gyms={gyms} renderCard={renderCard} />
+          ) : (
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-4",
+                "sm:grid-cols-2 sm:gap-6",
+                "lg:grid-cols-2",
+                "xl:grid-cols-3 xl:gap-7",
+              )}
+            >
+              {gyms.map((gym, index) => (
+                <GymCard key={gym.id} gym={gym} prefetch={index < PREFETCH_LIMIT} />
+              ))}
+            </div>
           )}
-        >
-          {gyms.map(gym => (
-            <GymCard key={gym.id} gym={gym} />
-          ))}
+          {isPageLoading ? (
+            <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-card/85 backdrop-blur">
+              <SearchSkeleton
+                announce={false}
+                className="h-full"
+                count={Math.min(Math.max(gyms.length || perPageValue, PREFETCH_LIMIT), 9)}
+              />
+            </div>
+          ) : null}
         </div>
       );
       break;

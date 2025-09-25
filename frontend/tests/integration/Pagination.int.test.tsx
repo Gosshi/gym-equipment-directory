@@ -201,9 +201,11 @@ describe("Pagination integration", () => {
 
     const nextButton = screen.getByRole("button", { name: "次のページ" });
     expect(nextButton).not.toBeDisabled();
+
+    const initialPushCount = mockRouter.push.mock.calls.length;
     await userEvent.click(nextButton);
 
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(initialPushCount + 1));
     await waitFor(() => expect(searchRequests.length).toBeGreaterThan(2));
     await waitFor(() =>
       expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),

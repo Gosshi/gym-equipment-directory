@@ -30,12 +30,7 @@ const baseProps = {
 
 describe("GymList", () => {
   it("shows empty state messaging when there are no gyms", () => {
-    render(
-      <GymList
-        {...baseProps}
-        onClearFilters={vi.fn()}
-      />,
-    );
+    render(<GymList {...baseProps} onClearFilters={vi.fn()} />);
 
     expect(screen.getByText("該当するジムが見つかりませんでした")).toBeInTheDocument();
   });
