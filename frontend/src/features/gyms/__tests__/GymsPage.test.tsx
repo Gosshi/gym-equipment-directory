@@ -8,6 +8,20 @@ import type { UseGymDetailResult } from "@/hooks/useGymDetail";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
+const replaceMock = vi.fn();
+const pushMock = vi.fn();
+let searchParamsSnapshot = "";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: replaceMock,
+    push: pushMock,
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => "/gyms",
+  useSearchParams: () => new URLSearchParams(searchParamsSnapshot),
+}));
+
 vi.mock("@/hooks/useGymSearch", () => ({
   useGymSearch: vi.fn(),
   FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
@@ -133,6 +147,9 @@ describe("GymsPage", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    searchParamsSnapshot = "";
   });
 
   it("renders the search filters and results", () => {
@@ -269,7 +286,7 @@ describe("GymsPage", () => {
 
     expect(screen.queryByRole("button", { name: "詳細パネルを閉じる" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
+    await userEvent.click(screen.getByRole("button", { name: "テストジム の詳細を開く" }));
 
     expect(screen.getByRole("heading", { name: "テストジム詳細" })).toBeInTheDocument();
     expect(screen.getByText("東京都新宿区1-2-3")).toBeInTheDocument();

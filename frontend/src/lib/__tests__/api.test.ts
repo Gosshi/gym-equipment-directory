@@ -123,6 +123,8 @@ describe("lib/api", () => {
           thumbnailUrl: null,
           score: 0.5,
           lastVerifiedAt: "2024-09-01T12:00:00Z",
+          latitude: null,
+          longitude: null,
         },
       ],
       meta: {

@@ -9,6 +9,8 @@ export interface GymSummary {
   thumbnailUrl?: string | null;
   score?: number;
   lastVerifiedAt?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface GymSearchMeta {

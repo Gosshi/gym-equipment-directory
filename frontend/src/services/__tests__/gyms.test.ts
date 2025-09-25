@@ -98,6 +98,8 @@ describe("searchGyms", () => {
           thumbnailUrl: "https://example.com/thumb.jpg",
           score: 1.2,
           lastVerifiedAt: "2024-09-01T12:00:00Z",
+          latitude: null,
+          longitude: null,
         },
       ],
       meta: {
@@ -109,6 +111,36 @@ describe("searchGyms", () => {
         hasMore: false,
         pageToken: null,
       },
+    });
+  });
+
+  it("extracts coordinates from the search response when present", async () => {
+    mockedApiRequest.mockResolvedValue({
+      items: [
+        {
+          id: 2,
+          slug: "gym-with-coords",
+          name: "Gym With Coordinates",
+          city: "meguro",
+          prefecture: "tokyo",
+          lat: "35.652832",
+          lng: 139.709389,
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 20,
+      has_next: false,
+      has_prev: false,
+      page_token: null,
+    });
+
+    const response = await searchGyms();
+
+    expect(response.items[0]).toMatchObject({
+      slug: "gym-with-coords",
+      latitude: 35.652832,
+      longitude: 139.709389,
     });
   });
 

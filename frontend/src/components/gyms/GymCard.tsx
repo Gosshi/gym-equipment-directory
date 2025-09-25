@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { forwardRef } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,9 @@ export interface GymCardProps {
   prefetch?: boolean;
   onSelect?: (slug: string) => void;
   isSelected?: boolean;
+  onHover?: (slug: string | null) => void;
+  renderAs?: "link" | "button";
+  isHovered?: boolean;
 }
 
 function getEquipmentDisplay(equipmentNames: string[] | undefined) {
@@ -60,17 +64,128 @@ function handleLinkClick(
   onSelect(slug);
 }
 
+const ButtonRoot = forwardRef<HTMLButtonElement, {
+  children: React.ReactNode;
+  className?: string;
+  isSelected: boolean;
+  onClick?: () => void;
+  onHover?: (next: boolean) => void;
+  ariaLabel?: string;
+}>(function ButtonRoot({ children, className, isSelected, onClick, onHover, ariaLabel }, ref) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      aria-pressed={isSelected}
+      aria-label={ariaLabel}
+      className={cn(
+        "group block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+      onClick={onClick}
+      onFocus={() => onHover?.(true)}
+      onBlur={() => onHover?.(false)}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
+    >
+      {children}
+    </button>
+  );
+});
+
 export function GymCard({
   gym,
   className,
   prefetch = true,
   onSelect,
   isSelected = false,
+  onHover,
+  renderAs = "link",
+  isHovered = false,
 }: GymCardProps) {
   const { displayItems, remainingCount } = getEquipmentDisplay(gym.equipments);
   const primaryAddress = gym.address?.trim() ?? "";
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
   const addressLabel = primaryAddress || fallbackAddress || "所在地情報なし";
+
+  const card = (
+    <Card
+      className={cn(
+        "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition",
+        "group-hover:border-primary group-hover:shadow-md",
+        isHovered && !isSelected ? "border-primary/70 ring-2 ring-primary/20" : undefined,
+        isSelected ? "border-primary ring-2 ring-primary/40" : undefined,
+      )}
+    >
+      <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
+        {gym.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt={gym.name}
+            className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+            decoding="async"
+            loading="lazy"
+            src={gym.thumbnailUrl}
+          />
+        ) : (
+          <span className="text-xs">画像なし</span>
+        )}
+      </div>
+      <CardHeader className="space-y-1.5">
+        <CardTitle
+          className={cn(
+            "text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl",
+            isSelected ? "text-primary" : undefined,
+          )}
+        >
+          {gym.name}
+        </CardTitle>
+        <CardDescription className="text-sm text-muted-foreground" data-testid="gym-address">
+          {addressLabel}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-3">
+        {displayItems.length > 0 ? (
+          <div className="flex flex-wrap gap-2" data-testid="gym-equipments">
+            {displayItems.map(equipment => (
+              <span
+                key={equipment}
+                className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
+              >
+                {equipment}
+              </span>
+            ))}
+            {remainingCount > 0 ? (
+              <span className="rounded-full border border-dashed border-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                +{remainingCount}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">設備情報はまだ登録されていません。</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (renderAs === "button") {
+    const ariaLabel = `${gym.name} の詳細を開く`;
+    return (
+      <ButtonRoot
+        className={className}
+        isSelected={isSelected}
+        onClick={() => {
+          onSelect?.(gym.slug);
+        }}
+        onHover={next => {
+          onHover?.(next ? gym.slug : null);
+        }}
+        ariaLabel={ariaLabel}
+      >
+        {card}
+      </ButtonRoot>
+    );
+  }
 
   return (
     <Link
@@ -87,58 +202,12 @@ export function GymCard({
       onKeyDown={handleLinkKeyDown}
       role="link"
       tabIndex={0}
+      onFocus={() => onHover?.(gym.slug)}
+      onBlur={() => onHover?.(null)}
+      onMouseEnter={() => onHover?.(gym.slug)}
+      onMouseLeave={() => onHover?.(null)}
     >
-      <Card
-        className={cn(
-          "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition",
-          "group-hover:border-primary group-hover:shadow-md",
-          isSelected ? "border-primary ring-2 ring-primary/40" : undefined,
-        )}
-      >
-        <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
-          {gym.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={gym.name}
-              className="h-full w-full object-cover transition group-hover:scale-[1.03]"
-              decoding="async"
-              loading="lazy"
-              src={gym.thumbnailUrl}
-            />
-          ) : (
-            <span className="text-xs">画像なし</span>
-          )}
-        </div>
-        <CardHeader className="space-y-1.5">
-          <CardTitle className="text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl">
-            {gym.name}
-          </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground" data-testid="gym-address">
-            {addressLabel}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-1 flex-col gap-3">
-          {displayItems.length > 0 ? (
-            <div className="flex flex-wrap gap-2" data-testid="gym-equipments">
-              {displayItems.map(equipment => (
-                <span
-                  key={equipment}
-                  className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
-                >
-                  {equipment}
-                </span>
-              ))}
-              {remainingCount > 0 ? (
-                <span className="rounded-full border border-dashed border-secondary px-2.5 py-1 text-xs text-muted-foreground">
-                  +{remainingCount}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">設備情報はまだ登録されていません。</p>
-          )}
-        </CardContent>
-      </Card>
+      {card}
     </Link>
   );
 }
