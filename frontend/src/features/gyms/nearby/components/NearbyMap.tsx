@@ -96,6 +96,8 @@ export function NearbyMap({
 }: NearbyMapProps) {
   const hoveredId = useMapSelectionStore(state => state.hoveredId);
   const selectedId = useMapSelectionStore(state => state.selectedId);
+  const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
+  const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
   const setHovered = useMapSelectionStore(state => state.setHovered);
   const setSelected = useMapSelectionStore(state => state.setSelected);
 
@@ -105,6 +107,22 @@ export function NearbyMap({
     new Map<number, { marker: maplibregl.Marker; element: HTMLButtonElement }>(),
   );
   const suppressMoveRef = useRef(false);
+  const isUserDraggingRef = useRef(false);
+  const pendingPanRef = useRef<number | null>(null);
+  const lastMapSelectionRef = useRef<{ id: number | null; at: number | null }>({
+    id: null,
+    at: null,
+  });
+
+  useEffect(
+    () => () => {
+      if (pendingPanRef.current !== null) {
+        window.clearTimeout(pendingPanRef.current);
+        pendingPanRef.current = null;
+      }
+    },
+    [],
+  );
 
   const mapStyle = useMemo(() => resolveMapStyle(), []);
 
@@ -123,7 +141,7 @@ export function NearbyMap({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
-    map.on("moveend", () => {
+    const handleMoveEnd = () => {
       if (suppressMoveRef.current) {
         suppressMoveRef.current = false;
         return;
@@ -132,7 +150,23 @@ export function NearbyMap({
       const payload = { lat: Number(next.lat.toFixed(6)), lng: Number(next.lng.toFixed(6)) };
       logMapCenter({ ...payload, zoom: map.getZoom() });
       onCenterChange(payload);
-    });
+    };
+
+    const handleDragStart = () => {
+      isUserDraggingRef.current = true;
+      if (pendingPanRef.current !== null) {
+        window.clearTimeout(pendingPanRef.current);
+        pendingPanRef.current = null;
+      }
+    };
+
+    const handleDragEnd = () => {
+      isUserDraggingRef.current = false;
+    };
+
+    map.on("moveend", handleMoveEnd);
+    map.on("dragstart", handleDragStart);
+    map.on("dragend", handleDragEnd);
 
     mapRef.current = map;
 
@@ -143,6 +177,14 @@ export function NearbyMap({
       window.removeEventListener("resize", handleResize);
       markerStore.forEach(({ marker }) => marker.remove());
       markerStore.clear();
+      if (pendingPanRef.current !== null) {
+        window.clearTimeout(pendingPanRef.current);
+        pendingPanRef.current = null;
+      }
+      isUserDraggingRef.current = false;
+      map.off("moveend", handleMoveEnd);
+      map.off("dragstart", handleDragStart);
+      map.off("dragend", handleDragEnd);
       map.remove();
       mapRef.current = null;
     };
@@ -196,13 +238,14 @@ export function NearbyMap({
       element.setAttribute("aria-label", `${gym.name} の詳細を開く`);
       element.title = buildTooltip(gym);
       element.style.zIndex = "10";
+      element.dataset.gymId = String(gym.id);
 
-      element.addEventListener("mouseenter", () => setHovered(gym.id));
+      element.addEventListener("mouseenter", () => setHovered(gym.id, "map"));
       element.addEventListener("mouseleave", () => setHovered(null));
-      element.addEventListener("focus", () => setHovered(gym.id));
+      element.addEventListener("focus", () => setHovered(gym.id, "map"));
       element.addEventListener("blur", () => setHovered(null));
       element.addEventListener("click", () => {
-        setSelected(gym.id);
+        setSelected(gym.id, "map");
         onMarkerSelect(gym);
       });
 
@@ -213,6 +256,89 @@ export function NearbyMap({
       markerMapRef.current.set(gym.id, { marker, element });
     });
   }, [markers, onMarkerSelect, setHovered, setSelected]);
+
+  useEffect(() => {
+    if (lastSelectionSource !== "map") {
+      return;
+    }
+
+    lastMapSelectionRef.current = {
+      id: selectedId,
+      at: lastSelectionAt ?? Date.now(),
+    };
+  }, [lastSelectionAt, lastSelectionSource, selectedId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    if (pendingPanRef.current !== null) {
+      window.clearTimeout(pendingPanRef.current);
+      pendingPanRef.current = null;
+    }
+
+    if (selectedId === null) {
+      return;
+    }
+
+    if (!lastSelectionSource) {
+      return;
+    }
+
+    if (lastSelectionSource === "map") {
+      return;
+    }
+
+    if (isUserDraggingRef.current) {
+      return;
+    }
+
+    if (lastSelectionSource === "list") {
+      const lastMapSelection = lastMapSelectionRef.current;
+      if (
+        lastMapSelection.id === selectedId &&
+        lastMapSelection.at !== null &&
+        lastSelectionAt !== null &&
+        lastSelectionAt - lastMapSelection.at < 750
+      ) {
+        return;
+      }
+    }
+
+    const targetGym = markers.find(gym => gym.id === selectedId);
+    if (!targetGym) {
+      return;
+    }
+
+    const schedulePan = () => {
+      const activeMap = mapRef.current;
+      if (!activeMap) {
+        return;
+      }
+
+      const currentZoom = activeMap.getZoom();
+      const targetZoom =
+        currentZoom < DEFAULT_ZOOM ? Math.min(DEFAULT_ZOOM, currentZoom + 2) : currentZoom;
+
+      suppressMoveRef.current = true;
+      activeMap.easeTo({
+        center: [targetGym.longitude, targetGym.latitude],
+        zoom: targetZoom,
+        duration: 500,
+      });
+    };
+
+    pendingPanRef.current = window.setTimeout(schedulePan, 120);
+
+    return () => {
+      if (pendingPanRef.current !== null) {
+        window.clearTimeout(pendingPanRef.current);
+        pendingPanRef.current = null;
+      }
+    };
+  }, [lastSelectionAt, lastSelectionSource, markers, selectedId]);
 
   useEffect(() => {
     markerMapRef.current.forEach(({ element }, id) => {
