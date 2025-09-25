@@ -265,11 +265,11 @@ export function NearbyList({
                   href={`/gyms/${gym.slug}`}
                   onBlur={() => setHovered(null)}
                   onClick={() => {
-                    setSelected(gym.id);
+                    setSelected(gym.id, "list");
                     logPinClick({ source: "list", slug: gym.slug });
                   }}
-                  onFocus={() => setHovered(gym.id)}
-                  onMouseEnter={() => setHovered(gym.id)}
+                  onFocus={() => setHovered(gym.id, "list")}
+                  onMouseEnter={() => setHovered(gym.id, "list")}
                   onMouseLeave={() => setHovered(null)}
                 >
                   <div className="flex items-center justify-between gap-2">

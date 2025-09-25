@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,9 @@ const resolveDefaultRadiusKm = () => {
 
 export function NearbyGymsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsSnapshot = searchParams.toString();
   const { toast } = useToast();
   const defaultCenter = useMemo(() => resolveDefaultCenter(), []);
   const defaultRadius = useMemo(() => resolveDefaultRadiusKm(), []);
@@ -85,6 +88,50 @@ export function NearbyGymsPage() {
   const setHoveredId = useMapSelectionStore(state => state.setHovered);
   const setSelectedId = useMapSelectionStore(state => state.setSelected);
   const clearSelection = useMapSelectionStore(state => state.clear);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsSnapshot);
+    const raw = params.get("selected");
+    if (!raw) {
+      return;
+    }
+
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    if (selectedId === parsed) {
+      return;
+    }
+
+    setSelectedId(parsed, "url");
+  }, [searchParamsSnapshot, selectedId, setSelectedId]);
+
+  useEffect(() => {
+    if (!pathname) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParamsSnapshot);
+    const current = params.get("selected");
+    const next = selectedId === null ? null : String(selectedId);
+
+    if (next === null) {
+      if (current === null) {
+        return;
+      }
+      params.delete("selected");
+    } else if (current === next) {
+      return;
+    } else {
+      params.set("selected", next);
+    }
+
+    const query = params.toString();
+    const nextUrl = query ? `${pathname}?${query}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [pathname, router, searchParamsSnapshot, selectedId]);
 
   useEffect(() => {
     if (hoveredId === null) {
