@@ -88,8 +88,14 @@ export function NearbyGymsPage() {
   const setHoveredId = useMapSelectionStore(state => state.setHovered);
   const setSelectedId = useMapSelectionStore(state => state.setSelected);
   const clearSelection = useMapSelectionStore(state => state.clear);
+  const skipNextUrlSelectionRef = useRef(false);
 
   useEffect(() => {
+    if (skipNextUrlSelectionRef.current) {
+      skipNextUrlSelectionRef.current = false;
+      return;
+    }
+
     const params = new URLSearchParams(searchParamsSnapshot);
     const raw = params.get("selected");
     if (!raw) {
@@ -147,6 +153,7 @@ export function NearbyGymsPage() {
       return;
     }
     if (!items.some(gym => gym.id === selectedId)) {
+      skipNextUrlSelectionRef.current = true;
       setSelectedId(null);
     }
   }, [items, selectedId, setSelectedId]);
