@@ -202,10 +202,26 @@ describe("Pagination integration", () => {
     const nextButton = screen.getByRole("button", { name: "次のページ" });
     expect(nextButton).not.toBeDisabled();
 
-    const initialPushCount = mockRouter.push.mock.calls.length;
+    const getPushCallsForPage = (pageValue: string) =>
+      mockRouter.push.mock.calls.filter(([url]) => {
+        try {
+          const parsed = new URL(url, "http://localhost");
+          return parsed.searchParams.get("page") === pageValue;
+        } catch {
+          return false;
+        }
+      });
+
+    const initialPageTwoCalls = getPushCallsForPage("2").length;
     await userEvent.click(nextButton);
 
-    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(initialPushCount + 1));
+    await waitFor(() =>
+      expect(getPushCallsForPage("2").length).toBe(initialPageTwoCalls + 1),
+    );
+    const latestPageTwoCall = getPushCallsForPage("2").at(-1)?.[0];
+    expect(latestPageTwoCall).toBeDefined();
+    expect(latestPageTwoCall).toContain("page=2");
+
     await waitFor(() => expect(searchRequests.length).toBeGreaterThan(2));
     await waitFor(() =>
       expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import Link from "next/link";
 
 import { Pagination } from "@/components/gyms/Pagination";
@@ -97,6 +99,89 @@ export function NearbyList({
   const selectedId = useMapSelectionStore(state => state.selectedId);
   const setHovered = useMapSelectionStore(state => state.setHovered);
   const setSelected = useMapSelectionStore(state => state.setSelected);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const itemRefs = useRef(new Map<number, HTMLLIElement>());
+  const scrollTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeIds = new Set(items.map(gym => gym.id));
+    itemRefs.current.forEach((_, id) => {
+      if (!activeIds.has(id)) {
+        itemRefs.current.delete(id);
+      }
+    });
+  }, [items]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (scrollTimeoutRef.current !== null) {
+      window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+
+    if (selectedId === null) {
+      return;
+    }
+
+    const target = itemRefs.current.get(selectedId);
+    if (!target) {
+      return;
+    }
+
+    const container = listRef.current ?? target.parentElement;
+    if (!container) {
+      return;
+    }
+
+    const scheduleScroll = () => {
+      if (!target.isConnected) {
+        return;
+      }
+
+      const containerElement = container as HTMLElement;
+      const containerRect = containerElement.getBoundingClientRect();
+      const itemRect = target.getBoundingClientRect();
+      const scrollable =
+        Math.ceil(containerElement.scrollHeight) >
+        Math.ceil(containerElement.clientHeight + 1);
+
+      const outsideContainer =
+        itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom;
+
+      const docElement = typeof document !== "undefined" ? document.documentElement : null;
+      const viewportHeight = docElement ? window.innerHeight || docElement.clientHeight : 0;
+      const outsideViewport = viewportHeight
+        ? itemRect.top < 0 || itemRect.bottom > viewportHeight
+        : false;
+
+      const shouldScroll = scrollable ? outsideContainer : outsideViewport;
+
+      if (shouldScroll) {
+        target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    };
+
+    scrollTimeoutRef.current = window.setTimeout(scheduleScroll, 75);
+
+    return () => {
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    };
+  }, [items, selectedId]);
 
   if (isInitialLoading) {
     return <NearbySkeleton />;
@@ -148,7 +233,7 @@ export function NearbyList({
       {isLoading ? (
         <NearbySkeleton />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3" ref={listRef}>
           {items.map(gym => {
             const isHovered = hoveredId === gym.id;
             const isSelected = selectedId === gym.id;
@@ -157,7 +242,17 @@ export function NearbyList({
             const areaLabel =
               [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
             return (
-              <li key={gym.id}>
+              <li
+                data-testid={`gym-item-${gym.id}`}
+                key={gym.id}
+                ref={node => {
+                  if (node) {
+                    itemRefs.current.set(gym.id, node);
+                  } else {
+                    itemRefs.current.delete(gym.id);
+                  }
+                }}
+              >
                 <Link
                   className={cn(
                     "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
