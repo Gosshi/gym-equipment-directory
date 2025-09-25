@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { Pagination } from "@/components/gyms/Pagination";
@@ -104,9 +105,18 @@ export function NearbyList({
   onPreviewGym,
   onOpenDetail,
 }: NearbyListProps) {
-  const listRef = useRef<HTMLUListElement | null>(null);
-  const itemRefs = useRef(new Map<number, HTMLLIElement>());
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef(new Map<number, HTMLDivElement>());
+  const virtualScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
+  const shouldVirtualize = items.length > 40;
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => virtualScrollRef.current,
+    estimateSize: () => 148,
+    overscan: 6,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
 
   useEffect(() => {
     return () => {
@@ -118,25 +128,36 @@ export function NearbyList({
   }, []);
 
   useEffect(() => {
+    if (shouldVirtualize) {
+      itemRefs.current.clear();
+      return;
+    }
     const activeIds = new Set(items.map(gym => gym.id));
     itemRefs.current.forEach((_, id) => {
       if (!activeIds.has(id)) {
         itemRefs.current.delete(id);
       }
     });
-  }, [items]);
+  }, [items, shouldVirtualize]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
     if (scrollTimeoutRef.current !== null) {
       window.clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = null;
     }
 
     if (selectedGymId === null) {
+      return;
+    }
+
+    const ids = items.map(gym => gym.id);
+    const targetIndex = ids.indexOf(selectedGymId);
+    if (targetIndex === -1) {
+      return;
+    }
+
+    if (shouldVirtualize) {
+      virtualizer.scrollToIndex(targetIndex, { align: "center" });
       return;
     }
 
@@ -185,7 +206,7 @@ export function NearbyList({
         scrollTimeoutRef.current = null;
       }
     };
-  }, [items, selectedGymId]);
+  }, [items, selectedGymId, shouldVirtualize, virtualizer]);
 
   const activeOptionId = useMemo(() => {
     if (hoveredGymId !== null && items.some(gym => gym.id === hoveredGymId)) {
@@ -197,8 +218,65 @@ export function NearbyList({
     return null;
   }, [hoveredGymId, items, selectedGymId]);
 
+  const renderGymButton = useCallback(
+    (gym: NearbyGym, isSelected: boolean, isHovered: boolean) => {
+      const prefectureLabel = formatSlug(gym.prefecture);
+      const cityLabel = formatSlug(gym.city);
+      const areaLabel = [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
+      const hasCoordinates = Number.isFinite(gym.latitude) && Number.isFinite(gym.longitude);
+      return (
+        <button
+          className={cn(
+            "group flex w-full flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            isSelected
+              ? "border-primary bg-primary/10 shadow-md"
+              : isHovered
+                ? "border-primary bg-primary/5"
+                : "hover:border-primary hover:bg-primary/5",
+          )}
+          data-state={isSelected ? "selected" : isHovered ? "hovered" : "default"}
+          onBlur={() => onPreviewGym(null, "list")}
+          onClick={() => {
+            onSelectGym(gym.id, "list");
+            logPinClick({ source: "list", slug: gym.slug });
+          }}
+          onFocus={() => onPreviewGym(gym.id, "list")}
+          onMouseEnter={() => onPreviewGym(gym.id, "list")}
+          onMouseLeave={() => onPreviewGym(null, "list")}
+          type="button"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h3
+              className={cn(
+                "text-base font-semibold text-foreground group-hover:text-primary",
+                isSelected ? "text-primary" : undefined,
+              )}
+            >
+              {gym.name}
+            </h3>
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+              {formatDistance(gym.distanceKm)}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">{areaLabel}</p>
+          {!hasCoordinates ? (
+            <span className="mt-2 inline-flex items-center rounded-full border border-dashed border-border/60 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              地図非対応
+            </span>
+          ) : null}
+          {gym.lastVerifiedAt ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              最終更新: {new Date(gym.lastVerifiedAt).toLocaleDateString()}
+            </p>
+          ) : null}
+        </button>
+      );
+    },
+    [onPreviewGym, onSelectGym],
+  );
+
   const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLUListElement>) => {
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (items.length === 0) {
         return;
       }
@@ -311,28 +389,72 @@ export function NearbyList({
 
       {isLoading ? (
         <NearbySkeleton />
-      ) : (
-        <ul
+      ) : shouldVirtualize ? (
+        <div
           aria-activedescendant={activeOptionId ? `gym-option-${activeOptionId}` : undefined}
           aria-label="近隣のジム一覧"
-          className="space-y-3 focus:outline-none"
+          className="max-h-[70vh] overflow-y-auto focus:outline-none"
           onKeyDown={handleKeyDown}
-          ref={listRef}
+          ref={node => {
+            listRef.current = node;
+            virtualScrollRef.current = node;
+          }}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative", width: "100%" }}
+          >
+            {virtualItems.map(virtualRow => {
+              const gym = items[virtualRow.index];
+              const isHovered = hoveredGymId === gym.id;
+              const isSelected = selectedGymId === gym.id;
+              return (
+                <div
+                  key={gym.id}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                    height: `${virtualRow.size}px`,
+                  }}
+                >
+                  <div
+                    aria-selected={isSelected}
+                    className="mb-3 last:mb-0"
+                    data-testid={`gym-item-${gym.id}`}
+                    id={`gym-option-${gym.id}`}
+                    role="option"
+                  >
+                    {renderGymButton(gym, isSelected, isHovered)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div
+          aria-activedescendant={activeOptionId ? `gym-option-${activeOptionId}` : undefined}
+          aria-label="近隣のジム一覧"
+          className="focus:outline-none"
+          onKeyDown={handleKeyDown}
+          ref={node => {
+            listRef.current = node;
+            virtualScrollRef.current = null;
+          }}
           role="listbox"
           tabIndex={0}
         >
           {items.map(gym => {
             const isHovered = hoveredGymId === gym.id;
             const isSelected = selectedGymId === gym.id;
-            const prefectureLabel = formatSlug(gym.prefecture);
-            const cityLabel = formatSlug(gym.city);
-            const areaLabel =
-              [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
-            const hasCoordinates =
-              Number.isFinite(gym.latitude) && Number.isFinite(gym.longitude);
             return (
-              <li
+              <div
                 aria-selected={isSelected}
+                className="mb-3 last:mb-0"
                 data-testid={`gym-item-${gym.id}`}
                 id={`gym-option-${gym.id}`}
                 key={gym.id}
@@ -345,55 +467,11 @@ export function NearbyList({
                 }}
                 role="option"
               >
-                <button
-                  className={cn(
-                    "group flex w-full flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isSelected
-                      ? "border-primary bg-primary/10 shadow-md"
-                      : isHovered
-                        ? "border-primary bg-primary/5"
-                        : "hover:border-primary hover:bg-primary/5",
-                  )}
-                  data-state={isSelected ? "selected" : isHovered ? "hovered" : "default"}
-                  onBlur={() => onPreviewGym(null, "list")}
-                  onClick={() => {
-                    onSelectGym(gym.id, "list");
-                    logPinClick({ source: "list", slug: gym.slug });
-                  }}
-                  onFocus={() => onPreviewGym(gym.id, "list")}
-                  onMouseEnter={() => onPreviewGym(gym.id, "list")}
-                  onMouseLeave={() => onPreviewGym(null, "list")}
-                  type="button"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3
-                      className={cn(
-                        "text-base font-semibold text-foreground group-hover:text-primary",
-                        isSelected ? "text-primary" : undefined,
-                      )}
-                    >
-                      {gym.name}
-                    </h3>
-                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
-                      {formatDistance(gym.distanceKm)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{areaLabel}</p>
-                  {!hasCoordinates ? (
-                    <span className="mt-2 inline-flex items-center rounded-full border border-dashed border-border/60 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      地図非対応
-                    </span>
-                  ) : null}
-                  {gym.lastVerifiedAt ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      最終更新: {new Date(gym.lastVerifiedAt).toLocaleDateString()}
-                    </p>
-                  ) : null}
-                </button>
-              </li>
+                {renderGymButton(gym, isSelected, isHovered)}
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
       <div className="border-t border-border/60 pt-4">

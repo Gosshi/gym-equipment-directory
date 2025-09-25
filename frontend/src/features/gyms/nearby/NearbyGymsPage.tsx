@@ -9,6 +9,7 @@ import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useSelectedGym } from "@/hooks/useSelectedGym";
+import { useVisibleGyms } from "@/hooks/useVisibleGyms";
 import { MIN_DISTANCE_KM, MAX_DISTANCE_KM } from "@/lib/searchParams";
 import type { MapInteractionSource } from "@/state/mapSelection";
 import { useMapSelectionStore } from "@/state/mapSelection";
@@ -95,6 +96,40 @@ export function NearbyGymsPage() {
     [items],
   );
 
+  const mapFiltersKey = useMemo(
+    () =>
+      [
+        applied.lat.toFixed(4),
+        applied.lng.toFixed(4),
+        applied.radiusKm,
+        applied.page,
+        searchParamsSnapshot,
+      ].join(":"),
+    [applied.lat, applied.lng, applied.page, applied.radiusKm, searchParamsSnapshot],
+  );
+
+  const {
+    gyms: visibleGyms,
+    status: mapMarkersStatus,
+    error: mapMarkersError,
+    isLoading: mapMarkersIsLoading,
+    isInitialLoading: mapMarkersIsInitialLoading,
+    updateViewport: updateVisibleViewport,
+    reload: reloadVisibleGyms,
+  } = useVisibleGyms({
+    initialGyms: markerGyms,
+    filtersKey: mapFiltersKey,
+    limit: 300,
+    maxRadiusKm: Math.max(applied.radiusKm * 2, applied.radiusKm + 1),
+  });
+
+  const selectionGyms = useMemo(() => {
+    const merged = new Map<number, NearbyGym>();
+    items.forEach(gym => merged.set(gym.id, gym));
+    visibleGyms.forEach(gym => merged.set(gym.id, gym));
+    return Array.from(merged.values());
+  }, [items, visibleGyms]);
+
   const {
     selectedGymId,
     hoveredGymId,
@@ -104,7 +139,7 @@ export function NearbyGymsPage() {
     selectGym,
     previewGym,
     clearSelection,
-  } = useSelectedGym({ gyms: items });
+  } = useSelectedGym({ gyms: selectionGyms });
   const clearStore = useMapSelectionStore(state => state.clear);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
@@ -113,10 +148,10 @@ export function NearbyGymsPage() {
     if (hoveredGymId === null) {
       return;
     }
-    if (!items.some(gym => gym.id === hoveredGymId)) {
+    if (!selectionGyms.some(gym => gym.id === hoveredGymId)) {
       previewGym(null);
     }
-  }, [hoveredGymId, items, previewGym]);
+  }, [hoveredGymId, previewGym, selectionGyms]);
 
   useEffect(() => () => clearStore(), [clearStore]);
 
@@ -136,6 +171,17 @@ export function NearbyGymsPage() {
       setDetailModalOpen(false);
     }
   }, [selectedSlug]);
+
+  useEffect(() => {
+    if (mapMarkersStatus !== "error" || !mapMarkersError) {
+      return;
+    }
+    toast({
+      title: "地図の読み込みに失敗しました",
+      description: mapMarkersError,
+      variant: "destructive",
+    });
+  }, [mapMarkersError, mapMarkersStatus, toast]);
 
   const hasRequestedLocationRef = useRef(false);
   useEffect(() => {
@@ -309,7 +355,7 @@ export function NearbyGymsPage() {
                   <CardContent className="p-0">
                     <NearbyMap
                       center={{ lat: applied.lat, lng: applied.lng }}
-                      markers={markerGyms}
+                      markers={visibleGyms}
                       hoveredGymId={hoveredGymId}
                       selectedGymId={selectedGymId}
                       lastSelectionSource={lastSelectionSource}
@@ -318,6 +364,12 @@ export function NearbyGymsPage() {
                       onSelect={selectGym}
                       onPreview={previewGym}
                       onRequestDetail={handleMapRequestDetail}
+                      onViewportChange={updateVisibleViewport}
+                      markersStatus={mapMarkersStatus}
+                      markersIsLoading={mapMarkersIsLoading}
+                      markersIsInitialLoading={mapMarkersIsInitialLoading}
+                      markersError={mapMarkersError}
+                      onRetryMarkers={reloadVisibleGyms}
                     />
                   </CardContent>
                 </Card>
