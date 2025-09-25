@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
 import { GymsPage } from "@/features/gyms/GymsPage";
+import { useGymDetail } from "@/hooks/useGymDetail";
+import type { UseGymDetailResult } from "@/hooks/useGymDetail";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
@@ -11,7 +13,12 @@ vi.mock("@/hooks/useGymSearch", () => ({
   FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
 }));
 
+vi.mock("@/hooks/useGymDetail", () => ({
+  useGymDetail: vi.fn(),
+}));
+
 const mockedUseGymSearch = vi.mocked(useGymSearch);
+const mockedUseGymDetail = vi.mocked(useGymDetail);
 
 const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSearchResult => {
   const defaultState: UseGymSearchResult = {
@@ -115,6 +122,15 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSear
 };
 
 describe("GymsPage", () => {
+  beforeEach(() => {
+    mockedUseGymDetail.mockReturnValue({
+      data: null,
+      error: null,
+      isLoading: false,
+      reload: vi.fn(),
+    });
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -226,5 +242,40 @@ describe("GymsPage", () => {
     await userEvent.click(searchButton);
 
     expect(submitSearch).toHaveBeenCalled();
+  });
+
+  it("opens and closes the detail panel when a gym is selected", async () => {
+    const detailResult: UseGymDetailResult = {
+      data: {
+        id: 99,
+        slug: "test-gym",
+        name: "テストジム詳細",
+        prefecture: "tokyo",
+        city: "shinjuku",
+        address: "東京都新宿区1-2-3",
+        latitude: 35.6895,
+        longitude: 139.6917,
+        equipments: [],
+        website: "https://example.com",
+      },
+      error: null,
+      isLoading: false,
+      reload: vi.fn(),
+    };
+    mockedUseGymDetail.mockReturnValue(detailResult);
+    mockedUseGymSearch.mockReturnValue(buildHookState());
+
+    render(<GymsPage />);
+
+    expect(screen.queryByRole("button", { name: "詳細パネルを閉じる" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
+
+    expect(screen.getByRole("heading", { name: "テストジム詳細" })).toBeInTheDocument();
+    expect(screen.getByText("東京都新宿区1-2-3")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "詳細パネルを閉じる" }));
+
+    expect(screen.queryByRole("heading", { name: "テストジム詳細" })).not.toBeInTheDocument();
   });
 });

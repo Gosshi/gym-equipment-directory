@@ -215,9 +215,7 @@ describe("Pagination integration", () => {
     const initialPageTwoCalls = getPushCallsForPage("2").length;
     await userEvent.click(nextButton);
 
-    await waitFor(() =>
-      expect(getPushCallsForPage("2").length).toBe(initialPageTwoCalls + 1),
-    );
+    await waitFor(() => expect(getPushCallsForPage("2").length).toBe(initialPageTwoCalls + 1));
     const latestPageTwoCall = getPushCallsForPage("2").at(-1)?.[0];
     expect(latestPageTwoCall).toBeDefined();
     expect(latestPageTwoCall).toContain("page=2");

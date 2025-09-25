@@ -546,10 +546,7 @@ export function SearchFilters({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={
-                  isLocating ||
-                  (location.hasResolvedSupport && !location.isSupported)
-                }
+                disabled={isLocating || (location.hasResolvedSupport && !location.isSupported)}
                 onClick={onRequestLocation}
                 size="sm"
                 type="button"
@@ -561,9 +558,11 @@ export function SearchFilters({
                   </span>
                 ) : mounted ? (
                   // マウント後は実際のサポート状況に基づいて表示
-                  location.hasResolvedSupport && !location.isSupported
-                    ? "現在地は利用不可"
-                    : "現在地を再取得"
+                  location.hasResolvedSupport && !location.isSupported ? (
+                    "現在地は利用不可"
+                  ) : (
+                    "現在地を再取得"
+                  )
                 ) : (
                   // SSR と初回 CSR を一致させるため固定表示
                   "現在地は利用不可"

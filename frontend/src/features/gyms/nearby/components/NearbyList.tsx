@@ -154,8 +154,7 @@ export function NearbyList({
       const containerRect = containerElement.getBoundingClientRect();
       const itemRect = target.getBoundingClientRect();
       const scrollable =
-        Math.ceil(containerElement.scrollHeight) >
-        Math.ceil(containerElement.clientHeight + 1);
+        Math.ceil(containerElement.scrollHeight) > Math.ceil(containerElement.clientHeight + 1);
 
       const outsideContainer =
         itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom;

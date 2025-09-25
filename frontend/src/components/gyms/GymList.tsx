@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { JSX } from "react";
 
@@ -47,6 +47,8 @@ type GymListProps = {
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
   onClearFilters?: () => void;
+  onGymSelect?: (slug: string) => void;
+  selectedSlug?: string | null;
 };
 
 export function GymList({
@@ -61,6 +63,8 @@ export function GymList({
   onPageChange,
   onLimitChange,
   onClearFilters,
+  onGymSelect,
+  selectedSlug,
 }: GymListProps) {
   const resultState = useSearchResultState({ isLoading, error, items: gyms });
   const isPageLoading = isLoading && !isInitialLoading;
@@ -106,8 +110,16 @@ export function GymList({
   const shouldVirtualize =
     gyms.length >= VIRTUALIZE_THRESHOLD || (totalCount ?? 0) >= VIRTUALIZE_THRESHOLD;
 
-  const renderCard = (gym: GymSummary, index: number) => (
-    <GymCard gym={gym} prefetch={index < PREFETCH_LIMIT} />
+  const renderCard = useCallback(
+    (gym: GymSummary, index: number) => (
+      <GymCard
+        gym={gym}
+        prefetch={index < PREFETCH_LIMIT}
+        onSelect={onGymSelect}
+        isSelected={selectedSlug === gym.slug}
+      />
+    ),
+    [onGymSelect, selectedSlug],
   );
 
   let content: ReactNode;
@@ -136,7 +148,13 @@ export function GymList({
               )}
             >
               {gyms.map((gym, index) => (
-                <GymCard key={gym.id} gym={gym} prefetch={index < PREFETCH_LIMIT} />
+                <GymCard
+                  key={gym.id}
+                  gym={gym}
+                  prefetch={index < PREFETCH_LIMIT}
+                  onSelect={onGymSelect}
+                  isSelected={selectedSlug === gym.slug}
+                />
               ))}
             </div>
           )}

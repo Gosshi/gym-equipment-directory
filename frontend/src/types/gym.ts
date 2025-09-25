@@ -40,6 +40,8 @@ export interface GymDetail {
   prefecture: string;
   city: string;
   address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   equipments: string[];
   equipmentDetails?: GymEquipmentDetail[];
   thumbnailUrl?: string | null;

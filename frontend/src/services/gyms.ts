@@ -25,6 +25,11 @@ type RawGymDetail = RawGymSummary & {
   equipmentDetails?: unknown;
   main_equipment_details?: unknown;
   mainEquipmentDetails?: unknown;
+  lat?: number | string | null;
+  lng?: number | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  location?: unknown;
 };
 
 export interface SearchGymsParams {
@@ -133,6 +138,45 @@ const normalizeEquipmentDetails = (source: unknown): GymEquipmentDetail[] | unde
   return result.length > 0 ? result : undefined;
 };
 
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number.parseFloat(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const extractCoordinates = (
+  input: RawGymDetail,
+): {
+  latitude: number | null;
+  longitude: number | null;
+} => {
+  const location =
+    input.location && typeof input.location === "object"
+      ? (input.location as Record<string, unknown>)
+      : undefined;
+
+  const latitude =
+    toFiniteNumber(input.latitude) ??
+    toFiniteNumber(input.lat) ??
+    (location ? (toFiniteNumber(location.latitude) ?? toFiniteNumber(location.lat)) : null);
+
+  const longitude =
+    toFiniteNumber(input.longitude) ??
+    toFiniteNumber(input.lng) ??
+    (location ? (toFiniteNumber(location.longitude) ?? toFiniteNumber(location.lng)) : null);
+
+  return { latitude, longitude };
+};
+
 const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
   const summary = normalizeGymSummary(input);
   const images =
@@ -154,6 +198,8 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     normalizeEquipmentDetails(input.mainEquipmentDetails) ??
     normalizeEquipmentDetails(input.equipments);
 
+  const { latitude, longitude } = extractCoordinates(input);
+
   return {
     id: summary.id,
     slug: summary.slug,
@@ -161,6 +207,8 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     prefecture: summary.prefecture,
     city: summary.city,
     address: summary.address,
+    latitude,
+    longitude,
     equipments: summary.equipments ?? [],
     equipmentDetails,
     thumbnailUrl,

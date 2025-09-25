@@ -162,8 +162,7 @@ export function useNearbySearchController({
       "geolocation" in window.navigator,
   );
   const [isGeolocationSupported, setIsGeolocationSupported] = useState(false);
-  const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] =
-    useState(false);
+  const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] = useState(false);
 
   const detectGeolocationSupport = useCallback(() => {
     if (typeof window === "undefined" || typeof window.navigator === "undefined") {

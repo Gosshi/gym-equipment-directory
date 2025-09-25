@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,8 @@ export interface GymCardProps {
   gym: GymSummary;
   className?: string;
   prefetch?: boolean;
+  onSelect?: (slug: string) => void;
+  isSelected?: boolean;
 }
 
 function getEquipmentDisplay(equipmentNames: string[] | undefined) {
@@ -34,7 +36,37 @@ function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
   }
 }
 
-export function GymCard({ gym, className, prefetch = true }: GymCardProps) {
+function handleLinkClick(
+  event: MouseEvent<HTMLAnchorElement>,
+  slug: string,
+  onSelect?: (slug: string) => void,
+) {
+  if (!onSelect) {
+    return;
+  }
+
+  if (
+    event.defaultPrevented ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.shiftKey ||
+    event.button !== 0
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  onSelect(slug);
+}
+
+export function GymCard({
+  gym,
+  className,
+  prefetch = true,
+  onSelect,
+  isSelected = false,
+}: GymCardProps) {
   const { displayItems, remainingCount } = getEquipmentDisplay(gym.equipments);
   const primaryAddress = gym.address?.trim() ?? "";
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
@@ -48,12 +80,21 @@ export function GymCard({ gym, className, prefetch = true }: GymCardProps) {
         className,
       )}
       href={`/gyms/${gym.slug}`}
+      aria-current={isSelected ? "true" : undefined}
+      data-selected={isSelected ? "" : undefined}
       prefetch={prefetch}
+      onClick={event => handleLinkClick(event, gym.slug, onSelect)}
       onKeyDown={handleLinkKeyDown}
       role="link"
       tabIndex={0}
     >
-      <Card className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition hover:shadow-md group-hover:border-primary">
+      <Card
+        className={cn(
+          "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition",
+          "group-hover:border-primary group-hover:shadow-md",
+          isSelected ? "border-primary ring-2 ring-primary/40" : undefined,
+        )}
+      >
         <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
           {gym.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

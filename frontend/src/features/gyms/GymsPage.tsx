@@ -1,10 +1,15 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+
 import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
+import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
 import { useGymSearch } from "@/hooks/useGymSearch";
+import { cn } from "@/lib/utils";
 
 export function GymsPage() {
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const {
     formState,
     updateKeyword,
@@ -40,6 +45,22 @@ export function GymsPage() {
     cityError,
     reloadCities,
   } = useGymSearch();
+
+  const handleSelectGym = useCallback((slug: string) => {
+    setSelectedSlug(previous => (previous === slug ? previous : slug));
+  }, []);
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedSlug(null);
+  }, []);
+
+  const showDetailPanel = Boolean(selectedSlug);
+
+  useEffect(() => {
+    if (!isLoading && items.length === 0) {
+      setSelectedSlug(null);
+    }
+  }, [isLoading, items.length]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/10">
@@ -80,19 +101,33 @@ export function GymsPage() {
             prefectures={prefectures}
             state={formState}
           />
-          <GymList
-            error={error}
-            gyms={items}
-            isInitialLoading={isInitialLoading}
-            isLoading={isLoading}
-            limit={limit}
-            meta={meta}
-            onClearFilters={clearFilters}
-            onLimitChange={setLimit}
-            onPageChange={setPage}
-            onRetry={retry}
-            page={page}
-          />
+          <div
+            className={cn(
+              "flex flex-col gap-6",
+              showDetailPanel
+                ? "xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)] xl:items-start"
+                : undefined,
+            )}
+          >
+            <GymList
+              error={error}
+              gyms={items}
+              isInitialLoading={isInitialLoading}
+              isLoading={isLoading}
+              limit={limit}
+              meta={meta}
+              onClearFilters={clearFilters}
+              onLimitChange={setLimit}
+              onPageChange={setPage}
+              onRetry={retry}
+              page={page}
+              onGymSelect={handleSelectGym}
+              selectedSlug={selectedSlug}
+            />
+            {showDetailPanel ? (
+              <GymDetailPanel className="xl:ml-2" onClose={handleClosePanel} slug={selectedSlug} />
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
