@@ -185,7 +185,8 @@ export function NearbySearchPanel({
         <Button
           className="w-full sm:w-auto"
           disabled={
-            isLocating || !hasResolvedLocationSupport || !isLocationSupported
+            isLocating ||
+            (hasResolvedLocationSupport && !isLocationSupported)
           }
           onClick={event => {
             event.preventDefault();
