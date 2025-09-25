@@ -33,6 +33,7 @@ export default defineConfig({
         find: "@/components/health-check-card",
         replacement: path.resolve(__dirname, "./components/health-check-card.tsx"),
       },
+      { find: "@/components/map", replacement: path.resolve(__dirname, "./components/map") },
       { find: "@", replacement: path.resolve(__dirname, "./src") },
     ],
   },

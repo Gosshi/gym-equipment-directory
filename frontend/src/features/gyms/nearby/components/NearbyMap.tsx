@@ -354,6 +354,10 @@ export function NearbyMap({
         return;
       }
 
+      if (isUserDraggingRef.current) {
+        return;
+      }
+
       const currentZoom = activeMap.getZoom();
       const targetZoom =
         currentZoom < DEFAULT_ZOOM ? Math.min(DEFAULT_ZOOM, currentZoom + 2) : currentZoom;
