@@ -626,7 +626,10 @@ export function NearbyMap({
     const notifyClose = () => {
       if (mode === "preview") {
         onPreview(null, "map");
-      } else {
+        return;
+      }
+
+      if (lastSelectionSource === "map") {
         onSelect(null, "map");
       }
     };
@@ -729,6 +732,7 @@ export function NearbyMap({
     onSelect,
     onRequestDetail,
     cleanupPopup,
+    lastSelectionSource,
   ]);
 
   const showSkeletonOverlay = markersIsInitialLoading;
