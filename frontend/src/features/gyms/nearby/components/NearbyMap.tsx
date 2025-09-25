@@ -6,12 +6,11 @@ import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { NearbyGym } from "@/types/gym";
+import { useMapSelectionStore } from "@/state/mapSelection";
 
 export interface NearbyMapProps {
   center: { lat: number; lng: number };
   markers: NearbyGym[];
-  hoveredId: number | null;
-  onMarkerHover: (id: number | null) => void;
   onMarkerSelect: (gym: NearbyGym) => void;
   onCenterChange: (nextCenter: { lat: number; lng: number }) => void;
   zoom?: number;
@@ -79,12 +78,14 @@ const logMapCenter = (payload: Record<string, unknown>) => {
 export function NearbyMap({
   center,
   markers,
-  hoveredId,
-  onMarkerHover,
   onMarkerSelect,
   onCenterChange,
   zoom = DEFAULT_ZOOM,
 }: NearbyMapProps) {
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const setHovered = useMapSelectionStore(state => state.setHovered);
+  const setSelected = useMapSelectionStore(state => state.setSelected);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerMapRef = useRef(
@@ -182,11 +183,14 @@ export function NearbyMap({
       element.setAttribute("aria-label", `${gym.name} の詳細を開く`);
       element.title = buildTooltip(gym);
 
-      element.addEventListener("mouseenter", () => onMarkerHover(gym.id));
-      element.addEventListener("mouseleave", () => onMarkerHover(null));
-      element.addEventListener("focus", () => onMarkerHover(gym.id));
-      element.addEventListener("blur", () => onMarkerHover(null));
-      element.addEventListener("click", () => onMarkerSelect(gym));
+      element.addEventListener("mouseenter", () => setHovered(gym.id));
+      element.addEventListener("mouseleave", () => setHovered(null));
+      element.addEventListener("focus", () => setHovered(gym.id));
+      element.addEventListener("blur", () => setHovered(null));
+      element.addEventListener("click", () => {
+        setSelected(gym.id);
+        onMarkerSelect(gym);
+      });
 
       const marker = new maplibregl.Marker({ element, anchor: "bottom" })
         .setLngLat([gym.longitude, gym.latitude])
@@ -194,7 +198,7 @@ export function NearbyMap({
 
       markerMapRef.current.set(gym.id, { marker, element });
     });
-  }, [markers, onMarkerHover, onMarkerSelect]);
+  }, [markers, onMarkerSelect, setHovered, setSelected]);
 
   const highlightClasses = useMemo(() => MARKER_HIGHLIGHT_CLASSES.split(" "), []);
 

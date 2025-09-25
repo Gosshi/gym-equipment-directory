@@ -2,11 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { MIN_DISTANCE_KM, MAX_DISTANCE_KM } from "@/lib/searchParams";
+import { useMapSelectionStore } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 
 import { NearbyList } from "./components/NearbyList";
@@ -79,7 +80,9 @@ export function NearbyGymsPage() {
     page: applied.page,
   });
 
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const setHoveredId = useMapSelectionStore(state => state.setHovered);
+  const clearSelection = useMapSelectionStore(state => state.clear);
 
   useEffect(() => {
     if (hoveredId === null) {
@@ -88,7 +91,9 @@ export function NearbyGymsPage() {
     if (!items.some(gym => gym.id === hoveredId)) {
       setHoveredId(null);
     }
-  }, [hoveredId, items]);
+  }, [hoveredId, items, setHoveredId]);
+
+  useEffect(() => () => clearSelection(), [clearSelection]);
 
   const hasRequestedLocationRef = useRef(false);
   useEffect(() => {
@@ -207,10 +212,8 @@ export function NearbyGymsPage() {
               <CardContent className="p-0">
                 <NearbyMap
                   center={{ lat: applied.lat, lng: applied.lng }}
-                  hoveredId={hoveredId}
                   markers={items}
                   onCenterChange={handleMapCenterChange}
-                  onMarkerHover={setHoveredId}
                   onMarkerSelect={handleMarkerSelect}
                 />
               </CardContent>
@@ -224,12 +227,10 @@ export function NearbyGymsPage() {
               <CardContent className="space-y-4">
                 <NearbyList
                   error={error}
-                  hoveredId={hoveredId}
                   isInitialLoading={isInitialLoading}
                   isLoading={isLoading}
                   items={items}
                   meta={meta}
-                  onHover={setHoveredId}
                   onPageChange={setPage}
                   onRetry={reload}
                 />

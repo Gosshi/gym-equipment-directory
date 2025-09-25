@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useMapSelectionStore } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 
 const logPinClick = (payload: Record<string, unknown>) => {
@@ -29,8 +30,6 @@ const formatSlug = (value: string | null | undefined) => {
 
 export interface NearbyListProps {
   items: NearbyGym[];
-  hoveredId: number | null;
-  onHover: (id: number | null) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
   meta: {
@@ -87,8 +86,6 @@ const NearbyEmptyState = () => (
 
 export function NearbyList({
   items,
-  hoveredId,
-  onHover,
   onRetry,
   onPageChange,
   meta,
@@ -96,6 +93,10 @@ export function NearbyList({
   isInitialLoading,
   error,
 }: NearbyListProps) {
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const setHovered = useMapSelectionStore(state => state.setHovered);
+  const setSelected = useMapSelectionStore(state => state.setSelected);
+
   if (isInitialLoading) {
     return <NearbySkeleton />;
   }
@@ -163,11 +164,14 @@ export function NearbyList({
                       : "hover:border-primary hover:bg-primary/5",
                   )}
                   href={`/gyms/${gym.slug}`}
-                  onBlur={() => onHover(null)}
-                  onClick={() => logPinClick({ source: "list", slug: gym.slug })}
-                  onFocus={() => onHover(gym.id)}
-                  onMouseEnter={() => onHover(gym.id)}
-                  onMouseLeave={() => onHover(null)}
+                  onBlur={() => setHovered(null)}
+                  onClick={() => {
+                    setSelected(gym.id);
+                    logPinClick({ source: "list", slug: gym.slug });
+                  }}
+                  onFocus={() => setHovered(gym.id)}
+                  onMouseEnter={() => setHovered(gym.id)}
+                  onMouseLeave={() => setHovered(null)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-base font-semibold text-foreground group-hover:text-primary">
