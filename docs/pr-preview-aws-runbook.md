@@ -129,6 +129,27 @@ docker compose version || true
 - `unauthorized`（EC2 側）→ EC2 の `docker login ghcr.io` が未実施。PAT の権限不足にも注意。
 - Actions 側 push 失敗 → `permissions: packages: write` が無い。
 
+### PAT が失効した場合の復旧フロー
+
+1. **新しい PAT を発行する**
+   - GitHub の **Settings → Developer settings → Personal access tokens** から再発行。
+   - GHCR の private pull が必要なら `read:packages`、push するワークフローがあるなら `write:packages` も付与。
+   - Fine-grained PAT を使う場合は対象リポジトリ/Organization のアクセス権を忘れずに設定。
+2. **ローカル（手元マシンなど）で認証情報を入れ替える**
+   - 古い資格情報を削除し、新 PAT でログインし直す。
+     ```bash
+     docker logout ghcr.io
+     docker login ghcr.io -u <GitHubユーザー名>
+     # パスワードに新しい PAT を入力
+     ```
+   - `~/.docker/config.json` のクレデンシャルが更新されるので、そのまま `docker pull` / `docker push` を再実行。
+3. **CI のシークレットを更新する**
+   - GitHub Actions などで GHCR にログインしている場合、使用中のシークレット（例: `GHCR_TOKEN`）を新 PAT に差し替える。
+   - 更新後に該当ワークフローを再実行し、`docker/login-action` が成功するかログを確認。
+4. **権限・設定を再確認する**
+   - PAT のスコープや Fine-grained PAT のリポジトリ対象が正しいか確認。
+   - それでも失敗する場合は GHCR の障害情報やネットワーク制限（VPN など）も合わせてチェックする。
+
 ---
 
 ## 5. DB 接続（EC2 の PostgreSQL）
