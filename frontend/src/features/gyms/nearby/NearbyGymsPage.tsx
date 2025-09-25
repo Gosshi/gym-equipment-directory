@@ -144,6 +144,9 @@ export function NearbyGymsPage() {
   );
 
   const locationSummary = useMemo(() => {
+    if (!location.hasResolvedSupport) {
+      return "位置情報の利用可否を確認しています…";
+    }
     if (!location.isSupported) {
       return "この環境では位置情報を取得できません。緯度・経度を入力してください。";
     }
@@ -161,7 +164,14 @@ export function NearbyGymsPage() {
       return `手入力した地点（${coordinateLabel}）`;
     }
     return `URLで指定された地点（${coordinateLabel}）`;
-  }, [applied.lat, applied.lng, location.isSupported, location.mode, location.status]);
+  }, [
+    applied.lat,
+    applied.lng,
+    location.hasResolvedSupport,
+    location.isSupported,
+    location.mode,
+    location.status,
+  ]);
 
   const radiusKmLabel = useMemo(() => `約${applied.radiusKm}km`, [applied.radiusKm]);
 
@@ -198,6 +208,7 @@ export function NearbyGymsPage() {
               locationError={location.error}
               manualError={manualError}
               isLocating={location.status === "loading"}
+              hasResolvedLocationSupport={location.hasResolvedSupport}
               isLocationSupported={location.isSupported}
               onLatChange={setLatInput}
               onLngChange={setLngInput}

@@ -59,7 +59,7 @@ const GEO_UNAVAILABLE_MESSAGE =
 const GEO_TIMEOUT_MESSAGE =
   "位置情報の取得がタイムアウトしました。再度お試しいただくか、手動で地点を指定してください。";
 const GEO_UNSUPPORTED_MESSAGE =
-  "この環境では位置情報を取得できません。緯度・経度を入力するか地図を操作してください。";
+  "この環境では位置情報を取得できません。緯度・経度を入力してください。";
 
 type NearbySearchParams = {
   get(name: string): string | null;
@@ -113,6 +113,7 @@ export interface NearbyLocationState {
   status: LocationStatus;
   error: string | null;
   isSupported: boolean;
+  hasResolvedSupport: boolean;
   mode: LocationMode;
   hasExplicitLocation: boolean;
 }
@@ -160,9 +161,9 @@ export function useNearbySearchController({
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
-  const [isGeolocationSupported, setIsGeolocationSupported] = useState(
-    geolocationSupportedRef.current,
-  );
+  const [isGeolocationSupported, setIsGeolocationSupported] = useState(false);
+  const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] =
+    useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -172,6 +173,7 @@ export function useNearbySearchController({
       typeof window.navigator !== "undefined" && "geolocation" in window.navigator;
     geolocationSupportedRef.current = supported;
     setIsGeolocationSupported(supported);
+    setHasResolvedGeolocationSupport(true);
   }, []);
 
   const [applied, setApplied] = useState<NearbyQueryState>(() =>
@@ -409,10 +411,18 @@ export function useNearbySearchController({
       status: locationStatus,
       error: locationError,
       isSupported: isGeolocationSupported,
+      hasResolvedSupport: hasResolvedGeolocationSupport,
       mode: locationMode,
       hasExplicitLocation,
     }),
-    [hasExplicitLocation, isGeolocationSupported, locationError, locationMode, locationStatus],
+    [
+      hasExplicitLocation,
+      hasResolvedGeolocationSupport,
+      isGeolocationSupported,
+      locationError,
+      locationMode,
+      locationStatus,
+    ],
   );
 
   return {

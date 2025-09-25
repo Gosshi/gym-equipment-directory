@@ -99,6 +99,7 @@ export function VirtualizedGymGrid({
                   rowVirtualizer.measureElement(node);
                 }
               }}
+              data-index={virtualRow.index}
               className={cn(ROW_PADDING_CLASSES)}
               style={{
                 position: "absolute",

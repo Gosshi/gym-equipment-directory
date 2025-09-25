@@ -20,6 +20,7 @@ export interface NearbySearchPanelProps {
   locationError: string | null;
   manualError: string | null;
   isLocating: boolean;
+  hasResolvedLocationSupport: boolean;
   isLocationSupported: boolean;
   onLatChange: (value: string) => void;
   onLngChange: (value: string) => void;
@@ -40,6 +41,7 @@ export function NearbySearchPanel({
   locationError,
   manualError,
   isLocating,
+  hasResolvedLocationSupport,
   isLocationSupported,
   onLatChange,
   onLngChange,
@@ -182,7 +184,9 @@ export function NearbySearchPanel({
         </Button>
         <Button
           className="w-full sm:w-auto"
-          disabled={isLocating || !isLocationSupported}
+          disabled={
+            isLocating || !hasResolvedLocationSupport || !isLocationSupported
+          }
           onClick={event => {
             event.preventDefault();
             onUseCurrentLocation();
