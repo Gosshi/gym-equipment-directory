@@ -94,11 +94,10 @@ export function GymList({
       content = (
         <div
           className={cn(
-            "grid gap-4",
+            "grid grid-cols-1 gap-4",
             "sm:grid-cols-2 sm:gap-6",
             "lg:grid-cols-2",
             "xl:grid-cols-3 xl:gap-7",
-            "2xl:grid-cols-4",
           )}
         >
           {gyms.map(gym => (

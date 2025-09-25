@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { KeyboardEvent } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -9,16 +10,48 @@ export interface GymCardProps {
   className?: string;
 }
 
+function getEquipmentDisplay(equipmentNames: string[] | undefined) {
+  if (!equipmentNames || equipmentNames.length === 0) {
+    return { displayItems: [], remainingCount: 0 };
+  }
+
+  const filtered = equipmentNames.filter(Boolean);
+  const displayItems = filtered.slice(0, 5);
+  const remainingCount = Math.max(filtered.length - displayItems.length, 0);
+
+  return { displayItems, remainingCount };
+}
+
+function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  if (event.key === " ") {
+    event.preventDefault();
+    event.currentTarget.click();
+  }
+}
+
 export function GymCard({ gym, className }: GymCardProps) {
+  const { displayItems, remainingCount } = getEquipmentDisplay(gym.equipments);
+  const primaryAddress = gym.address?.trim() ?? "";
+  const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
+  const addressLabel = primaryAddress || fallbackAddress || "所在地情報なし";
+
   return (
     <Link
+      aria-label={`${gym.name}の詳細を見る`}
       className={cn(
         "group block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
       href={`/gyms/${gym.slug}`}
+      onKeyDown={handleLinkKeyDown}
+      role="link"
+      tabIndex={0}
     >
-      <Card className="flex h-full flex-col overflow-hidden rounded-2xl border-border/70 transition group-hover:border-primary">
+      <Card className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition hover:shadow-md group-hover:border-primary">
         <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
           {gym.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -28,29 +61,33 @@ export function GymCard({ gym, className }: GymCardProps) {
               src={gym.thumbnailUrl}
             />
           ) : (
-            <span>画像なし</span>
+            <span className="text-xs">画像なし</span>
           )}
         </div>
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-lg font-semibold leading-snug group-hover:text-primary sm:text-xl">
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl">
             {gym.name}
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            {gym.prefecture ? gym.prefecture : "エリア未設定"}
-            {gym.city ? ` / ${gym.city}` : null}
+          <CardDescription className="text-sm text-muted-foreground" data-testid="gym-address">
+            {addressLabel}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-1 flex-col gap-4">
-          {gym.equipments && gym.equipments.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {gym.equipments.slice(0, 6).map(equipment => (
+        <CardContent className="flex flex-1 flex-col gap-3">
+          {displayItems.length > 0 ? (
+            <div className="flex flex-wrap gap-2" data-testid="gym-equipments">
+              {displayItems.map(equipment => (
                 <span
                   key={equipment}
-                  className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
+                  className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
                 >
                   {equipment}
                 </span>
               ))}
+              {remainingCount > 0 ? (
+                <span className="rounded-full border border-dashed border-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                  +{remainingCount}
+                </span>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">設備情報はまだ登録されていません。</p>
