@@ -59,7 +59,7 @@ const GEO_UNAVAILABLE_MESSAGE =
 const GEO_TIMEOUT_MESSAGE =
   "位置情報の取得がタイムアウトしました。再度お試しいただくか、手動で地点を指定してください。";
 const GEO_UNSUPPORTED_MESSAGE =
-  "この環境では位置情報を取得できません。緯度・経度を入力するか地図を操作してください。";
+  "この環境では位置情報を取得できません。緯度・経度を入力してください。";
 
 type NearbySearchParams = {
   get(name: string): string | null;
@@ -113,6 +113,7 @@ export interface NearbyLocationState {
   status: LocationStatus;
   error: string | null;
   isSupported: boolean;
+  hasResolvedSupport: boolean;
   mode: LocationMode;
   hasExplicitLocation: boolean;
 }
@@ -160,6 +161,31 @@ export function useNearbySearchController({
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
+  const [isGeolocationSupported, setIsGeolocationSupported] = useState(false);
+  const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] =
+    useState(false);
+
+  const detectGeolocationSupport = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.navigator === "undefined") {
+      geolocationSupportedRef.current = false;
+      setIsGeolocationSupported(false);
+      setHasResolvedGeolocationSupport(true);
+      return false;
+    }
+    const geolocation = window.navigator.geolocation;
+    const supported =
+      typeof geolocation === "object" &&
+      geolocation !== null &&
+      typeof geolocation.getCurrentPosition === "function";
+    geolocationSupportedRef.current = supported;
+    setIsGeolocationSupported(supported);
+    setHasResolvedGeolocationSupport(true);
+    return supported;
+  }, []);
+
+  useEffect(() => {
+    detectGeolocationSupport();
+  }, [detectGeolocationSupport]);
 
   const [applied, setApplied] = useState<NearbyQueryState>(() =>
     parseNearbyState(searchParams, resolvedDefaults),
@@ -322,7 +348,8 @@ export function useNearbySearchController({
   );
 
   const requestCurrentLocation = useCallback(() => {
-    if (typeof window === "undefined" || !geolocationSupportedRef.current) {
+    const supported = detectGeolocationSupport();
+    if (!supported) {
       setLocationMode("auto");
       setLocationStatus("error");
       setLocationError(GEO_UNSUPPORTED_MESSAGE);
@@ -364,7 +391,7 @@ export function useNearbySearchController({
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
     );
-  }, [applied.radiusKm, applyQuery]);
+  }, [applied.radiusKm, applyQuery, detectGeolocationSupport]);
 
   const setPage = useCallback(
     (page: number) => {
@@ -395,11 +422,19 @@ export function useNearbySearchController({
     () => ({
       status: locationStatus,
       error: locationError,
-      isSupported: geolocationSupportedRef.current,
+      isSupported: isGeolocationSupported,
+      hasResolvedSupport: hasResolvedGeolocationSupport,
       mode: locationMode,
       hasExplicitLocation,
     }),
-    [hasExplicitLocation, locationError, locationMode, locationStatus],
+    [
+      hasExplicitLocation,
+      hasResolvedGeolocationSupport,
+      isGeolocationSupported,
+      locationError,
+      locationMode,
+      locationStatus,
+    ],
   );
 
   return {

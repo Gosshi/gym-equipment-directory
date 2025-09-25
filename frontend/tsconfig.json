@@ -23,7 +23,8 @@
       "@/types/*": ["src/types/*"],
       "@/features/*": ["src/features/*"],
       "@/hooks/*": ["src/hooks/*"],
-      "@/store/*": ["src/store/*"]
+      "@/store/*": ["src/store/*"],
+      "@/state/*": ["src/state/*"]
     },
     "plugins": [{ "name": "next" }]
   },

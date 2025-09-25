@@ -60,6 +60,7 @@ export interface LocationState {
   status: LocationStatus;
   error: string | null;
   isSupported: boolean;
+  hasResolvedSupport: boolean;
   isFallback: boolean;
   fallbackLabel: string | null;
 }
@@ -204,6 +205,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
+  const [isGeolocationSupported, setIsGeolocationSupported] = useState(
+    geolocationSupportedRef.current,
+  );
+  const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] = useState(false);
   const initialLocationRequestRef = useRef(false);
   const [locationMode, setLocationMode] = useState<LocationMode>(() => {
     if (appliedFilters.lat != null && appliedFilters.lng != null) {
@@ -215,6 +220,28 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
   );
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  const detectGeolocationSupport = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.navigator === "undefined") {
+      geolocationSupportedRef.current = false;
+      setIsGeolocationSupported(false);
+      setHasResolvedGeolocationSupport(true);
+      return false;
+    }
+    const geolocation = window.navigator.geolocation;
+    const supported =
+      typeof geolocation === "object" &&
+      geolocation !== null &&
+      typeof geolocation.getCurrentPosition === "function";
+    geolocationSupportedRef.current = supported;
+    setIsGeolocationSupported(supported);
+    setHasResolvedGeolocationSupport(true);
+    return supported;
+  }, []);
+
+  useEffect(() => {
+    detectGeolocationSupport();
+  }, [detectGeolocationSupport]);
 
   useEffect(() => {
     const next = parseFilterState(new URLSearchParams(searchParamsKey));
@@ -502,7 +529,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   );
 
   const requestLocation = useCallback(() => {
-    if (typeof window === "undefined" || !geolocationSupportedRef.current) {
+    const supported = detectGeolocationSupport();
+    if (!supported) {
       handleGeolocationError(null, LOCATION_UNSUPPORTED_MESSAGE);
       return;
     }
@@ -522,7 +550,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
     );
-  }, [applyLocation, handleGeolocationError]);
+  }, [applyLocation, detectGeolocationSupport, handleGeolocationError]);
 
   const setManualLocation = useCallback(
     (lat: number | null, lng: number | null) => {
@@ -577,9 +605,24 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       initialLocationRequestRef.current = true;
       return;
     }
+    if (!hasResolvedGeolocationSupport) {
+      return;
+    }
+    if (!isGeolocationSupported) {
+      handleGeolocationError(null, LOCATION_UNSUPPORTED_MESSAGE);
+      initialLocationRequestRef.current = true;
+      return;
+    }
     initialLocationRequestRef.current = true;
     requestLocation();
-  }, [appliedFilters.lat, appliedFilters.lng, requestLocation]);
+  }, [
+    appliedFilters.lat,
+    appliedFilters.lng,
+    handleGeolocationError,
+    hasResolvedGeolocationSupport,
+    isGeolocationSupported,
+    requestLocation,
+  ]);
 
   const setPage = useCallback(
     (page: number, options: { append?: boolean } = {}) => {
@@ -866,11 +909,20 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       mode: locationMode,
       status: locationStatus,
       error: locationError,
-      isSupported: geolocationSupportedRef.current,
+      isSupported: isGeolocationSupported,
+      hasResolvedSupport: hasResolvedGeolocationSupport,
       isFallback: fallbackActive,
       fallbackLabel: fallbackActive ? FALLBACK_LOCATION.label : null,
     };
-  }, [formState.lat, formState.lng, locationMode, locationStatus, locationError]);
+  }, [
+    formState.lat,
+    formState.lng,
+    hasResolvedGeolocationSupport,
+    isGeolocationSupported,
+    locationMode,
+    locationStatus,
+    locationError,
+  ]);
 
   return {
     formState,
