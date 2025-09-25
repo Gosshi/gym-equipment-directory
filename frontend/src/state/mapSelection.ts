@@ -35,26 +35,31 @@ export const useMapSelectionStore = create<MapSelectionState>((set, get) => ({
     const update: Partial<MapSelectionState> = {};
     let shouldUpdate = false;
 
-    if (state.selectedId !== nextSelected) {
+    const selectionChanged = state.selectedId !== nextSelected;
+    const sourceChanged = source ? state.lastSelectionSource !== source : false;
+    const interactionChanged = source ? state.lastInteraction !== source : false;
+
+    if (selectionChanged) {
       update.selectedId = nextSelected;
       shouldUpdate = true;
     }
 
-    if (source) {
-      if (state.lastInteraction !== source) {
-        update.lastInteraction = source;
-        shouldUpdate = true;
-      }
-      if (state.lastSelectionSource !== source) {
-        update.lastSelectionSource = source;
-        shouldUpdate = true;
-      }
+    if (interactionChanged) {
+      update.lastInteraction = source!;
+      shouldUpdate = true;
+    }
 
-      const nextTimestamp = Date.now();
-      if (!state.lastSelectionAt || state.lastSelectionAt !== nextTimestamp) {
-        update.lastSelectionAt = nextTimestamp;
-        shouldUpdate = true;
-      }
+    if (sourceChanged) {
+      update.lastSelectionSource = source!;
+      shouldUpdate = true;
+    }
+
+    const shouldRefreshTimestamp =
+      source != null && (selectionChanged || sourceChanged || source !== "url");
+
+    if (shouldRefreshTimestamp) {
+      update.lastSelectionAt = Date.now();
+      shouldUpdate = true;
     }
 
     if (!shouldUpdate) {
