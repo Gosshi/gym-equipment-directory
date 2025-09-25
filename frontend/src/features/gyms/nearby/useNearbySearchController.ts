@@ -61,8 +61,12 @@ const GEO_TIMEOUT_MESSAGE =
 const GEO_UNSUPPORTED_MESSAGE =
   "この環境では位置情報を取得できません。緯度・経度を入力するか地図を操作してください。";
 
+type NearbySearchParams = {
+  get(name: string): string | null;
+};
+
 const parseNearbyState = (
-  params: ReadonlyURLSearchParams,
+  params: NearbySearchParams,
   defaults: { lat: number; lng: number; radiusKm: number },
 ): NearbyQueryState => {
   const latRaw = params.get("lat");
@@ -132,8 +136,6 @@ export interface UseNearbySearchControllerResult {
   requestCurrentLocation: () => void;
   setPage: (page: number) => void;
 }
-
-type ReadonlyURLSearchParams = ReturnType<typeof useSearchParams>;
 
 export function useNearbySearchController({
   defaultCenter,
