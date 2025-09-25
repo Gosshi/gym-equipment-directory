@@ -15,6 +15,15 @@ export default defineConfig({
         url: "http://localhost",
       },
     },
+    sequence: {
+      concurrent: false,
+    },
+    poolOptions: {
+      threads: {
+        minThreads: 1,
+        maxThreads: 1,
+      },
+    },
   },
   resolve: {
     alias: [
