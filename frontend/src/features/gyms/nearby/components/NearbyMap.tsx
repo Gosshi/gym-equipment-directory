@@ -375,6 +375,23 @@ export function NearbyMap({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
+    const handleMapClick = (event: maplibregl.MapMouseEvent) => {
+      const target = event.originalEvent?.target;
+      if (target instanceof HTMLElement) {
+        if (
+          target.closest(".nearby-marker") ||
+          target.closest(".nearby-cluster") ||
+          target.closest(".maplibregl-popup") ||
+          target.closest(".maplibregl-ctrl")
+        ) {
+          return;
+        }
+      }
+      onPreview(null, "map");
+      onSelect(null, "map");
+    };
+    map.on("click", handleMapClick);
+
     const handleMoveEnd = () => {
       updateMarkersForViewport();
       notifyViewportChange();
@@ -423,6 +440,7 @@ export function NearbyMap({
         pendingPanRef.current = null;
       }
       isUserDraggingRef.current = false;
+      map.off("click", handleMapClick);
       map.off("moveend", handleMoveEnd);
       map.off("dragstart", handleDragStart);
       map.off("dragend", handleDragEnd);
@@ -436,6 +454,8 @@ export function NearbyMap({
     mapStyle,
     notifyViewportChange,
     onCenterChange,
+    onPreview,
+    onSelect,
     updateMarkersForViewport,
     zoom,
   ]);
@@ -620,7 +640,7 @@ export function NearbyMap({
       container.className = "gym-popup-container";
       const popup = new maplibregl.Popup({
         closeButton: false,
-        closeOnClick: true,
+        closeOnClick: false,
         offset: 18,
         anchor: "bottom",
       });
