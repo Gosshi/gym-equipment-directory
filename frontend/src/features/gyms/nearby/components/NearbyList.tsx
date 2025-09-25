@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { Pagination } from "@/components/gyms/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,8 +32,14 @@ export interface NearbyListProps {
   hoveredId: number | null;
   onHover: (id: number | null) => void;
   onRetry: () => void;
-  onLoadMore: () => void;
-  hasNext: boolean;
+  onPageChange: (page: number) => void;
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    hasPrev: boolean;
+  };
   isLoading: boolean;
   isInitialLoading: boolean;
   error: string | null;
@@ -62,13 +69,29 @@ const NearbySkeleton = () => (
   </div>
 );
 
+const NearbyEmptyState = () => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-base">近隣のジムが見つかりませんでした</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-2 text-sm text-muted-foreground">
+      <p>検索範囲を広げるか、地図をドラッグして別の地点をお試しください。</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>半径スライダーを広げる</li>
+        <li>地図を移動して中心地点を変更する</li>
+        <li>緯度・経度を直接入力して検索する</li>
+      </ul>
+    </CardContent>
+  </Card>
+);
+
 export function NearbyList({
   items,
   hoveredId,
   onHover,
   onRetry,
-  onLoadMore,
-  hasNext,
+  onPageChange,
+  meta,
   isLoading,
   isInitialLoading,
   error,
@@ -88,70 +111,94 @@ export function NearbyList({
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">近隣のジムが見つかりませんでした</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          検索範囲を広げるか、座標を変更して再度お試しください。
-        </CardContent>
-      </Card>
-    );
+  const hasResults = items.length > 0;
+  if (!hasResults && !isLoading) {
+    return <NearbyEmptyState />;
   }
 
+  const perPage = Math.max(meta.pageSize, 1);
+  const currentPage = Math.max(meta.page, 1);
+  const rangeStart = hasResults ? (currentPage - 1) * perPage + 1 : 0;
+  const rangeEnd = hasResults ? rangeStart + items.length - 1 : 0;
+  const hasExactTotal = meta.total > 0;
+  const totalPages = hasExactTotal
+    ? Math.max(Math.ceil(meta.total / perPage), currentPage)
+    : Math.max(currentPage, meta.hasMore ? currentPage + 1 : currentPage);
+  const summaryLabel = isLoading
+    ? "検索結果を読み込み中です…"
+    : hasExactTotal
+      ? `全${meta.total}件中${rangeStart}–${rangeEnd}件目`
+      : hasResults
+        ? `${rangeStart}–${rangeEnd}件目`
+        : "0件";
+
   return (
-    <div className="space-y-4">
-      <ul className="space-y-3">
-        {items.map(gym => {
-          const isHighlighted = hoveredId === gym.id;
-          const prefectureLabel = formatSlug(gym.prefecture);
-          const cityLabel = formatSlug(gym.city);
-          const areaLabel =
-            [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
-          return (
-            <li key={gym.id}>
-              <Link
-                className={cn(
-                  "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isHighlighted
-                    ? "border-primary bg-primary/5"
-                    : "hover:border-primary hover:bg-primary/5",
-                )}
-                href={`/gyms/${gym.slug}`}
-                onBlur={() => onHover(null)}
-                onClick={() => logPinClick({ source: "list", slug: gym.slug })}
-                onFocus={() => onHover(gym.id)}
-                onMouseEnter={() => onHover(gym.id)}
-                onMouseLeave={() => onHover(null)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-semibold text-foreground group-hover:text-primary">
-                    {gym.name}
-                  </h3>
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
-                    {formatDistance(gym.distanceKm)}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">{areaLabel}</p>
-                {gym.lastVerifiedAt ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    最終更新: {new Date(gym.lastVerifiedAt).toLocaleDateString()}
-                  </p>
-                ) : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      {hasNext ? (
-        <div className="flex justify-center">
-          <Button disabled={isLoading} onClick={onLoadMore} type="button" variant="outline">
-            {isLoading ? "読み込み中..." : "もっと見る"}
-          </Button>
-        </div>
-      ) : null}
+    <div className="space-y-4" aria-busy={isLoading} aria-live="polite">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <p className="text-sm font-medium text-foreground">{summaryLabel}</p>
+        {hasExactTotal ? (
+          <span className="text-xs text-muted-foreground">
+            ページ {currentPage} / {totalPages}
+          </span>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <NearbySkeleton />
+      ) : (
+        <ul className="space-y-3">
+          {items.map(gym => {
+            const isHighlighted = hoveredId === gym.id;
+            const prefectureLabel = formatSlug(gym.prefecture);
+            const cityLabel = formatSlug(gym.city);
+            const areaLabel =
+              [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
+            return (
+              <li key={gym.id}>
+                <Link
+                  className={cn(
+                    "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isHighlighted
+                      ? "border-primary bg-primary/5"
+                      : "hover:border-primary hover:bg-primary/5",
+                  )}
+                  href={`/gyms/${gym.slug}`}
+                  onBlur={() => onHover(null)}
+                  onClick={() => logPinClick({ source: "list", slug: gym.slug })}
+                  onFocus={() => onHover(gym.id)}
+                  onMouseEnter={() => onHover(gym.id)}
+                  onMouseLeave={() => onHover(null)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-semibold text-foreground group-hover:text-primary">
+                      {gym.name}
+                    </h3>
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                      {formatDistance(gym.distanceKm)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{areaLabel}</p>
+                  {gym.lastVerifiedAt ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      最終更新: {new Date(gym.lastVerifiedAt).toLocaleDateString()}
+                    </p>
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="border-t border-border/60 pt-4">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.max(totalPages, 1)}
+          hasNextPage={meta.hasMore}
+          onChange={onPageChange}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }

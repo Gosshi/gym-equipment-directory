@@ -5,21 +5,21 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { parseLatLng } from "@/lib/geo";
+import { useToast } from "@/components/ui/use-toast";
+import { MIN_DISTANCE_KM, MAX_DISTANCE_KM } from "@/lib/searchParams";
 import type { NearbyGym } from "@/types/gym";
 
 import { NearbyList } from "./components/NearbyList";
 import { NearbySearchPanel } from "./components/NearbySearchPanel";
 import { useNearbyGyms } from "./useNearbyGyms";
+import { useNearbySearchController } from "./useNearbySearchController";
 
 const NearbyMap = dynamic(() => import("./components/NearbyMap").then(mod => mod.NearbyMap), {
   ssr: false,
 });
 
 const FALLBACK_CENTER = { lat: 35.681236, lng: 139.767125 };
-const FALLBACK_RADIUS_METERS = 3000;
-const MIN_RADIUS_METERS = 500;
-const MAX_RADIUS_METERS = 30000;
+const DEFAULT_RADIUS_KM = 3;
 
 const logPinClick = (payload: Record<string, unknown>) => {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
@@ -31,45 +31,55 @@ const logPinClick = (payload: Record<string, unknown>) => {
 const resolveDefaultCenter = () => {
   const envValue = process.env.NEXT_PUBLIC_DEFAULT_CENTER;
   if (typeof envValue === "string") {
-    const parsed = parseLatLng(envValue);
-    if (parsed) {
-      return parsed;
+    const parts = envValue.split(",").map(part => Number.parseFloat(part.trim()));
+    if (parts.length === 2 && parts.every(value => Number.isFinite(value))) {
+      return { lat: parts[0], lng: parts[1] };
     }
   }
   return FALLBACK_CENTER;
 };
 
-const resolveDefaultRadius = () => {
+const resolveDefaultRadiusKm = () => {
   const envValue = process.env.NEXT_PUBLIC_DEFAULT_RADIUS;
   if (typeof envValue === "string") {
-    const parsed = Number.parseInt(envValue, 10);
+    const parsed = Number.parseFloat(envValue);
     if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
+      const normalized = parsed > 100 ? parsed / 1000 : parsed;
+      const rounded = Math.round(normalized);
+      return Math.min(Math.max(rounded, MIN_DISTANCE_KM), MAX_DISTANCE_KM);
     }
   }
-  return FALLBACK_RADIUS_METERS;
+  return DEFAULT_RADIUS_KM;
 };
 
 export function NearbyGymsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const defaultCenter = useMemo(() => resolveDefaultCenter(), []);
-  const defaultRadius = useMemo(() => resolveDefaultRadius(), []);
+  const defaultRadius = useMemo(() => resolveDefaultRadiusKm(), []);
 
-  const [center, setCenter] = useState(defaultCenter);
-  const [radiusMeters, setRadiusMeters] = useState(defaultRadius);
-  const [radiusInput, setRadiusInput] = useState(String(defaultRadius));
-  const [latInput, setLatInput] = useState(defaultCenter.lat.toFixed(6));
-  const [lngInput, setLngInput] = useState(defaultCenter.lng.toFixed(6));
-  const [formError, setFormError] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
+  const {
+    applied,
+    formState,
+    manualError,
+    location,
+    radiusBounds,
+    setLatInput,
+    setLngInput,
+    updateRadius,
+    submitManualCoordinates,
+    updateCenterFromMap,
+    requestCurrentLocation,
+    setPage,
+  } = useNearbySearchController({ defaultCenter, defaultRadiusKm: defaultRadius });
 
-  const hasRequestedLocation = useRef(false);
-
-  const { items, isInitialLoading, isLoading, error, hasNext, loadMore, reload } = useNearbyGyms({
-    center,
-    radiusMeters,
+  const { items, meta, isInitialLoading, isLoading, error, reload } = useNearbyGyms({
+    center: { lat: applied.lat, lng: applied.lng },
+    radiusKm: applied.radiusKm,
+    page: applied.page,
   });
+
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   useEffect(() => {
     if (hoveredId === null) {
@@ -80,74 +90,35 @@ export function NearbyGymsPage() {
     }
   }, [hoveredId, items]);
 
+  const hasRequestedLocationRef = useRef(false);
   useEffect(() => {
-    setLatInput(center.lat.toFixed(6));
-    setLngInput(center.lng.toFixed(6));
-  }, [center.lat, center.lng]);
-
-  const handleRadiusChange = useCallback((value: string) => {
-    setRadiusInput(value);
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    if (hasRequestedLocationRef.current) {
       return;
     }
-    const sanitized = Math.max(MIN_RADIUS_METERS, Math.min(parsed, MAX_RADIUS_METERS));
-    setRadiusMeters(sanitized);
-    if (sanitized !== parsed) {
-      setRadiusInput(String(sanitized));
-    }
-  }, []);
-
-  const applyCoordinates = useCallback(() => {
-    const parsed = parseLatLng(`${latInput},${lngInput}`);
-    if (!parsed) {
-      setFormError("緯度・経度の形式を確認してください。（例: 35.681236,139.767125）");
+    if (location.hasExplicitLocation) {
+      hasRequestedLocationRef.current = true;
       return;
     }
-    setFormError(null);
-    setCenter(parsed);
-    setHoveredId(null);
-  }, [latInput, lngInput]);
-
-  const requestCurrentLocation = useCallback(() => {
-    if (typeof window === "undefined" || !("geolocation" in window.navigator)) {
-      setFormError("ブラウザが現在地取得に対応していません");
-      return;
-    }
-    setIsLocating(true);
-    window.navigator.geolocation.getCurrentPosition(
-      position => {
-        setIsLocating(false);
-        const coords = {
-          lat: Number(position.coords.latitude.toFixed(6)),
-          lng: Number(position.coords.longitude.toFixed(6)),
-        };
-        setCenter(coords);
-        setFormError(null);
-      },
-      geoError => {
-        setIsLocating(false);
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          setFormError("現在地の取得が拒否されました。手動で座標を入力してください。");
-        } else {
-          setFormError("現在地の取得に失敗しました。通信環境をご確認ください。");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  }, []);
-
-  useEffect(() => {
-    if (hasRequestedLocation.current) {
-      return;
-    }
-    hasRequestedLocation.current = true;
+    hasRequestedLocationRef.current = true;
     requestCurrentLocation();
-  }, [requestCurrentLocation]);
+  }, [location.hasExplicitLocation, requestCurrentLocation]);
 
-  const handleMapCenterChange = useCallback((nextCenter: { lat: number; lng: number }) => {
-    setCenter(nextCenter);
-  }, []);
+  const lastToastMessageRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (location.status !== "error" || !location.error) {
+      lastToastMessageRef.current = null;
+      return;
+    }
+    if (lastToastMessageRef.current === location.error) {
+      return;
+    }
+    lastToastMessageRef.current = location.error;
+    toast({
+      title: "位置情報を取得できませんでした",
+      description: location.error,
+      variant: "destructive",
+    });
+  }, [location.error, location.status, toast]);
 
   const handleMarkerSelect = useCallback(
     (gym: NearbyGym) => {
@@ -157,10 +128,43 @@ export function NearbyGymsPage() {
     [router],
   );
 
-  const radiusKmLabel = useMemo(
-    () => (radiusMeters >= 1000 ? `${(radiusMeters / 1000).toFixed(1)}km` : `${radiusMeters}m`),
-    [radiusMeters],
+  const handleMapCenterChange = useCallback(
+    (nextCenter: { lat: number; lng: number }) => {
+      updateCenterFromMap(nextCenter);
+    },
+    [updateCenterFromMap],
   );
+
+  const locationSummary = useMemo(() => {
+    if (!location.isSupported) {
+      return "この環境では位置情報を取得できません。緯度・経度を入力してください。";
+    }
+    const coordinateLabel = `${applied.lat.toFixed(4)}, ${applied.lng.toFixed(4)}`;
+    if (location.status === "loading") {
+      return "現在地を取得しています…";
+    }
+    if (location.mode === "auto") {
+      return `現在地を使用中（${coordinateLabel}）`;
+    }
+    if (location.mode === "map") {
+      return `地図で選択した地点（${coordinateLabel}）`;
+    }
+    if (location.mode === "manual") {
+      return `手入力した地点（${coordinateLabel}）`;
+    }
+    return `URLで指定された地点（${coordinateLabel}）`;
+  }, [applied.lat, applied.lng, location.isSupported, location.mode, location.status]);
+
+  const radiusKmLabel = useMemo(() => `約${applied.radiusKm}km`, [applied.radiusKm]);
+
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousPageRef = useRef(applied.page);
+  useEffect(() => {
+    if (previousPageRef.current !== applied.page && listContainerRef.current) {
+      listContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    previousPageRef.current = applied.page;
+  }, [applied.page]);
 
   return (
     <div className="flex min-h-screen flex-col gap-6 px-4 py-10">
@@ -175,16 +179,23 @@ export function NearbyGymsPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <div className="space-y-4">
             <NearbySearchPanel
-              errorMessage={formError}
-              isLocating={isLocating}
-              latInput={latInput}
-              lngInput={lngInput}
+              latInput={formState.latInput}
+              lngInput={formState.lngInput}
+              radiusKm={formState.radiusKm}
+              radiusMin={radiusBounds.min}
+              radiusMax={radiusBounds.max}
+              radiusStep={radiusBounds.step}
+              locationSummary={locationSummary}
+              locationStatus={location.status}
+              locationError={location.error}
+              manualError={manualError}
+              isLocating={location.status === "loading"}
+              isLocationSupported={location.isSupported}
               onLatChange={setLatInput}
               onLngChange={setLngInput}
-              onRadiusChange={handleRadiusChange}
-              onSubmit={applyCoordinates}
+              onRadiusChange={updateRadius}
+              onSubmit={submitManualCoordinates}
               onUseCurrentLocation={requestCurrentLocation}
-              radiusInput={radiusInput}
             />
             <Card className="overflow-hidden">
               <CardHeader className="space-y-1">
@@ -195,7 +206,7 @@ export function NearbyGymsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <NearbyMap
-                  center={center}
+                  center={{ lat: applied.lat, lng: applied.lng }}
                   hoveredId={hoveredId}
                   markers={items}
                   onCenterChange={handleMapCenterChange}
@@ -205,7 +216,7 @@ export function NearbyGymsPage() {
               </CardContent>
             </Card>
           </div>
-          <aside className="space-y-4">
+          <aside className="space-y-4" ref={listContainerRef}>
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">近隣のジム一覧</CardTitle>
@@ -213,13 +224,13 @@ export function NearbyGymsPage() {
               <CardContent className="space-y-4">
                 <NearbyList
                   error={error}
-                  hasNext={hasNext}
                   hoveredId={hoveredId}
                   isInitialLoading={isInitialLoading}
                   isLoading={isLoading}
                   items={items}
+                  meta={meta}
                   onHover={setHoveredId}
-                  onLoadMore={loadMore}
+                  onPageChange={setPage}
                   onRetry={reload}
                 />
               </CardContent>
