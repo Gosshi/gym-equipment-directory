@@ -477,6 +477,29 @@ describe("useGymSearch", () => {
     mockRouter.push.mockImplementation(() => {});
   });
 
+  it("re-detects geolocation support when requesting location before detection resolves", async () => {
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: undefined });
+    mockedUseSearchParams.mockReturnValue(createSearchParams());
+
+    const { result } = renderHook(() => useGymSearch({ debounceMs: 0 }));
+
+    const getCurrentPosition = vi.fn();
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition,
+        watchPosition: vi.fn(),
+        clearWatch: vi.fn(),
+      } as Geolocation,
+    });
+
+    await act(async () => {
+      result.current.requestLocation();
+    });
+
+    expect(getCurrentPosition).toHaveBeenCalled();
+  });
+
   it("updates the search radius and resets the page", async () => {
     let currentParams = createSearchParams("lat=35.6&lng=139.7&radius_km=5&page=3");
     mockedUseSearchParams.mockImplementation(() => currentParams);

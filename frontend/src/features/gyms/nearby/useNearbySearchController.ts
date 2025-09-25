@@ -165,16 +165,27 @@ export function useNearbySearchController({
   const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] =
     useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
+  const detectGeolocationSupport = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.navigator === "undefined") {
+      geolocationSupportedRef.current = false;
+      setIsGeolocationSupported(false);
+      setHasResolvedGeolocationSupport(true);
+      return false;
     }
+    const geolocation = window.navigator.geolocation;
     const supported =
-      typeof window.navigator !== "undefined" && "geolocation" in window.navigator;
+      typeof geolocation === "object" &&
+      geolocation !== null &&
+      typeof geolocation.getCurrentPosition === "function";
     geolocationSupportedRef.current = supported;
     setIsGeolocationSupported(supported);
     setHasResolvedGeolocationSupport(true);
+    return supported;
   }, []);
+
+  useEffect(() => {
+    detectGeolocationSupport();
+  }, [detectGeolocationSupport]);
 
   const [applied, setApplied] = useState<NearbyQueryState>(() =>
     parseNearbyState(searchParams, resolvedDefaults),
@@ -337,7 +348,8 @@ export function useNearbySearchController({
   );
 
   const requestCurrentLocation = useCallback(() => {
-    if (typeof window === "undefined" || !geolocationSupportedRef.current) {
+    const supported = detectGeolocationSupport();
+    if (!supported) {
       setLocationMode("auto");
       setLocationStatus("error");
       setLocationError(GEO_UNSUPPORTED_MESSAGE);
@@ -379,7 +391,7 @@ export function useNearbySearchController({
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
     );
-  }, [applied.radiusKm, applyQuery]);
+  }, [applied.radiusKm, applyQuery, detectGeolocationSupport]);
 
   const setPage = useCallback(
     (page: number) => {

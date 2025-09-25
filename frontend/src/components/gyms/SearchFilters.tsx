@@ -109,7 +109,7 @@ export function SearchFilters({
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const suggestAbortRef = useRef<AbortController | null>(null);
   const suggestTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // SSR -> CSR の hydration で geolocation サポート可否 (location.isSupported) が
+  // SSR -> CSR の hydration で geolocation サポート可否が
   // サーバとクライアントで異なり得るため、初回マウント前は常に
   // "現在地は利用不可" 側のラベルで固定し mismatch を回避する。
   const [mounted, setMounted] = useState(false);
@@ -264,13 +264,20 @@ export function SearchFilters({
   const coordinateLabel = hasLocation
     ? `${location.lat!.toFixed(4)}, ${location.lng!.toFixed(4)}`
     : "";
-  const locationSummary = hasLocation
-    ? location.isFallback
-      ? `デフォルト地点（${location.fallbackLabel ?? FALLBACK_LOCATION.label}）を使用中（${coordinateLabel}）`
-      : `${location.mode === "auto" ? "現在地を使用中" : "手入力した地点を使用中"}（${coordinateLabel}）`
-    : location.isSupported
+  const locationSummary = (() => {
+    if (hasLocation) {
+      if (location.isFallback) {
+        return `デフォルト地点（${location.fallbackLabel ?? FALLBACK_LOCATION.label}）を使用中（${coordinateLabel}）`;
+      }
+      return `${location.mode === "auto" ? "現在地を使用中" : "手入力した地点を使用中"}（${coordinateLabel}）`;
+    }
+    if (!location.hasResolvedSupport) {
+      return "現在地の利用可否を確認しています…";
+    }
+    return location.isSupported
       ? `現在地を取得するか「デフォルト地点（${FALLBACK_LOCATION.label}）」を利用できます。`
       : "この環境では位置情報を取得できません。緯度・経度を手入力してください。";
+  })();
 
   const handleCategoryToggle = (value: string) => {
     const isSelected = state.categories.includes(value);
@@ -539,7 +546,10 @@ export function SearchFilters({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={isLocating || !location.isSupported}
+                disabled={
+                  isLocating ||
+                  (location.hasResolvedSupport && !location.isSupported)
+                }
                 onClick={onRequestLocation}
                 size="sm"
                 type="button"
@@ -551,11 +561,9 @@ export function SearchFilters({
                   </span>
                 ) : mounted ? (
                   // マウント後は実際のサポート状況に基づいて表示
-                  location.isSupported ? (
-                    "現在地を再取得"
-                  ) : (
-                    "現在地は利用不可"
-                  )
+                  location.hasResolvedSupport && !location.isSupported
+                    ? "現在地は利用不可"
+                    : "現在地を再取得"
                 ) : (
                   // SSR と初回 CSR を一致させるため固定表示
                   "現在地は利用不可"

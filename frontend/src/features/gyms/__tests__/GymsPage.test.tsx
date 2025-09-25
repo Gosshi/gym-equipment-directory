@@ -54,6 +54,7 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSear
       status: "idle",
       error: null,
       isSupported: true,
+      hasResolvedSupport: true,
       isFallback: false,
       fallbackLabel: null,
     },
