@@ -22,6 +22,7 @@ vi.mock("maplibre-gl", () => {
     center: { lng: number; lat: number };
     zoom: number;
     handlers: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+    boundsPadding = 0.05;
 
     constructor(options: { container: HTMLElement; center: [number, number]; zoom?: number }) {
       this.container = options.container;
@@ -67,6 +68,21 @@ vi.mock("maplibre-gl", () => {
 
     getZoom() {
       return this.zoom;
+    }
+
+    getBounds() {
+      const { lat, lng } = this.center;
+      const padding = this.boundsPadding;
+      return {
+        getNorth: () => lat + padding,
+        getSouth: () => lat - padding,
+        getEast: () => lng + padding,
+        getWest: () => lng - padding,
+        toArray: () => [
+          [lng - padding, lat - padding],
+          [lng + padding, lat + padding],
+        ] as [[number, number], [number, number]],
+      };
     }
 
     easeTo(options: { center: [number, number]; zoom?: number; duration?: number }) {
