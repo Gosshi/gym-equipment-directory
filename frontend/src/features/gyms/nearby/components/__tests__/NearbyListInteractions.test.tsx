@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NearbyList } from "../NearbyList";
+import type { NearbyListProps } from "../NearbyList";
 import { resetMapSelectionStoreForTests, useMapSelectionStore } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 
@@ -53,30 +54,46 @@ const createRect = (top: number, bottom: number): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-const renderList = (items: NearbyGym[] = gyms) =>
-  render(
-    <NearbyList
-      items={items}
-      onRetry={noop}
-      onPageChange={noop}
-      meta={{ ...baseMeta, total: items.length }}
-      isLoading={false}
-      isInitialLoading={false}
-      error={null}
-    />,
-  );
+const TestNearbyList = ({
+  items = gyms,
+  onOpenDetail = noop,
+}: {
+  items?: NearbyGym[];
+  onOpenDetail?: NearbyListProps["onOpenDetail"];
+}) => {
+  const selectedId = useMapSelectionStore(state => state.selectedId);
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const setSelected = useMapSelectionStore(state => state.setSelected);
+  const setHovered = useMapSelectionStore(state => state.setHovered);
 
-const getAnchor = async (gymId: number) => {
+  return (
+    <NearbyList
+      error={null}
+      hoveredGymId={hoveredId}
+      isInitialLoading={false}
+      isLoading={false}
+      items={items}
+      meta={{ ...baseMeta, total: items.length }}
+      onOpenDetail={onOpenDetail}
+      onPageChange={noop}
+      onPreviewGym={(id, source) => setHovered(id, source)}
+      onRetry={noop}
+      onSelectGym={(id, source) => setSelected(id, source)}
+      selectedGymId={selectedId}
+    />
+  );
+};
+
+const renderList = (items: NearbyGym[] = gyms, onOpenDetail = noop) =>
+  render(<TestNearbyList items={items} onOpenDetail={onOpenDetail} />);
+
+const getItemButton = async (gymId: number) => {
   const listItem = await screen.findByTestId(`gym-item-${gymId}`);
-  const anchor = listItem.querySelector("a");
-  if (!anchor) {
-    throw new Error(`Anchor for gym ${gymId} was not found`);
+  const button = listItem.querySelector("button");
+  if (!button) {
+    throw new Error(`Button for gym ${gymId} was not found`);
   }
-  if (!anchor.dataset.preventNavigation) {
-    anchor.addEventListener("click", event => event.preventDefault());
-    anchor.dataset.preventNavigation = "true";
-  }
-  return anchor;
+  return button;
 };
 
 beforeEach(() => {
@@ -115,7 +132,7 @@ describe("NearbyList map interactions", () => {
   it("applies hovered styles when the hovered id changes", async () => {
     renderList();
 
-    const target = await getAnchor(1);
+    const target = await getItemButton(1);
     expect(target).not.toHaveClass("bg-primary/5");
 
     act(() => {
@@ -136,7 +153,7 @@ describe("NearbyList map interactions", () => {
 
     renderList();
 
-    const list = screen.getByRole("list");
+    const list = screen.getByRole("listbox");
     Object.defineProperty(list, "scrollHeight", {
       configurable: true,
       get: () => 2000,
@@ -157,7 +174,7 @@ describe("NearbyList map interactions", () => {
       runLastTimeout(timeoutSpy);
     });
 
-    const target = await getAnchor(2);
+    const target = await getItemButton(2);
     expect(target).toHaveClass("bg-primary/10");
     expect(target).toHaveClass("border-primary");
     expect(scrollSpy).toHaveBeenCalledTimes(1);
@@ -166,7 +183,7 @@ describe("NearbyList map interactions", () => {
   it("prioritizes selected styles over hovered styles", async () => {
     renderList();
 
-    const target = await getAnchor(1);
+    const target = await getItemButton(1);
 
     act(() => {
       useMapSelectionStore.getState().setHovered(1);
@@ -192,7 +209,7 @@ describe("NearbyList map interactions", () => {
 
     renderList();
 
-    const list = screen.getByRole("list");
+    const list = screen.getByRole("listbox");
     Object.defineProperty(list, "scrollHeight", {
       configurable: true,
       get: () => 2000,
@@ -208,11 +225,11 @@ describe("NearbyList map interactions", () => {
     firstItem.getBoundingClientRect = () => createRect(450, 520);
     secondItem.getBoundingClientRect = () => createRect(900, 980);
 
-    const firstAnchor = await getAnchor(1);
-    const secondAnchor = await getAnchor(2);
+    const firstButton = await getItemButton(1);
+    const secondButton = await getItemButton(2);
 
     act(() => {
-      fireEvent.click(firstAnchor);
+      fireEvent.click(firstButton);
     });
     act(() => {
       runLastTimeout(timeoutSpy);
@@ -222,7 +239,7 @@ describe("NearbyList map interactions", () => {
     expect(scrollSpy).toHaveBeenCalledTimes(1);
 
     act(() => {
-      fireEvent.click(secondAnchor);
+      fireEvent.click(secondButton);
     });
     act(() => {
       runLastTimeout(timeoutSpy);
@@ -231,7 +248,7 @@ describe("NearbyList map interactions", () => {
     expect(useMapSelectionStore.getState().selectedId).toBe(2);
     expect(scrollSpy).toHaveBeenCalledTimes(2);
 
-    const target = await getAnchor(2);
+    const target = await getItemButton(2);
     expect(target).toHaveClass("bg-primary/10");
   });
 
@@ -246,22 +263,14 @@ describe("NearbyList map interactions", () => {
     render(
       <>
         <SelectionObserver />
-        <NearbyList
-          items={gyms}
-          onRetry={noop}
-          onPageChange={noop}
-          meta={{ ...baseMeta }}
-          isLoading={false}
-          isInitialLoading={false}
-          error={null}
-        />
+        <TestNearbyList items={gyms} />
       </>,
     );
 
-    const anchor = await getAnchor(1);
+    const button = await getItemButton(1);
 
     act(() => {
-      fireEvent.click(anchor);
+      fireEvent.click(button);
     });
     act(() => {
       runLastTimeout(timeoutSpy);

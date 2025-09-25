@@ -142,17 +142,43 @@ const gyms: NearbyGym[] = [
   },
 ];
 
-const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) =>
-  render(
+const TestNearbyMap = (
+  props: Partial<ComponentProps<typeof NearbyMap>> & { markers?: NearbyGym[] } = {},
+) => {
+  const selectedId = useMapSelectionStore(state => state.selectedId);
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
+  const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
+  const setSelected = useMapSelectionStore(state => state.setSelected);
+  const setHovered = useMapSelectionStore(state => state.setHovered);
+
+  const {
+    markers = gyms,
+    onRequestDetail = () => undefined,
+    onCenterChange = () => undefined,
+    ...rest
+  } = props;
+
+  return (
     <NearbyMap
       center={{ lat: 35.68, lng: 139.76 }}
-      markers={gyms}
-      onMarkerSelect={() => undefined}
-      onCenterChange={() => undefined}
-      zoom={props?.zoom ?? 13}
-      {...props}
-    />,
+      markers={markers}
+      hoveredGymId={hoveredId}
+      selectedGymId={selectedId}
+      lastSelectionSource={lastSelectionSource}
+      lastSelectionAt={lastSelectionAt}
+      onSelect={(id, source) => setSelected(id, source)}
+      onPreview={(id, source) => setHovered(id, source)}
+      onRequestDetail={onRequestDetail}
+      onCenterChange={onCenterChange}
+      {...rest}
+    />
   );
+};
+
+const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) => render(
+  <TestNearbyMap {...props} />,
+);
 
 beforeEach(() => {
   mockState.easeToCalls.length = 0;

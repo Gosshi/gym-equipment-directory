@@ -43,15 +43,6 @@ const parsePage = (raw: string | null): number => {
   return parsed;
 };
 
-const buildNearbyQuery = (state: NearbyQueryState): URLSearchParams => {
-  const params = new URLSearchParams();
-  params.set("lat", state.lat.toFixed(6));
-  params.set("lng", state.lng.toFixed(6));
-  params.set("radiusKm", String(state.radiusKm));
-  params.set("page", String(state.page));
-  return params;
-};
-
 const GEO_PERMISSION_DENIED_MESSAGE =
   "位置情報が許可されていません。手動入力や地図から地点を選択してください。";
 const GEO_UNAVAILABLE_MESSAGE =
@@ -230,14 +221,24 @@ export function useNearbySearchController({
       }
 
       pendingSourceRef.current = options.source ?? null;
-      const params = buildNearbyQuery(next);
+      const params = new URLSearchParams(searchParamsKey);
+      params.set("lat", next.lat.toFixed(6));
+      params.set("lng", next.lng.toFixed(6));
+      params.delete("radius");
+      params.delete("radius_km");
+      params.set("radiusKm", String(next.radiusKm));
+      if (next.page <= 1) {
+        params.delete("page");
+      } else {
+        params.set("page", String(next.page));
+      }
       const nextQuery = params.toString();
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
       const method = options.replace ? router.replace : router.push;
       method(nextUrl, { scroll: false });
       setHasExplicitLocation(true);
     },
-    [applied, pathname, router],
+    [applied, pathname, router, searchParamsKey],
   );
 
   useEffect(() => {
