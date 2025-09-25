@@ -160,6 +160,19 @@ export function useNearbySearchController({
       typeof window.navigator !== "undefined" &&
       "geolocation" in window.navigator,
   );
+  const [isGeolocationSupported, setIsGeolocationSupported] = useState(
+    geolocationSupportedRef.current,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const supported =
+      typeof window.navigator !== "undefined" && "geolocation" in window.navigator;
+    geolocationSupportedRef.current = supported;
+    setIsGeolocationSupported(supported);
+  }, []);
 
   const [applied, setApplied] = useState<NearbyQueryState>(() =>
     parseNearbyState(searchParams, resolvedDefaults),
@@ -395,11 +408,11 @@ export function useNearbySearchController({
     () => ({
       status: locationStatus,
       error: locationError,
-      isSupported: geolocationSupportedRef.current,
+      isSupported: isGeolocationSupported,
       mode: locationMode,
       hasExplicitLocation,
     }),
-    [hasExplicitLocation, locationError, locationMode, locationStatus],
+    [hasExplicitLocation, isGeolocationSupported, locationError, locationMode, locationStatus],
   );
 
   return {

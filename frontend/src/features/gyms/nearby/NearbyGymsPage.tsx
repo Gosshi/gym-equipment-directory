@@ -104,9 +104,12 @@ export function NearbyGymsPage() {
       hasRequestedLocationRef.current = true;
       return;
     }
+    if (!location.isSupported) {
+      return;
+    }
     hasRequestedLocationRef.current = true;
     requestCurrentLocation();
-  }, [location.hasExplicitLocation, requestCurrentLocation]);
+  }, [location.hasExplicitLocation, location.isSupported, requestCurrentLocation]);
 
   const lastToastMessageRef = useRef<string | null>(null);
   useEffect(() => {
