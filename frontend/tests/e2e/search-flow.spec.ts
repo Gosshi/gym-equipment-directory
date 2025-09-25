@@ -291,9 +291,27 @@ test.describe("検索から詳細までの結合フロー", () => {
       });
     });
 
-    await page.evaluate(() => {
-      window.__mockGeolocation.shouldFail = true;
-    });
+    const setGeolocationState = async (
+      state: Partial<{ shouldFail: boolean; position: { latitude: number; longitude: number } }>,
+    ) => {
+      await page.evaluate(({ shouldFail, position }) => {
+        const defaultState = {
+          shouldFail: false,
+          position: { latitude: 35.681236, longitude: 139.767125 },
+        };
+        if (!window.__mockGeolocation) {
+          window.__mockGeolocation = defaultState;
+        }
+        if (typeof shouldFail === "boolean") {
+          window.__mockGeolocation.shouldFail = shouldFail;
+        }
+        if (position) {
+          window.__mockGeolocation.position = position;
+        }
+      }, state);
+    };
+
+    await setGeolocationState({ shouldFail: true });
 
     await page.goto("/gyms");
 
@@ -307,9 +325,9 @@ test.describe("検索から詳細までの結合フロー", () => {
     const locationError = page.getByRole("alert").getByText("位置情報が許可されていません。");
     await expect(locationError).toBeVisible();
 
-    await page.evaluate(() => {
-      window.__mockGeolocation.shouldFail = false;
-      window.__mockGeolocation.position = { latitude: 35.699, longitude: 139.698 };
+    await setGeolocationState({
+      shouldFail: false,
+      position: { latitude: 35.699, longitude: 139.698 },
     });
 
     await page.getByRole("button", { name: "現在地を再取得" }).click();
