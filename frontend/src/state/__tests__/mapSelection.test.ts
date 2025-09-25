@@ -28,6 +28,16 @@ describe("mapSelectionStore", () => {
     expect(state.hoveredId).toBe(456);
   });
 
+  it("toggles the selected id when the same value is set", () => {
+    const { setSelected } = useMapSelectionStore.getState();
+
+    setSelected(42);
+    expect(mapSelectionStore.getState().selectedId).toBe(42);
+
+    setSelected(42);
+    expect(mapSelectionStore.getState().selectedId).toBeNull();
+  });
+
   it("clears both ids", () => {
     useMapSelectionStore.setState({ selectedId: 1, hoveredId: 2 });
 
