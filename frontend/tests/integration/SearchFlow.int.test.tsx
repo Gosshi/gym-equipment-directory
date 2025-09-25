@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { vi } from "vitest";
@@ -369,5 +369,109 @@ describe("Search flow integration", () => {
     const keywordInput = screen.getByLabelText("キーワード");
     await user.click(guidanceButton);
     await waitFor(() => expect(keywordInput).toHaveFocus());
+  });
+
+  it("updates results when distance changes, paginates, and routes to detail", async () => {
+    createSuccessGeolocation(35.68, 139.76);
+
+    const searchRequests: URL[] = [];
+    const radiusResponse = {
+      items: [
+        {
+          id: 101,
+          slug: "central-fit",
+          name: "Central Fit 新宿",
+          city: "shinjuku",
+          pref: "tokyo",
+          equipments: ["パワーラック", "ダンベル"],
+          thumbnail_url: null,
+          last_verified_at: "2024-06-10T09:00:00Z",
+        },
+        {
+          id: 102,
+          slug: "harbor-fitness",
+          name: "Harbor Fitness 品川",
+          city: "minato",
+          pref: "tokyo",
+          equipments: ["マシン", "カーディオ"],
+          thumbnail_url: null,
+          last_verified_at: "2024-06-12T09:00:00Z",
+        },
+      ],
+      total: 3,
+      page: 1,
+      page_size: 2,
+      per_page: 2,
+      has_next: true,
+      has_prev: false,
+      has_more: true,
+      page_token: null,
+    };
+
+    const nextPageResponse = {
+      items: [
+        {
+          id: 103,
+          slug: "river-side-gym",
+          name: "River Side Gym 中野",
+          city: "nakano",
+          pref: "tokyo",
+          equipments: ["ケーブルマシン"],
+          thumbnail_url: null,
+          last_verified_at: "2024-06-15T09:00:00Z",
+        },
+      ],
+      total: 3,
+      page: 2,
+      page_size: 2,
+      per_page: 2,
+      has_next: false,
+      has_prev: true,
+      has_more: false,
+      page_token: null,
+    };
+
+    server.use(
+      http.get("*/gyms/search", ({ request }) => {
+        const url = new URL(request.url);
+        searchRequests.push(url);
+        const radius = Number(url.searchParams.get("radius_km") ?? url.searchParams.get("distance"));
+        const page = Number(url.searchParams.get("page") ?? "1");
+        if (page >= 2) {
+          return HttpResponse.json(nextPageResponse);
+        }
+        if (!Number.isNaN(radius) && radius > 5) {
+          return HttpResponse.json(radiusResponse);
+        }
+        return HttpResponse.json(defaultGymSearchResponse);
+      }),
+    );
+
+    renderGymsPage();
+
+    expect(await screen.findByText("東京フィットジム")).toBeInTheDocument();
+
+    const distanceSlider = screen.getByLabelText("検索半径（キロメートル）");
+    fireEvent.change(distanceSlider, { target: { value: "10" } });
+
+    await screen.findByText("Central Fit 新宿");
+    expect(screen.getByText("Harbor Fitness 品川")).toBeInTheDocument();
+
+    const detailLink = screen.getByRole("link", { name: "Central Fit 新宿の詳細を見る" });
+    expect(detailLink).toHaveAttribute("href", "/gyms/central-fit");
+    expect(detailLink).toHaveAttribute("aria-label", "Central Fit 新宿の詳細を見る");
+
+    expect(
+      searchRequests.some(url => {
+        const radiusParam = url.searchParams.get("radius_km") ?? url.searchParams.get("distance");
+        return radiusParam === "10";
+      }),
+    ).toBe(true);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "次のページ" }));
+
+    await screen.findByText("River Side Gym 中野");
+    expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true);
   });
 });
