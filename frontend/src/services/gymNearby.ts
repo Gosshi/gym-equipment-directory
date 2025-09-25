@@ -6,6 +6,7 @@ export interface FetchNearbyGymsParams {
   lng: number;
   radiusKm: number;
   perPage?: number;
+  page?: number;
   pageToken?: string | null;
   signal?: AbortSignal;
 }
@@ -50,12 +51,15 @@ export async function fetchNearbyGyms({
   lng,
   radiusKm,
   perPage = 20,
+  page,
   pageToken,
   signal,
 }: FetchNearbyGymsParams): Promise<GymNearbyResponse> {
   const parsedToken =
     pageToken != null && pageToken !== "" ? Number.parseInt(pageToken, 10) : Number.NaN;
-  const targetPage = Number.isFinite(parsedToken) && parsedToken > 0 ? parsedToken : 1;
+  const sanitizedPage = Number.isFinite(page) && page! > 0 ? Math.trunc(page!) : null;
+  const targetPage =
+    sanitizedPage ?? (Number.isFinite(parsedToken) && parsedToken > 0 ? parsedToken : 1);
   const query: Record<string, unknown> = {
     lat,
     lng,

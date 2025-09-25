@@ -26,7 +26,7 @@ describe("fetchNearbyGyms", () => {
         },
       ],
       total: 5,
-      page: 1,
+      page: 2,
       page_size: 20,
       has_more: true,
       has_prev: false,
@@ -43,6 +43,7 @@ describe("fetchNearbyGyms", () => {
       lng: 139.767125,
       radiusKm: 3,
       perPage: 20,
+      page: 2,
       pageToken: null,
     });
 
@@ -54,7 +55,7 @@ describe("fetchNearbyGyms", () => {
           lat: 35.681236,
           lng: 139.767125,
           radius_km: 3,
-          page: 1,
+          page: 2,
           page_size: 20,
         },
         signal: undefined,
@@ -76,11 +77,11 @@ describe("fetchNearbyGyms", () => {
         },
       ],
       total: 5,
-      page: 1,
+      page: 2,
       pageSize: 20,
       hasMore: true,
       hasPrev: false,
-      pageToken: "2",
+      pageToken: "3",
     });
   });
 
@@ -92,6 +93,7 @@ describe("fetchNearbyGyms", () => {
       lng: 20,
       radiusKm: 5,
       perPage: 10,
+      page: undefined,
       pageToken: "3",
       signal: controller.signal,
     });
@@ -101,6 +103,24 @@ describe("fetchNearbyGyms", () => {
       expect.objectContaining({
         signal: controller.signal,
         query: expect.objectContaining({ page: 3 }),
+      }),
+    );
+  });
+
+  it("prioritises the explicit page over the page token", async () => {
+    await fetchNearbyGyms({
+      lat: 10,
+      lng: 20,
+      radiusKm: 5,
+      perPage: 10,
+      page: 4,
+      pageToken: "8",
+    });
+
+    expect(mockedApiRequest).toHaveBeenLastCalledWith(
+      "/gyms/nearby",
+      expect.objectContaining({
+        query: expect.objectContaining({ page: 4 }),
       }),
     );
   });

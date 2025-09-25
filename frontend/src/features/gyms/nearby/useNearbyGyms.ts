@@ -2,46 +2,53 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { metersToKilometres } from "@/lib/geo";
 import { ApiError } from "@/lib/apiClient";
 import { fetchNearbyGyms } from "@/services/gymNearby";
 import type { NearbyGym } from "@/types/gym";
 
 export type NearbyFilters = {
   center: { lat: number; lng: number };
-  radiusMeters: number;
+  radiusKm: number;
+  page: number;
   perPage?: number;
 };
 
 interface NearbyState {
   items: NearbyGym[];
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    hasPrev: boolean;
+  };
   isInitialLoading: boolean;
   isLoading: boolean;
   error: string | null;
-  hasNext: boolean;
-  loadMore: () => void;
   reload: () => void;
 }
 
-const logDebug = (event: string, payload: Record<string, unknown>) => {
-  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
-    // eslint-disable-next-line no-console
-    console.debug(event, payload);
-  }
-};
-
-export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilters): NearbyState {
+export function useNearbyGyms({
+  center,
+  radiusKm,
+  page,
+  perPage = 20,
+}: NearbyFilters): NearbyState {
   const [items, setItems] = useState<NearbyGym[]>([]);
-  const [pageToken, setPageToken] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState({
+    total: 0,
+    page,
+    pageSize: perPage,
+    hasMore: false,
+    hasPrev: false,
+  });
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const latestRequestKey = useRef<string>("");
-
-  const radiusKm = useMemo(() => metersToKilometres(radiusMeters), [radiusMeters]);
 
   const cancelOngoingRequest = useCallback(() => {
     if (abortRef.current) {
@@ -50,94 +57,91 @@ export function useNearbyGyms({ center, radiusMeters, perPage = 20 }: NearbyFilt
     }
   }, []);
 
-  const fetchPage = useCallback(
-    async (token: string | null, reset: boolean) => {
-      cancelOngoingRequest();
-      const controller = new AbortController();
-      abortRef.current = controller;
+  useEffect(() => {
+    cancelOngoingRequest();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestKey = `${center.lat}:${center.lng}:${radiusKm}:${page}:${perPage}:${refreshIndex}`;
+    latestRequestKey.current = requestKey;
 
-      const requestKey = `${center.lat}:${center.lng}:${radiusKm}:${token ?? ""}`;
-      latestRequestKey.current = requestKey;
+    setIsLoading(true);
+    setError(null);
 
-      setIsLoading(true);
-      setError(null);
-      if (reset) {
-        setIsInitialLoading(true);
-      }
+    let active = true;
 
-      logDebug("nearby_fetch_start", {
-        center_lat: center.lat,
-        center_lng: center.lng,
-        radius_km: radiusKm,
-        page_token: token,
-      });
-
-      try {
-        const response = await fetchNearbyGyms({
-          lat: center.lat,
-          lng: center.lng,
-          radiusKm,
-          perPage,
-          pageToken: token,
-          signal: controller.signal,
-        });
-
-        if (latestRequestKey.current !== requestKey) {
+    fetchNearbyGyms({
+      lat: center.lat,
+      lng: center.lng,
+      radiusKm,
+      perPage,
+      page,
+      signal: controller.signal,
+    })
+      .then(response => {
+        if (!active || latestRequestKey.current !== requestKey) {
           return;
         }
-
-        setItems(prev => (reset ? response.items : [...prev, ...response.items]));
-        setPageToken(response.pageToken);
-        setHasMore(response.hasMore);
-        setIsInitialLoading(false);
-
-        logDebug("nearby_fetch_end", {
-          returned: response.items.length,
-          has_next: response.hasMore,
-          next_token: response.pageToken,
+        setItems(response.items);
+        setMeta({
+          total: response.total,
+          page: response.page,
+          pageSize: response.pageSize,
+          hasMore: response.hasMore,
+          hasPrev: response.hasPrev,
         });
-      } catch (err) {
-        if (controller.signal.aborted) {
+        setHasLoadedOnce(true);
+      })
+      .catch(err => {
+        if (!active || controller.signal.aborted) {
           return;
         }
-
         const message = err instanceof ApiError ? err.message : "近隣ジムの取得に失敗しました";
         setError(message);
-        setItems(prev => (reset ? [] : prev));
-        setHasMore(false);
-        setIsInitialLoading(false);
-      } finally {
-        if (latestRequestKey.current === requestKey) {
-          setIsLoading(false);
+        setItems([]);
+        setMeta(prev => ({
+          total: prev.total,
+          page,
+          pageSize: perPage,
+          hasMore: false,
+          hasPrev: page > 1,
+        }));
+      })
+      .finally(() => {
+        if (!active || latestRequestKey.current !== requestKey) {
+          return;
         }
-      }
-    },
-    [cancelOngoingRequest, center.lat, center.lng, perPage, radiusKm],
-  );
+        setIsLoading(false);
+      });
 
-  useEffect(() => {
-    fetchPage(null, true);
-    return cancelOngoingRequest;
-  }, [fetchPage, cancelOngoingRequest]);
-
-  const loadMore = useCallback(() => {
-    if (!hasMore || isLoading) {
-      return;
-    }
-    fetchPage(pageToken, false);
-  }, [fetchPage, hasMore, isLoading, pageToken]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [cancelOngoingRequest, center.lat, center.lng, page, perPage, radiusKm, refreshIndex]);
 
   const reload = useCallback(() => {
-    fetchPage(null, true);
-  }, [fetchPage]);
+    setRefreshIndex(value => value + 1);
+  }, []);
+
+  const isInitialLoading = isLoading && !hasLoadedOnce;
+
+  const resolvedMeta = useMemo(
+    () => ({
+      total: meta.total,
+      page: meta.page,
+      pageSize: meta.pageSize,
+      hasMore: meta.hasMore,
+      hasPrev: meta.hasPrev,
+    }),
+    [meta.hasMore, meta.hasPrev, meta.page, meta.pageSize, meta.total],
+  );
 
   return {
     items,
+    meta: resolvedMeta,
     isInitialLoading,
     isLoading,
     error,
-    hasNext: hasMore,
-    loadMore,
     reload,
   };
 }

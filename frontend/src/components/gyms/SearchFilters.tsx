@@ -551,7 +551,11 @@ export function SearchFilters({
                   </span>
                 ) : mounted ? (
                   // マウント後は実際のサポート状況に基づいて表示
-                  location.isSupported ? "現在地を再取得" : "現在地は利用不可"
+                  location.isSupported ? (
+                    "現在地を再取得"
+                  ) : (
+                    "現在地は利用不可"
+                  )
                 ) : (
                   // SSR と初回 CSR を一致させるため固定表示
                   "現在地は利用不可"
