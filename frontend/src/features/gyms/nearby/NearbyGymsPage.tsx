@@ -119,7 +119,7 @@ export function NearbyGymsPage() {
   } = useVisibleGyms({
     initialGyms: markerGyms,
     filtersKey: mapFiltersKey,
-    limit: 300,
+    limit: 100,
     maxRadiusKm: Math.max(applied.radiusKm * 2, applied.radiusKm + 1),
   });
 

@@ -16,7 +16,9 @@ export type MapViewport = {
 type FetchStatus = "idle" | "loading" | "success" | "error";
 
 const DEFAULT_DEBOUNCE_MS = 220;
-const DEFAULT_LIMIT = 250;
+const DEFAULT_LIMIT = 100;
+const MIN_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 const MIN_RADIUS_KM = 0.5;
 
 const roundCoordinate = (value: number) => Number.parseFloat(value.toFixed(5));
@@ -43,6 +45,14 @@ const calculateRadiusKm = (viewport: MapViewport) => {
     haversineDistanceKm(center, southWest),
   );
   return Math.max(radius, MIN_RADIUS_KM);
+};
+
+const sanitizePageSize = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_LIMIT;
+  }
+  const rounded = Math.round(value);
+  return Math.min(Math.max(rounded, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
 };
 
 export interface UseVisibleGymsOptions {
@@ -126,7 +136,7 @@ export function useVisibleGyms({
         setError(null);
 
         const radiusKm = Math.min(calculateRadiusKm(viewport), maxRadiusKm ?? Number.POSITIVE_INFINITY);
-        const perPage = Math.max(Math.min(Math.round(limit), 500), 50);
+        const perPage = sanitizePageSize(limit);
 
         fetchNearbyGyms({
           lat: viewport.center.lat,
