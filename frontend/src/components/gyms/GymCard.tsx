@@ -8,6 +8,7 @@ import type { GymSummary } from "@/types/gym";
 export interface GymCardProps {
   gym: GymSummary;
   className?: string;
+  prefetch?: boolean;
 }
 
 function getEquipmentDisplay(equipmentNames: string[] | undefined) {
@@ -33,7 +34,7 @@ function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
   }
 }
 
-export function GymCard({ gym, className }: GymCardProps) {
+export function GymCard({ gym, className, prefetch = true }: GymCardProps) {
   const { displayItems, remainingCount } = getEquipmentDisplay(gym.equipments);
   const primaryAddress = gym.address?.trim() ?? "";
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
@@ -47,6 +48,7 @@ export function GymCard({ gym, className }: GymCardProps) {
         className,
       )}
       href={`/gyms/${gym.slug}`}
+      prefetch={prefetch}
       onKeyDown={handleLinkKeyDown}
       role="link"
       tabIndex={0}
@@ -58,6 +60,8 @@ export function GymCard({ gym, className }: GymCardProps) {
             <img
               alt={gym.name}
               className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+              decoding="async"
+              loading="lazy"
               src={gym.thumbnailUrl}
             />
           ) : (

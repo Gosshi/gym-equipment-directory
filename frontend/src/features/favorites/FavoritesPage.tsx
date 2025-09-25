@@ -130,6 +130,8 @@ const FavoriteCard = ({
           <img
             alt={`${gym.name} のサムネイル`}
             className="h-full w-full object-cover"
+            decoding="async"
+            loading="lazy"
             src={gym.thumbnailUrl}
           />
         ) : (
@@ -148,7 +150,9 @@ const FavoriteCard = ({
           <div className="text-xs text-muted-foreground">登録日: {createdAtLabel}</div>
           <div className="flex gap-2">
             <Button asChild size="sm" type="button">
-              <Link href={`/gyms/${gym.slug}`}>ジム詳細へ</Link>
+              <Link href={`/gyms/${gym.slug}`} prefetch>
+                ジム詳細へ
+              </Link>
             </Button>
             <Button
               disabled={isRemoving}

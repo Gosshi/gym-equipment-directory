@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { BookmarkCheck, BookmarkPlus } from "lucide-react";
 
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
 import { GymHeader } from "@/components/gym/GymHeader";
-import { GymMap } from "@/components/gym/GymMap";
 import { ReportIssueButton } from "@/components/gym/ReportIssueButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,21 @@ import type {
 } from "@/types/api";
 
 import { GymDetailError } from "./GymDetailError";
+
+const GymMap = dynamic(() => import("@/components/gym/GymMap").then(module => module.GymMap), {
+  loading: () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>地図</CardTitle>
+        <CardDescription>所在地の確認やルート検索にご利用ください。</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="aspect-[4/3] w-full rounded-lg" />
+      </CardContent>
+    </Card>
+  ),
+  ssr: false,
+});
 
 interface NormalizedGymDetail {
   slug: string;

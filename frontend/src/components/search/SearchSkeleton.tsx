@@ -5,18 +5,28 @@ import { cn } from "@/lib/utils";
 type SearchSkeletonProps = {
   count?: number;
   className?: string;
+  announce?: boolean;
 };
 
 const DEFAULT_SKELETON_COUNT = 6;
 
-export function SearchSkeleton({ count = DEFAULT_SKELETON_COUNT, className }: SearchSkeletonProps) {
+export function SearchSkeleton({
+  count = DEFAULT_SKELETON_COUNT,
+  className,
+  announce = true,
+}: SearchSkeletonProps) {
   const items = Array.from({ length: Math.max(count, DEFAULT_SKELETON_COUNT) });
+  const rootProps = announce
+    ? { "aria-live": "polite" as const }
+    : { "aria-hidden": true as const };
 
   return (
-    <div aria-live="polite" className="space-y-2">
-      <span className="sr-only" role="status">
-        検索結果を読み込み中です…
-      </span>
+    <div className="space-y-2" {...rootProps}>
+      {announce ? (
+        <span className="sr-only" role="status">
+          検索結果を読み込み中です…
+        </span>
+      ) : null}
       <div
         aria-hidden="true"
         className={cn(
