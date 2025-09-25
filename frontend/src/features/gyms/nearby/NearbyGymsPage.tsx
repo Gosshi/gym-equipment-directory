@@ -81,7 +81,9 @@ export function NearbyGymsPage() {
   });
 
   const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const selectedId = useMapSelectionStore(state => state.selectedId);
   const setHoveredId = useMapSelectionStore(state => state.setHovered);
+  const setSelectedId = useMapSelectionStore(state => state.setSelected);
   const clearSelection = useMapSelectionStore(state => state.clear);
 
   useEffect(() => {
@@ -92,6 +94,15 @@ export function NearbyGymsPage() {
       setHoveredId(null);
     }
   }, [hoveredId, items, setHoveredId]);
+
+  useEffect(() => {
+    if (selectedId === null) {
+      return;
+    }
+    if (!items.some(gym => gym.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [items, selectedId, setSelectedId]);
 
   useEffect(() => () => clearSelection(), [clearSelection]);
 

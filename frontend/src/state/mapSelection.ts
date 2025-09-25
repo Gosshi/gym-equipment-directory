@@ -17,7 +17,10 @@ interface MapSelectionState {
 export const useMapSelectionStore = create<MapSelectionState>(set => ({
   selectedId: null,
   hoveredId: null,
-  setSelected: id => set({ selectedId: id }),
+  setSelected: id =>
+    set(current => ({
+      selectedId: id === null ? null : current.selectedId === id ? null : id,
+    })),
   setHovered: id => set({ hoveredId: id }),
   clear: () => set({ selectedId: null, hoveredId: null }),
 }));

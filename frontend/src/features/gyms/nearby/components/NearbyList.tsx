@@ -94,6 +94,7 @@ export function NearbyList({
   error,
 }: NearbyListProps) {
   const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const selectedId = useMapSelectionStore(state => state.selectedId);
   const setHovered = useMapSelectionStore(state => state.setHovered);
   const setSelected = useMapSelectionStore(state => state.setSelected);
 
@@ -149,7 +150,8 @@ export function NearbyList({
       ) : (
         <ul className="space-y-3">
           {items.map(gym => {
-            const isHighlighted = hoveredId === gym.id;
+            const isHovered = hoveredId === gym.id;
+            const isSelected = selectedId === gym.id;
             const prefectureLabel = formatSlug(gym.prefecture);
             const cityLabel = formatSlug(gym.city);
             const areaLabel =
@@ -159,9 +161,11 @@ export function NearbyList({
                 <Link
                   className={cn(
                     "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isHighlighted
-                      ? "border-primary bg-primary/5"
-                      : "hover:border-primary hover:bg-primary/5",
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-md"
+                      : isHovered
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-primary hover:bg-primary/5",
                   )}
                   href={`/gyms/${gym.slug}`}
                   onBlur={() => setHovered(null)}
@@ -174,7 +178,12 @@ export function NearbyList({
                   onMouseLeave={() => setHovered(null)}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-base font-semibold text-foreground group-hover:text-primary">
+                    <h3
+                      className={cn(
+                        "text-base font-semibold text-foreground group-hover:text-primary",
+                        isSelected ? "text-primary" : null,
+                      )}
+                    >
                       {gym.name}
                     </h3>
                     <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">

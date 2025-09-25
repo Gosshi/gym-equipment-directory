@@ -66,7 +66,19 @@ const resolveMapStyle = (): string | StyleSpecification => {
 const DEFAULT_ZOOM = 13;
 const MARKER_BASE_CLASS =
   "nearby-marker flex h-11 w-11 items-center justify-center rounded-full border-2 border-red-400/70 bg-white/90 text-3xl text-red-500 shadow-[0_8px_18px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500";
-const MARKER_HIGHLIGHT_CLASSES = "ring-4 ring-red-500/80 ring-offset-2 scale-110";
+const MARKER_HOVERED_CLASSES = Object.freeze([
+  "ring-4",
+  "ring-red-500/80",
+  "ring-offset-2",
+  "scale-110",
+]);
+const MARKER_SELECTED_CLASSES = Object.freeze([
+  "border-red-500",
+  "bg-red-500",
+  "text-white",
+  "scale-125",
+  "shadow-lg",
+]);
 
 const logMapCenter = (payload: Record<string, unknown>) => {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
@@ -83,6 +95,7 @@ export function NearbyMap({
   zoom = DEFAULT_ZOOM,
 }: NearbyMapProps) {
   const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const selectedId = useMapSelectionStore(state => state.selectedId);
   const setHovered = useMapSelectionStore(state => state.setHovered);
   const setSelected = useMapSelectionStore(state => state.setSelected);
 
@@ -182,6 +195,7 @@ export function NearbyMap({
       element.textContent = "📍";
       element.setAttribute("aria-label", `${gym.name} の詳細を開く`);
       element.title = buildTooltip(gym);
+      element.style.zIndex = "10";
 
       element.addEventListener("mouseenter", () => setHovered(gym.id));
       element.addEventListener("mouseleave", () => setHovered(null));
@@ -200,19 +214,31 @@ export function NearbyMap({
     });
   }, [markers, onMarkerSelect, setHovered, setSelected]);
 
-  const highlightClasses = useMemo(() => MARKER_HIGHLIGHT_CLASSES.split(" "), []);
-
   useEffect(() => {
     markerMapRef.current.forEach(({ element }, id) => {
-      highlightClasses.forEach(cls => {
-        if (id === hoveredId) {
+      const isHovered = id === hoveredId;
+      const isSelected = id === selectedId;
+
+      MARKER_HOVERED_CLASSES.forEach(cls => {
+        if (isHovered) {
           element.classList.add(cls);
         } else {
           element.classList.remove(cls);
         }
       });
+
+      MARKER_SELECTED_CLASSES.forEach(cls => {
+        if (isSelected) {
+          element.classList.add(cls);
+        } else {
+          element.classList.remove(cls);
+        }
+      });
+
+      element.style.zIndex = isSelected ? "30" : isHovered ? "20" : "10";
+      element.dataset.state = isSelected ? "selected" : isHovered ? "hovered" : "default";
     });
-  }, [hoveredId, highlightClasses]);
+  }, [hoveredId, selectedId]);
 
   return <div className="h-[420px] w-full rounded-lg border" ref={containerRef} />;
 }

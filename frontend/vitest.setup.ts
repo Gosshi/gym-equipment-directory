@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { server } from "./tests/msw/server";
+import { resetMapSelectionStoreForTests } from "@/state/mapSelection";
 
 const defaultApiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 process.env.NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? defaultApiBase;
@@ -16,6 +17,7 @@ afterEach(() => {
   server.resetHandlers();
   cleanup();
   vi.clearAllMocks();
+  resetMapSelectionStoreForTests();
 });
 
 afterAll(() => {
