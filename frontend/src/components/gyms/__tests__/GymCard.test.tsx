@@ -85,35 +85,4 @@ describe("GymCard", () => {
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
   });
-
-  it("calls onSelect when rendered as a button and clicked", async () => {
-    const gym = buildGym();
-    const user = userEvent.setup();
-    const handleSelect = vi.fn();
-
-    render(<GymCard gym={gym} onSelect={handleSelect} renderAs="button" />);
-
-    const button = screen.getByRole("button", { name: `${gym.name} の詳細を開く` });
-    expect(button).toHaveAttribute("aria-pressed", "false");
-
-    await user.click(button);
-
-    expect(handleSelect).toHaveBeenCalledWith(gym.slug);
-  });
-
-  it("notifies hover callbacks when focus changes", async () => {
-    const gym = buildGym();
-    const user = userEvent.setup();
-    const handleHover = vi.fn();
-
-    render(<GymCard gym={gym} onHover={handleHover} renderAs="button" />);
-
-    const button = screen.getByRole("button", { name: `${gym.name} の詳細を開く` });
-    await user.hover(button);
-
-    expect(handleHover).toHaveBeenCalledWith(gym.slug);
-
-    await user.unhover(button);
-    expect(handleHover).toHaveBeenCalledWith(null);
-  });
 });

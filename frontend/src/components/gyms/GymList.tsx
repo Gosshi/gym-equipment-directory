@@ -49,8 +49,6 @@ type GymListProps = {
   onClearFilters?: () => void;
   onGymSelect?: (slug: string) => void;
   selectedSlug?: string | null;
-  onGymHover?: (slug: string | null) => void;
-  hoveredSlug?: string | null;
 };
 
 export function GymList({
@@ -67,8 +65,6 @@ export function GymList({
   onClearFilters,
   onGymSelect,
   selectedSlug,
-  onGymHover,
-  hoveredSlug,
 }: GymListProps) {
   const resultState = useSearchResultState({ isLoading, error, items: gyms });
   const isPageLoading = isLoading && !isInitialLoading;
@@ -120,13 +116,10 @@ export function GymList({
         gym={gym}
         prefetch={index < PREFETCH_LIMIT}
         onSelect={onGymSelect}
-        onHover={onGymHover}
         isSelected={selectedSlug === gym.slug}
-        renderAs="button"
-        isHovered={hoveredSlug === gym.slug}
       />
     ),
-    [hoveredSlug, onGymHover, onGymSelect, selectedSlug],
+    [onGymSelect, selectedSlug],
   );
 
   let content: ReactNode;
@@ -160,10 +153,7 @@ export function GymList({
                   gym={gym}
                   prefetch={index < PREFETCH_LIMIT}
                   onSelect={onGymSelect}
-                  onHover={onGymHover}
                   isSelected={selectedSlug === gym.slug}
-                  isHovered={hoveredSlug === gym.slug}
-                  renderAs="button"
                 />
               ))}
             </div>

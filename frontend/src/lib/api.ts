@@ -85,11 +85,6 @@ export type RawGymSummary = {
   richness_score?: number | null;
   freshness_score?: number | null;
   last_verified_at?: string | null;
-  lat?: number | string | null;
-  lng?: number | string | null;
-  latitude?: number | string | null;
-  longitude?: number | string | null;
-  location?: unknown;
 };
 
 type RawSearchGymsResponse =
@@ -134,46 +129,9 @@ const normalizeEquipments = (source: unknown): string[] | undefined => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const parsed = Number.parseFloat(trimmed);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const extractSummaryCoordinates = (
-  input: RawGymSummary,
-): { latitude: number | null; longitude: number | null } => {
-  const location =
-    input.location && typeof input.location === "object"
-      ? (input.location as Record<string, unknown>)
-      : undefined;
-
-  const latitude =
-    toFiniteNumber(input.latitude) ??
-    toFiniteNumber(input.lat) ??
-    (location ? (toFiniteNumber(location.latitude) ?? toFiniteNumber(location.lat)) : null);
-
-  const longitude =
-    toFiniteNumber(input.longitude) ??
-    toFiniteNumber(input.lng) ??
-    (location ? (toFiniteNumber(location.longitude) ?? toFiniteNumber(location.lng)) : null);
-
-  return { latitude, longitude };
-};
-
 export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
   const equipments =
     normalizeEquipments(input.equipments) ?? normalizeEquipments(input.main_equipments);
-  const coordinates = extractSummaryCoordinates(input);
 
   return {
     id: input.id,
@@ -186,8 +144,6 @@ export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
     equipments,
     score: input.score ?? input.richness_score ?? undefined,
     lastVerifiedAt: input.last_verified_at ?? undefined,
-    latitude: coordinates.latitude,
-    longitude: coordinates.longitude,
   };
 };
 
