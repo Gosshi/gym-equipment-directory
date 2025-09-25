@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
-import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
+import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { useGymSearch } from "@/hooks/useGymSearch";
-import { cn } from "@/lib/utils";
 
 export function GymsPage() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const {
     formState,
     updateKeyword,
@@ -47,20 +47,27 @@ export function GymsPage() {
   } = useGymSearch();
 
   const handleSelectGym = useCallback((slug: string) => {
-    setSelectedSlug(previous => (previous === slug ? previous : slug));
+    setSelectedSlug(slug);
+    setDetailModalOpen(true);
   }, []);
 
   const handleClosePanel = useCallback(() => {
     setSelectedSlug(null);
+    setDetailModalOpen(false);
   }, []);
-
-  const showDetailPanel = Boolean(selectedSlug);
 
   useEffect(() => {
     if (!isLoading && items.length === 0) {
       setSelectedSlug(null);
+      setDetailModalOpen(false);
     }
   }, [isLoading, items.length]);
+
+  useEffect(() => {
+    if (!selectedSlug) {
+      setDetailModalOpen(false);
+    }
+  }, [selectedSlug]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/10">
@@ -101,14 +108,7 @@ export function GymsPage() {
             prefectures={prefectures}
             state={formState}
           />
-          <div
-            className={cn(
-              "flex flex-col gap-6",
-              showDetailPanel
-                ? "xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)] xl:items-start"
-                : undefined,
-            )}
-          >
+          <div className="flex flex-col gap-6">
             <GymList
               error={error}
               gyms={items}
@@ -124,12 +124,15 @@ export function GymsPage() {
               onGymSelect={handleSelectGym}
               selectedSlug={selectedSlug}
             />
-            {showDetailPanel ? (
-              <GymDetailPanel className="xl:ml-2" onClose={handleClosePanel} slug={selectedSlug} />
-            ) : null}
           </div>
         </div>
       </div>
+      <GymDetailModal
+        open={isDetailModalOpen && Boolean(selectedSlug)}
+        onOpenChange={setDetailModalOpen}
+        onRequestClose={handleClosePanel}
+        slug={selectedSlug}
+      />
     </div>
   );
 }

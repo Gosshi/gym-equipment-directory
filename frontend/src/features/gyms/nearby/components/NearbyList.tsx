@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { Pagination } from "@/components/gyms/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useMapSelectionStore } from "@/state/mapSelection";
+import type { MapInteractionSource } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 
 const logPinClick = (payload: Record<string, unknown>) => {
@@ -44,6 +43,11 @@ export interface NearbyListProps {
   isLoading: boolean;
   isInitialLoading: boolean;
   error: string | null;
+  selectedGymId: number | null;
+  hoveredGymId: number | null;
+  onSelectGym: (gymId: number, source?: MapInteractionSource) => void;
+  onPreviewGym: (gymId: number | null, source?: MapInteractionSource) => void;
+  onOpenDetail: (gym: NearbyGym, options?: { preferModal?: boolean }) => void;
 }
 
 const formatDistance = (distanceKm: number) => {
@@ -94,11 +98,12 @@ export function NearbyList({
   isLoading,
   isInitialLoading,
   error,
+  selectedGymId,
+  hoveredGymId,
+  onSelectGym,
+  onPreviewGym,
+  onOpenDetail,
 }: NearbyListProps) {
-  const hoveredId = useMapSelectionStore(state => state.hoveredId);
-  const selectedId = useMapSelectionStore(state => state.selectedId);
-  const setHovered = useMapSelectionStore(state => state.setHovered);
-  const setSelected = useMapSelectionStore(state => state.setSelected);
   const listRef = useRef<HTMLUListElement | null>(null);
   const itemRefs = useRef(new Map<number, HTMLLIElement>());
   const scrollTimeoutRef = useRef<number | null>(null);
@@ -131,11 +136,11 @@ export function NearbyList({
       scrollTimeoutRef.current = null;
     }
 
-    if (selectedId === null) {
+    if (selectedGymId === null) {
       return;
     }
 
-    const target = itemRefs.current.get(selectedId);
+    const target = itemRefs.current.get(selectedGymId);
     if (!target) {
       return;
     }
@@ -180,7 +185,81 @@ export function NearbyList({
         scrollTimeoutRef.current = null;
       }
     };
-  }, [items, selectedId]);
+  }, [items, selectedGymId]);
+
+  const activeOptionId = useMemo(() => {
+    if (hoveredGymId !== null && items.some(gym => gym.id === hoveredGymId)) {
+      return hoveredGymId;
+    }
+    if (selectedGymId !== null && items.some(gym => gym.id === selectedGymId)) {
+      return selectedGymId;
+    }
+    return null;
+  }, [hoveredGymId, items, selectedGymId]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLUListElement>) => {
+      if (items.length === 0) {
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const ids = items.map(gym => gym.id);
+        const hoveredIndex = hoveredGymId != null ? ids.indexOf(hoveredGymId) : -1;
+        const selectedIndex = selectedGymId != null ? ids.indexOf(selectedGymId) : -1;
+        const currentIndex = hoveredIndex >= 0 ? hoveredIndex : selectedIndex;
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex =
+          currentIndex === -1
+            ? event.key === "ArrowDown"
+              ? 0
+              : items.length - 1
+            : (currentIndex + delta + items.length) % items.length;
+        const nextGym = items[nextIndex];
+        if (nextGym) {
+          onSelectGym(nextGym.id, "list");
+          onPreviewGym(nextGym.id, "list");
+          logPinClick({ source: "list", slug: nextGym.slug });
+        }
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const targetGym =
+          (hoveredGymId != null
+            ? items.find(gym => gym.id === hoveredGymId) ?? null
+            : null) ??
+          (selectedGymId != null
+            ? items.find(gym => gym.id === selectedGymId) ?? null
+            : null) ??
+          items[0];
+        if (targetGym) {
+          onSelectGym(targetGym.id, "list");
+          onPreviewGym(targetGym.id, "list");
+          logPinClick({ source: "list", slug: targetGym.slug });
+        }
+        return;
+      }
+
+      if (event.key === "o" || event.key === "O") {
+        event.preventDefault();
+        const targetGym =
+          (selectedGymId != null
+            ? items.find(gym => gym.id === selectedGymId) ?? null
+            : null) ??
+          (hoveredGymId != null
+            ? items.find(gym => gym.id === hoveredGymId) ?? null
+            : null);
+        if (targetGym) {
+          onSelectGym(targetGym.id, "list");
+          onOpenDetail(targetGym, { preferModal: true });
+        }
+      }
+    },
+    [hoveredGymId, items, onOpenDetail, onPreviewGym, onSelectGym, selectedGymId],
+  );
 
   if (isInitialLoading) {
     return <NearbySkeleton />;
@@ -198,6 +277,7 @@ export function NearbyList({
   }
 
   const hasResults = items.length > 0;
+
   if (!hasResults && !isLoading) {
     return <NearbyEmptyState />;
   }
@@ -232,17 +312,29 @@ export function NearbyList({
       {isLoading ? (
         <NearbySkeleton />
       ) : (
-        <ul className="space-y-3" ref={listRef}>
+        <ul
+          aria-activedescendant={activeOptionId ? `gym-option-${activeOptionId}` : undefined}
+          aria-label="近隣のジム一覧"
+          className="space-y-3 focus:outline-none"
+          onKeyDown={handleKeyDown}
+          ref={listRef}
+          role="listbox"
+          tabIndex={0}
+        >
           {items.map(gym => {
-            const isHovered = hoveredId === gym.id;
-            const isSelected = selectedId === gym.id;
+            const isHovered = hoveredGymId === gym.id;
+            const isSelected = selectedGymId === gym.id;
             const prefectureLabel = formatSlug(gym.prefecture);
             const cityLabel = formatSlug(gym.city);
             const areaLabel =
               [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
+            const hasCoordinates =
+              Number.isFinite(gym.latitude) && Number.isFinite(gym.longitude);
             return (
               <li
+                aria-selected={isSelected}
                 data-testid={`gym-item-${gym.id}`}
+                id={`gym-option-${gym.id}`}
                 key={gym.id}
                 ref={node => {
                   if (node) {
@@ -251,31 +343,33 @@ export function NearbyList({
                     itemRefs.current.delete(gym.id);
                   }
                 }}
+                role="option"
               >
-                <Link
+                <button
                   className={cn(
-                    "group block rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "group flex w-full flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isSelected
                       ? "border-primary bg-primary/10 shadow-md"
                       : isHovered
                         ? "border-primary bg-primary/5"
                         : "hover:border-primary hover:bg-primary/5",
                   )}
-                  href={`/gyms/${gym.slug}`}
-                  onBlur={() => setHovered(null)}
+                  data-state={isSelected ? "selected" : isHovered ? "hovered" : "default"}
+                  onBlur={() => onPreviewGym(null, "list")}
                   onClick={() => {
-                    setSelected(gym.id, "list");
+                    onSelectGym(gym.id, "list");
                     logPinClick({ source: "list", slug: gym.slug });
                   }}
-                  onFocus={() => setHovered(gym.id, "list")}
-                  onMouseEnter={() => setHovered(gym.id, "list")}
-                  onMouseLeave={() => setHovered(null)}
+                  onFocus={() => onPreviewGym(gym.id, "list")}
+                  onMouseEnter={() => onPreviewGym(gym.id, "list")}
+                  onMouseLeave={() => onPreviewGym(null, "list")}
+                  type="button"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3
                       className={cn(
                         "text-base font-semibold text-foreground group-hover:text-primary",
-                        isSelected ? "text-primary" : null,
+                        isSelected ? "text-primary" : undefined,
                       )}
                     >
                       {gym.name}
@@ -285,12 +379,17 @@ export function NearbyList({
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{areaLabel}</p>
+                  {!hasCoordinates ? (
+                    <span className="mt-2 inline-flex items-center rounded-full border border-dashed border-border/60 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      地図非対応
+                    </span>
+                  ) : null}
                   {gym.lastVerifiedAt ? (
                     <p className="mt-2 text-xs text-muted-foreground">
                       最終更新: {new Date(gym.lastVerifiedAt).toLocaleDateString()}
                     </p>
                   ) : null}
-                </Link>
+                </button>
               </li>
             );
           })}

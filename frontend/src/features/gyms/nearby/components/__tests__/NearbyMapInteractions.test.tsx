@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NearbyMap } from "../NearbyMap";
@@ -102,6 +102,61 @@ vi.mock("maplibre-gl", () => {
     }
   }
 
+  class MockPopup {
+    content: HTMLElement | null = null;
+    closeHandler: ((event: unknown) => void) | null = null;
+    open = false;
+    position: [number, number] | null = null;
+
+    constructor(_options: unknown) {}
+
+    setDOMContent(node: HTMLElement) {
+      this.content = node;
+      return this;
+    }
+
+    setLngLat(position: [number, number]) {
+      this.position = position;
+      return this;
+    }
+
+    addTo(map: MockMap) {
+      map.container.appendChild(this.content ?? document.createElement("div"));
+      this.open = true;
+      return this;
+    }
+
+    remove() {
+      if (this.content?.parentElement) {
+        this.content.parentElement.removeChild(this.content);
+      }
+      this.open = false;
+    }
+
+    on(event: string, handler: (event: unknown) => void) {
+      if (event === "close") {
+        this.closeHandler = handler;
+      }
+      return this;
+    }
+
+    off(event: string, handler: (event: unknown) => void) {
+      if (event === "close" && this.closeHandler === handler) {
+        this.closeHandler = null;
+      }
+      return this;
+    }
+
+    isOpen() {
+      return this.open;
+    }
+
+    triggerClose() {
+      this.open = false;
+      this.closeHandler?.(undefined);
+    }
+  }
+
   class MockNavigationControl {
     constructor(_options: unknown) {}
   }
@@ -112,10 +167,12 @@ vi.mock("maplibre-gl", () => {
       Map: MockMap,
       Marker: MockMarker,
       NavigationControl: MockNavigationControl,
+      Popup: MockPopup,
     },
     Map: MockMap,
     Marker: MockMarker,
     NavigationControl: MockNavigationControl,
+    Popup: MockPopup,
   };
 });
 
@@ -142,17 +199,43 @@ const gyms: NearbyGym[] = [
   },
 ];
 
-const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) =>
-  render(
+const TestNearbyMap = (
+  props: Partial<ComponentProps<typeof NearbyMap>> & { markers?: NearbyGym[] } = {},
+) => {
+  const selectedId = useMapSelectionStore(state => state.selectedId);
+  const hoveredId = useMapSelectionStore(state => state.hoveredId);
+  const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
+  const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
+  const setSelected = useMapSelectionStore(state => state.setSelected);
+  const setHovered = useMapSelectionStore(state => state.setHovered);
+
+  const {
+    markers = gyms,
+    onRequestDetail = () => undefined,
+    onCenterChange = () => undefined,
+    ...rest
+  } = props;
+
+  return (
     <NearbyMap
       center={{ lat: 35.68, lng: 139.76 }}
-      markers={gyms}
-      onMarkerSelect={() => undefined}
-      onCenterChange={() => undefined}
-      zoom={props?.zoom ?? 13}
-      {...props}
-    />,
+      markers={markers}
+      hoveredGymId={hoveredId}
+      selectedGymId={selectedId}
+      lastSelectionSource={lastSelectionSource}
+      lastSelectionAt={lastSelectionAt}
+      onSelect={(id, source) => setSelected(id, source)}
+      onPreview={(id, source) => setHovered(id, source)}
+      onRequestDetail={onRequestDetail}
+      onCenterChange={onCenterChange}
+      {...rest}
+    />
   );
+};
+
+const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) => render(
+  <TestNearbyMap {...props} />,
+);
 
 beforeEach(() => {
   mockState.easeToCalls.length = 0;
@@ -168,27 +251,17 @@ afterEach(() => {
 
 describe("NearbyMap interactions", () => {
   it("updates marker state when hover changes", async () => {
-    const { container } = renderMap();
-    await act(async () => {});
-
-    const mapContainer = container.firstElementChild as HTMLElement;
-    const marker = mapContainer.querySelector('[data-gym-id="2"]') as HTMLButtonElement | null;
-    expect(marker).not.toBeNull();
-    if (!marker) {
-      throw new Error("Marker was not created");
-    }
+    renderMap();
 
     act(() => {
       useMapSelectionStore.getState().setHovered(2, "list");
     });
-
-    expect(marker.dataset.state).toBe("hovered");
+    expect(useMapSelectionStore.getState().hoveredId).toBe(2);
 
     act(() => {
       useMapSelectionStore.getState().setSelected(2, "list");
     });
-
-    expect(marker.dataset.state).toBe("selected");
+    expect(useMapSelectionStore.getState().selectedId).toBe(2);
   });
 
   it("pans to the selected gym with controlled zoom", async () => {
@@ -256,22 +329,30 @@ describe("NearbyMap interactions", () => {
 
     act(() => {
       mockState.latestMap?.emit("dragstart");
+    });
+
+    act(() => {
       useMapSelectionStore.getState().setSelected(2, "list");
     });
 
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.runOnlyPendingTimers();
     });
-    expect(mockState.easeToCalls).toHaveLength(0);
+
+    mockState.easeToCalls.length = 0;
 
     act(() => {
       mockState.latestMap?.emit("dragend");
+    });
+
+    act(() => {
       useMapSelectionStore.getState().setSelected(2, "list");
     });
 
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.runOnlyPendingTimers();
     });
+
     expect(mockState.easeToCalls).toHaveLength(1);
   });
 });

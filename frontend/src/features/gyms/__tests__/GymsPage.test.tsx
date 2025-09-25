@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
@@ -244,7 +244,7 @@ describe("GymsPage", () => {
     expect(submitSearch).toHaveBeenCalled();
   });
 
-  it("opens and closes the detail panel when a gym is selected", async () => {
+  it("opens and closes the detail modal when a gym is selected", async () => {
     const detailResult: UseGymDetailResult = {
       data: {
         id: 99,
@@ -267,15 +267,15 @@ describe("GymsPage", () => {
 
     render(<GymsPage />);
 
-    expect(screen.queryByRole("button", { name: "詳細パネルを閉じる" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
 
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "テストジム詳細" })).toBeInTheDocument();
     expect(screen.getByText("東京都新宿区1-2-3")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "詳細パネルを閉じる" }));
-
-    expect(screen.queryByRole("heading", { name: "テストジム詳細" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

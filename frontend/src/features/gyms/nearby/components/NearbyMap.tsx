@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { GymPopup, type GymPopupData, type GymPopupMode } from "@/components/map/GymPopup";
+import type { MapInteractionSource } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
-import { useMapSelectionStore } from "@/state/mapSelection";
 
 export interface NearbyMapProps {
   center: { lat: number; lng: number };
   markers: NearbyGym[];
-  onMarkerSelect: (gym: NearbyGym) => void;
+  hoveredGymId: number | null;
+  selectedGymId: number | null;
+  lastSelectionSource: MapInteractionSource | null;
+  lastSelectionAt: number | null;
   onCenterChange: (nextCenter: { lat: number; lng: number }) => void;
+  onSelect: (gymId: number | null, source: MapInteractionSource) => void;
+  onPreview: (gymId: number | null, source: MapInteractionSource) => void;
+  onRequestDetail: (gym: NearbyGym) => void;
+  popupSupplements?: Record<number, Partial<GymPopupData>>;
+  popupIsLoading?: boolean;
   zoom?: number;
 }
 
@@ -90,16 +100,18 @@ const logMapCenter = (payload: Record<string, unknown>) => {
 export function NearbyMap({
   center,
   markers,
-  onMarkerSelect,
+  hoveredGymId,
+  selectedGymId,
+  lastSelectionSource,
+  lastSelectionAt,
   onCenterChange,
+  onSelect,
+  onPreview,
+  onRequestDetail,
+  popupSupplements = {},
+  popupIsLoading = false,
   zoom = DEFAULT_ZOOM,
 }: NearbyMapProps) {
-  const hoveredId = useMapSelectionStore(state => state.hoveredId);
-  const selectedId = useMapSelectionStore(state => state.selectedId);
-  const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
-  const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
-  const setHovered = useMapSelectionStore(state => state.setHovered);
-  const setSelected = useMapSelectionStore(state => state.setSelected);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -113,6 +125,30 @@ export function NearbyMap({
     id: null,
     at: null,
   });
+  const popupRef = useRef<
+    | {
+        popup: maplibregl.Popup;
+        container: HTMLDivElement;
+        root: Root;
+        gymId: number | null;
+        mode: GymPopupMode;
+        closeHandler: () => void;
+      }
+    | null
+  >(null);
+
+  const cleanupPopup = useCallback((removePopup: boolean) => {
+    const entry = popupRef.current;
+    if (!entry) {
+      return;
+    }
+    entry.popup.off("close", entry.closeHandler);
+    if (removePopup) {
+      entry.popup.remove();
+    }
+    entry.root.unmount();
+    popupRef.current = null;
+  }, []);
 
   useEffect(
     () => () => {
@@ -120,8 +156,9 @@ export function NearbyMap({
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
       }
+      cleanupPopup(true);
     },
-    [],
+    [cleanupPopup],
   );
 
   const mapStyle = useMemo(() => resolveMapStyle(), []);
@@ -240,13 +277,12 @@ export function NearbyMap({
       element.style.zIndex = "10";
       element.dataset.gymId = String(gym.id);
 
-      element.addEventListener("mouseenter", () => setHovered(gym.id, "map"));
-      element.addEventListener("mouseleave", () => setHovered(null));
-      element.addEventListener("focus", () => setHovered(gym.id, "map"));
-      element.addEventListener("blur", () => setHovered(null));
+      element.addEventListener("mouseenter", () => onPreview(gym.id, "map"));
+      element.addEventListener("mouseleave", () => onPreview(null, "map"));
+      element.addEventListener("focus", () => onPreview(gym.id, "map"));
+      element.addEventListener("blur", () => onPreview(null, "map"));
       element.addEventListener("click", () => {
-        setSelected(gym.id, "map");
-        onMarkerSelect(gym);
+        onSelect(gym.id, "map");
       });
 
       const marker = new maplibregl.Marker({ element, anchor: "bottom" })
@@ -255,7 +291,7 @@ export function NearbyMap({
 
       markerMapRef.current.set(gym.id, { marker, element });
     });
-  }, [markers, onMarkerSelect, setHovered, setSelected]);
+  }, [markers, onPreview, onSelect]);
 
   useEffect(() => {
     if (lastSelectionSource !== "map") {
@@ -263,10 +299,10 @@ export function NearbyMap({
     }
 
     lastMapSelectionRef.current = {
-      id: selectedId,
+      id: selectedGymId,
       at: lastSelectionAt ?? Date.now(),
     };
-  }, [lastSelectionAt, lastSelectionSource, selectedId]);
+  }, [lastSelectionAt, lastSelectionSource, selectedGymId]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -279,7 +315,7 @@ export function NearbyMap({
       pendingPanRef.current = null;
     }
 
-    if (selectedId === null) {
+    if (selectedGymId === null) {
       return;
     }
 
@@ -298,7 +334,7 @@ export function NearbyMap({
     if (lastSelectionSource === "list") {
       const lastMapSelection = lastMapSelectionRef.current;
       if (
-        lastMapSelection.id === selectedId &&
+        lastMapSelection.id === selectedGymId &&
         lastMapSelection.at !== null &&
         lastSelectionAt !== null &&
         lastSelectionAt - lastMapSelection.at < 750
@@ -307,7 +343,7 @@ export function NearbyMap({
       }
     }
 
-    const targetGym = markers.find(gym => gym.id === selectedId);
+    const targetGym = markers.find(gym => gym.id === selectedGymId);
     if (!targetGym) {
       return;
     }
@@ -315,6 +351,10 @@ export function NearbyMap({
     const schedulePan = () => {
       const activeMap = mapRef.current;
       if (!activeMap) {
+        return;
+      }
+
+      if (isUserDraggingRef.current) {
         return;
       }
 
@@ -338,12 +378,12 @@ export function NearbyMap({
         pendingPanRef.current = null;
       }
     };
-  }, [lastSelectionAt, lastSelectionSource, markers, selectedId]);
+  }, [lastSelectionAt, lastSelectionSource, markers, selectedGymId]);
 
   useEffect(() => {
     markerMapRef.current.forEach(({ element }, id) => {
-      const isHovered = id === hoveredId;
-      const isSelected = id === selectedId;
+      const isHovered = id === hoveredGymId;
+      const isSelected = id === selectedGymId;
 
       MARKER_HOVERED_CLASSES.forEach(cls => {
         if (isHovered) {
@@ -364,10 +404,156 @@ export function NearbyMap({
       element.style.zIndex = isSelected ? "30" : isHovered ? "20" : "10";
       element.dataset.state = isSelected ? "selected" : isHovered ? "hovered" : "default";
     });
-  }, [hoveredId, selectedId]);
+  }, [hoveredGymId, selectedGymId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    const previewId =
+      hoveredGymId !== null && hoveredGymId !== selectedGymId ? hoveredGymId : null;
+    const activeId = previewId ?? selectedGymId;
+    const mode: GymPopupMode | null =
+      previewId !== null ? "preview" : selectedGymId !== null ? "selected" : null;
+
+    if (activeId == null || mode == null) {
+      cleanupPopup(true);
+      return;
+    }
+
+    const gym = markers.find(item => item.id === activeId);
+    if (!gym) {
+      cleanupPopup(true);
+      return;
+    }
+
+    const notifyClose = () => {
+      if (mode === "preview") {
+        onPreview(null, "map");
+      } else {
+        onSelect(null, "map");
+      }
+    };
+
+    const supplement = popupSupplements[activeId] ?? {};
+    const popupData = composePopupData(gym, supplement);
+
+    const existing = popupRef.current;
+    if (!existing) {
+      const container = document.createElement("div");
+      container.className = "gym-popup-container";
+      const popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: true,
+        offset: 18,
+        anchor: "bottom",
+      });
+      popup.setDOMContent(container);
+      const root = createRoot(container);
+      const closeHandler = () => {
+        cleanupPopup(false);
+        notifyClose();
+      };
+      popup.on("close", closeHandler);
+      popupRef.current = {
+        popup,
+        container,
+        root,
+        gymId: activeId,
+        mode,
+        closeHandler,
+      };
+      popup.setLngLat([gym.longitude, gym.latitude]).addTo(map);
+    } else {
+      if (existing.gymId !== activeId || existing.mode !== mode) {
+        existing.popup.off("close", existing.closeHandler);
+        const closeHandler = () => {
+          cleanupPopup(false);
+          notifyClose();
+        };
+        existing.closeHandler = closeHandler;
+        existing.popup.on("close", closeHandler);
+        existing.gymId = activeId;
+        existing.mode = mode;
+      }
+      existing.popup.setLngLat([gym.longitude, gym.latitude]);
+    }
+
+    const current = popupRef.current;
+    if (!current) {
+      return;
+    }
+
+    const handleViewDetail = () => {
+      if (mode === "preview") {
+        onSelect(gym.id, "map");
+      }
+      onRequestDetail(gym);
+    };
+
+    const handleCloseClick = () => {
+      cleanupPopup(true);
+      notifyClose();
+    };
+
+    current.root.render(
+      <GymPopup
+        data={popupData}
+        mode={mode}
+        isLoading={mode === "selected" ? popupIsLoading : false}
+        onClose={handleCloseClick}
+        onViewDetail={handleViewDetail}
+      />,
+    );
+
+    if (!current.popup.isOpen()) {
+      current.popup.addTo(map);
+    }
+
+    window.requestAnimationFrame(() => {
+      const dialog = current.container.querySelector('[role="dialog"]');
+      if (dialog instanceof HTMLElement) {
+        dialog.focus();
+      }
+    });
+
+    return () => {
+      const entry = popupRef.current;
+      if (entry && !entry.popup.isOpen()) {
+        entry.root.render(null);
+      }
+    };
+  }, [
+    hoveredGymId,
+    selectedGymId,
+    markers,
+    popupSupplements,
+    popupIsLoading,
+    onPreview,
+    onSelect,
+    onRequestDetail,
+    cleanupPopup,
+  ]);
 
   return <div className="h-[420px] w-full rounded-lg border" ref={containerRef} />;
 }
+
+const composePopupData = (
+  gym: NearbyGym,
+  supplement: Partial<GymPopupData>,
+): GymPopupData => ({
+  id: gym.id,
+  slug: gym.slug,
+  name: gym.name,
+  latitude: gym.latitude,
+  longitude: gym.longitude,
+  prefecture: gym.prefecture,
+  city: gym.city,
+  distanceKm: gym.distanceKm,
+  ...supplement,
+});
 
 const buildTooltip = (gym: NearbyGym) => {
   const distance = formatDistance(gym.distanceKm);
