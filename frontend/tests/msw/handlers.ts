@@ -55,4 +55,6 @@ export const handlers = [
   }),
   http.get("*/suggest/gyms", () => HttpResponse.json([])),
   http.get("*/gyms/search", () => HttpResponse.json(defaultGymSearchResponse)),
+  http.get("*/me/favorites", () => HttpResponse.json([])),
+  http.get("*/me/history", () => HttpResponse.json({ items: [] })),
 ];
