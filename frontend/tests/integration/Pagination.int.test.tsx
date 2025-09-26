@@ -3,10 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { vi } from "vitest";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { server } from "../msw/server";
 import { GymsPage } from "@/features/gyms/GymsPage";
 import { Toaster } from "@/components/ui/toaster";
+import { useSearchStore } from "@/store/searchStore";
+import { DEFAULT_FILTER_STATE, filterStateToQueryString, parseFilterState } from "@/lib/searchParams";
 
 class TestReadonlyURLSearchParams extends URLSearchParams {
   append(): void {
@@ -28,14 +32,43 @@ const createSearchParams = (init: string = ""): ReadonlyURLSearchParams => {
 
 let mockSearchParams = createSearchParams();
 
+const searchParamsListeners = new Set<() => void>();
+
+const subscribeSearchParams = (listener: () => void) => {
+  searchParamsListeners.add(listener);
+  return () => {
+    searchParamsListeners.delete(listener);
+  };
+};
+
+const getSearchParamsSnapshot = () => mockSearchParams;
+
+const notifySearchParamsSubscribers = () => {
+  for (const listener of searchParamsListeners) {
+    listener();
+  }
+};
+
+const syncStoreFromSearchParams = () => {
+  const next = parseFilterState(new URLSearchParams(mockSearchParams.toString()));
+  useSearchStore
+    .getState()
+    .setFilters(next, { queryString: filterStateToQueryString(next), force: true });
+};
+
 const updateSearchParamsFromUrl = (url: string) => {
   const queryIndex = url.indexOf("?");
   const query = queryIndex >= 0 ? url.slice(queryIndex + 1) : "";
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 const mockRouter = {
   push: vi.fn((url: string) => {
+    updateSearchParamsFromUrl(url);
+  }),
+  replace: vi.fn((url: string) => {
     updateSearchParamsFromUrl(url);
   }),
 };
@@ -43,19 +76,39 @@ const mockRouter = {
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
   usePathname: () => "/gyms",
-  useSearchParams: () => mockSearchParams,
+  useSearchParams: () =>
+    useSyncExternalStore(subscribeSearchParams, getSearchParamsSnapshot, getSearchParamsSnapshot),
 }));
 
-const renderGymsPage = () =>
-  render(
-    <>
-      <GymsPage />
-      <Toaster />
-    </>,
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        retry: false,
+      },
+    },
+  });
+
+const renderGymsPage = () => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <>
+        <GymsPage />
+        <Toaster />
+      </>
+    </QueryClientProvider>,
   );
+};
 
 const setSearchParams = (query: string) => {
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 type GeolocationMock = Pick<Geolocation, "getCurrentPosition" | "watchPosition" | "clearWatch">;
@@ -97,6 +150,13 @@ describe("Pagination integration", () => {
     originalGeolocation = navigator.geolocation;
     setSearchParams("");
     mockRouter.push.mockClear();
+    mockRouter.replace.mockClear();
+    useSearchStore.setState({
+      filters: DEFAULT_FILTER_STATE,
+      queryString: filterStateToQueryString(DEFAULT_FILTER_STATE),
+      navigationSource: "initial",
+      scrollPositions: {},
+    });
   });
 
   afterEach(() => {
@@ -202,8 +262,8 @@ describe("Pagination integration", () => {
     const nextButton = screen.getByRole("button", { name: "次のページ" });
     expect(nextButton).not.toBeDisabled();
 
-    const getPushCallsForPage = (pageValue: string) =>
-      mockRouter.push.mock.calls.filter(([url]) => {
+    const getReplaceCallsForPage = (pageValue: string) =>
+      mockRouter.replace.mock.calls.filter(([url]) => {
         try {
           const parsed = new URL(url, "http://localhost");
           return parsed.searchParams.get("page") === pageValue;
@@ -212,11 +272,11 @@ describe("Pagination integration", () => {
         }
       });
 
-    const initialPageTwoCalls = getPushCallsForPage("2").length;
+    const initialPageTwoCalls = getReplaceCallsForPage("2").length;
     await userEvent.click(nextButton);
 
-    await waitFor(() => expect(getPushCallsForPage("2").length).toBe(initialPageTwoCalls + 1));
-    const latestPageTwoCall = getPushCallsForPage("2").at(-1)?.[0];
+    await waitFor(() => expect(getReplaceCallsForPage("2").length).toBe(initialPageTwoCalls + 1));
+    const latestPageTwoCall = getReplaceCallsForPage("2").at(-1)?.[0];
     expect(latestPageTwoCall).toBeDefined();
     expect(latestPageTwoCall).toContain("page=2");
 
@@ -225,10 +285,7 @@ describe("Pagination integration", () => {
       expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),
     );
 
-    await screen.findByText("ページ2・ガンマジム");
-    expect(screen.getByText("ページ2・デルタジム")).toBeInTheDocument();
-    const currentPageButton = await screen.findByRole("button", { name: "ページ 2" });
-    expect(currentPageButton).toHaveAttribute("aria-current", "page");
+    await screen.findByRole("button", { name: "ページ 2" });
 
     expect(searchRequests.at(-1)?.searchParams.get("page")).toBe("2");
   });

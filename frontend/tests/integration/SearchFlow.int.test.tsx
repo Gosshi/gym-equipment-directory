@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { vi } from "vitest";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { server } from "../msw/server";
 import { defaultGymSearchResponse } from "../msw/handlers";
@@ -11,7 +12,7 @@ import { GymsPage } from "@/features/gyms/GymsPage";
 import { Toaster } from "@/components/ui/toaster";
 import { FALLBACK_LOCATION } from "@/hooks/useGymSearch";
 import { useSearchStore } from "@/store/searchStore";
-import { DEFAULT_FILTER_STATE, filterStateToQueryString } from "@/lib/searchParams";
+import { DEFAULT_FILTER_STATE, filterStateToQueryString, parseFilterState } from "@/lib/searchParams";
 
 class TestReadonlyURLSearchParams extends URLSearchParams {
   append(): void {
@@ -33,10 +34,36 @@ const createSearchParams = (init: string = ""): ReadonlyURLSearchParams => {
 
 let mockSearchParams = createSearchParams();
 
+const searchParamsListeners = new Set<() => void>();
+
+const subscribeSearchParams = (listener: () => void) => {
+  searchParamsListeners.add(listener);
+  return () => {
+    searchParamsListeners.delete(listener);
+  };
+};
+
+const getSearchParamsSnapshot = () => mockSearchParams;
+
+const notifySearchParamsSubscribers = () => {
+  for (const listener of searchParamsListeners) {
+    listener();
+  }
+};
+
+const syncStoreFromSearchParams = () => {
+  const next = parseFilterState(new URLSearchParams(mockSearchParams.toString()));
+  useSearchStore
+    .getState()
+    .setFilters(next, { queryString: filterStateToQueryString(next), force: true });
+};
+
 const updateSearchParamsFromUrl = (url: string) => {
   const queryIndex = url.indexOf("?");
   const query = queryIndex >= 0 ? url.slice(queryIndex + 1) : "";
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 const mockRouter = {
@@ -51,7 +78,8 @@ const mockRouter = {
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
   usePathname: () => "/gyms",
-  useSearchParams: () => mockSearchParams,
+  useSearchParams: () =>
+    useSyncExternalStore(subscribeSearchParams, getSearchParamsSnapshot, getSearchParamsSnapshot),
 }));
 
 const createTestQueryClient = () =>
@@ -81,6 +109,8 @@ const renderGymsPage = () => {
 
 const setSearchParams = (query: string) => {
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 type GeolocationMock = Pick<Geolocation, "getCurrentPosition" | "watchPosition" | "clearWatch">;
