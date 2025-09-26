@@ -416,7 +416,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setLocationMode("fallback");
     setLocationStatus("success");
     setLocationError(null);
-    applyFilters(nextFilters, { force: true });
+    if (!areFilterStatesEqual(filters, nextFilters)) {
+      applyFilters(nextFilters, { force: true });
+    }
   }, [applyFilters, filters]);
 
   const updateKeyword = useCallback(
@@ -492,14 +494,16 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
             lng,
             distance: nextDistance,
           });
-          setFilters(nextFilters, {
-            queryString: filterStateToQueryString(nextFilters),
-            force: true,
-          });
-          queueFilters(next, {
-            overrides: { lat, lng, distance: nextDistance },
-            debounceMs: Math.min(150, debounceMs),
-          });
+          if (!areFilterStatesEqual(filters, nextFilters)) {
+            setFilters(nextFilters, {
+              queryString: filterStateToQueryString(nextFilters),
+              force: true,
+            });
+            queueFilters(next, {
+              overrides: { lat, lng, distance: nextDistance },
+              debounceMs: Math.min(150, debounceMs),
+            });
+          }
         }
 
         return next;
@@ -613,7 +617,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       distance: DEFAULT_DISTANCE_KM,
     };
     setFormState(toFormState(resetFilters));
-    applyFilters(resetFilters, { force: true });
+    if (!areFilterStatesEqual(filters, resetFilters)) {
+      applyFilters(resetFilters, { force: true });
+    }
     if (hasLocation) {
       setLocationMode(mode => (mode === "off" ? "manual" : mode));
       setLocationStatus("success");
@@ -622,7 +628,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       setLocationMode("off");
       setLocationStatus(status => (status === "success" ? "idle" : status));
     }
-  }, [applyFilters, cancelPendingDebounce, filters.limit, formState.lat, formState.lng]);
+  }, [applyFilters, cancelPendingDebounce, filters, formState.lat, formState.lng]);
 
   useEffect(() => {
     if (initialLocationRequestRef.current) {
@@ -658,6 +664,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const setPage = useCallback(
     (page: number) => {
       const nextPage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
+      if (nextPage === filters.page) {
+        return;
+      }
       cancelPendingDebounce();
       applyFilters(
         {
@@ -674,6 +683,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     (value: number) => {
       const parsed = Number.isFinite(value) ? Math.trunc(value) : DEFAULT_LIMIT;
       const clamped = Math.min(Math.max(parsed, 1), MAX_LIMIT);
+      if (clamped === filters.limit && filters.page === 1) {
+        return;
+      }
       cancelPendingDebounce();
       applyFilters(
         {

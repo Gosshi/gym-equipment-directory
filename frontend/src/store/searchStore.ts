@@ -53,17 +53,21 @@ export const useSearchStore = create<SearchStoreState>((set, get) => ({
   setFilters: (next, options) => {
     set(state => {
       const normalized = { ...next, categories: [...next.categories] };
-      if (!options?.force && areFilterStatesEqual(state.filters, normalized)) {
-        const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
-        if (state.queryString === nextQuery && state.navigationSource === "idle") {
-          return state;
-        }
+      const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
+      const filtersEqual = areFilterStatesEqual(state.filters, normalized);
+      const queryUnchanged = state.queryString === nextQuery;
+
+      if (filtersEqual && queryUnchanged) {
+        return state;
+      }
+
+      if (filtersEqual) {
         return {
           ...state,
           queryString: nextQuery,
         };
       }
-      const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
+
       return {
         ...state,
         filters: normalized,
