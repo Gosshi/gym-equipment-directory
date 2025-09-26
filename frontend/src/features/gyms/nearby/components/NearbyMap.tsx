@@ -291,12 +291,9 @@ export function NearbyMap({
     [markUserInteraction],
   );
 
-  const emitSelect = useCallback(
-    (gymId: number | null, source: MapInteractionSource) => {
-      onSelectRef.current(gymId, source);
-    },
-    [],
-  );
+  const emitSelect = useCallback((gymId: number | null, source: MapInteractionSource) => {
+    onSelectRef.current(gymId, source);
+  }, []);
 
   const updateMarkersForViewport = useCallback(() => {
     const map = mapRef.current;

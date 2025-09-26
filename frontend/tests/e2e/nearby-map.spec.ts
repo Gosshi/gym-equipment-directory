@@ -96,11 +96,13 @@ test.describe("近隣ジムマップ", () => {
     await expect(zoomInButton).toHaveCount(1);
     await expect(zoomInButton).toBeEnabled();
 
-    await expect.poll(async () => {
-      const text = await zoomDisplay.textContent();
-      const value = Number.parseFloat(text ?? "NaN");
-      return Number.isFinite(value) ? value : NaN;
-    }).toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const text = await zoomDisplay.textContent();
+        const value = Number.parseFloat(text ?? "NaN");
+        return Number.isFinite(value) ? value : NaN;
+      })
+      .toBeGreaterThan(0);
 
     const initialZoomText = await zoomDisplay.textContent();
     const initialZoom = Number.parseFloat(initialZoomText ?? "0");
@@ -108,9 +110,11 @@ test.describe("近隣ジムマップ", () => {
     await zoomInButton.click();
     await zoomInButton.click();
 
-    await expect.poll(async () => {
-      const text = await zoomDisplay.textContent();
-      return Number.parseFloat(text ?? "0");
-    }).toBeGreaterThan(initialZoom);
+    await expect
+      .poll(async () => {
+        const text = await zoomDisplay.textContent();
+        return Number.parseFloat(text ?? "0");
+      })
+      .toBeGreaterThan(initialZoom);
   });
 });
