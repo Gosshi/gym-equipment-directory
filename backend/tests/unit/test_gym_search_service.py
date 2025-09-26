@@ -176,3 +176,49 @@ async def test_search_sorts_by_latest_verification_when_sorting_by_freshness() -
     assert page.has_more is False
     assert page.has_prev is False
     assert page.page_token is None
+
+
+@pytest.mark.asyncio
+async def test_search_clamps_page_to_last_when_requested_page_is_too_large() -> None:
+    gyms = [
+        _FakeGym(
+            id=index,
+            slug=f"gym-{index}",
+            name=f"Gym {index}",
+        )
+        for index in range(1, 6)
+    ]
+    rows = [
+        GymEquipmentSummaryRow(
+            gym_id=index,
+            slug="rack",
+            name="Power Rack",
+            category=None,
+            count=2,
+            max_weight_kg=80.0,
+            availability="present",
+            verification_status="verified",
+            last_verified_at=datetime(2024, 3, index, 12, 0, 0),
+            source=None,
+        )
+        for index in range(1, 6)
+    ]
+    repo = _FakeGymRepository(gyms, rows)
+    uow = _FakeUnitOfWork(repo)
+
+    page = await search_gyms(
+        uow,
+        pref=None,
+        city=None,
+        equipments=None,
+        equipment_match="any",
+        sort="freshness",
+        page_token=None,
+        page=10,
+        per_page=2,
+    )
+
+    assert [item.id for item in page.items] == [5]
+    assert page.page == 3
+    assert page.has_prev is True
+    assert page.has_more is False
