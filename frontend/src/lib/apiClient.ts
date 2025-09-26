@@ -241,7 +241,7 @@ export const getHistory = async () => {
   }
 };
 
-export const addHistory = (payload: HistoryPayload) => {
+export const addHistory = async (payload: HistoryPayload) => {
   const hasGymId = typeof payload.gymId === "number";
   const hasGymIds = Array.isArray(payload.gymIds) && payload.gymIds.length > 0;
 
@@ -249,8 +249,16 @@ export const addHistory = (payload: HistoryPayload) => {
     throw new Error("History payload must include gymId or non-empty gymIds.");
   }
 
-  return apiRequest<void>("/me/history", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  try {
+    await apiRequest<void>("/me/history", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      suppressErrorLogStatuses: [404],
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return;
+    }
+    throw error;
+  }
 };

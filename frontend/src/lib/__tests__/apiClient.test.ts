@@ -137,6 +137,24 @@ describe("apiClient favorites/history endpoints", () => {
     );
   });
 
+  it("silently ignores missing history endpoints", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: vi.fn().mockResolvedValue("{\"detail\":\"Not Found\"}"),
+    } as unknown as Response);
+
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(addHistory({ gymId: 1 })).resolves.toBeUndefined();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("appends a single history entry with gymId", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
