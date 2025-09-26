@@ -1,85 +1,165 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { SearchFilters } from "@/components/gyms/SearchFilters";
-import { GymList } from "@/components/gyms/GymList";
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
-import { useGymSearch } from "@/hooks/useGymSearch";
+import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
+import { GymList } from "@/components/gyms/GymList";
+import { MapView } from "@/components/gyms/MapView";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useGymDirectoryData } from "@/hooks/useGymDirectoryData";
+import { useUrlSync } from "@/hooks/useUrlSync";
+import { getEquipmentCategories } from "@/services/meta";
+import { useGymSearchStore } from "@/store/searchStore";
+import type { SortOption } from "@/lib/searchParams";
+import type { GymSearchMeta, GymSummary, NearbyGym } from "@/types/gym";
+import type { EquipmentCategoryOption } from "@/types/meta";
+
+const SORT_LABELS: Record<string, string> = {
+  distance: "距離が近い順",
+  rating: "評価が高い順",
+  reviews: "口コミが多い順",
+  name: "名前順",
+};
+
+const SORT_OPTIONS: SortOption[] = ["distance", "rating", "reviews", "name"];
+
+const DEFAULT_META: GymSearchMeta = {
+  total: null,
+  page: 1,
+  perPage: 20,
+  hasNext: false,
+  hasPrev: false,
+  hasMore: false,
+};
 
 export function GymsPage() {
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-  const {
-    formState,
-    updateKeyword,
-    updatePrefecture,
-    updateCity,
-    updateCategories,
-    updateSort,
-    updateDistance,
-    clearFilters,
-    submitSearch,
-    location,
-    requestLocation,
-    clearLocation,
-    useFallbackLocation,
-    setManualLocation,
-    page,
-    limit,
-    setPage,
-    setLimit,
-    items,
-    meta,
-    isLoading,
-    isInitialLoading,
-    error,
-    retry,
-    prefectures,
-    cities,
-    equipmentCategories,
-    isMetaLoading,
-    metaError,
-    reloadMeta,
-    isCityLoading,
-    cityError,
-    reloadCities,
-  } = useGymSearch();
+  useUrlSync();
 
-  const handleSelectGym = useCallback((slug: string) => {
-    setSelectedSlug(slug);
-    setDetailModalOpen(true);
-  }, []);
+  const { searchQuery, mapQuery } = useGymDirectoryData();
+
+  const { q, category, sort, page, limit, selectedGymSlug, rightPanelOpen } = useGymSearchStore(
+    state => ({
+      q: state.q,
+      category: state.category,
+      sort: state.sort,
+      page: state.page,
+      limit: state.limit,
+      selectedGymSlug: state.selectedGymSlug,
+      rightPanelOpen: state.rightPanelOpen,
+    }),
+  );
+
+  const setQuery = useGymSearchStore(state => state.setQuery);
+  const setCategory = useGymSearchStore(state => state.setCategory);
+  const setSort = useGymSearchStore(state => state.setSort);
+  const setPage = useGymSearchStore(state => state.setPagination);
+  const setLimit = useGymSearchStore(state => state.setLimit);
+  const setSelectedGym = useGymSearchStore(state => state.setSelectedGym);
+  const setRightPanelOpenState = useGymSearchStore(state => state.setRightPanelOpen);
+  const resetFilters = useGymSearchStore(state => state.resetFilters);
+  const resetSelectionIfMissing = useGymSearchStore(state => state.resetSelectionIfMissing);
+  const setTotalPages = useGymSearchStore(state => state.setTotalPages);
+
+  const gyms = useMemo<GymSummary[]>(() => searchQuery.data?.items ?? [], [searchQuery.data]);
+  const effectiveMeta: GymSearchMeta = useMemo(() => {
+    if (searchQuery.data?.meta) {
+      const meta = { ...searchQuery.data.meta };
+      const perPage = meta.perPage > 0 ? meta.perPage : limit;
+      return { ...meta, perPage };
+    }
+    return { ...DEFAULT_META, page, perPage: limit };
+  }, [limit, page, searchQuery.data]);
+
+  const searchError = searchQuery.error
+    ? searchQuery.error instanceof Error
+      ? searchQuery.error.message
+      : String(searchQuery.error)
+    : null;
+
+  const isInitialLoading = searchQuery.isLoading;
+  const isLoading = searchQuery.isFetching;
+
+  useEffect(() => {
+    if (!searchQuery.data) {
+      return;
+    }
+    const responseMeta = searchQuery.data.meta;
+    const perPage = responseMeta.perPage > 0 ? responseMeta.perPage : limit;
+    let totalPages: number | null = null;
+    if (typeof responseMeta.total === "number" && responseMeta.total >= 0) {
+      totalPages = Math.max(1, Math.ceil(responseMeta.total / Math.max(perPage, 1)));
+    } else if (!responseMeta.hasNext && responseMeta.page > 0) {
+      totalPages = responseMeta.page;
+    }
+    setTotalPages(totalPages);
+  }, [limit, searchQuery.data, setTotalPages]);
+
+  const categoriesQuery = useQuery<EquipmentCategoryOption[]>({
+    queryKey: ["equipment-categories"],
+    queryFn: getEquipmentCategories,
+    staleTime: 86_400_000,
+  });
+
+  const categoryOptions = categoriesQuery.data ?? [];
+
+  const mapMarkers = useMemo<NearbyGym[]>(
+    () =>
+      (mapQuery.data?.items ?? []).filter(
+        marker => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude),
+      ),
+    [mapQuery.data?.items],
+  );
+
+  useEffect(() => {
+    const slugSet = new Set<string>();
+    gyms.forEach(gym => slugSet.add(gym.slug));
+    mapMarkers.forEach(marker => slugSet.add(marker.slug));
+    resetSelectionIfMissing(slugSet);
+  }, [gyms, mapMarkers, resetSelectionIfMissing]);
+
+  const mapStatus: "idle" | "loading" | "success" | "error" =
+    mapQuery.status === "pending"
+      ? "loading"
+      : mapQuery.status === "error"
+        ? "error"
+        : mapQuery.status === "success"
+          ? "success"
+          : "idle";
+
+  const mapError = mapQuery.error
+    ? mapQuery.error instanceof Error
+      ? mapQuery.error.message
+      : String(mapQuery.error)
+    : null;
+
+  const mapInitialLoading = mapQuery.status === "pending" && !mapQuery.data;
+
+  const handleSelectGym = useCallback(
+    (slug: string) => {
+      const gym = gyms.find(item => item.slug === slug) ?? null;
+      setSelectedGym({ slug, id: gym?.id ?? null, source: "list" });
+    },
+    [gyms, setSelectedGym],
+  );
 
   const handleClosePanel = useCallback(() => {
-    setSelectedSlug(null);
-    setDetailModalOpen(false);
-  }, []);
+    setRightPanelOpenState(false);
+    setSelectedGym({ slug: null, id: null, source: "panel" });
+  }, [setRightPanelOpenState, setSelectedGym]);
 
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-    if (items.length === 0) {
-      setSelectedSlug(null);
-      setDetailModalOpen(false);
-      return;
-    }
-    if (!selectedSlug) {
-      return;
-    }
-    const isSelectedVisible = items.some(item => item.slug === selectedSlug);
-    if (!isSelectedVisible) {
-      setSelectedSlug(null);
-      setDetailModalOpen(false);
-    }
-  }, [isLoading, items, selectedSlug]);
-
-  useEffect(() => {
-    if (!selectedSlug) {
-      setDetailModalOpen(false);
-    }
-  }, [selectedSlug]);
+  const handleResetFilters = useCallback(() => {
+    resetFilters();
+  }, [resetFilters]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/10">
@@ -90,60 +170,117 @@ export function GymsPage() {
           </p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">ジム一覧・検索</h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            設備カテゴリやエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
+            検索条件と地図の表示範囲が URL
+            と同期されるため、共有や戻る/進む操作でも同じ状態を再現できます。
           </p>
         </header>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:gap-8">
-          <SearchFilters
-            categories={equipmentCategories}
-            cities={cities}
-            cityError={cityError}
-            isCityLoading={isCityLoading}
-            isMetaLoading={isMetaLoading}
-            metaError={metaError}
-            isSearchLoading={isLoading}
-            onCategoriesChange={updateCategories}
-            onCityChange={updateCity}
-            onClear={clearFilters}
-            onDistanceChange={updateDistance}
-            onKeywordChange={updateKeyword}
-            onPrefectureChange={updatePrefecture}
-            onRequestLocation={requestLocation}
-            onUseFallbackLocation={useFallbackLocation}
-            onClearLocation={clearLocation}
-            onManualLocationChange={setManualLocation}
-            onReloadCities={reloadCities}
-            onReloadMeta={reloadMeta}
-            onSortChange={updateSort}
-            onSubmitSearch={submitSearch}
-            location={location}
-            prefectures={prefectures}
-            state={formState}
-          />
+
+        <form
+          className="grid gap-4 rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 md:grid-cols-3"
+          onSubmit={event => event.preventDefault()}
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="gym-search-q">
+              キーワード
+            </label>
+            <Input
+              autoComplete="off"
+              id="gym-search-q"
+              placeholder="設備や施設名で検索"
+              value={q}
+              onChange={event => setQuery(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-muted-foreground"
+              htmlFor="gym-search-category"
+            >
+              カテゴリ
+            </label>
+            <Select value={category || ""} onValueChange={value => setCategory(value)}>
+              <SelectTrigger id="gym-search-category">
+                <SelectValue placeholder="すべて" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">すべて</SelectItem>
+                {categoryOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="gym-search-sort">
+              並び順
+            </label>
+            <Select value={sort} onValueChange={value => setSort(value as SortOption)}>
+              <SelectTrigger id="gym-search-sort">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(option => (
+                  <SelectItem key={option} value={option}>
+                    {SORT_LABELS[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:col-span-3">
+            <Button
+              className="w-full md:w-auto"
+              onClick={handleResetFilters}
+              type="button"
+              variant="outline"
+            >
+              フィルタをリセット
+            </Button>
+          </div>
+        </form>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start xl:gap-8">
           <div className="flex flex-col gap-6">
             <GymList
-              error={error}
-              gyms={items}
+              error={searchError}
+              gyms={gyms}
               isInitialLoading={isInitialLoading}
               isLoading={isLoading}
               limit={limit}
-              meta={meta}
-              onClearFilters={clearFilters}
+              meta={effectiveMeta}
+              onClearFilters={handleResetFilters}
               onLimitChange={setLimit}
-              onPageChange={setPage}
-              onRetry={retry}
+              onPageChange={nextPage => setPage(nextPage, { history: "push" })}
+              onRetry={() => searchQuery.refetch()}
               page={page}
               onGymSelect={handleSelectGym}
-              selectedSlug={selectedSlug}
+              selectedSlug={selectedGymSlug ?? undefined}
             />
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="h-[420px] overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+              <MapView
+                markers={mapMarkers}
+                status={mapStatus}
+                error={mapError}
+                isInitialLoading={mapInitialLoading}
+                onRetry={mapQuery.isError ? () => mapQuery.refetch() : undefined}
+              />
+            </div>
+            {rightPanelOpen && selectedGymSlug ? (
+              <GymDetailPanel slug={selectedGymSlug} onClose={handleClosePanel} />
+            ) : null}
           </div>
         </div>
       </div>
       <GymDetailModal
-        open={isDetailModalOpen && Boolean(selectedSlug)}
-        onOpenChange={setDetailModalOpen}
+        open={rightPanelOpen && Boolean(selectedGymSlug)}
+        onOpenChange={setRightPanelOpenState}
         onRequestClose={handleClosePanel}
-        slug={selectedSlug}
+        slug={selectedGymSlug}
       />
     </div>
   );
