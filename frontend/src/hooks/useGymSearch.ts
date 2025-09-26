@@ -738,6 +738,11 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         if (!active) {
           return;
         }
+        const serverPage =
+          Number.isInteger(response.meta.page) && (response.meta.page ?? 0) > 0
+            ? response.meta.page
+            : appliedFilters.page;
+        const shouldSyncPage = !shouldAppend && serverPage !== appliedFilters.page;
         setItems(previous => {
           if (!shouldAppend) {
             return response.items;
@@ -760,6 +765,14 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         });
         setMeta(response.meta);
         setHasLoadedOnce(true);
+        if (shouldSyncPage) {
+          setTimeout(() => {
+            if (!active) {
+              return;
+            }
+            setPage(serverPage);
+          }, 0);
+        }
       })
       .catch(err => {
         if (!active) {
@@ -787,7 +800,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       active = false;
       controller.abort();
     };
-  }, [appliedFilters, refreshIndex]);
+  }, [appliedFilters, refreshIndex, setPage]);
 
   const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
   const [equipmentCategories, setEquipmentCategories] = useState<EquipmentCategoryOption[]>([]);

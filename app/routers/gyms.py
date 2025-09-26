@@ -80,8 +80,8 @@ async def search_gyms(
 
     return schemas.SearchResponse(
         items=items,
-        page=page,
-        per_page=per_page,
+        page=result.page,
+        per_page=result.page_size,
         total=result.total,
     )
 

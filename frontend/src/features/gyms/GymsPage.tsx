@@ -57,11 +57,23 @@ export function GymsPage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && items.length === 0) {
+    if (isLoading) {
+      return;
+    }
+    if (items.length === 0) {
+      setSelectedSlug(null);
+      setDetailModalOpen(false);
+      return;
+    }
+    if (!selectedSlug) {
+      return;
+    }
+    const isSelectedVisible = items.some(item => item.slug === selectedSlug);
+    if (!isSelectedVisible) {
       setSelectedSlug(null);
       setDetailModalOpen(false);
     }
-  }, [isLoading, items.length]);
+  }, [isLoading, items, selectedSlug]);
 
   useEffect(() => {
     if (!selectedSlug) {

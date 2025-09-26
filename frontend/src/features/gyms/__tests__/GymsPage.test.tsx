@@ -133,6 +133,8 @@ describe("GymsPage", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    mockedUseGymSearch.mockReset();
+    mockedUseGymDetail.mockReset();
   });
 
   it("renders the search filters and results", () => {
@@ -276,6 +278,67 @@ describe("GymsPage", () => {
     expect(screen.getByText("東京都新宿区1-2-3")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "詳細パネルを閉じる" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("clears the selected gym when it disappears from the current page", async () => {
+    const initialState = buildHookState();
+    const updatedState = buildHookState({
+      items: [
+        {
+          id: 2,
+          slug: "another-gym",
+          name: "別のジム",
+          prefecture: "tokyo",
+          city: "shinjuku",
+          equipments: ["Bench Press"],
+          thumbnailUrl: null,
+          score: undefined,
+          address: "東京都新宿区2-3-4",
+          lastVerifiedAt: "2024-09-02T08:00:00Z",
+        },
+      ],
+      meta: {
+        total: 1,
+        page: 2,
+        perPage: 20,
+        hasNext: false,
+        hasPrev: true,
+        hasMore: false,
+        pageToken: null,
+      },
+    });
+    let currentState = initialState;
+    mockedUseGymSearch.mockImplementation(() => currentState);
+
+    const detailResult: UseGymDetailResult = {
+      data: {
+        id: 2,
+        slug: "another-gym",
+        name: "別のジム",
+        prefecture: "tokyo",
+        city: "shinjuku",
+        address: "東京都新宿区2-3-4",
+        latitude: 35.6895,
+        longitude: 139.6917,
+        equipments: [],
+      },
+      error: null,
+      isLoading: false,
+      reload: vi.fn(),
+    };
+    mockedUseGymDetail.mockReturnValue(detailResult);
+
+    const { rerender } = render(<GymsPage />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    currentState = updatedState;
+    rerender(<GymsPage />);
+
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

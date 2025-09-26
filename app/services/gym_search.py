@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any, Literal
@@ -149,16 +150,32 @@ async def search_gyms(
         return GymSearchPageDTO(
             items=[],
             total=0,
-            page=page,
+            page=1,
             page_size=per_page,
             has_more=False,
-            has_prev=page > 1,
+            has_prev=False,
             page_token=None,
         )
 
-    offset = parse_offset_token(page_token, page=page, per_page=per_page)
-    slice_ = pagable[offset : offset + per_page]
-    next_token = build_next_offset_token(offset, per_page, len(pagable))
+    per_page_safe = max(per_page, 1)
+    total_pagable = len(pagable)
+    max_page = max(1, math.ceil(total_pagable / per_page_safe))
+
+    if page_token is None:
+        resolved_page = min(max(page, 1), max_page)
+        offset = (resolved_page - 1) * per_page_safe
+    else:
+        offset = parse_offset_token(page_token, page=page, per_page=per_page_safe)
+        if offset >= total_pagable and total_pagable > 0:
+            offset = (max_page - 1) * per_page_safe
+        resolved_page = max(1, min(max_page, offset // per_page_safe + 1))
+
+    if offset >= total_pagable and total_pagable > 0:
+        offset = max(0, (max_page - 1) * per_page_safe)
+        resolved_page = max_page
+
+    slice_ = pagable[offset : offset + per_page_safe]
+    next_token = build_next_offset_token(offset, per_page_safe, total_pagable)
 
     dto_items = [
         map_gym_to_summary(
@@ -171,13 +188,13 @@ async def search_gyms(
     ]
 
     has_more = next_token is not None
-    has_prev = offset > 0 or page > 1
+    has_prev = offset > 0
 
     return GymSearchPageDTO(
         items=dto_items,
         total=total_all,
-        page=page,
-        page_size=per_page,
+        page=resolved_page,
+        page_size=per_page_safe,
         has_more=has_more,
         has_prev=has_prev,
         page_token=next_token,

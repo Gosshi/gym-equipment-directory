@@ -125,7 +125,21 @@ gym-equipment-directory/
    '
    ```
 
-4. スキーマ確認（任意）
+4. **大量ダミーデータ投入（任意）**
+
+   ```bash
+   docker compose exec api bash -lc '
+     export DATABASE_URL="postgresql+asyncpg://appuser:apppass@db:5432/gym_directory"
+     export PYTHONPATH=/app
+     python -m scripts.seed_bulk --count 500
+   '
+   ```
+
+   - `--count` は 300〜800 件程度で調整可能（既定値 500）。
+   - 千葉県・東京都・茨城県の主要市区町村を対象に、住所と緯度経度をランダム生成します。
+   - スラッグは `bulk-` プレフィックスで一意化しており、再実行しても既存レコードと衝突しません。
+
+5. スキーマ確認（任意）
 
    ```bash
    docker compose exec db psql -U appuser -d gym_directory -c "\dt"
@@ -179,6 +193,30 @@ curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=creat
 TOKEN=$(curl -sS 'http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2' | jq -r '.page_token')
 curl -sS "http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=freshness&per_page=2&page_token=${TOKEN}" | jq .
 ```
+
+### ページネーション仕様
+
+- クエリパラメータ
+  - `page`: 1 始まりのページ番号（既定値 1）
+  - `per_page` / `page_size`: 1 ページの件数（既定値 20、最大 50）
+- レスポンスには `total`, `page`, `per_page`, `items`, `page_token` が含まれ、後方互換を維持しています。
+- `page` が最終ページを超えた場合はサーバー側で自動的に最終ページに調整され、空配列が返らないようになっています。
+- フロントエンドは検索条件変更時に `page=1` へリセットし、URL クエリと状態を同期させています。
+
+### 手動確認チェックリスト（フロントエンド）
+
+1. `alembic upgrade head`
+2. `python -m scripts.seed_bulk --count 500`
+3. `npm run dev`（またはビルド後の `npm run start`）で `/gyms` 検索ページを開く。
+4. キーワード・カテゴリ・距離を変更しながらページャを操作し、`page` / `page_size` を含む URL クエリが更新されること、リロードや URL 共有で状態が復元されることを確認。
+5. ページ番号を最終ページ超過に変更しても自動で最後のページに戻ること、0 件時のプレースホルダ表示を確認。
+6. `/gyms/nearby` を含む地図連動ビューでも一覧選択とピン表示が従来通り動作し、ページ切替で不要にカメラが揺れないことを確認。
+
+### seed_bulk の既知の制約
+
+- 住所と緯度経度は市区町村ごとのバウンディングボックスからランダムサンプリングしているため、極端に狭い距離条件では精度が落ちる場合があります。
+- スクリプトを再実行すると追加でジムが挿入されます（重複はしません）。不要な場合は DB をリセットしてから再投入してください。
+- 画像や大容量アセットは含まれていません。手元での表示確認用データセットとして活用してください。
 
 ### よくあるハマりどころ
 
