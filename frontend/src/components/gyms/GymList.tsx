@@ -11,6 +11,7 @@ import { SearchError } from "@/components/search/SearchError";
 import { SearchSkeleton } from "@/components/search/SearchSkeleton";
 import { useSearchResultState } from "@/components/search/useSearchResultState";
 import { cn } from "@/lib/utils";
+import { useSearchStore } from "@/store/searchStore";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -99,13 +100,52 @@ export function GymList({
   const headerDescriptionId = useId();
   const paginationSummaryId = useId();
 
+  const navigationSource = useSearchStore(state => state.navigationSource);
+  const currentQueryString = useSearchStore(state => state.queryString);
+  const consumeScrollPosition = useSearchStore(state => state.consumeScrollPosition);
+  const setNavigationSource = useSearchStore(state => state.setNavigationSource);
+
   useEffect(() => {
-    if (previousPageRef.current !== page && resultSectionRef.current) {
+    if (!resultSectionRef.current) {
+      previousPageRef.current = page;
+      return;
+    }
+
+    if (navigationSource === "initial") {
+      setNavigationSource("idle");
+      previousPageRef.current = page;
+      return;
+    }
+
+    if (navigationSource === "pop") {
+      const saved = consumeScrollPosition(currentQueryString);
+      if (typeof saved === "number" && Number.isFinite(saved)) {
+        window.scrollTo({ top: saved, behavior: "auto" });
+      } else {
+        resultSectionRef.current.scrollIntoView({ behavior: "auto", block: "start" });
+      }
+      resultSectionRef.current.focus();
+      setNavigationSource("idle");
+      previousPageRef.current = page;
+      return;
+    }
+
+    if (navigationSource === "push") {
+      if (previousPageRef.current !== page) {
+        resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultSectionRef.current.focus();
+      }
+      setNavigationSource("idle");
+      previousPageRef.current = page;
+      return;
+    }
+
+    if (previousPageRef.current !== page) {
       resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       resultSectionRef.current.focus();
     }
     previousPageRef.current = page;
-  }, [page]);
+  }, [consumeScrollPosition, currentQueryString, navigationSource, page, setNavigationSource]);
 
   const shouldVirtualize =
     gyms.length >= VIRTUALIZE_THRESHOLD || (totalCount ?? 0) >= VIRTUALIZE_THRESHOLD;

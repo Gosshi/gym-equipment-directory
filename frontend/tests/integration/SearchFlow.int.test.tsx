@@ -3,12 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { vi } from "vitest";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { server } from "../msw/server";
 import { defaultGymSearchResponse } from "../msw/handlers";
 import { GymsPage } from "@/features/gyms/GymsPage";
 import { Toaster } from "@/components/ui/toaster";
 import { FALLBACK_LOCATION } from "@/hooks/useGymSearch";
+import { useSearchStore } from "@/store/searchStore";
+import { DEFAULT_FILTER_STATE, filterStateToQueryString, parseFilterState } from "@/lib/searchParams";
 
 class TestReadonlyURLSearchParams extends URLSearchParams {
   append(): void {
@@ -30,14 +34,43 @@ const createSearchParams = (init: string = ""): ReadonlyURLSearchParams => {
 
 let mockSearchParams = createSearchParams();
 
+const searchParamsListeners = new Set<() => void>();
+
+const subscribeSearchParams = (listener: () => void) => {
+  searchParamsListeners.add(listener);
+  return () => {
+    searchParamsListeners.delete(listener);
+  };
+};
+
+const getSearchParamsSnapshot = () => mockSearchParams;
+
+const notifySearchParamsSubscribers = () => {
+  for (const listener of searchParamsListeners) {
+    listener();
+  }
+};
+
+const syncStoreFromSearchParams = () => {
+  const next = parseFilterState(new URLSearchParams(mockSearchParams.toString()));
+  useSearchStore
+    .getState()
+    .setFilters(next, { queryString: filterStateToQueryString(next), force: true });
+};
+
 const updateSearchParamsFromUrl = (url: string) => {
   const queryIndex = url.indexOf("?");
   const query = queryIndex >= 0 ? url.slice(queryIndex + 1) : "";
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 const mockRouter = {
   push: vi.fn((url: string) => {
+    updateSearchParamsFromUrl(url);
+  }),
+  replace: vi.fn((url: string) => {
     updateSearchParamsFromUrl(url);
   }),
 };
@@ -45,19 +78,39 @@ const mockRouter = {
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
   usePathname: () => "/gyms",
-  useSearchParams: () => mockSearchParams,
+  useSearchParams: () =>
+    useSyncExternalStore(subscribeSearchParams, getSearchParamsSnapshot, getSearchParamsSnapshot),
 }));
 
-const renderGymsPage = () =>
-  render(
-    <>
-      <GymsPage />
-      <Toaster />
-    </>,
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        retry: false,
+      },
+    },
+  });
+
+const renderGymsPage = () => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <>
+        <GymsPage />
+        <Toaster />
+      </>
+    </QueryClientProvider>,
   );
+};
 
 const setSearchParams = (query: string) => {
   mockSearchParams = createSearchParams(query);
+  notifySearchParamsSubscribers();
+  syncStoreFromSearchParams();
 };
 
 type GeolocationMock = Pick<Geolocation, "getCurrentPosition" | "watchPosition" | "clearWatch">;
@@ -117,6 +170,13 @@ describe("Search flow integration", () => {
     originalGeolocation = navigator.geolocation;
     setSearchParams("");
     mockRouter.push.mockClear();
+    mockRouter.replace.mockClear();
+    useSearchStore.setState({
+      filters: DEFAULT_FILTER_STATE,
+      queryString: filterStateToQueryString(DEFAULT_FILTER_STATE),
+      navigationSource: "initial",
+      scrollPositions: {},
+    });
   });
 
   afterEach(() => {
@@ -293,7 +353,7 @@ describe("Search flow integration", () => {
 
     renderGymsPage();
 
-    expect(geolocation.getCurrentPosition).toHaveBeenCalled();
+    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalled());
 
     await screen.findByText("現在地フィットネス");
 
@@ -348,7 +408,7 @@ describe("Search flow integration", () => {
 
     renderGymsPage();
 
-    expect(geolocation.getCurrentPosition).toHaveBeenCalled();
+    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalled());
 
     await screen.findByText("東京駅トレーニングセンター");
 
@@ -473,7 +533,14 @@ describe("Search flow integration", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "次のページ" }));
 
-    await screen.findByText("River Side Gym 中野");
-    expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true);
+    await waitFor(() =>
+      expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),
+    );
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalled());
+    expect(
+      mockRouter.replace.mock.calls.some(([url]) => typeof url === "string" && url.includes("page=2")),
+    ).toBe(true);
+
   });
 });
