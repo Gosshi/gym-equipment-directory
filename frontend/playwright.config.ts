@@ -17,6 +17,9 @@ export default defineConfig({
       name: "chromium",
       use: {
         browserName: "chromium",
+        launchOptions: {
+          args: ["--use-gl=swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"],
+        },
       },
     },
   ],
