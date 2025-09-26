@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
@@ -132,26 +131,16 @@ export function NearbyGymsPage() {
 
   const {
     selectedGymId,
-    hoveredGymId,
     selectedSlug,
     lastSelectionSource,
     lastSelectionAt,
     selectGym,
-    previewGym,
     clearSelection,
   } = useSelectedGym({ gyms: selectionGyms });
   const clearStore = useMapSelectionStore(state => state.clear);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (hoveredGymId === null) {
-      return;
-    }
-    if (!selectionGyms.some(gym => gym.id === hoveredGymId)) {
-      previewGym(null);
-    }
-  }, [hoveredGymId, previewGym, selectionGyms]);
+  const desktopPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobilePanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => () => clearStore(), [clearStore]);
 
@@ -167,12 +156,6 @@ export function NearbyGymsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedSlug) {
-      setDetailModalOpen(false);
-    }
-  }, [selectedSlug]);
-
-  useEffect(() => {
     if (mapMarkersStatus !== "error" || !mapMarkersError) {
       return;
     }
@@ -182,6 +165,33 @@ export function NearbyGymsPage() {
       variant: "destructive",
     });
   }, [mapMarkersError, mapMarkersStatus, toast]);
+
+  useEffect(() => {
+    if (!selectedSlug) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      const activePanel = isDesktop ? desktopPanelRef.current : mobilePanelRef.current;
+      if (activePanel && activePanel.contains(target)) {
+        return;
+      }
+
+      if (target instanceof Element && target.closest("[data-panel-anchor]")) {
+        return;
+      }
+
+      clearSelection();
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [clearSelection, isDesktop, selectedSlug]);
 
   const hasRequestedLocationRef = useRef(false);
   useEffect(() => {
@@ -216,44 +226,42 @@ export function NearbyGymsPage() {
     });
   }, [location.error, location.status, toast]);
 
-  const handleSelectFromList = useCallback(
-    (gymId: number, source: MapInteractionSource = "list") => {
+  const handleSelect = useCallback(
+    (gymId: number | null, source: MapInteractionSource = "map") => {
+      if (gymId !== null && source === "map") {
+        const targetGym = selectionGyms.find(gym => gym.id === gymId);
+        if (targetGym) {
+          logPinClick({ source: "map", slug: targetGym.slug });
+        }
+      }
       selectGym(gymId, source);
     },
-    [selectGym],
+    [selectGym, selectionGyms],
   );
 
-  const handlePreviewFromList = useCallback(
-    (gymId: number | null, source: MapInteractionSource = "list") => {
-      previewGym(gymId, source);
+  const handleSelectFromList = useCallback(
+    (gymId: number, source: MapInteractionSource = "list") => {
+      handleSelect(gymId, source);
     },
-    [previewGym],
+    [handleSelect],
   );
 
   const handleRequestDetail = useCallback(
-    (gym: NearbyGym, source: MapInteractionSource = "list", options?: { preferModal?: boolean }) => {
-      selectGym(gym.id, source);
-      const shouldOpenModal = !isDesktop || options?.preferModal;
-      if (shouldOpenModal) {
-        setDetailModalOpen(true);
-      } else {
-        detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    (gym: NearbyGym, source: MapInteractionSource = "list") => {
+      handleSelect(gym.id, source);
+      const panelNode = isDesktop ? desktopPanelRef.current : mobilePanelRef.current;
+      if (panelNode) {
+        window.requestAnimationFrame(() => {
+          panelNode.scrollIntoView({ behavior: "smooth", block: isDesktop ? "start" : "end" });
+        });
       }
     },
-    [isDesktop, selectGym],
-  );
-
-  const handleMapRequestDetail = useCallback(
-    (gym: NearbyGym) => {
-      logPinClick({ source: "map", slug: gym.slug });
-      handleRequestDetail(gym, "map");
-    },
-    [handleRequestDetail],
+    [handleSelect, isDesktop],
   );
 
   const handleListRequestDetail = useCallback(
-    (gym: NearbyGym, options?: { preferModal?: boolean }) => {
-      handleRequestDetail(gym, "list", options);
+    (gym: NearbyGym, _options?: { preferModal?: boolean }) => {
+      handleRequestDetail(gym, "list");
     },
     [handleRequestDetail],
   );
@@ -298,7 +306,6 @@ export function NearbyGymsPage() {
   const radiusKmLabel = useMemo(() => `約${applied.radiusKm}km`, [applied.radiusKm]);
 
   const listContainerRef = useRef<HTMLDivElement | null>(null);
-  const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef(applied.page);
   useEffect(() => {
     if (previousPageRef.current !== applied.page && listContainerRef.current) {
@@ -349,21 +356,18 @@ export function NearbyGymsPage() {
                   <CardHeader className="space-y-1">
                     <CardTitle className="text-lg font-semibold">地図</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      ピンや一覧を選択すると地図上にポップアップが表示されます。ドラッグで中心地点を調整できます。
+                      ピンを選択すると右側の詳細パネルが開きます。ドラッグで中心地点を調整できます。
                     </p>
                   </CardHeader>
                   <CardContent className="p-0">
                     <NearbyMap
                       center={{ lat: applied.lat, lng: applied.lng }}
                       markers={visibleGyms}
-                      hoveredGymId={hoveredGymId}
                       selectedGymId={selectedGymId}
                       lastSelectionSource={lastSelectionSource}
                       lastSelectionAt={lastSelectionAt}
                       onCenterChange={handleMapCenterChange}
-                      onSelect={selectGym}
-                      onPreview={previewGym}
-                      onRequestDetail={handleMapRequestDetail}
+                      onSelect={handleSelect}
                       onViewportChange={updateVisibleViewport}
                       markersStatus={mapMarkersStatus}
                       markersIsLoading={mapMarkersIsLoading}
@@ -382,14 +386,12 @@ export function NearbyGymsPage() {
                     <CardContent className="space-y-4">
                       <NearbyList
                         error={error}
-                        hoveredGymId={hoveredGymId}
                         isInitialLoading={isInitialLoading}
                         isLoading={isLoading}
                         items={items}
                         meta={meta}
                         onOpenDetail={handleListRequestDetail}
                         onPageChange={setPage}
-                        onPreviewGym={handlePreviewFromList}
                         onRetry={reload}
                         onSelectGym={handleSelectFromList}
                         selectedGymId={selectedGymId}
@@ -402,7 +404,7 @@ export function NearbyGymsPage() {
               <aside
                 aria-live="polite"
                 className="hidden md:block md:w-[320px] lg:w-[340px]"
-                ref={detailPanelRef}
+                ref={desktopPanelRef}
                 role="complementary"
                 tabIndex={-1}
               >
@@ -424,14 +426,30 @@ export function NearbyGymsPage() {
           </div>
         </div>
       </div>
-      <GymDetailModal
-        open={isDetailModalOpen && Boolean(selectedSlug)}
-        onOpenChange={setDetailModalOpen}
-        onRequestClose={() => {
-          clearSelection();
-        }}
-        slug={selectedSlug}
-      />
+      <div
+        aria-live="polite"
+        className={`md:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-4 pt-2 transition-transform duration-300 ${
+          selectedSlug ? "pointer-events-auto translate-y-0" : "pointer-events-none translate-y-full"
+        }`}
+        data-panel-anchor="mobile-panel"
+        ref={mobilePanelRef}
+      >
+        <div className="mx-auto max-w-lg">
+          {selectedSlug ? (
+            <GymDetailPanel
+              className="rounded-3xl border border-border/70 bg-card shadow-xl"
+              onClose={() => {
+                clearSelection();
+              }}
+              slug={selectedSlug}
+            />
+          ) : (
+            <div className="rounded-3xl border border-dashed border-border/60 bg-card/80 p-6 text-sm text-muted-foreground shadow">
+              <p>地図上のピンを選択すると詳細が表示されます。</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,12 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { GymPopup, type GymPopupData, type GymPopupMode } from "@/components/map/GymPopup";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createGymClusterIndex, getClusterExpansionZoom, getMarkersForBounds } from "@/lib/cluster";
@@ -17,17 +15,12 @@ import type { NearbyGym } from "@/types/gym";
 export interface NearbyMapProps {
   center: { lat: number; lng: number };
   markers: NearbyGym[];
-  hoveredGymId: number | null;
   selectedGymId: number | null;
   lastSelectionSource: MapInteractionSource | null;
   lastSelectionAt: number | null;
   onCenterChange: (nextCenter: { lat: number; lng: number }) => void;
   onSelect: (gymId: number | null, source: MapInteractionSource) => void;
-  onPreview: (gymId: number | null, source: MapInteractionSource) => void;
-  onRequestDetail: (gym: NearbyGym) => void;
   onViewportChange?: (viewport: MapViewport) => void;
-  popupSupplements?: Record<number, Partial<GymPopupData>>;
-  popupIsLoading?: boolean;
   zoom?: number;
   markersStatus?: "idle" | "loading" | "success" | "error";
   markersIsLoading?: boolean;
@@ -87,12 +80,6 @@ const DEFAULT_ZOOM = 13;
 const CLUSTER_THRESHOLD = 50;
 const MARKER_BASE_CLASS =
   "nearby-marker flex h-11 w-11 items-center justify-center rounded-full border-2 border-red-400/70 bg-white/90 text-3xl text-red-500 shadow-[0_8px_18px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500";
-const MARKER_HOVERED_CLASSES = Object.freeze([
-  "ring-4",
-  "ring-red-500/80",
-  "ring-offset-2",
-  "scale-110",
-]);
 const MARKER_SELECTED_CLASSES = Object.freeze([
   "border-red-500",
   "bg-red-500",
@@ -137,7 +124,6 @@ const readViewport = (map: maplibregl.Map): MapViewport => {
 
 const createGymMarkerElement = (
   gym: NearbyGym,
-  onPreview: (gymId: number | null, source: MapInteractionSource) => void,
   onSelect: (gymId: number | null, source: MapInteractionSource) => void,
 ): HTMLButtonElement => {
   const element = document.createElement("button");
@@ -150,11 +136,8 @@ const createGymMarkerElement = (
   element.dataset.gymId = String(gym.id);
   element.dataset.markerType = "gym";
   element.dataset.state = "default";
+  element.dataset.panelAnchor = "pin";
 
-  element.addEventListener("mouseenter", () => onPreview(gym.id, "map"));
-  element.addEventListener("mouseleave", () => onPreview(null, "map"));
-  element.addEventListener("focus", () => onPreview(gym.id, "map"));
-  element.addEventListener("blur", () => onPreview(null, "map"));
   element.addEventListener("click", () => {
     onSelect(gym.id, "map");
   });
@@ -178,6 +161,7 @@ const createClusterMarkerElement = (
   element.textContent = String(count);
   element.dataset.markerType = "cluster";
   element.dataset.count = String(count);
+  element.dataset.panelAnchor = "cluster";
   element.setAttribute("aria-label", `周辺のジム ${count}件`);
   element.style.zIndex = "15";
   element.addEventListener("click", onClick);
@@ -209,17 +193,12 @@ const logMapCenter = (payload: Record<string, unknown>) => {
 export function NearbyMap({
   center,
   markers,
-  hoveredGymId,
   selectedGymId,
   lastSelectionSource,
   lastSelectionAt,
   onCenterChange,
   onSelect,
-  onPreview,
-  onRequestDetail,
   onViewportChange,
-  popupSupplements = {},
-  popupIsLoading = false,
   zoom = DEFAULT_ZOOM,
   markersStatus = "idle",
   markersIsLoading = false,
@@ -238,17 +217,6 @@ export function NearbyMap({
     id: null,
     at: null,
   });
-  const popupRef = useRef<
-    | {
-        popup: maplibregl.Popup;
-        container: HTMLDivElement;
-        root: Root;
-        gymId: number | null;
-        mode: GymPopupMode;
-        closeHandler: () => void;
-      }
-    | null
-  >(null);
   const clusterIndex = useMemo(
     () => createGymClusterIndex(markers, { minClusterCount: CLUSTER_THRESHOLD }),
     [markers],
@@ -306,7 +274,7 @@ export function NearbyMap({
           .addTo(map);
         store.set(key, { marker, element, type: "cluster", id: feature.id });
       } else {
-        const element = createGymMarkerElement(feature.gym, onPreview, onSelect);
+        const element = createGymMarkerElement(feature.gym, onSelect);
         const marker = new maplibregl.Marker({ element, anchor: "bottom" })
           .setLngLat(feature.coordinates)
           .addTo(map);
@@ -320,7 +288,7 @@ export function NearbyMap({
         store.delete(key);
       }
     });
-  }, [clusterIndex, handleClusterExpand, onPreview, onSelect]);
+  }, [clusterIndex, handleClusterExpand, onSelect]);
 
   const notifyViewportChange = useCallback(() => {
     if (!onViewportChange) {
@@ -334,28 +302,14 @@ export function NearbyMap({
     onViewportChange(viewport);
   }, [onViewportChange]);
 
-  const cleanupPopup = useCallback((removePopup: boolean) => {
-    const entry = popupRef.current;
-    if (!entry) {
-      return;
-    }
-    entry.popup.off("close", entry.closeHandler);
-    if (removePopup) {
-      entry.popup.remove();
-    }
-    entry.root.unmount();
-    popupRef.current = null;
-  }, []);
-
   useEffect(
     () => () => {
       if (pendingPanRef.current !== null) {
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
       }
-      cleanupPopup(true);
     },
-    [cleanupPopup],
+    [],
   );
 
   const mapStyle = useMemo(() => resolveMapStyle(), []);
@@ -381,13 +335,12 @@ export function NearbyMap({
         if (
           target.closest(".nearby-marker") ||
           target.closest(".nearby-cluster") ||
-          target.closest(".maplibregl-popup") ||
-          target.closest(".maplibregl-ctrl")
+          target.closest(".maplibregl-ctrl") ||
+          target.closest('[data-panel-anchor="pin"]')
         ) {
           return;
         }
       }
-      onPreview(null, "map");
       onSelect(null, "map");
     };
     map.on("click", handleMapClick);
@@ -454,7 +407,6 @@ export function NearbyMap({
     mapStyle,
     notifyViewportChange,
     onCenterChange,
-    onPreview,
     onSelect,
     updateMarkersForViewport,
     zoom,
@@ -553,10 +505,11 @@ export function NearbyMap({
         currentZoom < DEFAULT_ZOOM ? Math.min(DEFAULT_ZOOM, currentZoom + 2) : currentZoom;
 
       suppressMoveRef.current = true;
-      activeMap.easeTo({
+      activeMap.flyTo({
         center: [targetGym.longitude, targetGym.latitude],
         zoom: targetZoom,
-        duration: 500,
+        duration: 480,
+        essential: true,
       });
     };
 
@@ -576,16 +529,7 @@ export function NearbyMap({
         return;
       }
       const { element, id } = entry;
-      const isHovered = id === hoveredGymId;
       const isSelected = id === selectedGymId;
-
-      MARKER_HOVERED_CLASSES.forEach(cls => {
-        if (isHovered) {
-          element.classList.add(cls);
-        } else {
-          element.classList.remove(cls);
-        }
-      });
 
       MARKER_SELECTED_CLASSES.forEach(cls => {
         if (isSelected) {
@@ -595,145 +539,10 @@ export function NearbyMap({
         }
       });
 
-      element.style.zIndex = isSelected ? "30" : isHovered ? "20" : "10";
-      element.dataset.state = isSelected ? "selected" : isHovered ? "hovered" : "default";
+      element.style.zIndex = isSelected ? "30" : "10";
+      element.dataset.state = isSelected ? "selected" : "default";
     });
-  }, [hoveredGymId, selectedGymId]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) {
-      return;
-    }
-
-    const previewId =
-      hoveredGymId !== null && hoveredGymId !== selectedGymId ? hoveredGymId : null;
-    const activeId = previewId ?? selectedGymId;
-    const mode: GymPopupMode | null =
-      previewId !== null ? "preview" : selectedGymId !== null ? "selected" : null;
-
-    if (activeId == null || mode == null) {
-      cleanupPopup(true);
-      return;
-    }
-
-    const gym = markers.find(item => item.id === activeId);
-    if (!gym) {
-      cleanupPopup(true);
-      return;
-    }
-
-    const notifyClose = () => {
-      if (mode === "preview") {
-        onPreview(null, "map");
-        return;
-      }
-
-      if (lastSelectionSource === "map") {
-        onSelect(null, "map");
-      }
-    };
-
-    const supplement = popupSupplements[activeId] ?? {};
-    const popupData = composePopupData(gym, supplement);
-
-    const existing = popupRef.current;
-    if (!existing) {
-      const container = document.createElement("div");
-      container.className = "gym-popup-container";
-      const popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 18,
-        anchor: "bottom",
-      });
-      popup.setDOMContent(container);
-      const root = createRoot(container);
-      const closeHandler = () => {
-        cleanupPopup(false);
-        notifyClose();
-      };
-      popup.on("close", closeHandler);
-      popupRef.current = {
-        popup,
-        container,
-        root,
-        gymId: activeId,
-        mode,
-        closeHandler,
-      };
-      popup.setLngLat([gym.longitude, gym.latitude]).addTo(map);
-    } else {
-      if (existing.gymId !== activeId || existing.mode !== mode) {
-        existing.popup.off("close", existing.closeHandler);
-        const closeHandler = () => {
-          cleanupPopup(false);
-          notifyClose();
-        };
-        existing.closeHandler = closeHandler;
-        existing.popup.on("close", closeHandler);
-        existing.gymId = activeId;
-        existing.mode = mode;
-      }
-      existing.popup.setLngLat([gym.longitude, gym.latitude]);
-    }
-
-    const current = popupRef.current;
-    if (!current) {
-      return;
-    }
-
-    const handleViewDetail = () => {
-      if (mode === "preview") {
-        onSelect(gym.id, "map");
-      }
-      onRequestDetail(gym);
-    };
-
-    const handleCloseClick = () => {
-      cleanupPopup(true);
-      notifyClose();
-    };
-
-    current.root.render(
-      <GymPopup
-        data={popupData}
-        mode={mode}
-        isLoading={mode === "selected" ? popupIsLoading : false}
-        onClose={handleCloseClick}
-        onViewDetail={handleViewDetail}
-      />,
-    );
-
-    if (!current.popup.isOpen()) {
-      current.popup.addTo(map);
-    }
-
-    window.requestAnimationFrame(() => {
-      const dialog = current.container.querySelector('[role="dialog"]');
-      if (dialog instanceof HTMLElement) {
-        dialog.focus();
-      }
-    });
-
-    return () => {
-      const entry = popupRef.current;
-      if (entry && !entry.popup.isOpen()) {
-        entry.root.render(null);
-      }
-    };
-  }, [
-    hoveredGymId,
-    selectedGymId,
-    markers,
-    popupSupplements,
-    popupIsLoading,
-    onPreview,
-    onSelect,
-    onRequestDetail,
-    cleanupPopup,
-    lastSelectionSource,
-  ]);
+  }, [selectedGymId]);
 
   const showSkeletonOverlay = markersIsInitialLoading;
   const showLoadingBadge = markersIsLoading && !markersIsInitialLoading;
@@ -774,21 +583,6 @@ export function NearbyMap({
     </div>
   );
 }
-
-const composePopupData = (
-  gym: NearbyGym,
-  supplement: Partial<GymPopupData>,
-): GymPopupData => ({
-  id: gym.id,
-  slug: gym.slug,
-  name: gym.name,
-  latitude: gym.latitude,
-  longitude: gym.longitude,
-  prefecture: gym.prefecture,
-  city: gym.city,
-  distanceKm: gym.distanceKm,
-  ...supplement,
-});
 
 const buildTooltip = (gym: NearbyGym) => {
   const distance = formatDistance(gym.distanceKm);

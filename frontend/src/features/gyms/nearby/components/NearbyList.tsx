@@ -45,9 +45,7 @@ export interface NearbyListProps {
   isInitialLoading: boolean;
   error: string | null;
   selectedGymId: number | null;
-  hoveredGymId: number | null;
   onSelectGym: (gymId: number, source?: MapInteractionSource) => void;
-  onPreviewGym: (gymId: number | null, source?: MapInteractionSource) => void;
   onOpenDetail: (gym: NearbyGym, options?: { preferModal?: boolean }) => void;
 }
 
@@ -100,9 +98,7 @@ export function NearbyList({
   isInitialLoading,
   error,
   selectedGymId,
-  hoveredGymId,
   onSelectGym,
-  onPreviewGym,
   onOpenDetail,
 }: NearbyListProps) {
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -208,18 +204,8 @@ export function NearbyList({
     };
   }, [items, selectedGymId, shouldVirtualize, virtualizer]);
 
-  const activeOptionId = useMemo(() => {
-    if (hoveredGymId !== null && items.some(gym => gym.id === hoveredGymId)) {
-      return hoveredGymId;
-    }
-    if (selectedGymId !== null && items.some(gym => gym.id === selectedGymId)) {
-      return selectedGymId;
-    }
-    return null;
-  }, [hoveredGymId, items, selectedGymId]);
-
   const renderGymButton = useCallback(
-    (gym: NearbyGym, isSelected: boolean, isHovered: boolean) => {
+    (gym: NearbyGym, isSelected: boolean) => {
       const prefectureLabel = formatSlug(gym.prefecture);
       const cityLabel = formatSlug(gym.city);
       const areaLabel = [prefectureLabel, cityLabel].filter(Boolean).join(" / ") || "エリア未設定";
@@ -228,21 +214,14 @@ export function NearbyList({
         <button
           className={cn(
             "group flex w-full flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isSelected
-              ? "border-primary bg-primary/10 shadow-md"
-              : isHovered
-                ? "border-primary bg-primary/5"
-                : "hover:border-primary hover:bg-primary/5",
+            isSelected ? "border-primary bg-primary/10 shadow-md" : "hover:border-primary hover:bg-primary/5",
           )}
-          data-state={isSelected ? "selected" : isHovered ? "hovered" : "default"}
-          onBlur={() => onPreviewGym(null, "list")}
+          data-state={isSelected ? "selected" : "default"}
+          data-panel-anchor="list"
           onClick={() => {
             onSelectGym(gym.id, "list");
             logPinClick({ source: "list", slug: gym.slug });
           }}
-          onFocus={() => onPreviewGym(gym.id, "list")}
-          onMouseEnter={() => onPreviewGym(gym.id, "list")}
-          onMouseLeave={() => onPreviewGym(null, "list")}
           type="button"
         >
           <div className="flex items-center justify-between gap-2">
@@ -272,8 +251,15 @@ export function NearbyList({
         </button>
       );
     },
-    [onPreviewGym, onSelectGym],
+    [onSelectGym],
   );
+
+  const activeOptionId = useMemo(() => {
+    if (selectedGymId !== null && items.some(gym => gym.id === selectedGymId)) {
+      return selectedGymId;
+    }
+    return null;
+  }, [items, selectedGymId]);
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -284,9 +270,8 @@ export function NearbyList({
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const ids = items.map(gym => gym.id);
-        const hoveredIndex = hoveredGymId != null ? ids.indexOf(hoveredGymId) : -1;
         const selectedIndex = selectedGymId != null ? ids.indexOf(selectedGymId) : -1;
-        const currentIndex = hoveredIndex >= 0 ? hoveredIndex : selectedIndex;
+        const currentIndex = selectedIndex;
         const delta = event.key === "ArrowDown" ? 1 : -1;
         const nextIndex =
           currentIndex === -1
@@ -297,7 +282,6 @@ export function NearbyList({
         const nextGym = items[nextIndex];
         if (nextGym) {
           onSelectGym(nextGym.id, "list");
-          onPreviewGym(nextGym.id, "list");
           logPinClick({ source: "list", slug: nextGym.slug });
         }
         return;
@@ -306,16 +290,11 @@ export function NearbyList({
       if (event.key === "Enter") {
         event.preventDefault();
         const targetGym =
-          (hoveredGymId != null
-            ? items.find(gym => gym.id === hoveredGymId) ?? null
-            : null) ??
           (selectedGymId != null
             ? items.find(gym => gym.id === selectedGymId) ?? null
-            : null) ??
-          items[0];
+            : null) ?? items[0];
         if (targetGym) {
           onSelectGym(targetGym.id, "list");
-          onPreviewGym(targetGym.id, "list");
           logPinClick({ source: "list", slug: targetGym.slug });
         }
         return;
@@ -324,19 +303,16 @@ export function NearbyList({
       if (event.key === "o" || event.key === "O") {
         event.preventDefault();
         const targetGym =
-          (selectedGymId != null
+          selectedGymId != null
             ? items.find(gym => gym.id === selectedGymId) ?? null
-            : null) ??
-          (hoveredGymId != null
-            ? items.find(gym => gym.id === hoveredGymId) ?? null
-            : null);
+            : null;
         if (targetGym) {
           onSelectGym(targetGym.id, "list");
           onOpenDetail(targetGym, { preferModal: true });
         }
       }
     },
-    [hoveredGymId, items, onOpenDetail, onPreviewGym, onSelectGym, selectedGymId],
+    [items, onOpenDetail, onSelectGym, selectedGymId],
   );
 
   if (isInitialLoading) {
@@ -407,7 +383,6 @@ export function NearbyList({
           >
             {virtualItems.map(virtualRow => {
               const gym = items[virtualRow.index];
-              const isHovered = hoveredGymId === gym.id;
               const isSelected = selectedGymId === gym.id;
               return (
                 <div
@@ -428,7 +403,7 @@ export function NearbyList({
                     id={`gym-option-${gym.id}`}
                     role="option"
                   >
-                    {renderGymButton(gym, isSelected, isHovered)}
+                    {renderGymButton(gym, isSelected)}
                   </div>
                 </div>
               );
@@ -449,7 +424,6 @@ export function NearbyList({
           tabIndex={0}
         >
           {items.map(gym => {
-            const isHovered = hoveredGymId === gym.id;
             const isSelected = selectedGymId === gym.id;
             return (
               <div
@@ -467,7 +441,7 @@ export function NearbyList({
                 }}
                 role="option"
               >
-                {renderGymButton(gym, isSelected, isHovered)}
+                {renderGymButton(gym, isSelected)}
               </div>
             );
           })}

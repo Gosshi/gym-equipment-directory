@@ -62,21 +62,17 @@ const TestNearbyList = ({
   onOpenDetail?: NearbyListProps["onOpenDetail"];
 }) => {
   const selectedId = useMapSelectionStore(state => state.selectedId);
-  const hoveredId = useMapSelectionStore(state => state.hoveredId);
   const setSelected = useMapSelectionStore(state => state.setSelected);
-  const setHovered = useMapSelectionStore(state => state.setHovered);
 
   return (
     <NearbyList
       error={null}
-      hoveredGymId={hoveredId}
       isInitialLoading={false}
       isLoading={false}
       items={items}
       meta={{ ...baseMeta, total: items.length }}
       onOpenDetail={onOpenDetail}
       onPageChange={noop}
-      onPreviewGym={(id, source) => setHovered(id, source)}
       onRetry={noop}
       onSelectGym={(id, source) => setSelected(id, source)}
       selectedGymId={selectedId}
@@ -129,19 +125,6 @@ const runLastTimeout = (spy: TimeoutSpy) => {
 };
 
 describe("NearbyList map interactions", () => {
-  it("applies hovered styles when the hovered id changes", async () => {
-    renderList();
-
-    const target = await getItemButton(1);
-    expect(target).not.toHaveClass("bg-primary/5");
-
-    act(() => {
-      useMapSelectionStore.getState().setHovered(1);
-    });
-
-    expect(target).toHaveClass("bg-primary/5");
-  });
-
   it("applies selected styles and scrolls the item into view on selection", async () => {
     const scrollSpy = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
@@ -178,24 +161,6 @@ describe("NearbyList map interactions", () => {
     expect(target).toHaveClass("bg-primary/10");
     expect(target).toHaveClass("border-primary");
     expect(scrollSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("prioritizes selected styles over hovered styles", async () => {
-    renderList();
-
-    const target = await getItemButton(1);
-
-    act(() => {
-      useMapSelectionStore.getState().setHovered(1);
-    });
-    expect(target).toHaveClass("bg-primary/5");
-
-    act(() => {
-      useMapSelectionStore.getState().setSelected(1);
-    });
-
-    expect(target).toHaveClass("bg-primary/10");
-    expect(target).not.toHaveClass("bg-primary/5");
   });
 
   it("keeps the latest selection when markers are clicked consecutively", async () => {

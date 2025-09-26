@@ -14,21 +14,18 @@ describe("mapSelectionStore", () => {
   it("provides null defaults", () => {
     const state = mapSelectionStore.getState();
     expect(state.selectedId).toBeNull();
-    expect(state.hoveredId).toBeNull();
     expect(state.lastInteraction).toBeNull();
     expect(state.lastSelectionSource).toBeNull();
     expect(state.lastSelectionAt).toBeNull();
   });
 
-  it("updates selected and hovered ids", () => {
-    const { setSelected, setHovered } = useMapSelectionStore.getState();
+  it("updates selection meta when a new selection is made", () => {
+    const { setSelected } = useMapSelectionStore.getState();
 
     setSelected(123, "map");
-    setHovered(456, "map");
 
     const state = mapSelectionStore.getState();
     expect(state.selectedId).toBe(123);
-    expect(state.hoveredId).toBe(456);
     expect(state.lastInteraction).toBe("map");
     expect(state.lastSelectionSource).toBe("map");
     expect(state.lastSelectionAt).toBeTypeOf("number");
@@ -53,7 +50,6 @@ describe("mapSelectionStore", () => {
   it("clears both ids", () => {
     useMapSelectionStore.setState({
       selectedId: 1,
-      hoveredId: 2,
       lastInteraction: "map",
       lastSelectionSource: "map",
       lastSelectionAt: 123,
@@ -63,7 +59,6 @@ describe("mapSelectionStore", () => {
 
     const state = mapSelectionStore.getState();
     expect(state.selectedId).toBeNull();
-    expect(state.hoveredId).toBeNull();
     expect(state.lastInteraction).toBeNull();
     expect(state.lastSelectionSource).toBeNull();
     expect(state.lastSelectionAt).toBeNull();

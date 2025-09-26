@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NearbyMap } from "../NearbyMap";
@@ -13,6 +13,7 @@ interface MockMapHandle {
 
 const mockState = {
   easeToCalls: [] as Array<{ center?: [number, number]; zoom?: number; duration?: number }>,
+  flyToCalls: [] as Array<{ center?: [number, number]; zoom?: number; duration?: number; essential?: boolean }>,
   latestMap: null as MockMapHandle | null,
 };
 
@@ -93,6 +94,15 @@ vi.mock("maplibre-gl", () => {
       }
       this.emit("moveend");
     }
+
+    flyTo(options: { center: [number, number]; zoom?: number; duration?: number; essential?: boolean }) {
+      mockState.flyToCalls.push(options);
+      this.center = { lng: options.center[0], lat: options.center[1] };
+      if (typeof options.zoom === "number") {
+        this.zoom = options.zoom;
+      }
+      this.emit("moveend");
+    }
   }
 
   class MockMarker {
@@ -118,61 +128,6 @@ vi.mock("maplibre-gl", () => {
     }
   }
 
-  class MockPopup {
-    content: HTMLElement | null = null;
-    closeHandler: ((event: unknown) => void) | null = null;
-    open = false;
-    position: [number, number] | null = null;
-
-    constructor(_options: unknown) {}
-
-    setDOMContent(node: HTMLElement) {
-      this.content = node;
-      return this;
-    }
-
-    setLngLat(position: [number, number]) {
-      this.position = position;
-      return this;
-    }
-
-    addTo(map: MockMap) {
-      map.container.appendChild(this.content ?? document.createElement("div"));
-      this.open = true;
-      return this;
-    }
-
-    remove() {
-      if (this.content?.parentElement) {
-        this.content.parentElement.removeChild(this.content);
-      }
-      this.open = false;
-    }
-
-    on(event: string, handler: (event: unknown) => void) {
-      if (event === "close") {
-        this.closeHandler = handler;
-      }
-      return this;
-    }
-
-    off(event: string, handler: (event: unknown) => void) {
-      if (event === "close" && this.closeHandler === handler) {
-        this.closeHandler = null;
-      }
-      return this;
-    }
-
-    isOpen() {
-      return this.open;
-    }
-
-    triggerClose() {
-      this.open = false;
-      this.closeHandler?.(undefined);
-    }
-  }
-
   class MockNavigationControl {
     constructor(_options: unknown) {}
   }
@@ -183,12 +138,10 @@ vi.mock("maplibre-gl", () => {
       Map: MockMap,
       Marker: MockMarker,
       NavigationControl: MockNavigationControl,
-      Popup: MockPopup,
     },
     Map: MockMap,
     Marker: MockMarker,
     NavigationControl: MockNavigationControl,
-    Popup: MockPopup,
   };
 });
 
@@ -219,15 +172,12 @@ const TestNearbyMap = (
   props: Partial<ComponentProps<typeof NearbyMap>> & { markers?: NearbyGym[] } = {},
 ) => {
   const selectedId = useMapSelectionStore(state => state.selectedId);
-  const hoveredId = useMapSelectionStore(state => state.hoveredId);
   const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
   const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
   const setSelected = useMapSelectionStore(state => state.setSelected);
-  const setHovered = useMapSelectionStore(state => state.setHovered);
 
   const {
     markers = gyms,
-    onRequestDetail = () => undefined,
     onCenterChange = () => undefined,
     ...rest
   } = props;
@@ -236,13 +186,10 @@ const TestNearbyMap = (
     <NearbyMap
       center={{ lat: 35.68, lng: 139.76 }}
       markers={markers}
-      hoveredGymId={hoveredId}
       selectedGymId={selectedId}
       lastSelectionSource={lastSelectionSource}
       lastSelectionAt={lastSelectionAt}
       onSelect={(id, source) => setSelected(id, source)}
-      onPreview={(id, source) => setHovered(id, source)}
-      onRequestDetail={onRequestDetail}
       onCenterChange={onCenterChange}
       {...rest}
     />
@@ -255,6 +202,7 @@ const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) => render(
 
 beforeEach(() => {
   mockState.easeToCalls.length = 0;
+  mockState.flyToCalls.length = 0;
   mockState.latestMap = null;
   resetMapSelectionStoreForTests();
   vi.useFakeTimers();
@@ -266,21 +214,7 @@ afterEach(() => {
 });
 
 describe("NearbyMap interactions", () => {
-  it("updates marker state when hover changes", async () => {
-    renderMap();
-
-    act(() => {
-      useMapSelectionStore.getState().setHovered(2, "list");
-    });
-    expect(useMapSelectionStore.getState().hoveredId).toBe(2);
-
-    act(() => {
-      useMapSelectionStore.getState().setSelected(2, "list");
-    });
-    expect(useMapSelectionStore.getState().selectedId).toBe(2);
-  });
-
-  it("pans to the selected gym with controlled zoom", async () => {
+  it("triggers flyTo when selection comes from the list", async () => {
     renderMap({ zoom: 10 });
     await act(async () => {});
 
@@ -292,11 +226,12 @@ describe("NearbyMap interactions", () => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(mockState.easeToCalls).toHaveLength(1);
-    const [{ center, zoom, duration }] = mockState.easeToCalls;
+    expect(mockState.flyToCalls).toHaveLength(1);
+    const [{ center, zoom, duration, essential }] = mockState.flyToCalls;
     expect(center).toEqual([gyms[1].longitude, gyms[1].latitude]);
     expect(zoom).toBe(12);
-    expect(duration).toBe(500);
+    expect(duration).toBe(480);
+    expect(essential).toBe(true);
   });
 
   it("debounces repeated selections", async () => {
@@ -312,7 +247,7 @@ describe("NearbyMap interactions", () => {
       vi.runOnlyPendingTimers();
     });
 
-    expect(mockState.easeToCalls).toHaveLength(1);
+    expect(mockState.flyToCalls).toHaveLength(1);
   });
 
   it("skips auto-pan when selection originates from the map", async () => {
@@ -332,7 +267,7 @@ describe("NearbyMap interactions", () => {
       vi.runOnlyPendingTimers();
     });
 
-    expect(mockState.easeToCalls).toHaveLength(0);
+    expect(mockState.flyToCalls).toHaveLength(0);
   });
 
   it("does not pan while the user is dragging", async () => {
@@ -355,7 +290,7 @@ describe("NearbyMap interactions", () => {
       vi.runOnlyPendingTimers();
     });
 
-    mockState.easeToCalls.length = 0;
+    mockState.flyToCalls.length = 0;
 
     act(() => {
       mockState.latestMap?.emit("dragend");
@@ -369,6 +304,6 @@ describe("NearbyMap interactions", () => {
       vi.runOnlyPendingTimers();
     });
 
-    expect(mockState.easeToCalls).toHaveLength(1);
+    expect(mockState.flyToCalls).toHaveLength(1);
   });
 });
