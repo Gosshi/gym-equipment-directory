@@ -305,12 +305,18 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const appendModeRef = useRef(false);
 
   const applyFilters = useCallback(
-    (nextFilters: FilterState, options: { append?: boolean } = {}) => {
+    (
+      nextFilters: FilterState,
+      options: {
+        append?: boolean;
+        force?: boolean;
+      } = {},
+    ) => {
       setAppliedFilters(prev => (areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters));
 
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
-      if (nextQuery === searchParamsKey) {
+      if (!options.force && nextQuery === searchParamsKey) {
         appendModeRef.current = false;
         return;
       }
@@ -633,7 +639,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           ...appliedFilters,
           page: nextPage,
         },
-        { append: options.append },
+        { append: options.append, force: true },
       );
     },
     [appliedFilters, applyFilters, cancelPendingDebounce],
