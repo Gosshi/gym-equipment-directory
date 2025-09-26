@@ -10,18 +10,15 @@ export type MapInteractionSource = "map" | "list" | "url";
 
 interface MapSelectionState {
   selectedId: GymId | null;
-  hoveredId: GymId | null;
   lastInteraction: MapInteractionSource | null;
   lastSelectionSource: MapInteractionSource | null;
   lastSelectionAt: number | null;
   setSelected: (id: GymId | null, source?: MapInteractionSource) => void;
-  setHovered: (id: GymId | null, source?: MapInteractionSource) => void;
   clear: () => void;
 }
 
-const INITIAL_STATE: Omit<MapSelectionState, "setSelected" | "setHovered" | "clear"> = {
+const INITIAL_STATE: Omit<MapSelectionState, "setSelected" | "clear"> = {
   selectedId: null,
-  hoveredId: null,
   lastInteraction: null,
   lastSelectionSource: null,
   lastSelectionAt: null,
@@ -58,29 +55,9 @@ export const useMapSelectionStore = create<MapSelectionState>((set, get) => ({
       source != null && (selectionChanged || sourceChanged || source !== "url");
 
     if (shouldRefreshTimestamp) {
-      update.lastSelectionAt = Date.now();
-      shouldUpdate = true;
-    }
-
-    if (!shouldUpdate) {
-      return;
-    }
-
-    set(update);
-  },
-  setHovered: (id, source) => {
-    const state = get();
-    const nextHovered = id ?? null;
-    const update: Partial<MapSelectionState> = {};
-    let shouldUpdate = false;
-
-    if (state.hoveredId !== nextHovered) {
-      update.hoveredId = nextHovered;
-      shouldUpdate = true;
-    }
-
-    if (source && state.lastInteraction !== source) {
-      update.lastInteraction = source;
+      const now = Date.now();
+      const previous = state.lastSelectionAt ?? 0;
+      update.lastSelectionAt = now <= previous ? previous + 1 : now;
       shouldUpdate = true;
     }
 
@@ -94,7 +71,6 @@ export const useMapSelectionStore = create<MapSelectionState>((set, get) => ({
     const state = get();
     if (
       state.selectedId === null &&
-      state.hoveredId === null &&
       state.lastInteraction === null &&
       state.lastSelectionSource === null &&
       state.lastSelectionAt === null
@@ -115,7 +91,6 @@ export const resetMapSelectionStoreForTests = () => {
 
   useMapSelectionStore.setState({
     selectedId: null,
-    hoveredId: null,
     lastInteraction: null,
     lastSelectionSource: null,
     lastSelectionAt: null,

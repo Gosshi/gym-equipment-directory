@@ -14,11 +14,9 @@ interface UseSelectedGymResult {
   selectedGymId: number | null;
   selectedGym: NearbyGym | null;
   selectedSlug: string | null;
-  hoveredGymId: number | null;
   lastSelectionSource: MapInteractionSource | null;
   lastSelectionAt: number | null;
   selectGym: (id: number | null, source?: MapInteractionSource) => void;
-  previewGym: (id: number | null, source?: MapInteractionSource) => void;
   clearSelection: () => void;
 }
 
@@ -42,11 +40,9 @@ export function useSelectedGym({
   const searchParamsSnapshot = searchParams.toString();
 
   const selectedGymId = useMapSelectionStore(state => state.selectedId);
-  const hoveredGymId = useMapSelectionStore(state => state.hoveredId);
   const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
   const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
   const setSelectedId = useMapSelectionStore(state => state.setSelected);
-  const setHoveredId = useMapSelectionStore(state => state.setHovered);
 
   const skipUrlToStoreSyncRef = useRef(false);
   const lastSyncedIdRef = useRef<number | null>(null);
@@ -119,26 +115,14 @@ export function useSelectedGym({
 
   const selectGym = useCallback(
     (id: number | null, source?: MapInteractionSource) => {
+      skipUrlToStoreSyncRef.current = true;
       if (id === selectedGymId) {
-        if (id !== null) {
-          setHoveredId(null);
-        }
+        setSelectedId(null, source);
         return;
       }
-      skipUrlToStoreSyncRef.current = true;
       setSelectedId(id, source);
-      if (id !== null) {
-        setHoveredId(null);
-      }
     },
-    [selectedGymId, setHoveredId, setSelectedId],
-  );
-
-  const previewGym = useCallback(
-    (id: number | null, source?: MapInteractionSource) => {
-      setHoveredId(id, source);
-    },
-    [setHoveredId],
+    [selectedGymId, setSelectedId],
   );
 
   const clearSelection = useCallback(() => {
@@ -153,11 +137,9 @@ export function useSelectedGym({
     selectedGymId,
     selectedGym,
     selectedSlug: selectedGym?.slug ?? null,
-    hoveredGymId,
     lastSelectionSource,
     lastSelectionAt,
     selectGym,
-    previewGym,
     clearSelection,
   };
 }

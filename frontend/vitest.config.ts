@@ -18,10 +18,12 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
+    pool: "forks",
     poolOptions: {
-      threads: {
-        minThreads: 1,
-        maxThreads: 1,
+      forks: {
+        minForks: 1,
+        maxForks: 1,
+        execArgv: ["--max-old-space-size=6144"],
       },
     },
   },
