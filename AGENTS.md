@@ -50,6 +50,14 @@ ruff check . --fix
 
 * すべての公開関数・メソッドに型ヒントを付与してください
 
+### Definition of Done
+	•	フロント：next build が成功し、next start 起動後 GET / が 200。
+	•	バックエンド：alembic upgrade head 成功、uvicorn 起動後 GET /healthz or /readyz が 200。
+	•	Lint/format/typecheck/p ytest（軽量セット）が緑。
+  
+### レビュー前チェック
+	•	「起動スモーク OK」「lint/format OK」「型 OK」「軽量テスト OK」に ✅。
+
 ---
 
 ## 🧪 テスト
