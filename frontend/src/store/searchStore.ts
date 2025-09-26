@@ -82,9 +82,7 @@ export const useSearchStore = create<SearchStoreState>((set, get) => ({
   },
   setNavigationSource: source => {
     set(state =>
-      state.navigationSource === source
-        ? state
-        : { ...state, navigationSource: source },
+      state.navigationSource === source ? state : { ...state, navigationSource: source },
     );
   },
   saveScrollPosition: (query, position) => {
