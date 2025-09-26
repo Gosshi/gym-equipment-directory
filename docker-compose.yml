@@ -39,7 +39,7 @@ services:
     container_name: gymdir-pg
     env_file: .env
     ports:
-      - "5433:5432"         # ← ホスト : コンテナ
+      - "5433:5432" # ← ホスト : コンテナ
     environment:
       POSTGRES_DB: ${TEST_POSTGRES_DB}
       POSTGRES_USER: ${TEST_POSTGRES_USER}

@@ -3,8 +3,8 @@ repos:
     rev: v0.12.12 # Use the ruff version installed in your environment
     hooks:
       - id: ruff
-        args: [--fix]       # lint 自動修正
-      - id: ruff-format    # フォーマット自動整形
+        args: [--fix] # lint 自動修正
+      - id: ruff-format # フォーマット自動整形
   - repo: local
     hooks:
       - id: frontend-prettier

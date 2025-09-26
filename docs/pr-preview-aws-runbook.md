@@ -2,7 +2,6 @@
 
 最終更新: 2025-09-18 10:51 UTC
 
-
 このドキュメントは、**PRごとに単一のEC2でFastAPIアプリを起動してプレビュー**する仕組み（GitHub Actions + EC2 + Docker + GHCR + SSM）の**構築メモ／運用手順／トラブルシュート**を、今回の実作業のログに基づいて詳しくまとめたものです。  
 「なぜそうしたか」「どこで詰まったか」「どう直したか」を残しています。
 
@@ -11,6 +10,7 @@
 ## 0. TL;DR（まず使うもの）
 
 ### ✅ 自分だけSSM経由でPRプレビューを見る（外部公開なし）
+
 ```bash
 # 前提: Mac に AWS CLI v2 / session-manager-plugin / SSO プロファイル (例: gym-preview)
 aws ssm start-session \
@@ -24,6 +24,7 @@ open http://127.0.0.1:8000/docs
 ```
 
 ### ✅ EC2 上で「アプリは起動中？」（コンテナ/ポート/HTTP）
+
 ```bash
 docker compose -f /srv/app/docker-compose.yml ps
 docker compose -f /srv/app/docker-compose.yml logs --tail=100 api
@@ -31,6 +32,7 @@ curl -fsS http://127.0.0.1:8000/docs >/dev/null && echo "APP OK" || echo "APP NG
 ```
 
 ### ✅ DB 到達性（EC2 → DB EC2:5432）と実接続（コンテナ内）
+
 ```bash
 # TCP到達（/dev/tcpを使う。ncが無くてもOK）
 bash -c 'timeout 3 bash -c "echo > /dev/tcp/<DB_PRIVATE_IP>/5432"' && echo "DB TCP OK" || echo "DB TCP NG"
@@ -63,9 +65,11 @@ PY
 ## 2. GitHub Actions（ワークフロー）概要
 
 ### トリガ
+
 - `pull_request: [opened, reopened, synchronize, closed]`
 
 ### 主要ステップ
+
 1. **Build & Push**（同一リポPRのみ）
    - `docker/build-push-action` で GHCR へ `:<sha>` と `:pr-<number>` を push
    - `permissions: packages: write` が必要（push 用）
@@ -79,7 +83,7 @@ PY
    - **User Data** で Docker/Compose 設置、`docker login ghcr.io`、`docker compose up -d`
    - **DB マイグレーション** は `docker run --rm ... alembic upgrade head`（リトライ付き）
 5. **任意: DB SG の /32 一時開放**
-   - `secrets.DB_SG_ID` が設定されていれば、**プレビューEC2の Public IP/32** を 5432 に追加許可  
+   - `secrets.DB_SG_ID` が設定されていれば、**プレビューEC2の Public IP/32** を 5432 に追加許可
    - ただし原則は **SG参照（api-sg → db-sg）** を推奨
 6. **ヘルスチェック**
    - 8000/TCP が開くまで待機 → `/docs` or `/healthz` を軽く Probe
@@ -126,6 +130,7 @@ docker compose version || true
 - **EC2（Pull）**: `GHCR_USERNAME` + `GHCR_TOKEN`（Classic PAT 推奨、`read:packages`）
 
 **よくあったエラー**
+
 - `unauthorized`（EC2 側）→ EC2 の `docker login ghcr.io` が未実施。PAT の権限不足にも注意。
 - Actions 側 push 失敗 → `permissions: packages: write` が無い。
 
@@ -159,10 +164,12 @@ docker compose version || true
   エラー例：`invalid integer value "...“ for connection option "port"` は URL のパース崩れが原因になりやすい。
 
 ### SG 設計（推奨）
+
 - `db-sg` の 5432 インバウンドは **`api-sg` を参照許可**（**0.0.0.0/0 は撤廃**）
 - これによりプレビューEC2の Public IP が変わっても、**VPC 内での到達性は維持**。
 
 ### 到達性チェック（EC2 上）
+
 ```bash
 # TCP
 bash -c 'timeout 3 bash -c "echo > /dev/tcp/172.31.39.125/5432"' && echo "DB TCP OK" || echo "DB TCP NG"
@@ -180,6 +187,7 @@ PY
 ## 6. 自分だけ見る：SSM ポートフォワーディング手順（Mac）
 
 ### 6.1 事前準備
+
 - AWS CLI v2
 - Session Manager Plugin（`session-manager-plugin`）
 - **IAM Identity Center（SSO）** にユーザー作成・アカウント/ロール割当 → `aws configure sso`
@@ -188,6 +196,7 @@ PY
   - プロファイル名例: `gym-preview`
 
 ### 6.2 トンネル開始
+
 ```bash
 aws ssm start-session \
   --target <PREVIEW_EC2_INSTANCE_ID> \
@@ -195,10 +204,12 @@ aws ssm start-session \
   --parameters '{"portNumber":["8000"],"localPortNumber":["8000"]}' \
   --profile gym-preview --region ap-northeast-1
 ```
+
 - ブラウザで `http://127.0.0.1:8000/docs`
 - 終了は `Ctrl+C`
 
 ### 6.3 便利スクリプト（任意）
+
 ```bash
 #!/usr/bin/env bash
 # preview-tunnel.sh: PR番号だけでトンネル
@@ -245,6 +256,7 @@ aws ssm start-session \
 ## 8. 確認コマンド集（チートシート）
 
 ### EC2内のメタデータ
+
 ```bash
 TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
   -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
@@ -253,6 +265,7 @@ curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-d
 ```
 
 ### SG/サブネット/ルート
+
 ```bash
 aws ec2 describe-instances --instance-ids <IID> --query 'Reservations[0].Instances[0].SecurityGroups'
 aws ec2 describe-security-groups --group-ids <SG_ID> --query 'SecurityGroups[0].IpPermissions'
@@ -261,6 +274,7 @@ aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=<SUBN
 ```
 
 ### コンテナ/ポート/HTTP
+
 ```bash
 docker compose -f /srv/app/docker-compose.yml ps -a
 docker compose -f /srv/app/docker-compose.yml logs --tail=200 api
@@ -269,6 +283,7 @@ curl -sS http://127.0.0.1:8000/docs | head
 ```
 
 ### OpenAPI からルート確認
+
 ```bash
 curl -s http://127.0.0.1:8000/openapi.json | jq -r '.paths | keys[]' | sed -n '1,50p'
 ```
@@ -278,9 +293,11 @@ curl -s http://127.0.0.1:8000/openapi.json | jq -r '.paths | keys[]' | sed -n '1
 ## 9. クリーニングとログ採取
 
 ### PR close で自動Terminate
-- ワークフロー内で **open PR=0** なら `Purpose=pr-preview-singleton` を terminate。  
+
+- ワークフロー内で **open PR=0** なら `Purpose=pr-preview-singleton` を terminate。
 
 ### 手動クリーンアップ
+
 ```bash
 aws ec2 describe-instances \
   --filters "Name=tag:Purpose,Values=pr-preview-singleton" \
@@ -290,6 +307,7 @@ aws ec2 describe-instances \
 ```
 
 ### SSMでログ採取（起動失敗時）
+
 ```bash
 aws ssm send-command \
   --instance-ids <IID> \
@@ -313,14 +331,15 @@ aws ssm send-command \
 
 ## 11. 将来の改善（メモ）
 
-- **PRごとのEphemeral DB（Docker/Postgres）**：`db:` サービス追加、PR close でボリューム削除。  
-- **TTL 自動終了**：起動時に `shutdown-at` タグ → Lambda/SSM Automation でTerminate。  
-- **/healthz / readyz** の整備とワークフローのHTTPヘルスプローブ連携。  
+- **PRごとのEphemeral DB（Docker/Postgres）**：`db:` サービス追加、PR close でボリューム削除。
+- **TTL 自動終了**：起動時に `shutdown-at` タグ → Lambda/SSM Automation でTerminate。
+- **/healthz / readyz** の整備とワークフローのHTTPヘルスプローブ連携。
 - **Route 53 + Aレコード（社内向け）**：SSM経由のみ or VPN 内のみ到達など。
 
 ---
 
 ### 変更履歴（抜粋）
+
 - AL2023でのCompose導入を**手動配置**に変更（`docker-compose-plugin` 未提供対策）
 - GHCR Pull のため **EC2で `docker login ghcr.io`（PAT）** を追加
 - DBは**EC2**で運用（RDSではない）。`db-sg` は **`api-sg` 参照のみ許可**へ是正

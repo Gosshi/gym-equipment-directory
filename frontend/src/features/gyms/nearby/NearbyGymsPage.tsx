@@ -88,10 +88,7 @@ export function NearbyGymsPage() {
   });
 
   const markerGyms = useMemo(
-    () =>
-      items.filter(
-        gym => Number.isFinite(gym.latitude) && Number.isFinite(gym.longitude),
-      ),
+    () => items.filter(gym => Number.isFinite(gym.latitude) && Number.isFinite(gym.longitude)),
     [items],
   );
 
@@ -429,7 +426,9 @@ export function NearbyGymsPage() {
       <div
         aria-live="polite"
         className={`md:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-4 pt-2 transition-transform duration-300 ${
-          selectedSlug ? "pointer-events-auto translate-y-0" : "pointer-events-none translate-y-full"
+          selectedSlug
+            ? "pointer-events-auto translate-y-0"
+            : "pointer-events-none translate-y-full"
         }`}
         data-panel-anchor="mobile-panel"
         ref={mobilePanelRef}

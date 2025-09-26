@@ -4,7 +4,7 @@ name: Nightly CI
 on:
   schedule:
     # 00:00 JST → 15:00 UTC daily
-    - cron: '0 15 * * *'
+    - cron: "0 15 * * *"
 
 jobs:
   backend:
@@ -25,7 +25,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: pass
         ports:
-          - '5432:5432'
+          - "5432:5432"
         options: >-
           --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
           --health-interval=10s --health-timeout=5s --health-retries=10
@@ -38,7 +38,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Determine pip cache directory
         id: pip-cache-dir

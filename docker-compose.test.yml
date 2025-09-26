@@ -30,7 +30,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c 'import sys, urllib.request; sys.exit(0 if urllib.request.urlopen(\"http://localhost:8000/readyz\").status == 200 else 1)'",
+          'python -c ''import sys, urllib.request; sys.exit(0 if urllib.request.urlopen("http://localhost:8000/readyz").status == 200 else 1)''',
         ]
       interval: 5s
       timeout: 3s

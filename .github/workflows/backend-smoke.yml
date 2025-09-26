@@ -1,0 +1,44 @@
+name: backend-smoke
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "alembic/**"
+      - "pyproject.toml"
+      - ".github/workflows/backend-smoke.yml"
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: gym_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres -d gym_test"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:pass@localhost:5432/gym_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python -m pip install -U pip wheel setuptools
+      - run: pip install -r requirements.txt
+      - name: Alembic migrate
+        env:
+          ALEMBIC_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: alembic upgrade head
+      - name: Start API & wait
+        run: |
+          (uvicorn app.main:app --host 127.0.0.1 --port 8001 &)
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:8001/healthz && break
+            sleep 1
+          done
+      - name: Probe readyz/healthz
+        run: |
+          curl -fS http://127.0.0.1:8001/healthz || curl -fS http://127.0.0.1:8001/readyz

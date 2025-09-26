@@ -214,7 +214,9 @@ export function NearbyList({
         <button
           className={cn(
             "group flex w-full flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isSelected ? "border-primary bg-primary/10 shadow-md" : "hover:border-primary hover:bg-primary/5",
+            isSelected
+              ? "border-primary bg-primary/10 shadow-md"
+              : "hover:border-primary hover:bg-primary/5",
           )}
           data-state={isSelected ? "selected" : "default"}
           data-panel-anchor="list"
@@ -290,9 +292,8 @@ export function NearbyList({
       if (event.key === "Enter") {
         event.preventDefault();
         const targetGym =
-          (selectedGymId != null
-            ? items.find(gym => gym.id === selectedGymId) ?? null
-            : null) ?? items[0];
+          (selectedGymId != null ? (items.find(gym => gym.id === selectedGymId) ?? null) : null) ??
+          items[0];
         if (targetGym) {
           onSelectGym(targetGym.id, "list");
           logPinClick({ source: "list", slug: targetGym.slug });
@@ -303,9 +304,7 @@ export function NearbyList({
       if (event.key === "o" || event.key === "O") {
         event.preventDefault();
         const targetGym =
-          selectedGymId != null
-            ? items.find(gym => gym.id === selectedGymId) ?? null
-            : null;
+          selectedGymId != null ? (items.find(gym => gym.id === selectedGymId) ?? null) : null;
         if (targetGym) {
           onSelectGym(targetGym.id, "list");
           onOpenDetail(targetGym, { preferModal: true });
@@ -379,7 +378,11 @@ export function NearbyList({
           tabIndex={0}
         >
           <div
-            style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative", width: "100%" }}
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              position: "relative",
+              width: "100%",
+            }}
           >
             {virtualItems.map(virtualRow => {
               const gym = items[virtualRow.index];

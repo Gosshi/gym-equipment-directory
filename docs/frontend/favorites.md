@@ -1,6 +1,7 @@
 # Favorites Feature (Step 5)
 
 ## Overview
+
 - Adds a toggleable "お気に入り" button to `/gyms/[slug]` that syncs with the backend API.
 - Provides a new `/me/favorites` page that lists registered gyms with quick access links and removal
   controls.
@@ -8,11 +9,12 @@
   single source of truth.
 
 ## API Contract
-| Method | Endpoint | Notes |
-| ------ | -------- | ----- |
-| `GET` | `/me/favorites` | Returns `{ items: GymSummary[] }`. |
-| `POST` | `/me/favorites` | Body: `{ "gymId": number }`. Idempotent. |
-| `DELETE` | `/me/favorites/{gymId}` | Removes the relation. Also idempotent. |
+
+| Method   | Endpoint                | Notes                                    |
+| -------- | ----------------------- | ---------------------------------------- |
+| `GET`    | `/me/favorites`         | Returns `{ items: GymSummary[] }`.       |
+| `POST`   | `/me/favorites`         | Body: `{ "gymId": number }`. Idempotent. |
+| `DELETE` | `/me/favorites/{gymId}` | Removes the relation. Also idempotent.   |
 
 - Calls are authenticated (Bearer token) when a user session exists. Unauthenticated clients rely on
   local storage only.
@@ -20,6 +22,7 @@
   messaging when relevant.
 
 ## Frontend Architecture
+
 - `@/store/favoritesStore` exposes `useFavorites()` backed by Zustand.
   - Hydrates from local storage (`GED_FAVORITES`) for guests and keeps optimistic state in sync with
     the API when signed in.
@@ -30,6 +33,7 @@
   toggle actions trigger success/error feedback without blocking user interaction.
 
 ## UI Details
+
 - **Gym detail**: The button reflects current membership, disables while the mutation is pending, and
   shows toast feedback for both add/remove flows.
 - **Favorites page (`/me/favorites`)**:
@@ -40,6 +44,7 @@
     without reloading the route).
 
 ## Known Limitations & Follow-ups
+
 - The backend schema currently omits richer metadata (ratings, equipment list, etc.) for favorites,
   so cards display what is available and fall back gracefully when fields are `null`.
 - Toasts rely on client rendering; server-side rendering of routes that reference `useFavorites`

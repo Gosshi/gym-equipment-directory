@@ -6,6 +6,7 @@
 ---
 
 ## 🚀 技術スタック
+
 - Backend: Python (FastAPI)
 - DB: PostgreSQL (via Docker)
 - Infra: Docker / docker-compose
@@ -18,23 +19,28 @@
 ## 📦 セットアップ手順
 
 ### 1. リポジトリをクローン
+
 ```bash
 git clone https://github.com/yourname/gym-equipment-directory.git
 cd gym-equipment-directory
 ```
 
 ### 2. 環境変数ファイルを作成
+
 ```bash
 cp .env.example .env
 ```
+
 必要に応じて .env を編集。
 
 ### 3. コンテナ起動
+
 ```bash
 docker compose up -d --build
 ```
 
 ### 4. 動作確認
+
 ```bash
 curl http://localhost:8000/health
 # => {"status":"ok","env":"dev"}
@@ -62,6 +68,7 @@ curl http://localhost:8000/health
   `frontend/README.md` を参照してください。
 
 ## 📂 ディレクトリ構成（現在）
+
 ```bash
 gym-equipment-directory/
 ├─ app/
@@ -76,12 +83,14 @@ gym-equipment-directory/
 ```
 
 ## 📝 今後の予定（M1スコープ）
+
 - [ ] SQLAlchemyモデル定義
 - [ ] Alembic初期マイグレーション
 - [ ] gyms / equipments / gym_equipments データ投入
 - [ ] 検索API /gyms/search
 - [ ] 店舗詳細API /gyms/{slug}
 - [ ] フロント：検索〜詳細ページ実装
+
 ---
 
 了解！README に追記する文面と、動作確認の再実行コマンドをまとめました。
@@ -89,10 +98,10 @@ gym-equipment-directory/
 
 ---
 
-
 ## 初期セットアップ（DB初期化 → マイグレーション → シード）
 
 > 前提:
+>
 > - Docker Compose の DB サービス名: `db`（PostgreSQL 16）
 > - アプリはコンテナ間で DB に接続する
 > - 接続文字列（**固定**）  
@@ -102,7 +111,9 @@ gym-equipment-directory/
    ```bash
    docker compose up -d db adminer
    docker compose exec db pg_isready -U appuser -d gym_directory
-```
+   ```
+
+````
 
 2. **マイグレーション適用（必須）**
 
@@ -113,7 +124,7 @@ gym-equipment-directory/
      export DATABASE_URL="postgresql+asyncpg://appuser:apppass@db:5432/gym_directory"
      alembic upgrade head
    '
-   ```
+````
 
 3. **シード投入**
 
@@ -159,12 +170,13 @@ python -m uvicorn app.api.main:app --reload --port 8000
 
 ### Compose の `api` サービスで起動する場合
 
-* `.env` に **必ず** 次を入れておく：
+- `.env` に **必ず** 次を入れておく：
 
   ```
   DATABASE_URL=postgresql+asyncpg://appuser:apppass@db:5432/gym_directory
   ```
-* 起動：
+
+- 起動：
 
   ```bash
   docker compose up -d api
@@ -220,10 +232,9 @@ curl -sS "http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=fresh
 
 ### よくあるハマりどころ
 
-* **DBを作り直したら**、必ず `alembic upgrade head` → `python -m scripts.seed` の順に実行。
-* ローカル uvicorn のときは `@127.0.0.1:5432`、コンテナ内からは `@db:5432` を使う。
-* `DATABASE_URL` は **.env** と **起動シェルの環境変数**の優先度に注意（起動前に `echo $DATABASE_URL` で確認）。
-
+- **DBを作り直したら**、必ず `alembic upgrade head` → `python -m scripts.seed` の順に実行。
+- ローカル uvicorn のときは `@127.0.0.1:5432`、コンテナ内からは `@db:5432` を使う。
+- `DATABASE_URL` は **.env** と **起動シェルの環境変数**の優先度に注意（起動前に `echo $DATABASE_URL` で確認）。
 
 ---
 
@@ -309,7 +320,6 @@ export DATABASE_URL=postgresql+psycopg2://appuser:apppass@localhost:5432/gym_dir
 alembic upgrade head
 ```
 
-
 ---
 
 ## コミット前の自動整形・Lint（pre-commit）
@@ -328,6 +338,7 @@ alembic upgrade head
 - `ruff format`（コード整形）
 
 ## /gyms/search スコアソート
+
 総合スコア = `freshness(0.6) + richness(0.4)`（値は .env で調整可能）
 
 ```bash

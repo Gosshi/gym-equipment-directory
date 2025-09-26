@@ -192,10 +192,7 @@ export const getMarkersForBounds = (
     .filter((value): value is GymMarker => value !== null);
 };
 
-export const getClusterExpansionZoom = (
-  tree: ClusterTree,
-  clusterId: number,
-): number | null => {
+export const getClusterExpansionZoom = (tree: ClusterTree, clusterId: number): number | null => {
   if (tree.type !== "cluster") {
     return null;
   }
@@ -212,4 +209,3 @@ export const getClusterExpansionZoom = (
 };
 
 export const getClusterPointCount = (tree: ClusterTree): number => tree.pointFeatures.length;
-

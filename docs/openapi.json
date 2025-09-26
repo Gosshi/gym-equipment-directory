@@ -1,1 +1,566 @@
-{"openapi":"3.1.0","info":{"title":"Gym Equipment Directory API","description":"ジムと設備の検索API（MVP）。\n- アプリは postgresql+asyncpg（非同期）\n- Alembic は postgresql+psycopg2（同期）\n- `gyms.last_verified_at_cached` はトリガーで自動更新\n","version":"0.1.0"},"paths":{"/gyms/search":{"get":{"tags":["gyms","gyms"],"summary":"ジム検索（設備フィルタ  ページング）","description":"都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n- sort=richness: GymEquipment をスコア合算し降順（1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します","operationId":"search_gyms_gyms_search_get","parameters":[{"name":"pref","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"都道府県スラッグ（lower）例: chiba","examples":{"ex":{"value":"chiba"}},"title":"Pref"},"description":"都道府県スラッグ（lower）例: chiba"},{"name":"city","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"市区町村スラッグ（lower）例: funabashi","examples":{"ex":{"value":"funabashi"}},"title":"City"},"description":"市区町村スラッグ（lower）例: funabashi"},{"name":"equipments","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"設備スラッグCSV。例: `squat-rack,dumbbell`","examples":{"any-two":{"value":"squat-rack,dumbbell","summary":"2種指定"},"single":{"value":"smith-machine"}},"title":"Equipments"},"description":"設備スラッグCSV。例: `squat-rack,dumbbell`"},{"name":"equipment_match","in":"query","required":false,"schema":{"enum":["all","any"],"type":"string","description":"equipments の一致条件","examples":{"all":{"value":"all"},"any":{"value":"any"}},"default":"all","title":"Equipment Match"},"description":"equipments の一致条件"},{"name":"sort","in":"query","required":false,"schema":{"enum":["freshness","richness"],"type":"string","description":"並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。","examples":{"freshness":{"value":"freshness"},"richness":{"value":"richness"}},"default":"freshness","title":"Sort"},"description":"並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。"},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","maximum":50,"minimum":1,"description":"1ページ件数（≤50）","examples":{"ten":{"value":10}},"default":20,"title":"Per Page"},"description":"1ページ件数（≤50）"},{"name":"page_token","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"前回レスポンスの page_token","title":"Page Token"},"description":"前回レスポンスの page_token"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/GymSearchResponse"}}}},"400":{"description":"不正なクエリ（例: invalid page, equipment_match）","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ErrorResponse"}}}},"404":{"description":"見つからない場合（将来の拡張で使用）","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ErrorResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/gyms/{slug}":{"get":{"tags":["gyms","gyms"],"summary":"ジム詳細を取得","description":"ジムスラッグで詳細情報（設備一覧・最新更新時刻）を返します。","operationId":"get_gym_detail_gyms__slug__get","parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string","title":"Slug"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/GymDetailResponse"}}}},"404":{"description":"ジムが見つかりません","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ErrorResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/equipments":{"get":{"tags":["equipments","equipments"],"summary":"設備マスタ検索（補完用）","description":"設備マスタを name/slug の部分一致で検索します（最大20件）。","operationId":"list_equipments_equipments_get","parameters":[{"name":"q","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"部分一致（ILIKE風）","title":"Q"},"description":"部分一致（ILIKE風）"},{"name":"limit","in":"query","required":false,"schema":{"type":"integer","maximum":100,"minimum":1,"default":20,"title":"Limit"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/EquipmentMaster"},"title":"Response List Equipments Equipments Get"}}}},"404":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ErrorResponse"}}},"description":"Not Found"},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/healthz":{"get":{"tags":["health","health"],"summary":"Health check","description":"DBにSELECT 1を投げる軽量ヘルスチェック","operationId":"healthz_healthz_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}},"/meta/prefs":{"get":{"tags":["meta","meta"],"summary":"都道府県の一覧（件数付き）","operationId":"list_prefs_meta_prefs_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"type":"object"},"type":"array","title":"Response List Prefs Meta Prefs Get"}}}}}}},"/meta/cities":{"get":{"tags":["meta","meta"],"summary":"市区町村の一覧（件数付き）","operationId":"list_cities_meta_cities_get","parameters":[{"name":"pref","in":"query","required":true,"schema":{"type":"string","description":"都道府県スラッグ","title":"Pref"},"description":"都道府県スラッグ"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"array","items":{"type":"object"},"title":"Response List Cities Meta Cities Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}}},"components":{"schemas":{"EquipmentMaster":{"properties":{"id":{"type":"integer","title":"Id","description":"設備ID"},"slug":{"type":"string","title":"Slug","description":"スラッグ（lower-case, kebab）"},"name":{"type":"string","title":"Name","description":"表示名"},"category":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Category","description":"カテゴリ（任意）"}},"type":"object","required":["id","slug","name"],"title":"EquipmentMaster","example":{"category":"free-weights","id":12,"name":"スクワットラック","slug":"squat-rack"}},"ErrorResponse":{"properties":{"detail":{"type":"string","title":"Detail","description":"エラーメッセージ"}},"type":"object","required":["detail"],"title":"ErrorResponse","example":{"detail":"Not Found"}},"GymDetailResponse":{"properties":{"id":{"type":"integer","title":"Id","description":"ジムID"},"slug":{"type":"string","title":"Slug","description":"ジムスラッグ"},"name":{"type":"string","title":"Name","description":"名称"},"city":{"type":"string","title":"City","description":"市区町村スラッグ"},"pref":{"type":"string","title":"Pref","description":"都道府県スラッグ"},"equipments":{"items":{"$ref":"#/components/schemas/GymEquipmentLine"},"type":"array","title":"Equipments","description":"設備一覧（JOIN済み）"},"updated_at":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Updated At","description":"設備情報の最終更新（= last_verified_at の最大）"}},"type":"object","required":["id","slug","name","city","pref","equipments"],"title":"GymDetailResponse","example":{"city":"funabashi","equipments":[{"count":2,"equipment_name":"スクワットラック","equipment_slug":"squat-rack","max_weight_kg":180},{"count":1,"equipment_name":"ダンベル","equipment_slug":"dumbbell","max_weight_kg":50}],"id":1,"name":"Awesome Gym","pref":"chiba","slug":"awesome-gym","updated_at":"2025-09-01T12:34:56Z"}},"GymEquipmentLine":{"properties":{"equipment_slug":{"type":"string","title":"Equipment Slug","description":"設備スラッグ"},"equipment_name":{"type":"string","title":"Equipment Name","description":"設備名"},"count":{"anyOf":[{"type":"integer"},{"type":"null"}],"title":"Count","description":"台数（任意）"},"max_weight_kg":{"anyOf":[{"type":"integer"},{"type":"null"}],"title":"Max Weight Kg","description":"最大重量（任意）"}},"type":"object","required":["equipment_slug","equipment_name"],"title":"GymEquipmentLine"},"GymSearchResponse":{"properties":{"items":{"items":{"$ref":"#/components/schemas/GymSummary"},"type":"array","title":"Items","description":"検索結果"},"total":{"type":"integer","title":"Total","description":"総件数"},"has_next":{"type":"boolean","title":"Has Next","description":"次ページ有無"},"page_token":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Page Token"}},"type":"object","required":["items","total","has_next"],"title":"GymSearchResponse","example":{"has_next":true,"items":[{"city":"funabashi","id":1,"last_verified_at":"2025-09-01T12:34:56Z","name":"Awesome Gym","pref":"chiba","slug":"awesome-gym"}],"page_token":"abc123","total":12}},"GymSummary":{"properties":{"id":{"type":"integer","title":"Id","description":"ジムID"},"slug":{"type":"string","title":"Slug","description":"ジムスラッグ"},"name":{"type":"string","title":"Name","description":"名称"},"city":{"type":"string","title":"City","description":"市区町村スラッグ"},"pref":{"type":"string","title":"Pref","description":"都道府県スラッグ"},"last_verified_at":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Last Verified At","description":"最終検証日時（UTC, nullable）"}},"type":"object","required":["id","slug","name","city","pref"],"title":"GymSummary","description":"検索結果のジム要約。\nlast_verified_at_cached は ISO8601 文字列（例: \"2025-09-05T12:34:5600:00\"）"},"HTTPValidationError":{"properties":{"detail":{"items":{"$ref":"#/components/schemas/ValidationError"},"type":"array","title":"Detail"}},"type":"object","title":"HTTPValidationError"},"ValidationError":{"properties":{"loc":{"items":{"anyOf":[{"type":"string"},{"type":"integer"}]},"type":"array","title":"Location"},"msg":{"type":"string","title":"Message"},"type":{"type":"string","title":"Error Type"}},"type":"object","required":["loc","msg","type"],"title":"ValidationError"}}},"servers":[{"url":"http://localhost:8000","description":"Local"}]}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Gym Equipment Directory API",
+    "description": "ジムと設備の検索API（MVP）。\n- アプリは postgresql+asyncpg（非同期）\n- Alembic は postgresql+psycopg2（同期）\n- `gyms.last_verified_at_cached` はトリガーで自動更新\n",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/gyms/search": {
+      "get": {
+        "tags": ["gyms", "gyms"],
+        "summary": "ジム検索（設備フィルタ  ページング）",
+        "description": "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n- sort=richness: GymEquipment をスコア合算し降順（1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します",
+        "operationId": "search_gyms_gyms_search_get",
+        "parameters": [
+          {
+            "name": "pref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "都道府県スラッグ（lower）例: chiba",
+              "examples": { "ex": { "value": "chiba" } },
+              "title": "Pref"
+            },
+            "description": "都道府県スラッグ（lower）例: chiba"
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "市区町村スラッグ（lower）例: funabashi",
+              "examples": { "ex": { "value": "funabashi" } },
+              "title": "City"
+            },
+            "description": "市区町村スラッグ（lower）例: funabashi"
+          },
+          {
+            "name": "equipments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "設備スラッグCSV。例: `squat-rack,dumbbell`",
+              "examples": {
+                "any-two": {
+                  "value": "squat-rack,dumbbell",
+                  "summary": "2種指定"
+                },
+                "single": { "value": "smith-machine" }
+              },
+              "title": "Equipments"
+            },
+            "description": "設備スラッグCSV。例: `squat-rack,dumbbell`"
+          },
+          {
+            "name": "equipment_match",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["all", "any"],
+              "type": "string",
+              "description": "equipments の一致条件",
+              "examples": {
+                "all": { "value": "all" },
+                "any": { "value": "any" }
+              },
+              "default": "all",
+              "title": "Equipment Match"
+            },
+            "description": "equipments の一致条件"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["freshness", "richness"],
+              "type": "string",
+              "description": "並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。",
+              "examples": {
+                "freshness": { "value": "freshness" },
+                "richness": { "value": "richness" }
+              },
+              "default": "freshness",
+              "title": "Sort"
+            },
+            "description": "並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "1ページ件数（≤50）",
+              "examples": { "ten": { "value": 10 } },
+              "default": 20,
+              "title": "Per Page"
+            },
+            "description": "1ページ件数（≤50）"
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "前回レスポンスの page_token",
+              "title": "Page Token"
+            },
+            "description": "前回レスポンスの page_token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GymSearchResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "不正なクエリ（例: invalid page, equipment_match）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "見つからない場合（将来の拡張で使用）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gyms/{slug}": {
+      "get": {
+        "tags": ["gyms", "gyms"],
+        "summary": "ジム詳細を取得",
+        "description": "ジムスラッグで詳細情報（設備一覧・最新更新時刻）を返します。",
+        "operationId": "get_gym_detail_gyms__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Slug" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GymDetailResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "ジムが見つかりません",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/equipments": {
+      "get": {
+        "tags": ["equipments", "equipments"],
+        "summary": "設備マスタ検索（補完用）",
+        "description": "設備マスタを name/slug の部分一致で検索します（最大20件）。",
+        "operationId": "list_equipments_equipments_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "部分一致（ILIKE風）",
+              "title": "Q"
+            },
+            "description": "部分一致（ILIKE風）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/EquipmentMaster" },
+                  "title": "Response List Equipments Equipments Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": ["health", "health"],
+        "summary": "Health check",
+        "description": "DBにSELECT 1を投げる軽量ヘルスチェック",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/meta/prefs": {
+      "get": {
+        "tags": ["meta", "meta"],
+        "summary": "都道府県の一覧（件数付き）",
+        "operationId": "list_prefs_meta_prefs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "type": "object" },
+                  "type": "array",
+                  "title": "Response List Prefs Meta Prefs Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/cities": {
+      "get": {
+        "tags": ["meta", "meta"],
+        "summary": "市区町村の一覧（件数付き）",
+        "operationId": "list_cities_meta_cities_get",
+        "parameters": [
+          {
+            "name": "pref",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "都道府県スラッグ",
+              "title": "Pref"
+            },
+            "description": "都道府県スラッグ"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "object" },
+                  "title": "Response List Cities Meta Cities Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EquipmentMaster": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "設備ID" },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "スラッグ（lower-case, kebab）"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "表示名"
+          },
+          "category": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Category",
+            "description": "カテゴリ（任意）"
+          }
+        },
+        "type": "object",
+        "required": ["id", "slug", "name"],
+        "title": "EquipmentMaster",
+        "example": {
+          "category": "free-weights",
+          "id": 12,
+          "name": "スクワットラック",
+          "slug": "squat-rack"
+        }
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "エラーメッセージ"
+          }
+        },
+        "type": "object",
+        "required": ["detail"],
+        "title": "ErrorResponse",
+        "example": { "detail": "Not Found" }
+      },
+      "GymDetailResponse": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "ジムID" },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "ジムスラッグ"
+          },
+          "name": { "type": "string", "title": "Name", "description": "名称" },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "description": "市区町村スラッグ"
+          },
+          "pref": {
+            "type": "string",
+            "title": "Pref",
+            "description": "都道府県スラッグ"
+          },
+          "equipments": {
+            "items": { "$ref": "#/components/schemas/GymEquipmentLine" },
+            "type": "array",
+            "title": "Equipments",
+            "description": "設備一覧（JOIN済み）"
+          },
+          "updated_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Updated At",
+            "description": "設備情報の最終更新（= last_verified_at の最大）"
+          }
+        },
+        "type": "object",
+        "required": ["id", "slug", "name", "city", "pref", "equipments"],
+        "title": "GymDetailResponse",
+        "example": {
+          "city": "funabashi",
+          "equipments": [
+            {
+              "count": 2,
+              "equipment_name": "スクワットラック",
+              "equipment_slug": "squat-rack",
+              "max_weight_kg": 180
+            },
+            {
+              "count": 1,
+              "equipment_name": "ダンベル",
+              "equipment_slug": "dumbbell",
+              "max_weight_kg": 50
+            }
+          ],
+          "id": 1,
+          "name": "Awesome Gym",
+          "pref": "chiba",
+          "slug": "awesome-gym",
+          "updated_at": "2025-09-01T12:34:56Z"
+        }
+      },
+      "GymEquipmentLine": {
+        "properties": {
+          "equipment_slug": {
+            "type": "string",
+            "title": "Equipment Slug",
+            "description": "設備スラッグ"
+          },
+          "equipment_name": {
+            "type": "string",
+            "title": "Equipment Name",
+            "description": "設備名"
+          },
+          "count": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Count",
+            "description": "台数（任意）"
+          },
+          "max_weight_kg": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Max Weight Kg",
+            "description": "最大重量（任意）"
+          }
+        },
+        "type": "object",
+        "required": ["equipment_slug", "equipment_name"],
+        "title": "GymEquipmentLine"
+      },
+      "GymSearchResponse": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/GymSummary" },
+            "type": "array",
+            "title": "Items",
+            "description": "検索結果"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "総件数"
+          },
+          "has_next": {
+            "type": "boolean",
+            "title": "Has Next",
+            "description": "次ページ有無"
+          },
+          "page_token": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Page Token"
+          }
+        },
+        "type": "object",
+        "required": ["items", "total", "has_next"],
+        "title": "GymSearchResponse",
+        "example": {
+          "has_next": true,
+          "items": [
+            {
+              "city": "funabashi",
+              "id": 1,
+              "last_verified_at": "2025-09-01T12:34:56Z",
+              "name": "Awesome Gym",
+              "pref": "chiba",
+              "slug": "awesome-gym"
+            }
+          ],
+          "page_token": "abc123",
+          "total": 12
+        }
+      },
+      "GymSummary": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "ジムID" },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "ジムスラッグ"
+          },
+          "name": { "type": "string", "title": "Name", "description": "名称" },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "description": "市区町村スラッグ"
+          },
+          "pref": {
+            "type": "string",
+            "title": "Pref",
+            "description": "都道府県スラッグ"
+          },
+          "last_verified_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Verified At",
+            "description": "最終検証日時（UTC, nullable）"
+          }
+        },
+        "type": "object",
+        "required": ["id", "slug", "name", "city", "pref"],
+        "title": "GymSummary",
+        "description": "検索結果のジム要約。\nlast_verified_at_cached は ISO8601 文字列（例: \"2025-09-05T12:34:5600:00\"）"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "servers": [{ "url": "http://localhost:8000", "description": "Local" }]
+}

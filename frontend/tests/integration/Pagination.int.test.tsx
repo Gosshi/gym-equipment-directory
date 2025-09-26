@@ -10,7 +10,11 @@ import { server } from "../msw/server";
 import { GymsPage } from "@/features/gyms/GymsPage";
 import { Toaster } from "@/components/ui/toaster";
 import { useSearchStore } from "@/store/searchStore";
-import { DEFAULT_FILTER_STATE, filterStateToQueryString, parseFilterState } from "@/lib/searchParams";
+import {
+  DEFAULT_FILTER_STATE,
+  filterStateToQueryString,
+  parseFilterState,
+} from "@/lib/searchParams";
 
 class TestReadonlyURLSearchParams extends URLSearchParams {
   append(): void {

@@ -12,7 +12,11 @@ import { GymsPage } from "@/features/gyms/GymsPage";
 import { Toaster } from "@/components/ui/toaster";
 import { FALLBACK_LOCATION } from "@/hooks/useGymSearch";
 import { useSearchStore } from "@/store/searchStore";
-import { DEFAULT_FILTER_STATE, filterStateToQueryString, parseFilterState } from "@/lib/searchParams";
+import {
+  DEFAULT_FILTER_STATE,
+  filterStateToQueryString,
+  parseFilterState,
+} from "@/lib/searchParams";
 
 class TestReadonlyURLSearchParams extends URLSearchParams {
   append(): void {
@@ -539,8 +543,9 @@ describe("Search flow integration", () => {
 
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalled());
     expect(
-      mockRouter.replace.mock.calls.some(([url]) => typeof url === "string" && url.includes("page=2")),
+      mockRouter.replace.mock.calls.some(
+        ([url]) => typeof url === "string" && url.includes("page=2"),
+      ),
     ).toBe(true);
-
   });
 });
