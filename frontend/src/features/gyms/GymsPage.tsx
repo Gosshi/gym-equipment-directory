@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useShallow } from "zustand/react/shallow";
+
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
 import { GymList } from "@/components/gyms/GymList";
@@ -49,7 +51,7 @@ export function GymsPage() {
   const { searchQuery, mapQuery } = useGymDirectoryData();
 
   const { q, category, sort, page, limit, selectedGymSlug, rightPanelOpen } = useGymSearchStore(
-    state => ({
+    useShallow(state => ({
       q: state.q,
       category: state.category,
       sort: state.sort,
@@ -57,7 +59,7 @@ export function GymsPage() {
       limit: state.limit,
       selectedGymSlug: state.selectedGymSlug,
       rightPanelOpen: state.rightPanelOpen,
-    }),
+    })),
   );
 
   const setQuery = useGymSearchStore(state => state.setQuery);

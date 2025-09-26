@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { useShallow } from "zustand/react/shallow";
+
 import type { MapViewport } from "@/hooks/useVisibleGyms";
 import { haversineDistanceKm } from "@/lib/geo";
 import { MIN_DISTANCE_KM, MAX_DISTANCE_KM } from "@/lib/searchParams";
@@ -47,14 +49,16 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
     selectedGymId,
     lastSelectionSource: rawLastSelectionSource,
     lastSelectionAt,
-  } = useGymSearchStore(state => ({
-    lat: state.lat,
-    lng: state.lng,
-    zoom: state.zoom,
-    selectedGymId: state.selectedGymId,
-    lastSelectionSource: state.lastSelectionSource,
-    lastSelectionAt: state.lastSelectionAt,
-  }));
+  } = useGymSearchStore(
+    useShallow(state => ({
+      lat: state.lat,
+      lng: state.lng,
+      zoom: state.zoom,
+      selectedGymId: state.selectedGymId,
+      lastSelectionSource: state.lastSelectionSource,
+      lastSelectionAt: state.lastSelectionAt,
+    })),
+  );
   const setMapState = useGymSearchStore(state => state.setMapState);
   const setSelectedGym = useGymSearchStore(state => state.setSelectedGym);
   const setBusyFlag = useGymSearchStore(state => state.setBusyFlag);
@@ -67,6 +71,7 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
         : rawLastSelectionSource;
 
   const markersById = useMemo(() => new Map(markers.map(marker => [marker.id, marker])), [markers]);
+  const center = useMemo(() => ({ lat, lng }), [lat, lng]);
 
   const debounceRef = useRef<number | null>(null);
 
@@ -120,7 +125,7 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
 
   return (
     <NearbyMap
-      center={{ lat, lng }}
+      center={center}
       zoom={zoom}
       markers={markers}
       selectedGymId={selectedGymId}
