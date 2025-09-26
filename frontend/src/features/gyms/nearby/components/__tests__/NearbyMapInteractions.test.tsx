@@ -20,6 +20,7 @@ const mockState = {
     essential?: boolean;
   }>,
   latestMap: null as MockMapHandle | null,
+  lastOptions: null as Record<string, unknown> | null,
 };
 
 vi.mock("maplibre-gl", () => {
@@ -30,11 +31,18 @@ vi.mock("maplibre-gl", () => {
     handlers: Map<string, Set<(...args: unknown[]) => void>> = new Map();
     boundsPadding = 0.05;
 
-    constructor(options: { container: HTMLElement; center: [number, number]; zoom?: number }) {
+    constructor(
+      options: Record<string, unknown> & {
+        container: HTMLElement;
+        center: [number, number];
+        zoom?: number;
+      },
+    ) {
       this.container = options.container;
       this.center = { lng: options.center[0], lat: options.center[1] };
       this.zoom = options.zoom ?? 13;
       mockState.latestMap = this;
+      mockState.lastOptions = options;
     }
 
     addControl() {
@@ -98,7 +106,9 @@ vi.mock("maplibre-gl", () => {
       if (typeof options.zoom === "number") {
         this.zoom = options.zoom;
       }
+      this.emit("zoomstart", {});
       this.emit("moveend");
+      this.emit("zoomend");
     }
 
     flyTo(options: {
@@ -112,7 +122,9 @@ vi.mock("maplibre-gl", () => {
       if (typeof options.zoom === "number") {
         this.zoom = options.zoom;
       }
+      this.emit("zoomstart", {});
       this.emit("moveend");
+      this.emit("zoomend");
     }
   }
 
@@ -210,6 +222,7 @@ beforeEach(() => {
   mockState.easeToCalls.length = 0;
   mockState.flyToCalls.length = 0;
   mockState.latestMap = null;
+  mockState.lastOptions = null;
   resetMapSelectionStoreForTests();
   vi.useFakeTimers();
 });
@@ -220,6 +233,22 @@ afterEach(() => {
 });
 
 describe("NearbyMap interactions", () => {
+  it("initializes the map with interactive gestures enabled", async () => {
+    renderMap();
+    await act(async () => {});
+
+    expect(mockState.lastOptions).not.toBeNull();
+    expect(mockState.lastOptions).toMatchObject({
+      scrollZoom: true,
+      dragPan: true,
+      touchZoomRotate: true,
+      doubleClickZoom: true,
+      keyboard: true,
+      maxZoom: 19,
+      minZoom: 3,
+    });
+  });
+
   it("triggers flyTo when selection comes from the list", async () => {
     renderMap({ zoom: 10 });
     await act(async () => {});
@@ -333,6 +362,31 @@ describe("NearbyMap interactions", () => {
 
     act(() => {
       vi.runOnlyPendingTimers();
+    });
+
+    expect(mockState.flyToCalls).toHaveLength(1);
+  });
+
+  it("delays auto-pan while the user is interacting with the wheel", async () => {
+    renderMap();
+    await act(async () => {});
+
+    act(() => {
+      useMapSelectionStore.getState().setSelected(2, "list");
+    });
+
+    act(() => {
+      mockState.latestMap?.emit("wheel");
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(mockState.flyToCalls).toHaveLength(0);
+
+    act(() => {
+      vi.advanceTimersByTime(600);
     });
 
     expect(mockState.flyToCalls).toHaveLength(1);

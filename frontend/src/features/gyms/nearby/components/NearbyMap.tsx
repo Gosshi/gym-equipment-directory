@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -204,7 +204,10 @@ export function NearbyMap({
   const markerMapRef = useRef(new Map<string, MarkerEntry>());
   const suppressMoveRef = useRef(false);
   const isUserDraggingRef = useRef(false);
+  const isUserInteractingRef = useRef(false);
   const pendingPanRef = useRef<number | null>(null);
+  const resumePendingAutoPanRef = useRef<(() => void) | null>(null);
+  const userInteractionTimeoutRef = useRef<number | null>(null);
   const lastDragStartAtRef = useRef<number | null>(null);
   const lastAutoPanRef = useRef<{ id: number | null; at: number | null }>({
     id: null,
@@ -214,28 +217,83 @@ export function NearbyMap({
     id: null,
     at: null,
   });
+  const [zoomLevel, setZoomLevel] = useState(() => zoom);
+  const [isMapReady, setIsMapReady] = useState(false);
   const clusterIndex = useMemo(
     () => createGymClusterIndex(markers, { minClusterCount: CLUSTER_THRESHOLD }),
     [markers],
   );
+  const clusterIndexRef = useRef(clusterIndex);
+  const onCenterChangeRef = useRef(onCenterChange);
+  const onSelectRef = useRef(onSelect);
+  const onViewportChangeRef = useRef(onViewportChange);
+  const initialCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const initialZoomRef = useRef<number | null>(null);
+
+  if (initialCenterRef.current === null) {
+    initialCenterRef.current = { lat: center.lat, lng: center.lng };
+  }
+
+  if (initialZoomRef.current === null) {
+    initialZoomRef.current = zoom;
+  }
+
+  useEffect(() => {
+    clusterIndexRef.current = clusterIndex;
+  }, [clusterIndex]);
+
+  useEffect(() => {
+    onCenterChangeRef.current = onCenterChange;
+  }, [onCenterChange]);
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
+  useEffect(() => {
+    onViewportChangeRef.current = onViewportChange;
+  }, [onViewportChange]);
+
+  const markUserInteraction = useCallback(() => {
+    isUserInteractingRef.current = true;
+    if (userInteractionTimeoutRef.current !== null) {
+      window.clearTimeout(userInteractionTimeoutRef.current);
+    }
+    userInteractionTimeoutRef.current = window.setTimeout(() => {
+      isUserInteractingRef.current = false;
+      userInteractionTimeoutRef.current = null;
+      if (pendingPanRef.current !== null) {
+        const pending = pendingPanRef.current;
+        pendingPanRef.current = null;
+        window.clearTimeout(pending);
+        resumePendingAutoPanRef.current?.();
+      }
+    }, 600);
+  }, []);
 
   const handleClusterExpand = useCallback(
     (clusterId: number, coordinates: [number, number]) => {
       const map = mapRef.current;
-      if (!map) {
+      const clusterStore = clusterIndexRef.current;
+      if (!map || !clusterStore) {
         return;
       }
-      const nextZoom = getClusterExpansionZoom(clusterIndex, clusterId);
+      const nextZoom = getClusterExpansionZoom(clusterStore, clusterId);
       const currentZoom = map.getZoom();
       const resolvedZoom =
         nextZoom != null && Number.isFinite(nextZoom)
           ? Math.min(nextZoom, 18)
           : Math.min(currentZoom + 2, 18);
+      markUserInteraction();
       suppressMoveRef.current = true;
       map.easeTo({ center: coordinates, zoom: resolvedZoom, duration: 420 });
     },
-    [clusterIndex],
+    [markUserInteraction],
   );
+
+  const emitSelect = useCallback((gymId: number | null, source: MapInteractionSource) => {
+    onSelectRef.current(gymId, source);
+  }, []);
 
   const updateMarkersForViewport = useCallback(() => {
     const map = mapRef.current;
@@ -243,8 +301,13 @@ export function NearbyMap({
       return;
     }
 
+    const clusterStore = clusterIndexRef.current;
+    if (!clusterStore) {
+      return;
+    }
+
     const viewport = readViewport(map);
-    const features = getMarkersForBounds(clusterIndex, viewport.bounds, viewport.zoom);
+    const features = getMarkersForBounds(clusterStore, viewport.bounds, viewport.zoom);
     const nextKeys = new Set<string>();
     const store = markerMapRef.current;
 
@@ -271,7 +334,7 @@ export function NearbyMap({
           .addTo(map);
         store.set(key, { marker, element, type: "cluster", id: feature.id });
       } else {
-        const element = createGymMarkerElement(feature.gym, onSelect);
+        const element = createGymMarkerElement(feature.gym, emitSelect);
         const marker = new maplibregl.Marker({ element, anchor: "bottom" })
           .setLngLat(feature.coordinates)
           .addTo(map);
@@ -285,10 +348,11 @@ export function NearbyMap({
         store.delete(key);
       }
     });
-  }, [clusterIndex, handleClusterExpand, onSelect]);
+  }, [emitSelect, handleClusterExpand]);
 
   const notifyViewportChange = useCallback(() => {
-    if (!onViewportChange) {
+    const handler = onViewportChangeRef.current;
+    if (!handler) {
       return;
     }
     const map = mapRef.current;
@@ -296,14 +360,18 @@ export function NearbyMap({
       return;
     }
     const viewport = readViewport(map);
-    onViewportChange(viewport);
-  }, [onViewportChange]);
+    handler(viewport);
+  }, []);
 
   useEffect(
     () => () => {
       if (pendingPanRef.current !== null) {
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
+      }
+      if (userInteractionTimeoutRef.current !== null) {
+        window.clearTimeout(userInteractionTimeoutRef.current);
+        userInteractionTimeoutRef.current = null;
       }
     },
     [],
@@ -316,15 +384,30 @@ export function NearbyMap({
       return;
     }
 
+    const initialCenter = initialCenterRef.current;
+    const initialZoom = initialZoomRef.current;
+    if (!initialCenter || initialZoom == null) {
+      return;
+    }
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: mapStyle,
-      center: [center.lng, center.lat],
-      zoom,
+      center: [initialCenter.lng, initialCenter.lat],
+      zoom: initialZoom,
+      scrollZoom: true,
+      dragPan: true,
+      touchZoomRotate: true,
+      doubleClickZoom: true,
+      keyboard: true,
+      maxZoom: 19,
+      minZoom: 3,
     });
     const markerStore = markerMapRef.current;
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(
+      new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false }),
+      "top-right",
+    );
 
     const handleMapClick = (event: maplibregl.MapMouseEvent) => {
       const target = event.originalEvent?.target;
@@ -338,7 +421,7 @@ export function NearbyMap({
           return;
         }
       }
-      onSelect(null, "map");
+      emitSelect(null, "map");
     };
     map.on("click", handleMapClick);
 
@@ -352,11 +435,39 @@ export function NearbyMap({
       const next = map.getCenter();
       const payload = { lat: Number(next.lat.toFixed(6)), lng: Number(next.lng.toFixed(6)) };
       logMapCenter({ ...payload, zoom: map.getZoom() });
-      onCenterChange(payload);
+      onCenterChangeRef.current(payload);
+    };
+
+    const handleWheel = () => {
+      markUserInteraction();
+    };
+
+    const handleTouchStart = () => {
+      markUserInteraction();
+    };
+
+    const handleTouchMove = () => {
+      markUserInteraction();
+    };
+
+    const handleDoubleClick = () => {
+      markUserInteraction();
+    };
+
+    const handleZoomStart = (event: maplibregl.MapLibreEvent<unknown>) => {
+      if (event?.originalEvent) {
+        markUserInteraction();
+      }
+    };
+
+    const handleZoomEnd = () => {
+      const nextZoom = Number.parseFloat(map.getZoom().toFixed(2));
+      setZoomLevel(nextZoom);
     };
 
     const handleDragStart = () => {
       isUserDraggingRef.current = true;
+      markUserInteraction();
       if (pendingPanRef.current !== null) {
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
@@ -367,18 +478,28 @@ export function NearbyMap({
     const handleDragEnd = () => {
       isUserDraggingRef.current = false;
       lastDragStartAtRef.current = null;
+      markUserInteraction();
     };
 
     map.on("moveend", handleMoveEnd);
     map.on("dragstart", handleDragStart);
     map.on("dragend", handleDragEnd);
+    map.on("zoomstart", handleZoomStart);
+    map.on("zoomend", handleZoomEnd);
+    map.on("wheel", handleWheel);
+    map.on("touchstart", handleTouchStart);
+    map.on("touchmove", handleTouchMove);
+    map.on("dblclick", handleDoubleClick);
     const handleLoad = () => {
       updateMarkersForViewport();
       notifyViewportChange();
+      setZoomLevel(Number.parseFloat(map.getZoom().toFixed(2)));
+      setIsMapReady(true);
     };
     map.on("load", handleLoad);
 
     mapRef.current = map;
+    setIsMapReady(true);
 
     const handleResize = () => map.resize();
     window.addEventListener("resize", handleResize);
@@ -391,25 +512,28 @@ export function NearbyMap({
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
       }
+      if (userInteractionTimeoutRef.current !== null) {
+        window.clearTimeout(userInteractionTimeoutRef.current);
+        userInteractionTimeoutRef.current = null;
+      }
       isUserDraggingRef.current = false;
+      isUserInteractingRef.current = false;
       map.off("click", handleMapClick);
       map.off("moveend", handleMoveEnd);
       map.off("dragstart", handleDragStart);
       map.off("dragend", handleDragEnd);
+      map.off("zoomstart", handleZoomStart);
+      map.off("zoomend", handleZoomEnd);
+      map.off("wheel", handleWheel);
+      map.off("touchstart", handleTouchStart);
+      map.off("touchmove", handleTouchMove);
+      map.off("dblclick", handleDoubleClick);
       map.off("load", handleLoad);
       map.remove();
       mapRef.current = null;
+      setIsMapReady(false);
     };
-  }, [
-    center.lat,
-    center.lng,
-    mapStyle,
-    notifyViewportChange,
-    onCenterChange,
-    onSelect,
-    updateMarkersForViewport,
-    zoom,
-  ]);
+  }, [emitSelect, mapStyle, markUserInteraction, notifyViewportChange, updateMarkersForViewport]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -455,6 +579,7 @@ export function NearbyMap({
       window.clearTimeout(pendingPanRef.current);
       pendingPanRef.current = null;
     }
+    resumePendingAutoPanRef.current = null;
 
     if (selectedGymId === null) {
       lastAutoPanRef.current = { id: null, at: null };
@@ -512,10 +637,12 @@ export function NearbyMap({
     const schedulePan = () => {
       const activeMap = mapRef.current;
       if (!activeMap) {
+        pendingPanRef.current = null;
         return;
       }
 
       if (isUserDraggingRef.current) {
+        pendingPanRef.current = window.setTimeout(schedulePan, 240);
         return;
       }
 
@@ -523,6 +650,12 @@ export function NearbyMap({
       const targetZoom =
         currentZoom < DEFAULT_ZOOM ? Math.min(DEFAULT_ZOOM, currentZoom + 2) : currentZoom;
 
+      if (isUserInteractingRef.current) {
+        pendingPanRef.current = window.setTimeout(schedulePan, 300);
+        return;
+      }
+
+      pendingPanRef.current = null;
       suppressMoveRef.current = true;
       lastAutoPanRef.current = { id: targetGymId, at: Date.now() };
       activeMap.flyTo({
@@ -533,9 +666,11 @@ export function NearbyMap({
       });
     };
 
+    resumePendingAutoPanRef.current = schedulePan;
     pendingPanRef.current = window.setTimeout(schedulePan, 120);
 
     return () => {
+      resumePendingAutoPanRef.current = null;
       if (pendingPanRef.current !== null) {
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
@@ -564,6 +699,25 @@ export function NearbyMap({
     });
   }, [selectedGymId]);
 
+  const handleManualZoom = useCallback(
+    (delta: number) => {
+      const map = mapRef.current;
+      if (!map) {
+        return;
+      }
+
+      markUserInteraction();
+      const nextZoom = map.getZoom() + delta;
+      const minZoom = typeof map.getMinZoom === "function" ? map.getMinZoom() : map.getZoom() - 20;
+      const maxZoom = typeof map.getMaxZoom === "function" ? map.getMaxZoom() : map.getZoom() + 20;
+      const clamped = Math.max(minZoom, Math.min(maxZoom, nextZoom));
+
+      suppressMoveRef.current = true;
+      map.easeTo({ zoom: clamped, duration: 240 });
+    },
+    [markUserInteraction],
+  );
+
   const showSkeletonOverlay = markersIsInitialLoading;
   const showLoadingBadge = markersIsLoading && !markersIsInitialLoading;
   const showErrorOverlay = markersStatus === "error" && Boolean(markersError);
@@ -571,6 +725,31 @@ export function NearbyMap({
   return (
     <div className="relative">
       <div className="h-[420px] w-full rounded-lg border" ref={containerRef} />
+      <span aria-hidden className="sr-only" data-testid="nearby-map-zoom">
+        {zoomLevel.toFixed(2)}
+      </span>
+      <div className="pointer-events-none absolute right-3 top-3 z-30 flex flex-col gap-2">
+        <button
+          aria-label="地図をズームイン"
+          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-lg font-semibold text-foreground shadow"
+          data-testid="nearby-map-zoom-in-button"
+          disabled={!isMapReady}
+          onClick={() => handleManualZoom(1)}
+          type="button"
+        >
+          +
+        </button>
+        <button
+          aria-label="地図をズームアウト"
+          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-lg font-semibold text-foreground shadow"
+          data-testid="nearby-map-zoom-out-button"
+          disabled={!isMapReady}
+          onClick={() => handleManualZoom(-1)}
+          type="button"
+        >
+          −
+        </button>
+      </div>
       {showSkeletonOverlay ? (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border border-border/60 bg-background/80 backdrop-blur">
           <div className="flex w-full max-w-sm items-center gap-4 px-6">
