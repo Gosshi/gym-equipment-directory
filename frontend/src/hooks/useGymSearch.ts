@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 import { ApiError } from "@/lib/apiClient";
 import {
@@ -16,16 +17,28 @@ import {
   normalizeCategories,
   parseFilterState,
   serializeFilterState,
+  filterStateToQueryString,
   normalizeSortOrder,
   clampLatitude,
   clampLongitude,
 } from "@/lib/searchParams";
 import { searchGyms } from "@/services/gyms";
 import { getCities, getEquipmentCategories, getPrefectures } from "@/services/meta";
-import type { GymSearchMeta, GymSummary } from "@/types/gym";
+import type { GymSearchMeta, GymSearchResponse, GymSummary } from "@/types/gym";
 import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import { useSearchStore, areFilterStatesEqual, type NavigationSource } from "@/store/searchStore";
 
 const DEFAULT_DEBOUNCE_MS = 300;
+
+const EMPTY_META: GymSearchMeta = {
+  total: 0,
+  page: 1,
+  perPage: DEFAULT_LIMIT,
+  hasNext: false,
+  hasPrev: false,
+  hasMore: false,
+  pageToken: null,
+};
 
 export const FALLBACK_LOCATION = Object.freeze({
   lat: 35.681236,
@@ -95,19 +108,6 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.city === b.city &&
   a.sort === b.sort &&
   a.order === b.order &&
-  a.distance === b.distance &&
-  a.lat === b.lat &&
-  a.lng === b.lng &&
-  areCategoriesEqual(a.categories, b.categories);
-
-const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
-  a.q === b.q &&
-  a.pref === b.pref &&
-  a.city === b.city &&
-  a.sort === b.sort &&
-  a.order === b.order &&
-  a.page === b.page &&
-  a.limit === b.limit &&
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
@@ -193,12 +193,19 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
 
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
-    parseFilterState(new URLSearchParams(searchParamsKey)),
-  );
+  const filters = useSearchStore(state => state.filters);
+  const setFilters = useSearchStore(state => state.setFilters);
+  const updateFilters = useSearchStore(state => state.updateFilters);
+  const currentQueryString = useSearchStore(state => state.queryString);
+  const setNavigationSource = useSearchStore(state => state.setNavigationSource);
+  const saveScrollPosition = useSearchStore(state => state.saveScrollPosition);
   const [, startTransition] = useTransition();
 
-  const [formState, setFormState] = useState<FormState>(() => toFormState(appliedFilters));
+  const [formState, setFormState] = useState<FormState>(() => toFormState(filters));
+
+  const pendingNavigationRef = useRef<NavigationSource | null>(null);
+  const pendingQueryRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
 
   const geolocationSupportedRef = useRef(
     typeof window !== "undefined" &&
@@ -211,13 +218,13 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const [hasResolvedGeolocationSupport, setHasResolvedGeolocationSupport] = useState(false);
   const initialLocationRequestRef = useRef(false);
   const [locationMode, setLocationMode] = useState<LocationMode>(() => {
-    if (appliedFilters.lat != null && appliedFilters.lng != null) {
-      return isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng) ? "fallback" : "manual";
+    if (filters.lat != null && filters.lng != null) {
+      return isFallbackCoordinates(filters.lat, filters.lng) ? "fallback" : "manual";
     }
     return "off";
   });
   const [locationStatus, setLocationStatus] = useState<LocationStatus>(() =>
-    appliedFilters.lat != null && appliedFilters.lng != null ? "success" : "idle",
+    filters.lat != null && filters.lng != null ? "success" : "idle",
   );
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -244,18 +251,31 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }, [detectGeolocationSupport]);
 
   useEffect(() => {
-    const next = parseFilterState(new URLSearchParams(searchParamsKey));
-    setAppliedFilters(prev => (areFilterStatesEqual(prev, next) ? prev : next));
-  }, [searchParamsKey]);
+    const params = new URLSearchParams(searchParamsKey);
+    const next = parseFilterState(params);
+    const nextQuery = filterStateToQueryString(next);
+
+    let source: NavigationSource = initializedRef.current ? "pop" : "initial";
+    if (pendingNavigationRef.current === "push" && pendingQueryRef.current === nextQuery) {
+      source = "push";
+    }
+
+    pendingNavigationRef.current = null;
+    pendingQueryRef.current = null;
+    initializedRef.current = true;
+
+    setFilters(next, { queryString: nextQuery });
+    setNavigationSource(source);
+  }, [searchParamsKey, setFilters, setNavigationSource]);
 
   useEffect(() => {
-    const next = toFormState(appliedFilters);
+    const next = toFormState(filters);
     setFormState(prev => (areFormStatesEqual(prev, next) ? prev : next));
-  }, [appliedFilters]);
+  }, [filters]);
 
   useEffect(() => {
-    const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
-    const fallbackActive = isFallbackCoordinates(appliedFilters.lat, appliedFilters.lng);
+    const hasLocation = filters.lat != null && filters.lng != null;
+    const fallbackActive = isFallbackCoordinates(filters.lat, filters.lng);
     setLocationMode(prev => {
       if (!hasLocation) {
         return "off";
@@ -289,7 +309,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     if (hasLocation && !fallbackActive) {
       setLocationError(null);
     }
-  }, [appliedFilters.lat, appliedFilters.lng]);
+  }, [filters.lat, filters.lng]);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -302,32 +322,39 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   useEffect(() => cancelPendingDebounce, [cancelPendingDebounce]);
 
-  const appendModeRef = useRef(false);
-
   const applyFilters = useCallback(
-    (
-      nextFilters: FilterState,
-      options: {
-        append?: boolean;
-        force?: boolean;
-      } = {},
-    ) => {
-      setAppliedFilters(prev => (areFilterStatesEqual(prev, nextFilters) ? prev : nextFilters));
-
+    (nextFilters: FilterState, options: { force?: boolean } = {}) => {
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
-      if (!options.force && nextQuery === searchParamsKey) {
-        appendModeRef.current = false;
+
+      if (!options.force && areFilterStatesEqual(filters, nextFilters)) {
         return;
       }
 
-      appendModeRef.current = Boolean(options.append);
+      if (typeof window !== "undefined") {
+        saveScrollPosition(currentQueryString, window.scrollY);
+      }
+
+      pendingNavigationRef.current = "push";
+      pendingQueryRef.current = nextQuery;
+      setFilters(nextFilters, { queryString: nextQuery, force: true });
+      setNavigationSource("push");
+
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
       startTransition(() => {
-        router.push(nextUrl, { scroll: false });
+        router.replace(nextUrl, { scroll: false });
       });
     },
-    [pathname, router, searchParamsKey, setAppliedFilters, startTransition],
+    [
+      currentQueryString,
+      filters,
+      pathname,
+      router,
+      saveScrollPosition,
+      setFilters,
+      setNavigationSource,
+      startTransition,
+    ],
   );
 
   const queueFilters = useCallback(
@@ -336,15 +363,12 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       options: {
         overrides?: Partial<FilterState>;
         debounceMs?: number;
-        append?: boolean;
       } = {},
     ) => {
       cancelPendingDebounce();
       const delay = options.debounceMs ?? debounceMs;
       const run = () => {
-        applyFilters(buildFilterStateFromForm(nextFormState, appliedFilters, options.overrides), {
-          append: options.append,
-        });
+        applyFilters(buildFilterStateFromForm(nextFormState, filters, options.overrides));
       };
 
       if (delay <= 0) {
@@ -353,7 +377,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         debounceRef.current = setTimeout(run, delay);
       }
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce, debounceMs],
+    [applyFilters, cancelPendingDebounce, debounceMs, filters],
   );
 
   const scheduleApply = useCallback(
@@ -374,14 +398,14 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   );
 
   useEffect(() => {
-    const hasLocation = appliedFilters.lat != null && appliedFilters.lng != null;
-    const shouldApplyFallback = !hasLocation && appliedFilters.sort === "distance";
+    const hasLocation = filters.lat != null && filters.lng != null;
+    const shouldApplyFallback = !hasLocation && filters.sort === "distance";
     if (!shouldApplyFallback) {
       return;
     }
 
     const nextFilters: FilterState = {
-      ...appliedFilters,
+      ...filters,
       lat: FALLBACK_LOCATION.lat,
       lng: FALLBACK_LOCATION.lng,
       distance: DEFAULT_DISTANCE_KM,
@@ -392,8 +416,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setLocationMode("fallback");
     setLocationStatus("success");
     setLocationError(null);
-    applyFilters(nextFilters, { append: false });
-  }, [appliedFilters, applyFilters]);
+    applyFilters(nextFilters, { force: true });
+  }, [applyFilters, filters]);
 
   const updateKeyword = useCallback(
     (value: string) => scheduleApply(prev => ({ ...prev, q: value })),
@@ -463,14 +487,15 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         });
 
         if (!areFormStatesEqual(prev, next)) {
-          const nextFilters = buildFilterStateFromForm(next, appliedFilters, {
+          const nextFilters = buildFilterStateFromForm(next, filters, {
             lat,
             lng,
             distance: nextDistance,
           });
-          setAppliedFilters(previous =>
-            areFilterStatesEqual(previous, nextFilters) ? previous : nextFilters,
-          );
+          setFilters(nextFilters, {
+            queryString: filterStateToQueryString(nextFilters),
+            force: true,
+          });
           queueFilters(next, {
             overrides: { lat, lng, distance: nextDistance },
             debounceMs: Math.min(150, debounceMs),
@@ -490,7 +515,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         setLocationError(null);
       }
     },
-    [appliedFilters, debounceMs, queueFilters, setAppliedFilters],
+    [debounceMs, filters, queueFilters, setFilters],
   );
 
   const applyFallbackLocation = useCallback(
@@ -582,13 +607,13 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     const hasLocation = formState.lat != null && formState.lng != null;
     const resetFilters: FilterState = {
       ...DEFAULT_FILTER_STATE,
-      limit: appliedFilters.limit,
+      limit: filters.limit,
       lat: hasLocation ? formState.lat : null,
       lng: hasLocation ? formState.lng : null,
       distance: DEFAULT_DISTANCE_KM,
     };
     setFormState(toFormState(resetFilters));
-    applyFilters(resetFilters);
+    applyFilters(resetFilters, { force: true });
     if (hasLocation) {
       setLocationMode(mode => (mode === "off" ? "manual" : mode));
       setLocationStatus("success");
@@ -597,7 +622,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       setLocationMode("off");
       setLocationStatus(status => (status === "success" ? "idle" : status));
     }
-  }, [appliedFilters.limit, applyFilters, cancelPendingDebounce, formState.lat, formState.lng]);
+  }, [applyFilters, cancelPendingDebounce, filters.limit, formState.lat, formState.lng]);
 
   useEffect(() => {
     if (initialLocationRequestRef.current) {
@@ -606,7 +631,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     if (typeof window === "undefined") {
       return;
     }
-    const hasQueryLocation = appliedFilters.lat != null && appliedFilters.lng != null;
+    const hasQueryLocation = filters.lat != null && filters.lng != null;
     if (hasQueryLocation) {
       initialLocationRequestRef.current = true;
       return;
@@ -622,8 +647,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     initialLocationRequestRef.current = true;
     requestLocation();
   }, [
-    appliedFilters.lat,
-    appliedFilters.lng,
+    filters.lat,
+    filters.lng,
     handleGeolocationError,
     hasResolvedGeolocationSupport,
     isGeolocationSupported,
@@ -631,18 +656,18 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   ]);
 
   const setPage = useCallback(
-    (page: number, options: { append?: boolean } = {}) => {
+    (page: number) => {
       const nextPage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
       cancelPendingDebounce();
       applyFilters(
         {
-          ...appliedFilters,
+          ...filters,
           page: nextPage,
         },
-        { append: options.append, force: true },
+        { force: true },
       );
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce],
+    [applyFilters, cancelPendingDebounce, filters],
   );
 
   const setLimit = useCallback(
@@ -652,29 +677,16 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       cancelPendingDebounce();
       applyFilters(
         {
-          ...appliedFilters,
+          ...filters,
           limit: clamped,
           page: 1,
         },
-        { append: false },
+        { force: true },
       );
     },
-    [appliedFilters, applyFilters, cancelPendingDebounce],
+    [applyFilters, cancelPendingDebounce, filters],
   );
 
-  const [items, setItems] = useState<GymSummary[]>([]);
-  const [meta, setMeta] = useState<GymSearchMeta>({
-    total: 0,
-    page: 1,
-    perPage: DEFAULT_LIMIT,
-    hasNext: false,
-    hasPrev: false,
-    hasMore: false,
-    pageToken: null,
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
   const submitSearch = useCallback(() => {
@@ -682,131 +694,111 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     const normalized = normalizeFormState(formState);
     setFormState(normalized);
 
-    const currentAppliedForm = toFormState(appliedFilters);
+    const currentAppliedForm = toFormState(filters);
     if (areFormStatesEqual(currentAppliedForm, normalized)) {
       setRefreshIndex(value => value + 1);
       return;
     }
 
-    applyFilters(buildFilterStateFromForm(normalized, appliedFilters));
-  }, [appliedFilters, applyFilters, cancelPendingDebounce, formState]);
+    applyFilters(buildFilterStateFromForm(normalized, filters));
+  }, [applyFilters, cancelPendingDebounce, filters, formState]);
 
   const retry = useCallback(() => setRefreshIndex(value => value + 1), []);
+
+  const missingLocationForDistance =
+    filters.sort === "distance" && (filters.lat == null || filters.lng == null);
+
+  const filterQueryString = useMemo(() => filterStateToQueryString(filters), [filters]);
+
+  const gymsQuery = useQuery<GymSearchResponse>({
+    queryKey: ["gyms", filterQueryString, refreshIndex],
+    queryFn: ({ signal }) =>
+      searchGyms(
+        {
+          q: filters.q || undefined,
+          prefecture: filters.pref ?? undefined,
+          city: filters.city ?? undefined,
+          categories: filters.categories,
+          sort: filters.sort,
+          order: filters.order,
+          page: filters.page,
+          limit: filters.limit,
+          perPage: filters.limit,
+          ...(filters.lat != null && filters.lng != null
+            ? {
+                lat: filters.lat,
+                lng: filters.lng,
+                radiusKm: filters.distance,
+              }
+            : {}),
+        },
+        { signal },
+      ),
+    enabled: !missingLocationForDistance,
+    keepPreviousData: true,
+  });
+
+  const queryData = gymsQuery.data;
+  const queryError = gymsQuery.error;
+
+  const items: GymSummary[] = !missingLocationForDistance ? (queryData?.items ?? []) : [];
+
+  let meta: GymSearchMeta = {
+    ...EMPTY_META,
+    page: filters.page,
+    perPage: filters.limit,
+  };
+
+  if (!missingLocationForDistance && queryData?.meta) {
+    const serverMeta = queryData.meta;
+    const resolvedPage =
+      Number.isInteger(serverMeta.page) && (serverMeta.page ?? 0) > 0
+        ? serverMeta.page
+        : filters.page;
+    const resolvedPerPage =
+      Number.isInteger(serverMeta.perPage) && (serverMeta.perPage ?? 0) > 0
+        ? serverMeta.perPage
+        : filters.limit;
+    meta = {
+      ...serverMeta,
+      page: resolvedPage,
+      perPage: resolvedPerPage,
+    };
+  }
+
+  const hasLoadedOnce = !missingLocationForDistance && Boolean(queryData);
+  const isLoading = !missingLocationForDistance && gymsQuery.isFetching;
+  const isInitialLoading = isLoading && !hasLoadedOnce;
+
+  let error: string | null = null;
+  if (!missingLocationForDistance && gymsQuery.isError && queryError) {
+    if (queryError instanceof ApiError) {
+      error = queryError.message || "ジムの取得に失敗しました";
+    } else if (queryError instanceof Error) {
+      error = queryError.message;
+    } else {
+      error = "ジムの取得に失敗しました";
+    }
+  }
+
+  const serverPage = queryData?.meta?.page;
+  useEffect(() => {
+    if (missingLocationForDistance) {
+      return;
+    }
+    const resolvedServerPage =
+      Number.isInteger(serverPage) && (serverPage ?? 0) > 0 ? serverPage : null;
+    if (resolvedServerPage != null && resolvedServerPage !== filters.page) {
+      setPage(resolvedServerPage);
+    }
+  }, [filters.page, missingLocationForDistance, serverPage, setPage]);
 
   const loadNextPage = useCallback(() => {
     if (isLoading || !meta.hasNext) {
       return;
     }
-    setPage(appliedFilters.page + 1, { append: true });
-  }, [appliedFilters.page, isLoading, meta.hasNext, setPage]);
-
-  useEffect(() => {
-    const missingLocationForDistance =
-      appliedFilters.sort === "distance" &&
-      (appliedFilters.lat == null || appliedFilters.lng == null);
-    if (missingLocationForDistance) {
-      appendModeRef.current = false;
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    let active = true;
-    const shouldAppend = appendModeRef.current;
-    appendModeRef.current = false;
-
-    setIsLoading(true);
-    setError(null);
-
-    searchGyms(
-      {
-        q: appliedFilters.q || undefined,
-        prefecture: appliedFilters.pref ?? undefined,
-        city: appliedFilters.city ?? undefined,
-        categories: appliedFilters.categories,
-        sort: appliedFilters.sort,
-        order: appliedFilters.order,
-        page: appliedFilters.page,
-        limit: appliedFilters.limit,
-        perPage: appliedFilters.limit,
-        ...(appliedFilters.lat != null && appliedFilters.lng != null
-          ? {
-              lat: appliedFilters.lat,
-              lng: appliedFilters.lng,
-              radiusKm: appliedFilters.distance,
-            }
-          : {}),
-      },
-      { signal: controller.signal },
-    )
-      .then(response => {
-        if (!active) {
-          return;
-        }
-        const serverPage =
-          Number.isInteger(response.meta.page) && (response.meta.page ?? 0) > 0
-            ? response.meta.page
-            : appliedFilters.page;
-        const shouldSyncPage = !shouldAppend && serverPage !== appliedFilters.page;
-        setItems(previous => {
-          if (!shouldAppend) {
-            return response.items;
-          }
-
-          if (response.items.length === 0) {
-            return previous;
-          }
-
-          const seen = new Set(previous.map(item => item.id));
-          const merged = [...previous];
-          for (const item of response.items) {
-            if (seen.has(item.id)) {
-              continue;
-            }
-            seen.add(item.id);
-            merged.push(item);
-          }
-          return merged;
-        });
-        setMeta(response.meta);
-        setHasLoadedOnce(true);
-        if (shouldSyncPage) {
-          setTimeout(() => {
-            if (!active) {
-              return;
-            }
-            setPage(serverPage);
-          }, 0);
-        }
-      })
-      .catch(err => {
-        if (!active) {
-          return;
-        }
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-        if (err instanceof ApiError) {
-          setError(err.message || "ジムの取得に失敗しました");
-        } else if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("ジムの取得に失敗しました");
-        }
-      })
-      .finally(() => {
-        if (!active) {
-          return;
-        }
-        setIsLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [appliedFilters, refreshIndex, setPage]);
+    setPage(filters.page + 1);
+  }, [filters.page, isLoading, meta.hasNext, setPage]);
 
   const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
   const [equipmentCategories, setEquipmentCategories] = useState<EquipmentCategoryOption[]>([]);
@@ -918,7 +910,14 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     };
   }, [formState.prefecture, cityReloadIndex]);
 
-  const isInitialLoading = isLoading && !hasLoadedOnce;
+  useEffect(() => {
+    return () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      saveScrollPosition(currentQueryString, window.scrollY);
+    };
+  }, [currentQueryString, saveScrollPosition]);
 
   const location: LocationState = useMemo(() => {
     const fallbackActive = isFallbackCoordinates(formState.lat, formState.lng);
@@ -945,7 +944,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   return {
     formState,
-    appliedFilters,
+    appliedFilters: filters,
     updateKeyword,
     updatePrefecture,
     updateCity,
@@ -959,8 +958,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     clearLocation,
     useFallbackLocation,
     setManualLocation,
-    page: appliedFilters.page,
-    limit: appliedFilters.limit,
+    page: filters.page,
+    limit: filters.limit,
     setPage,
     setLimit,
     loadNextPage,

@@ -1,0 +1,112 @@
+"use client";
+
+import { create } from "zustand";
+
+import {
+  DEFAULT_FILTER_STATE,
+  filterStateToQueryString,
+  type FilterState,
+} from "@/lib/searchParams";
+
+const areCategoriesEqual = (a: string[], b: string[]) => {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((value, index) => value === b[index]);
+};
+
+export const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
+  a.q === b.q &&
+  a.pref === b.pref &&
+  a.city === b.city &&
+  a.sort === b.sort &&
+  a.order === b.order &&
+  a.page === b.page &&
+  a.limit === b.limit &&
+  a.distance === b.distance &&
+  a.lat === b.lat &&
+  a.lng === b.lng &&
+  areCategoriesEqual(a.categories, b.categories);
+
+export type NavigationSource = "initial" | "push" | "pop" | "idle";
+
+type SearchStoreState = {
+  filters: FilterState;
+  queryString: string;
+  navigationSource: NavigationSource;
+  scrollPositions: Record<string, number>;
+  setFilters: (next: FilterState, options?: { queryString?: string; force?: boolean }) => void;
+  updateFilters: (
+    updater: (prev: FilterState) => FilterState,
+    options?: { queryString?: string; force?: boolean },
+  ) => void;
+  setNavigationSource: (source: NavigationSource) => void;
+  saveScrollPosition: (query: string, position: number) => void;
+  consumeScrollPosition: (query: string) => number | null;
+};
+
+export const useSearchStore = create<SearchStoreState>((set, get) => ({
+  filters: DEFAULT_FILTER_STATE,
+  queryString: filterStateToQueryString(DEFAULT_FILTER_STATE),
+  navigationSource: "initial",
+  scrollPositions: {},
+  setFilters: (next, options) => {
+    set(state => {
+      const normalized = { ...next, categories: [...next.categories] };
+      if (!options?.force && areFilterStatesEqual(state.filters, normalized)) {
+        const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
+        if (state.queryString === nextQuery && state.navigationSource === "idle") {
+          return state;
+        }
+        return {
+          ...state,
+          queryString: nextQuery,
+        };
+      }
+      const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
+      return {
+        ...state,
+        filters: normalized,
+        queryString: nextQuery,
+      };
+    });
+  },
+  updateFilters: (updater, options) => {
+    const current = get().filters;
+    const updated = updater(current);
+    get().setFilters(updated, options);
+  },
+  setNavigationSource: source => {
+    set(state =>
+      state.navigationSource === source
+        ? state
+        : { ...state, navigationSource: source },
+    );
+  },
+  saveScrollPosition: (query, position) => {
+    if (!query) {
+      return;
+    }
+    set(state => ({
+      ...state,
+      scrollPositions: { ...state.scrollPositions, [query]: position },
+    }));
+  },
+  consumeScrollPosition: query => {
+    if (!query) {
+      return null;
+    }
+    const current = get().scrollPositions[query];
+    if (typeof current !== "number") {
+      return null;
+    }
+    set(state => {
+      const { [query]: _removed, ...rest } = state.scrollPositions;
+      return {
+        ...state,
+        scrollPositions: rest,
+      };
+    });
+    return current;
+  },
+}));
