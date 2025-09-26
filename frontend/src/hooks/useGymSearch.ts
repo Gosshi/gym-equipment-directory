@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { ApiError } from "@/lib/apiClient";
 import {
@@ -735,7 +735,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         { signal },
       ),
     enabled: !missingLocationForDistance,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const queryData = gymsQuery.data;
