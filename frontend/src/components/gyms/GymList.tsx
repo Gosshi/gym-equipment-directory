@@ -255,8 +255,14 @@ export function GymList({
     const hasPageChanged = previousPageRef.current !== page;
 
     if (navigationSource === "push" || navigationSource === "replace") {
-      if (hasPageChanged || navigationSource === "push") {
+      const shouldScroll = hasPageChanged || navigationSource === "push";
+      const shouldFocus = hasPageChanged;
+
+      if (shouldScroll) {
         section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (shouldFocus) {
         requestFocus("page");
       }
       setNavigationSource("idle");
