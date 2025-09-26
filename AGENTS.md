@@ -50,13 +50,13 @@ ruff check . --fix
 
 ### Definition of Done
 
-    •	フロント：next build が成功し、next start 起動後 GET / が 200。
-    •	バックエンド：alembic upgrade head 成功、uvicorn 起動後 GET /healthz or /readyz が 200。
-    •	Lint/format/typecheck/p ytest（軽量セット）が緑。
+- フロント: `next build` が成功し、`next start` 起動後 `GET /` が 200。
+- バックエンド: `alembic upgrade head` 成功、`uvicorn` 起動後 `GET /healthz` または `GET /readyz` が 200。
+- Lint / format / typecheck / pytest（軽量セット）が緑。
 
 ### レビュー前チェック
 
-    •	「起動スモーク OK」「lint/format OK」「型 OK」「軽量テスト OK」に ✅。
+- 「起動スモーク OK」「lint/format OK」「型 OK」「軽量テスト OK」に ✅。
 
 ---
 
