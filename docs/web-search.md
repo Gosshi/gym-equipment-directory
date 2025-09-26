@@ -20,16 +20,16 @@
 
 ## URL パラメータ
 
-| キー | 役割 | 例 |
-| --- | --- | --- |
-| `q` | キーワード | `q=bench` |
-| `pref` | 都道府県スラッグ | `pref=tokyo` |
-| `city` | 市区町村スラッグ | `city=shinjuku` |
-| `cats` | 設備カテゴリ CSV | `cats=squat-rack,dumbbell` |
-| `sort` | 並び順 (`distance`/`popular`/`fresh`/`newest`) | `sort=newest` |
-| `page` | 表示ページ (1 始まり) | `page=2` |
-| `limit` | 1 ページの件数 (1〜50) | `limit=40` |
-| `distance` | スライダーで指定した距離 (km) | `distance=10` |
+| キー       | 役割                                           | 例                         |
+| ---------- | ---------------------------------------------- | -------------------------- |
+| `q`        | キーワード                                     | `q=bench`                  |
+| `pref`     | 都道府県スラッグ                               | `pref=tokyo`               |
+| `city`     | 市区町村スラッグ                               | `city=shinjuku`            |
+| `cats`     | 設備カテゴリ CSV                               | `cats=squat-rack,dumbbell` |
+| `sort`     | 並び順 (`distance`/`popular`/`fresh`/`newest`) | `sort=newest`              |
+| `page`     | 表示ページ (1 始まり)                          | `page=2`                   |
+| `limit`    | 1 ページの件数 (1〜50)                         | `limit=40`                 |
+| `distance` | スライダーで指定した距離 (km)                  | `distance=10`              |
 
 不正な値は既定値にフォールバックされ、空値はパラメータごと削除されます。`prefecture`、`per_page`、`equipment` といった旧形式のキーも後方互換のため解釈します。
 

@@ -86,10 +86,10 @@ export function GymPopup({ data, mode, isLoading = false, onClose, onViewDetail 
 
   const addressLabel = useMemo(() => resolveAddress(data), [data]);
   const imageSrc = useMemo(() => resolveImageSrc(data.thumbnailUrl), [data.thumbnailUrl]);
-  const routeHref = useMemo(() => buildRouteHref(data.latitude, data.longitude), [
-    data.latitude,
-    data.longitude,
-  ]);
+  const routeHref = useMemo(
+    () => buildRouteHref(data.latitude, data.longitude),
+    [data.latitude, data.longitude],
+  );
   const categories = useMemo(() => resolveCategories(data.categories), [data.categories]);
   const distanceLabel = useMemo(() => formatDistance(data.distanceKm ?? null), [data.distanceKm]);
   const categoryChips = useMemo(() => {
@@ -159,11 +159,7 @@ export function GymPopup({ data, mode, isLoading = false, onClose, onViewDetail 
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Star aria-hidden className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-            {isLoading ? (
-              <Skeleton aria-hidden className="h-3 w-16" />
-            ) : (
-              <span>評価は準備中</span>
-            )}
+            {isLoading ? <Skeleton aria-hidden className="h-3 w-16" /> : <span>評価は準備中</span>}
           </div>
         </div>
       </div>
@@ -188,22 +184,10 @@ export function GymPopup({ data, mode, isLoading = false, onClose, onViewDetail 
       </div>
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <Button
-          className="flex-1"
-          onClick={onViewDetail}
-          size="sm"
-          type="button"
-          variant="default"
-        >
+        <Button className="flex-1" onClick={onViewDetail} size="sm" type="button" variant="default">
           詳細を見る
         </Button>
-        <Button
-          asChild
-          className="flex-1"
-          disabled={!routeHref}
-          size="sm"
-          variant="secondary"
-        >
+        <Button asChild className="flex-1" disabled={!routeHref} size="sm" variant="secondary">
           <a href={routeHref ?? "#"} rel="noopener noreferrer" target="_blank">
             <span className="inline-flex items-center gap-2">
               <Navigation2 aria-hidden className="h-4 w-4" />

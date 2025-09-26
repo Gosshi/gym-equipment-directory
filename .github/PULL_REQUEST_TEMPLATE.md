@@ -1,6 +1,7 @@
 ## 概要
 
 ## 動作確認
+
 - [ ] フロント：`next build` → `next start` 起動、`/` 200 を確認
 - [ ] バックエンド：`alembic upgrade head` → `uvicorn` 起動、`/healthz` 200 を確認
 - [ ] Lint/Format/Typecheck（FE/BE）すべて緑

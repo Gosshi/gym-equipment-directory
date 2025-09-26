@@ -13,7 +13,12 @@ interface MockMapHandle {
 
 const mockState = {
   easeToCalls: [] as Array<{ center?: [number, number]; zoom?: number; duration?: number }>,
-  flyToCalls: [] as Array<{ center?: [number, number]; zoom?: number; duration?: number; essential?: boolean }>,
+  flyToCalls: [] as Array<{
+    center?: [number, number];
+    zoom?: number;
+    duration?: number;
+    essential?: boolean;
+  }>,
   latestMap: null as MockMapHandle | null,
 };
 
@@ -79,10 +84,11 @@ vi.mock("maplibre-gl", () => {
         getSouth: () => lat - padding,
         getEast: () => lng + padding,
         getWest: () => lng - padding,
-        toArray: () => [
-          [lng - padding, lat - padding],
-          [lng + padding, lat + padding],
-        ] as [[number, number], [number, number]],
+        toArray: () =>
+          [
+            [lng - padding, lat - padding],
+            [lng + padding, lat + padding],
+          ] as [[number, number], [number, number]],
       };
     }
 
@@ -95,7 +101,12 @@ vi.mock("maplibre-gl", () => {
       this.emit("moveend");
     }
 
-    flyTo(options: { center: [number, number]; zoom?: number; duration?: number; essential?: boolean }) {
+    flyTo(options: {
+      center: [number, number];
+      zoom?: number;
+      duration?: number;
+      essential?: boolean;
+    }) {
       mockState.flyToCalls.push(options);
       this.center = { lng: options.center[0], lat: options.center[1] };
       if (typeof options.zoom === "number") {
@@ -176,11 +187,7 @@ const TestNearbyMap = (
   const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
   const setSelected = useMapSelectionStore(state => state.setSelected);
 
-  const {
-    markers = gyms,
-    onCenterChange = () => undefined,
-    ...rest
-  } = props;
+  const { markers = gyms, onCenterChange = () => undefined, ...rest } = props;
 
   return (
     <NearbyMap
@@ -196,9 +203,8 @@ const TestNearbyMap = (
   );
 };
 
-const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) => render(
-  <TestNearbyMap {...props} />,
-);
+const renderMap = (props?: Partial<ComponentProps<typeof NearbyMap>>) =>
+  render(<TestNearbyMap {...props} />);
 
 beforeEach(() => {
   mockState.easeToCalls.length = 0;

@@ -135,7 +135,10 @@ export function useVisibleGyms({
         setStatus("loading");
         setError(null);
 
-        const radiusKm = Math.min(calculateRadiusKm(viewport), maxRadiusKm ?? Number.POSITIVE_INFINITY);
+        const radiusKm = Math.min(
+          calculateRadiusKm(viewport),
+          maxRadiusKm ?? Number.POSITIVE_INFINITY,
+        );
         const perPage = sanitizePageSize(limit);
 
         fetchNearbyGyms({
@@ -207,4 +210,3 @@ export function useVisibleGyms({
     [error, gyms, isInitialLoading, isLoading, reload, status, updateViewport],
   );
 }
-

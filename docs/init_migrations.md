@@ -5,6 +5,7 @@
 ---
 
 ## 0. 追加するディレクトリ/ファイル
+
 ```bash
 app/
 ├─ db.py # 既存
@@ -32,6 +33,7 @@ Base = declarative_base()
 ## 2. モデル定義（最小・MVP向け）
 
 ### app/models/init.py
+
 ```python
 from .gym import Gym
 from .equipment import Equipment
@@ -41,6 +43,7 @@ from .submission import UserSubmission, SubmissionStatus
 ```
 
 ### app/models/gym.py
+
 ```python
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
@@ -63,6 +66,7 @@ class Gym(Base):
 ```
 
 ### app/models/equipment.py
+
 ```python
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
@@ -80,6 +84,7 @@ class Equipment(Base):
 ```
 
 ### app/models/gym_equipment.py
+
 ```python
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
@@ -118,6 +123,7 @@ class GymEquipment(Base):
 ```
 
 ### app/models/source.py
+
 ```python
 from sqlalchemy import Column, Integer, String, DateTime, Enum
 from sqlalchemy.sql import func
@@ -143,6 +149,7 @@ class Source(Base):
 ```
 
 ### app/models/submission.py
+
 ```python
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
@@ -175,11 +182,15 @@ class UserSubmission(Base):
 方針：不明値は NULL、同時に availability="unknown" を返す。
 
 ## 3. Alembic にモデルを認識させる
+
 ### 3-1. 初期化（未実施なら）
+
 ```bash
 docker compose exec api alembic init migrations
 ```
+
 ### 3-2. migrations/env.py に Base とモデルを読み込ませる
+
 ```python
 from app.db import Base
 from app.models import gym, equipment, gym_equipment, source, submission
@@ -189,18 +200,23 @@ target_metadata = Base.metadata
 ここがないと --autogenerate が空になります。
 
 ## 4. 初期マイグレーションを作って適用
+
 ### 4-1. 生成（差分検出）
+
 ```bash
 docker compose exec api alembic revision --autogenerate -m "init schema"
 ```
+
 ### 4-2. 適用
+
 ```bash
 docker compose exec api alembic upgrade head
 ```
+
 ### 4-3. 確認ポイント
 
 Adminer（http://localhost:8080）に
- gyms / equipments / gym_equipments / sources / user_submissions が作成されている
+gyms / equipments / gym_equipments / sources / user_submissions が作成されている
 
 エラーが出た場合は docker compose logs -f api で確認
 

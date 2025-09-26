@@ -1,6 +1,7 @@
 # PR プレビュー環境構築メモ (AWS EC2)
 
 ## 概要
+
 GitHub Actions から OIDC 経由で AWS にアクセスし、  
 プルリクごとに **単一の EC2 インスタンス**を起動して API サーバを Docker Compose で立ち上げる仕組みを構築した。  
 最終的に PR にコメントとして Preview URL (`http://<IP>:8000`) を付与するところまで動作確認。
@@ -10,8 +11,9 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ## 手順とトラブルシューティング記録
 
 ### 1. IAM / OIDC 設定
+
 - GitHub OIDC を利用するため IAM Role `github-oidc-pr-staging` を作成。
-  - アタッチポリシー: `ec2:* (RunInstances, TerminateInstances, Describe*, AuthorizeSecurityGroupIngress, Wait)`  
+  - アタッチポリシー: `ec2:* (RunInstances, TerminateInstances, Describe*, AuthorizeSecurityGroupIngress, Wait)`
   - `iam:PassRole` を許可（EC2 にアタッチする SSM 用インスタンスプロファイルを渡すため）。
 - EC2 側で利用するインスタンスプロファイル `ec2-pr-preview-ssm` を作成。
   - SSM 経由でログ収集を行うために `AmazonSSMManagedInstanceCore` を付与。
@@ -20,6 +22,7 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ---
 
 ### 2. セキュリティグループ
+
 - API 用 SG `sg-0600751c154b62e0c`
   - インバウンド: `TCP/8000` → `0.0.0.0/0` (初期は全開放、後で制限予定)。
 - RDS 用 SG
@@ -30,6 +33,7 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ---
 
 ### 3. 初期トラブル
+
 1. **GHCR pull unauthorized**
    - 原因: GitHub Actions の権限不足 (`packages: write` が必要)。
    - 対応: workflow yaml に `permissions: packages: write` を追加。
@@ -56,6 +60,7 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ---
 
 ### 4. 現在の動作
+
 - PR を開くと:
   1. GHCR にイメージを build & push
   2. EC2 を起動 (既存があれば terminate → 再作成)
@@ -69,6 +74,7 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ---
 
 ## 今後の改善予定
+
 - **Secrets を SSM Parameter Store に移行**（GitHub Secrets から除去）。
 - **EC2 → RDS の SG 制御をさらに厳格化**（PR 番号付きで動的にルール付与）。
 - **TTL タグ付き自動掃除**（24h で自動削除してコスト抑制）。
@@ -77,6 +83,7 @@ GitHub Actions から OIDC 経由で AWS にアクセスし、
 ---
 
 ## まとめ
-- 最低限「PR ごとに EC2 でアプリが起動してプレビューできる」状態は完成。  
-- セキュリティやコスト面は別タスクで改善予定。  
+
+- 最低限「PR ごとに EC2 でアプリが起動してプレビューできる」状態は完成。
+- セキュリティやコスト面は別タスクで改善予定。
 - 本ドキュメントを見返すことで、トラブル対応の履歴をたどれるようになった。

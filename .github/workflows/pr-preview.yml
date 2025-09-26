@@ -13,14 +13,14 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  AMI_ID: ami-08a59875ad2a26a5f            # Amazon Linux 2023 (x86_64)
+  AMI_ID: ami-08a59875ad2a26a5f # Amazon Linux 2023 (x86_64)
   INSTANCE_TYPE: t3.micro
-  SG_ID: sg-0600751c154b62e0c              # api-sg
-  SUBNET_ID: subnet-0312f79d1cf5c6bdc      # default VPC subnet
-  KEY_NAME: ""                             # SSH不要
+  SG_ID: sg-0600751c154b62e0c # api-sg
+  SUBNET_ID: subnet-0312f79d1cf5c6bdc # default VPC subnet
+  KEY_NAME: "" # SSH不要
   INSTANCE_NAME: pr-preview
-  INSTANCE_PROFILE: ec2-pr-preview-ssm     # SSM用ロール（PassRole許可が必要）
-  PREVIEW_ACCESS_MODE: ssm                 # ssm|public
+  INSTANCE_PROFILE: ec2-pr-preview-ssm # SSM用ロール（PassRole許可が必要）
+  PREVIEW_ACCESS_MODE: ssm # ssm|public
 
 jobs:
   preview:
@@ -488,7 +488,7 @@ jobs:
             fi
             sleep 2
           done
-            
+
       - name: Delete auto-stop/terminate schedule on PR close
         if: steps.mode.outputs.mode == 'destroy-if-no-open-pr'
         shell: bash

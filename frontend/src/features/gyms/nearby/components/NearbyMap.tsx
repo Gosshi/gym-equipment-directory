@@ -89,11 +89,7 @@ const MARKER_SELECTED_CLASSES = Object.freeze([
 ]);
 const CLUSTER_BASE_CLASS =
   "nearby-cluster flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary bg-primary text-base font-semibold text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.2)] transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary hover:scale-105";
-const CLUSTER_HOVERED_CLASSES = Object.freeze([
-  "ring-4",
-  "ring-primary/70",
-  "ring-offset-2",
-]);
+const CLUSTER_HOVERED_CLASSES = Object.freeze(["ring-4", "ring-primary/70", "ring-offset-2"]);
 
 type MarkerEntry = {
   marker: maplibregl.Marker;
@@ -151,10 +147,7 @@ const updateGymMarkerElement = (element: HTMLButtonElement, gym: NearbyGym) => {
   element.title = buildTooltip(gym);
 };
 
-const createClusterMarkerElement = (
-  count: number,
-  onClick: () => void,
-): HTMLButtonElement => {
+const createClusterMarkerElement = (count: number, onClick: () => void): HTMLButtonElement => {
   const element = document.createElement("button");
   element.type = "button";
   element.className = CLUSTER_BASE_CLASS;
@@ -206,7 +199,6 @@ export function NearbyMap({
   markersError = null,
   onRetryMarkers,
 }: NearbyMapProps) {
-
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerMapRef = useRef(new Map<string, MarkerEntry>());
