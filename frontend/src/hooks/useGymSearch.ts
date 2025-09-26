@@ -251,13 +251,43 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }, [detectGeolocationSupport]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const next = parseFilterState(params);
+      const nextQuery = filterStateToQueryString(next);
+
+      pendingNavigationRef.current = "pop";
+      pendingQueryRef.current = nextQuery;
+      setFilters(next, { queryString: nextQuery });
+      setNavigationSource("pop");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [setFilters, setNavigationSource]);
+
+  useEffect(() => {
     const params = new URLSearchParams(searchParamsKey);
     const next = parseFilterState(params);
     const nextQuery = filterStateToQueryString(next);
 
-    let source: NavigationSource = initializedRef.current ? "pop" : "initial";
-    if (pendingNavigationRef.current === "push" && pendingQueryRef.current === nextQuery) {
-      source = "push";
+    let source: NavigationSource;
+    if (!initializedRef.current) {
+      source = "initial";
+    } else if (
+      pendingNavigationRef.current &&
+      pendingQueryRef.current === nextQuery
+    ) {
+      source = pendingNavigationRef.current;
+    } else {
+      source = "pop";
     }
 
     pendingNavigationRef.current = null;
@@ -331,18 +361,29 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         return;
       }
 
-      if (typeof window !== "undefined") {
+      const navigationMode: NavigationSource =
+        nextQuery === searchParamsKey ? "replace" : "push";
+
+      if (navigationMode === "push" && typeof window !== "undefined") {
         saveScrollPosition(currentQueryString, window.scrollY);
       }
 
-      pendingNavigationRef.current = "push";
+      pendingNavigationRef.current = navigationMode;
       pendingQueryRef.current = nextQuery;
       setFilters(nextFilters, { queryString: nextQuery, force: true });
-      setNavigationSource("push");
+      setNavigationSource(navigationMode);
+
+      if (!pathname) {
+        return;
+      }
 
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
       startTransition(() => {
-        router.replace(nextUrl, { scroll: false });
+        if (navigationMode === "replace") {
+          router.replace(nextUrl, { scroll: false });
+        } else {
+          router.push(nextUrl, { scroll: false });
+        }
       });
     },
     [
@@ -350,6 +391,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       filters,
       pathname,
       router,
+      searchParamsKey,
       saveScrollPosition,
       setFilters,
       setNavigationSource,

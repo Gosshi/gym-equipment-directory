@@ -140,6 +140,12 @@ export function GymList({
       return;
     }
 
+    if (navigationSource === "replace") {
+      setNavigationSource("idle");
+      previousPageRef.current = page;
+      return;
+    }
+
     if (previousPageRef.current !== page) {
       resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       resultSectionRef.current.focus();
