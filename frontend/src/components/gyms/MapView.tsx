@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { MapViewport } from "@/hooks/useVisibleGyms";
 import { haversineDistanceKm } from "@/lib/geo";
 import { MIN_DISTANCE_KM, MAX_DISTANCE_KM } from "@/lib/searchParams";
+import { FALLBACK_LOCATION } from "@/hooks/useGymSearch";
 import type { MapInteractionSource } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 import { useGymSearchStore, gymSearchStore } from "@/store/searchStore";
@@ -71,7 +72,17 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
         : rawLastSelectionSource;
 
   const markersById = useMemo(() => new Map(markers.map(marker => [marker.id, marker])), [markers]);
-  const center = useMemo(() => ({ lat, lng }), [lat, lng]);
+  const center = useMemo(() => {
+    if (
+      typeof lat === "number" &&
+      Number.isFinite(lat) &&
+      typeof lng === "number" &&
+      Number.isFinite(lng)
+    ) {
+      return { lat, lng };
+    }
+    return { lat: FALLBACK_LOCATION.lat, lng: FALLBACK_LOCATION.lng };
+  }, [lat, lng]);
 
   const debounceRef = useRef<number | null>(null);
 
@@ -93,10 +104,13 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
         debounceRef.current = null;
       }
       const radiusKm = calculateRadius(viewport);
-      const { center, zoom: viewportZoom } = viewport;
+      const { center: viewportCenter, zoom: viewportZoom } = viewport;
       const current = gymSearchStore.getState();
       const sameCenter =
-        Math.abs(current.lat - center.lat) < 1e-6 && Math.abs(current.lng - center.lng) < 1e-6;
+        current.lat != null &&
+        current.lng != null &&
+        Math.abs(current.lat - viewportCenter.lat) < 1e-6 &&
+        Math.abs(current.lng - viewportCenter.lng) < 1e-6;
       const sameRadius = Math.abs(current.radiusKm - radiusKm) < 0.05;
       const sameZoom = viewportZoom == null ? true : Math.abs(current.zoom - viewportZoom) < 0.01;
       if (sameCenter && sameRadius && sameZoom) {
@@ -105,7 +119,12 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
       setBusyFlag("mapInteracting", true);
       debounceRef.current = window.setTimeout(() => {
         setBusyFlag("mapInteracting", false);
-        setMapState({ lat: center.lat, lng: center.lng, radiusKm, zoom: viewportZoom });
+        setMapState({
+          lat: viewportCenter.lat,
+          lng: viewportCenter.lng,
+          radiusKm,
+          zoom: viewportZoom,
+        });
       }, RADIUS_DEBOUNCE_MS);
     },
     [setBusyFlag, setMapState],
@@ -139,7 +158,10 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
         }
         const current = gymSearchStore.getState();
         const sameCenter =
-          Math.abs(current.lat - center.lat) < 1e-6 && Math.abs(current.lng - center.lng) < 1e-6;
+          current.lat != null &&
+          current.lng != null &&
+          Math.abs(current.lat - center.lat) < 1e-6 &&
+          Math.abs(current.lng - center.lng) < 1e-6;
         if (sameCenter) {
           setBusyFlag("mapInteracting", false);
           return;

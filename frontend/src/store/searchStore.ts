@@ -7,12 +7,18 @@ import {
   clampLatitude,
   clampLongitude,
   DEFAULT_DISTANCE_KM,
+  DEFAULT_FILTER_STATE,
   DEFAULT_LIMIT,
   MAX_DISTANCE_KM,
   MAX_LIMIT,
   MIN_DISTANCE_KM,
-  SortOption,
   SORT_OPTIONS,
+  SortOption,
+  type FilterState,
+  type SortOrder,
+  normalizeSortOrder,
+  parseFilterState,
+  serializeFilterState,
 } from "@/lib/searchParams";
 
 const DEFAULT_CENTER = Object.freeze({
@@ -20,9 +26,10 @@ const DEFAULT_CENTER = Object.freeze({
   lng: 139.767125,
 });
 
-const DEFAULT_SORT: SortOption = "distance";
+const DEFAULT_SORT: SortOption = DEFAULT_FILTER_STATE.sort;
+const DEFAULT_ORDER_VALUE: SortOrder = DEFAULT_FILTER_STATE.order;
 const DEFAULT_LIMIT_VALUE = DEFAULT_LIMIT;
-const DEFAULT_RADIUS_KM = 5;
+const DEFAULT_RADIUS_KM = DEFAULT_DISTANCE_KM;
 const DEFAULT_ZOOM = 12;
 
 const logEvent = (
@@ -71,65 +78,39 @@ const sanitizeSort = (value: string | null | undefined): SortOption => {
   return match ?? DEFAULT_SORT;
 };
 
-const parseNumber = (value: string | null): number | null => {
-  if (!value) {
-    return null;
-  }
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const parseQueryParams = (params: URLSearchParams): ParsedQueryParams => {
-  const q = params.get("q")?.trim() ?? "";
-  const category = params.get("category")?.trim() || "";
-  const latParam = parseNumber(params.get("lat"));
-  const lngParam = parseNumber(params.get("lng"));
-  const radiusParam = parseNumber(params.get("radius"));
-  const pageParam = parseNumber(params.get("page"));
-  const limitParam = parseNumber(params.get("limit"));
-  const sortParam = params.get("sort");
-
-  const lat = latParam == null ? DEFAULT_CENTER.lat : clampLatitude(latParam);
-  const lng = lngParam == null ? DEFAULT_CENTER.lng : clampLongitude(lngParam);
-  const radiusKm = clampRadius(radiusParam);
-  const page = clampPage(pageParam);
-  const limit = clampLimit(limitParam);
-  const sort = sanitizeSort(sortParam);
-
+  const parsed = parseFilterState(params);
   return {
-    q,
-    category,
-    lat,
-    lng,
-    radiusKm,
-    page,
-    limit,
-    sort,
+    q: parsed.q,
+    prefecture: parsed.pref ?? "",
+    city: parsed.city ?? "",
+    categories: parsed.categories,
+    sort: parsed.sort,
+    order: parsed.order,
+    lat: parsed.lat,
+    lng: parsed.lng,
+    radiusKm: clampRadius(parsed.distance),
+    page: clampPage(parsed.page),
+    limit: clampLimit(parsed.limit),
   };
 };
 
-const buildSearchParams = (state: GymSearchStoreState): URLSearchParams => {
-  const params = new URLSearchParams();
-  if (state.q.trim()) {
-    params.set("q", state.q.trim());
-  }
-  if (state.category.trim()) {
-    params.set("category", state.category.trim());
-  }
-  params.set("lat", state.lat.toFixed(6));
-  params.set("lng", state.lng.toFixed(6));
-  params.set("radius", String(state.radiusKm));
-  if (state.page > 1) {
-    params.set("page", String(state.page));
-  }
-  if (state.limit !== DEFAULT_LIMIT_VALUE) {
-    params.set("limit", String(state.limit));
-  }
-  if (state.sort !== DEFAULT_SORT) {
-    params.set("sort", state.sort);
-  }
-  return params;
-};
+const toFilterState = (state: GymSearchStoreState): FilterState => ({
+  q: state.q,
+  pref: state.prefecture ? state.prefecture : null,
+  city: state.city ? state.city : null,
+  categories: [...state.categories],
+  sort: state.sort,
+  order: normalizeSortOrder(state.sort, state.order),
+  page: state.page,
+  limit: state.limit,
+  distance: state.radiusKm,
+  lat: state.lat,
+  lng: state.lng,
+});
+
+const buildSearchParams = (state: GymSearchStoreState): URLSearchParams =>
+  serializeFilterState(toFilterState(state));
 
 type HistoryMode = "replace" | "push";
 
@@ -141,24 +122,30 @@ type BusyFlags = {
 
 type ParsedQueryParams = {
   q: string;
-  category: string;
-  lat: number;
-  lng: number;
+  prefecture: string;
+  city: string;
+  categories: string[];
+  sort: SortOption;
+  order: SortOrder;
+  lat: number | null;
+  lng: number | null;
   radiusKm: number;
   page: number;
   limit: number;
-  sort: SortOption;
 };
 
 type GymSearchStoreState = {
   q: string;
-  category: string;
-  lat: number;
-  lng: number;
+  prefecture: string;
+  city: string;
+  categories: string[];
+  lat: number | null;
+  lng: number | null;
   radiusKm: number;
   page: number;
   limit: number;
   sort: SortOption;
+  order: SortOrder;
   zoom: number;
   selectedGymSlug: string | null;
   selectedGymId: number | null;
@@ -176,11 +163,15 @@ type GymSearchStoreActions = {
   applyUrlState: (url: URL | string) => void;
   markUrlSynced: (query: string) => void;
   setQuery: (value: string) => void;
-  setCategory: (value: string) => void;
-  setSort: (sort: SortOption) => void;
+  setPrefecture: (value: string) => void;
+  setCity: (value: string) => void;
+  setCategories: (values: string[]) => void;
+  setSort: (sort: SortOption, order?: SortOrder) => void;
+  setDistance: (distance: number) => void;
   setMapState: (input: { lat: number; lng: number; radiusKm?: number; zoom?: number }) => void;
   setPagination: (page: number, options?: { history?: HistoryMode }) => void;
   setLimit: (limit: number) => void;
+  setLocation: (payload: { lat: number | null; lng: number | null }) => void;
   setSelectedGym: (payload: {
     slug: string | null;
     id: number | null;
@@ -197,13 +188,16 @@ type GymSearchStore = GymSearchStoreState & GymSearchStoreActions;
 
 const INITIAL_STATE: GymSearchStoreState = {
   q: "",
-  category: "",
-  lat: DEFAULT_CENTER.lat,
-  lng: DEFAULT_CENTER.lng,
+  prefecture: "",
+  city: "",
+  categories: [],
+  lat: DEFAULT_FILTER_STATE.lat ?? DEFAULT_CENTER.lat,
+  lng: DEFAULT_FILTER_STATE.lng ?? DEFAULT_CENTER.lng,
   radiusKm: DEFAULT_RADIUS_KM,
   page: 1,
   limit: DEFAULT_LIMIT_VALUE,
   sort: DEFAULT_SORT,
+  order: DEFAULT_ORDER_VALUE,
   zoom: DEFAULT_ZOOM,
   selectedGymSlug: null,
   selectedGymId: null,
@@ -272,23 +266,55 @@ export const useGymSearchStore = create<GymSearchStore>()(
       }));
       logEvent("filter_change", { filter: "q", value: next });
     },
-    setCategory: value => {
+    setPrefecture: value => {
       const next = typeof value === "string" ? value.trim() : "";
       set(state => ({
-        category: next,
+        prefecture: next,
+        city: "",
         page: 1,
         pendingHistory: "replace",
       }));
-      logEvent("filter_change", { filter: "category", value: next });
+      logEvent("filter_change", { filter: "prefecture", value: next });
     },
-    setSort: sort => {
+    setCity: value => {
+      const next = typeof value === "string" ? value.trim() : "";
+      set(state => ({
+        city: next,
+        page: 1,
+        pendingHistory: "replace",
+      }));
+      logEvent("filter_change", { filter: "city", value: next });
+    },
+    setCategories: values => {
+      const normalized = Array.from(
+        new Set((values ?? []).map(item => item.trim()).filter(Boolean)),
+      );
+      set(state => ({
+        categories: normalized,
+        page: 1,
+        pendingHistory: "replace",
+      }));
+      logEvent("filter_change", { filter: "categories", value: normalized });
+    },
+    setSort: (sort, order) => {
       const next = sanitizeSort(sort);
+      const nextOrder = normalizeSortOrder(next, order ?? DEFAULT_ORDER_VALUE);
       set(state => ({
         sort: next,
+        order: nextOrder,
         page: 1,
         pendingHistory: "replace",
       }));
-      logEvent("filter_change", { filter: "sort", value: next });
+      logEvent("filter_change", { filter: "sort", value: next, order: nextOrder });
+    },
+    setDistance: distance => {
+      const next = clampRadius(distance);
+      set(state => ({
+        radiusKm: next,
+        page: 1,
+        pendingHistory: "replace",
+      }));
+      logEvent("filter_change", { filter: "distance", value: next });
     },
     setMapState: ({ lat, lng, radiusKm, zoom }) => {
       const sanitizedLat = clampLatitude(lat);
@@ -328,6 +354,17 @@ export const useGymSearchStore = create<GymSearchStore>()(
       }));
       logEvent("filter_change", { filter: "limit", value: sanitized });
     },
+    setLocation: ({ lat, lng }) => {
+      const sanitizedLat = lat == null ? null : clampLatitude(lat);
+      const sanitizedLng = lng == null ? null : clampLongitude(lng);
+      set(state => ({
+        lat: sanitizedLat,
+        lng: sanitizedLng,
+        page: 1,
+        pendingHistory: "replace",
+      }));
+      logEvent("filter_change", { filter: "location", lat: sanitizedLat, lng: sanitizedLng });
+    },
     setSelectedGym: ({ slug, id, source }) => {
       set(state => ({
         selectedGymSlug: slug ?? null,
@@ -346,8 +383,15 @@ export const useGymSearchStore = create<GymSearchStore>()(
     resetFilters: () => {
       set(state => ({
         q: "",
-        category: "",
+        prefecture: "",
+        city: "",
+        categories: [],
         sort: DEFAULT_SORT,
+        order: DEFAULT_ORDER_VALUE,
+        lat: DEFAULT_FILTER_STATE.lat ?? DEFAULT_CENTER.lat,
+        lng: DEFAULT_FILTER_STATE.lng ?? DEFAULT_CENTER.lng,
+        radiusKm: DEFAULT_RADIUS_KM,
+        limit: DEFAULT_LIMIT_VALUE,
         page: 1,
         pendingHistory: "replace",
       }));

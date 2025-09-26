@@ -13,6 +13,7 @@ import { MAX_LIMIT } from "@/lib/searchParams";
 import { fetchNearbyGyms } from "@/services/gymNearby";
 import { searchGyms } from "@/services/gyms";
 import { useGymSearchStore } from "@/store/searchStore";
+import { useShallow } from "zustand/react/shallow";
 import type { GymNearbyResponse, GymSearchResponse } from "@/types/gym";
 
 const MAP_RESULT_MIN = 60;
@@ -38,14 +39,22 @@ const createInitialState = <TData>(): QueryState<TData> => ({
 });
 
 export function useGymDirectoryData() {
-  const q = useGymSearchStore(state => state.q);
-  const category = useGymSearchStore(state => state.category);
-  const lat = useGymSearchStore(state => state.lat);
-  const lng = useGymSearchStore(state => state.lng);
-  const radiusKm = useGymSearchStore(state => state.radiusKm);
-  const page = useGymSearchStore(state => state.page);
-  const limit = useGymSearchStore(state => state.limit);
-  const sort = useGymSearchStore(state => state.sort);
+  const { q, categories, prefecture, city, sort, order, lat, lng, radiusKm, page, limit } =
+    useGymSearchStore(
+      useShallow(state => ({
+        q: state.q,
+        categories: state.categories,
+        prefecture: state.prefecture,
+        city: state.city,
+        sort: state.sort,
+        order: state.order,
+        lat: state.lat,
+        lng: state.lng,
+        radiusKm: state.radiusKm,
+        page: state.page,
+        limit: state.limit,
+      })),
+    );
 
   const [searchState, setSearchState] = useState<QueryState<GymSearchResponse>>(() =>
     createInitialState<GymSearchResponse>(),
@@ -77,12 +86,15 @@ export function useGymDirectoryData() {
         const response = await searchGyms(
           {
             q: q || undefined,
-            categories: category ? [category] : undefined,
+            categories: categories.length > 0 ? categories : undefined,
+            prefecture: prefecture || undefined,
+            city: city || undefined,
             page,
             limit,
             sort,
-            lat,
-            lng,
+            order,
+            lat: lat ?? undefined,
+            lng: lng ?? undefined,
             radiusKm,
           },
           { signal },
@@ -115,17 +127,31 @@ export function useGymDirectoryData() {
         }));
       }
     },
-    [category, lat, limit, lng, page, q, radiusKm, sort],
+    [categories, city, lat, limit, lng, order, page, prefecture, q, radiusKm, sort],
   );
 
   const runMapFetch = useCallback(
     async (signal: AbortSignal) => {
+      const hasLat = typeof lat === "number" && Number.isFinite(lat);
+      const hasLng = typeof lng === "number" && Number.isFinite(lng);
+      if (!hasLat || !hasLng) {
+        setMapState(prev => ({
+          ...prev,
+          status: "idle",
+          isFetching: false,
+          isLoading: false,
+          isError: false,
+          error: null,
+        }));
+        return;
+      }
+
       try {
         const baseLimit = typeof limit === "number" && limit > 0 ? limit : MAP_RESULT_MIN;
         const perPage = Math.min(Math.max(baseLimit * 2, MAP_RESULT_MIN), MAX_LIMIT);
         const response = await fetchNearbyGyms({
-          lat: lat ?? undefined,
-          lng: lng ?? undefined,
+          lat,
+          lng,
           radiusKm: radiusKm ?? undefined,
           perPage,
           page: 1,
@@ -174,7 +200,11 @@ export function useGymDirectoryData() {
   }, [runSearchFetch, updatePendingState]);
 
   useEffect(() => {
-    const mapEnabled = Number.isFinite(lat) && Number.isFinite(lng);
+    const mapEnabled =
+      typeof lat === "number" &&
+      Number.isFinite(lat) &&
+      typeof lng === "number" &&
+      Number.isFinite(lng);
     if (!mapEnabled) {
       mapAbortRef.current?.abort();
       setMapState(prev => ({

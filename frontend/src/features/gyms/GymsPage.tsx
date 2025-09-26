@@ -1,40 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { useShallow } from "zustand/react/shallow";
 
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
+import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
 import { GymList } from "@/components/gyms/GymList";
 import { MapView } from "@/components/gyms/MapView";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useGymDirectoryData } from "@/hooks/useGymDirectoryData";
+import { useGymFilterControls } from "@/hooks/useGymFilterControls";
 import { useUrlSync } from "@/hooks/useUrlSync";
-import { getEquipmentCategories } from "@/services/meta";
 import { useGymSearchStore } from "@/store/searchStore";
-import type { SortOption } from "@/lib/searchParams";
 import type { GymSearchMeta, GymSummary, NearbyGym } from "@/types/gym";
-import type { EquipmentCategoryOption } from "@/types/meta";
-
-const CATEGORY_ALL_VALUE = "__all";
-
-const SORT_LABELS: Record<string, string> = {
-  distance: "距離が近い順",
-  rating: "評価が高い順",
-  reviews: "口コミが多い順",
-  name: "名前順",
-};
-
-const SORT_OPTIONS: SortOption[] = ["distance", "rating", "reviews", "name"];
 
 const DEFAULT_META: GymSearchMeta = {
   total: null,
@@ -49,12 +28,10 @@ export function GymsPage() {
   useUrlSync();
 
   const { searchQuery, mapQuery } = useGymDirectoryData();
+  const filterControls = useGymFilterControls();
 
-  const { q, category, sort, page, limit, selectedGymSlug, rightPanelOpen } = useGymSearchStore(
+  const { page, limit, selectedGymSlug, rightPanelOpen } = useGymSearchStore(
     useShallow(state => ({
-      q: state.q,
-      category: state.category,
-      sort: state.sort,
       page: state.page,
       limit: state.limit,
       selectedGymSlug: state.selectedGymSlug,
@@ -62,14 +39,10 @@ export function GymsPage() {
     })),
   );
 
-  const setQuery = useGymSearchStore(state => state.setQuery);
-  const setCategory = useGymSearchStore(state => state.setCategory);
-  const setSort = useGymSearchStore(state => state.setSort);
   const setPage = useGymSearchStore(state => state.setPagination);
   const setLimit = useGymSearchStore(state => state.setLimit);
   const setSelectedGym = useGymSearchStore(state => state.setSelectedGym);
   const setRightPanelOpenState = useGymSearchStore(state => state.setRightPanelOpen);
-  const resetFilters = useGymSearchStore(state => state.resetFilters);
   const resetSelectionIfMissing = useGymSearchStore(state => state.resetSelectionIfMissing);
   const setTotalPages = useGymSearchStore(state => state.setTotalPages);
 
@@ -106,27 +79,6 @@ export function GymsPage() {
     }
     setTotalPages(totalPages);
   }, [limit, searchQuery.data, setTotalPages]);
-
-  const [categoryOptions, setCategoryOptions] = useState<EquipmentCategoryOption[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getEquipmentCategories()
-      .then(options => {
-        if (!cancelled) {
-          setCategoryOptions(options);
-        }
-      })
-      .catch(error => {
-        if (!cancelled && process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
-          console.info("Failed to load equipment categories", error);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const mapMarkers = useMemo<NearbyGym[]>(
     () =>
@@ -173,10 +125,6 @@ export function GymsPage() {
     setSelectedGym({ slug: null, id: null, source: "panel" });
   }, [setRightPanelOpenState, setSelectedGym]);
 
-  const handleResetFilters = useCallback(() => {
-    resetFilters();
-  }, [resetFilters]);
-
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/10">
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:gap-10 sm:pt-12 lg:px-6 xl:px-0">
@@ -191,74 +139,32 @@ export function GymsPage() {
           </p>
         </header>
 
-        <form
-          className="grid gap-4 rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 md:grid-cols-3"
-          onSubmit={event => event.preventDefault()}
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground" htmlFor="gym-search-q">
-              キーワード
-            </label>
-            <Input
-              autoComplete="off"
-              id="gym-search-q"
-              placeholder="設備や施設名で検索"
-              value={q}
-              onChange={event => setQuery(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-muted-foreground"
-              htmlFor="gym-search-category"
-            >
-              カテゴリ
-            </label>
-            <Select
-              value={category ? category : CATEGORY_ALL_VALUE}
-              onValueChange={value => setCategory(value === CATEGORY_ALL_VALUE ? "" : value)}
-            >
-              <SelectTrigger id="gym-search-category">
-                <SelectValue placeholder="すべて" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={CATEGORY_ALL_VALUE}>すべて</SelectItem>
-                {categoryOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground" htmlFor="gym-search-sort">
-              並び順
-            </label>
-            <Select value={sort} onValueChange={value => setSort(value as SortOption)}>
-              <SelectTrigger id="gym-search-sort">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map(option => (
-                  <SelectItem key={option} value={option}>
-                    {SORT_LABELS[option]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-3">
-            <Button
-              className="w-full md:w-auto"
-              onClick={handleResetFilters}
-              type="button"
-              variant="outline"
-            >
-              フィルタをリセット
-            </Button>
-          </div>
-        </form>
+        <SearchFilters
+          state={filterControls.state}
+          prefectures={filterControls.prefectures}
+          cities={filterControls.cities}
+          categories={filterControls.categories}
+          isMetaLoading={filterControls.isMetaLoading}
+          isCityLoading={filterControls.isCityLoading}
+          metaError={filterControls.metaError}
+          cityError={filterControls.cityError}
+          location={filterControls.location}
+          isSearchLoading={isLoading}
+          onKeywordChange={filterControls.onKeywordChange}
+          onPrefectureChange={filterControls.onPrefectureChange}
+          onCityChange={filterControls.onCityChange}
+          onCategoriesChange={filterControls.onCategoriesChange}
+          onSortChange={(nextSort, nextOrder) => filterControls.onSortChange(nextSort, nextOrder)}
+          onDistanceChange={filterControls.onDistanceChange}
+          onClear={filterControls.onClear}
+          onRequestLocation={filterControls.onRequestLocation}
+          onUseFallbackLocation={filterControls.onUseFallbackLocation}
+          onClearLocation={filterControls.onClearLocation}
+          onManualLocationChange={filterControls.onManualLocationChange}
+          onReloadMeta={filterControls.onReloadMeta}
+          onReloadCities={filterControls.onReloadCities}
+          onSubmitSearch={() => searchQuery.refetch()}
+        />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start xl:gap-8">
           <div className="flex flex-col gap-6">
@@ -269,7 +175,7 @@ export function GymsPage() {
               isLoading={isLoading}
               limit={limit}
               meta={effectiveMeta}
-              onClearFilters={handleResetFilters}
+              onClearFilters={filterControls.onClear}
               onLimitChange={setLimit}
               onPageChange={nextPage => setPage(nextPage, { history: "push" })}
               onRetry={() => searchQuery.refetch()}
