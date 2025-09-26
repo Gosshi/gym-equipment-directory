@@ -39,136 +39,133 @@ export type VirtualizedGymGridHandle = {
 };
 
 export const VirtualizedGymGrid = forwardRef<VirtualizedGymGridHandle, VirtualizedGymGridProps>(
-  function VirtualizedGymGrid({
-    gyms,
-    renderCard,
-    className,
-    overscan = 4,
-    onScrollElementChange,
-  }, ref) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [columns, setColumns] = useState(1);
-  const columnsRef = useRef(columns);
+  function VirtualizedGymGrid(
+    { gyms, renderCard, className, overscan = 4, onScrollElementChange },
+    ref,
+  ) {
+    const scrollRef = useRef<HTMLDivElement | null>(null);
+    const [columns, setColumns] = useState(1);
+    const columnsRef = useRef(columns);
 
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element || typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const observer = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        const nextColumns = Math.max(1, getColumnCount(width));
-        setColumns(previous => (previous === nextColumns ? previous : nextColumns));
+    useEffect(() => {
+      const element = scrollRef.current;
+      if (!element || typeof ResizeObserver === "undefined") {
+        return;
       }
+
+      const observer = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const width = entry.contentRect.width;
+          const nextColumns = Math.max(1, getColumnCount(width));
+          setColumns(previous => (previous === nextColumns ? previous : nextColumns));
+        }
+      });
+
+      observer.observe(element);
+      return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+      columnsRef.current = columns;
+    }, [columns]);
+
+    useEffect(() => {
+      onScrollElementChange?.(scrollRef.current);
+      return () => {
+        onScrollElementChange?.(null);
+      };
+    }, [onScrollElementChange]);
+
+    const rowCount = useMemo(() => {
+      if (columns <= 0) {
+        return 0;
+      }
+      return Math.ceil(gyms.length / columns);
+    }, [columns, gyms.length]);
+
+    const rowVirtualizer = useVirtualizer({
+      count: rowCount,
+      getScrollElement: () => scrollRef.current,
+      estimateSize: () => ROW_ESTIMATE,
+      overscan,
     });
 
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+    useImperativeHandle(
+      ref,
+      () => ({
+        scrollToIndex: (index, options) => {
+          if (!Number.isFinite(index) || index < 0) {
+            return;
+          }
+          const columnCount = columnsRef.current || 1;
+          const targetRow = Math.floor(index / columnCount);
+          const align = options?.align ?? "start";
+          rowVirtualizer.scrollToIndex(Math.max(targetRow, 0), { align });
+        },
+        getScrollElement: () => scrollRef.current,
+      }),
+      [rowVirtualizer],
+    );
 
-  useEffect(() => {
-    columnsRef.current = columns;
-  }, [columns]);
-
-  useEffect(() => {
-    onScrollElementChange?.(scrollRef.current);
-    return () => {
-      onScrollElementChange?.(null);
-    };
-  }, [onScrollElementChange]);
-
-  const rowCount = useMemo(() => {
-    if (columns <= 0) {
-      return 0;
-    }
-    return Math.ceil(gyms.length / columns);
-  }, [columns, gyms.length]);
-
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_ESTIMATE,
-    overscan,
-  });
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      scrollToIndex: (index, options) => {
-        if (!Number.isFinite(index) || index < 0) {
-          return;
-        }
-        const columnCount = columnsRef.current || 1;
-        const targetRow = Math.floor(index / columnCount);
-        const align = options?.align ?? "start";
-        rowVirtualizer.scrollToIndex(Math.max(targetRow, 0), { align });
-      },
-      getScrollElement: () => scrollRef.current,
-    }),
-    [rowVirtualizer],
-  );
-
-  return (
-    <div
-      ref={scrollRef}
-      className={cn(
-        "relative max-h-[70vh] overflow-y-auto pr-1",
-        "supports-[overflow:overlay]:pr-3",
-        className,
-      )}
-    >
+    return (
       <div
-        aria-live="polite"
-        className="relative"
-        style={{ height: rowVirtualizer.getTotalSize() }}
+        ref={scrollRef}
+        className={cn(
+          "relative max-h-[70vh] overflow-y-auto pr-1",
+          "supports-[overflow:overlay]:pr-3",
+          className,
+        )}
       >
-        {rowVirtualizer.getVirtualItems().map(virtualRow => {
-          const startIndex = virtualRow.index * columns;
-          const visibleGyms = gyms.slice(startIndex, startIndex + columns);
+        <div
+          aria-live="polite"
+          className="relative"
+          style={{ height: rowVirtualizer.getTotalSize() }}
+        >
+          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+            const startIndex = virtualRow.index * columns;
+            const visibleGyms = gyms.slice(startIndex, startIndex + columns);
 
-          return (
-            <div
-              key={virtualRow.key}
-              ref={node => {
-                if (node) {
-                  rowVirtualizer.measureElement(node);
-                }
-              }}
-              data-index={virtualRow.index}
-              className={cn(ROW_PADDING_CLASSES)}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
+            return (
               <div
-                className="grid gap-4 sm:gap-6 xl:gap-7"
-                style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                key={virtualRow.key}
+                ref={node => {
+                  if (node) {
+                    rowVirtualizer.measureElement(node);
+                  }
+                }}
+                data-index={virtualRow.index}
+                className={cn(ROW_PADDING_CLASSES)}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
               >
-                {visibleGyms.map((gym, columnIndex) => {
-                  const itemIndex = startIndex + columnIndex;
-                  return (
-                    <div
-                      className="h-full"
-                      data-gym-index={itemIndex}
-                      data-gym-slug={gym.slug ?? ""}
-                      key={`${gym.id ?? gym.slug ?? itemIndex}`}
-                    >
-                      {renderCard(gym, itemIndex)}
-                    </div>
-                  );
-                })}
+                <div
+                  className="grid gap-4 sm:gap-6 xl:gap-7"
+                  style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                >
+                  {visibleGyms.map((gym, columnIndex) => {
+                    const itemIndex = startIndex + columnIndex;
+                    return (
+                      <div
+                        className="h-full"
+                        data-gym-index={itemIndex}
+                        data-gym-slug={gym.slug ?? ""}
+                        key={`${gym.id ?? gym.slug ?? itemIndex}`}
+                      >
+                        {renderCard(gym, itemIndex)}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
   },
 );

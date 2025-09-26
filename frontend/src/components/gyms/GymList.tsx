@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { ForwardRefExoticComponent, JSX, RefAttributes } from "react";
 
@@ -42,9 +35,7 @@ const VirtualizedGymGrid = dynamic<VirtualizedGymGridProps>(
       </div>
     ),
   },
-) as ForwardRefExoticComponent<
-  VirtualizedGymGridProps & RefAttributes<VirtualizedGymGridHandle>
->;
+) as ForwardRefExoticComponent<VirtualizedGymGridProps & RefAttributes<VirtualizedGymGridHandle>>;
 
 const escapeSelector = (value: string) => {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -151,7 +142,7 @@ export function GymList({
     const targetSlug = hasSelectedOnPage
       ? selectedSlug
       : gyms.length > 0
-        ? gyms[0]?.slug ?? null
+        ? (gyms[0]?.slug ?? null)
         : null;
 
     focusRequestRef.current = null;

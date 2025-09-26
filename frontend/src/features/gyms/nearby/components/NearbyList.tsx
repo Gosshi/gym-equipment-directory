@@ -333,7 +333,12 @@ export function NearbyList({
         fallbackToFirst?: boolean;
       } = {},
     ) => {
-      const { align = "start", behavior = "smooth", preventScroll = false, fallbackToFirst = true } = options;
+      const {
+        align = "start",
+        behavior = "smooth",
+        preventScroll = false,
+        fallbackToFirst = true,
+      } = options;
       const container = listRef.current;
       if (!container) {
         return;
@@ -388,7 +393,7 @@ export function NearbyList({
 
     const ids = items.map(gym => gym.id);
     const hasSelected = selectedGymId != null && ids.includes(selectedGymId);
-    const targetId = hasSelected ? selectedGymId : ids[0] ?? null;
+    const targetId = hasSelected ? selectedGymId : (ids[0] ?? null);
     const align = hasSelected ? "center" : "start";
 
     if (shouldVirtualize) {
@@ -414,14 +419,7 @@ export function NearbyList({
     }
 
     requestAnimationFrame(() => focusGymButton(targetId, { align }));
-  }, [
-    focusGymButton,
-    isLoading,
-    items,
-    selectedGymId,
-    shouldVirtualize,
-    virtualizer,
-  ]);
+  }, [focusGymButton, isLoading, items, selectedGymId, shouldVirtualize, virtualizer]);
 
   if (isInitialLoading) {
     return <NearbySkeleton />;
