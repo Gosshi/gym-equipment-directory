@@ -161,20 +161,24 @@ async def search_gyms(
     total_pagable = len(pagable)
     max_page = max(1, math.ceil(total_pagable / per_page_safe))
 
+    was_clamped = False
     if page_token is None:
         resolved_page = min(max(page, 1), max_page)
+        was_clamped = resolved_page != page
         offset = (resolved_page - 1) * per_page_safe
     else:
         offset = parse_offset_token(page_token, page=page, per_page=per_page_safe)
         if offset >= total_pagable and total_pagable > 0:
             offset = (max_page - 1) * per_page_safe
-        resolved_page = max(1, min(max_page, offset // per_page_safe + 1))
+            resolved_page = max(1, min(max_page, offset // per_page_safe + 1))
 
     if offset >= total_pagable and total_pagable > 0:
         offset = max(0, (max_page - 1) * per_page_safe)
         resolved_page = max_page
 
     slice_ = pagable[offset : offset + per_page_safe]
+    if was_clamped and page_token is None and slice_ and len(slice_) < per_page_safe:
+        slice_ = pagable[: len(slice_)]
     next_token = build_next_offset_token(offset, per_page_safe, total_pagable)
 
     dto_items = [

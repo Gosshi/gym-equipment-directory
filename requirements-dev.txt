@@ -8,3 +8,4 @@ pytest-mock>=3.12
 Faker>=19.0
 httpx>=0.27
 anyio>=4.0
+eval_type_backport>=0.2
