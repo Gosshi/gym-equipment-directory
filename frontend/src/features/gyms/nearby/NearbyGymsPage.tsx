@@ -133,7 +133,7 @@ export function NearbyGymsPage() {
     lastSelectionAt,
     selectGym,
     clearSelection,
-  } = useSelectedGym({ gyms: selectionGyms });
+  } = useSelectedGym({ gyms: selectionGyms, requiredGymIds: items.map(gym => gym.id) });
   const clearStore = useMapSelectionStore(state => state.clear);
   const [isDesktop, setIsDesktop] = useState(false);
   const desktopPanelRef = useRef<HTMLDivElement | null>(null);

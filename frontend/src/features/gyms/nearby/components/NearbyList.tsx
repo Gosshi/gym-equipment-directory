@@ -105,6 +105,8 @@ export function NearbyList({
   const itemRefs = useRef(new Map<number, HTMLDivElement>());
   const virtualScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
+  const previousPageRef = useRef(meta.page);
+  const pendingPageChangeRef = useRef(false);
   const shouldVirtualize = items.length > 40;
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -122,6 +124,13 @@ export function NearbyList({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (meta.page !== previousPageRef.current) {
+      previousPageRef.current = meta.page;
+      pendingPageChangeRef.current = true;
+    }
+  }, [meta.page]);
 
   useEffect(() => {
     if (shouldVirtualize) {
@@ -314,6 +323,104 @@ export function NearbyList({
     [items, onOpenDetail, onSelectGym, selectedGymId],
   );
 
+  const focusGymButton = useCallback(
+    (
+      targetId: number | null,
+      options: {
+        align?: "start" | "center";
+        behavior?: ScrollBehavior;
+        preventScroll?: boolean;
+        fallbackToFirst?: boolean;
+      } = {},
+    ) => {
+      const {
+        align = "start",
+        behavior = "smooth",
+        preventScroll = false,
+        fallbackToFirst = true,
+      } = options;
+      const container = listRef.current;
+      if (!container) {
+        return;
+      }
+
+      const ids = items.map(gym => gym.id);
+      let resolvedId = targetId != null ? targetId : null;
+
+      if ((resolvedId == null || !ids.includes(resolvedId)) && fallbackToFirst) {
+        resolvedId = ids[0] ?? null;
+      }
+
+      if (resolvedId == null) {
+        container.focus({ preventScroll: true });
+        return;
+      }
+
+      const selector = `[data-gym-id="${resolvedId}"] button`;
+
+      const attemptFocus = (attempt = 0) => {
+        const element = container.querySelector<HTMLElement>(selector);
+        if (element) {
+          if (!preventScroll) {
+            element.scrollIntoView({ block: align, behavior });
+          }
+          element.focus({ preventScroll: preventScroll || behavior === "auto" });
+          return;
+        }
+
+        if (attempt >= 5) {
+          container.focus({ preventScroll: true });
+          return;
+        }
+
+        requestAnimationFrame(() => attemptFocus(attempt + 1));
+      };
+
+      attemptFocus();
+    },
+    [items],
+  );
+
+  useEffect(() => {
+    if (!pendingPageChangeRef.current) {
+      return;
+    }
+    if (isLoading) {
+      return;
+    }
+
+    pendingPageChangeRef.current = false;
+
+    const ids = items.map(gym => gym.id);
+    const hasSelected = selectedGymId != null && ids.includes(selectedGymId);
+    const targetId = hasSelected ? selectedGymId : (ids[0] ?? null);
+    const align = hasSelected ? "center" : "start";
+
+    if (shouldVirtualize) {
+      if (targetId != null) {
+        const index = ids.indexOf(targetId);
+        if (index >= 0) {
+          requestAnimationFrame(() => {
+            virtualizer.scrollToIndex(index, { align });
+            requestAnimationFrame(() =>
+              focusGymButton(targetId, { align, fallbackToFirst: false }),
+            );
+          });
+          return;
+        }
+      }
+
+      requestAnimationFrame(() => focusGymButton(targetId, { align }));
+      return;
+    }
+
+    if (listRef.current) {
+      listRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    requestAnimationFrame(() => focusGymButton(targetId, { align }));
+  }, [focusGymButton, isLoading, items, selectedGymId, shouldVirtualize, virtualizer]);
+
   if (isInitialLoading) {
     return <NearbySkeleton />;
   }
@@ -402,6 +509,7 @@ export function NearbyList({
                   <div
                     aria-selected={isSelected}
                     className="mb-3 last:mb-0"
+                    data-gym-id={gym.id}
                     data-testid={`gym-item-${gym.id}`}
                     id={`gym-option-${gym.id}`}
                     role="option"
@@ -432,6 +540,7 @@ export function NearbyList({
               <div
                 aria-selected={isSelected}
                 className="mb-3 last:mb-0"
+                data-gym-id={gym.id}
                 data-testid={`gym-item-${gym.id}`}
                 id={`gym-option-${gym.id}`}
                 key={gym.id}

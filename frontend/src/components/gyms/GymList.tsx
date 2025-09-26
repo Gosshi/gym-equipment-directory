@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import type { JSX } from "react";
+import type { ForwardRefExoticComponent, JSX, RefAttributes } from "react";
 
 import { GymCard } from "@/components/gyms/GymCard";
 import { Pagination } from "@/components/gyms/Pagination";
@@ -13,15 +13,16 @@ import { useSearchResultState } from "@/components/search/useSearchResultState";
 import { cn } from "@/lib/utils";
 import { useSearchStore } from "@/store/searchStore";
 import type { GymSearchMeta, GymSummary } from "@/types/gym";
+import type {
+  VirtualizedGymGridHandle,
+  VirtualizedGymGridProps,
+} from "@/components/gyms/VirtualizedGymGrid";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const VIRTUALIZE_THRESHOLD = 50;
 const PREFETCH_LIMIT = 6;
 
-const VirtualizedGymGrid = dynamic<{
-  gyms: GymSummary[];
-  renderCard: (gym: GymSummary, index: number) => JSX.Element;
-}>(
+const VirtualizedGymGrid = dynamic<VirtualizedGymGridProps>(
   async () => {
     const mod = await import("@/components/gyms/VirtualizedGymGrid");
     return { default: mod.VirtualizedGymGrid };
@@ -34,7 +35,14 @@ const VirtualizedGymGrid = dynamic<{
       </div>
     ),
   },
-);
+) as ForwardRefExoticComponent<VirtualizedGymGridProps & RefAttributes<VirtualizedGymGridHandle>>;
+
+const escapeSelector = (value: string) => {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return value.replace(/["'\\]/g, match => `\\${match}`);
+};
 
 type GymListProps = {
   gyms: GymSummary[];
@@ -97,6 +105,8 @@ export function GymList({
 
   const resultSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef(page);
+  const virtualizedGridRef = useRef<VirtualizedGymGridHandle | null>(null);
+  const focusRequestRef = useRef<"page" | "pop" | null>(null);
   const headerDescriptionId = useId();
   const paginationSummaryId = useId();
 
@@ -105,8 +115,111 @@ export function GymList({
   const consumeScrollPosition = useSearchStore(state => state.consumeScrollPosition);
   const setNavigationSource = useSearchStore(state => state.setNavigationSource);
 
+  const hasSelectedOnPage = useMemo(
+    () => (selectedSlug ? gyms.some(gym => gym.slug === selectedSlug) : false),
+    [gyms, selectedSlug],
+  );
+
+  const shouldVirtualize =
+    gyms.length >= VIRTUALIZE_THRESHOLD || (totalCount ?? 0) >= VIRTUALIZE_THRESHOLD;
+
+  const flushFocusRequest = useCallback(() => {
+    const requestType = focusRequestRef.current;
+    if (!requestType) {
+      return;
+    }
+
+    if (isPageLoading || resultState.isLoading) {
+      return;
+    }
+
+    const section = resultSectionRef.current;
+    if (!section) {
+      focusRequestRef.current = null;
+      return;
+    }
+
+    const targetSlug = hasSelectedOnPage
+      ? selectedSlug
+      : gyms.length > 0
+        ? (gyms[0]?.slug ?? null)
+        : null;
+
+    focusRequestRef.current = null;
+
+    if (!targetSlug) {
+      section.focus({ preventScroll: requestType === "pop" });
+      return;
+    }
+
+    if (shouldVirtualize && virtualizedGridRef.current) {
+      const targetIndex = gyms.findIndex(gym => gym.slug === targetSlug);
+      if (targetIndex >= 0) {
+        virtualizedGridRef.current.scrollToIndex(targetIndex, {
+          align: hasSelectedOnPage ? "center" : "start",
+        });
+      }
+    }
+
+    const attemptFocus = (attempt = 0) => {
+      const selector = `[data-gym-slug="${escapeSelector(targetSlug)}"]`;
+      const wrapper = section.querySelector<HTMLElement>(selector);
+
+      if (wrapper) {
+        const focusable = wrapper.querySelector<HTMLElement>(
+          'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])',
+        );
+        const element = focusable ?? wrapper;
+
+        if (requestType === "pop") {
+          element.focus({ preventScroll: true });
+        } else {
+          element.scrollIntoView({
+            block: hasSelectedOnPage ? "center" : "start",
+            behavior: "smooth",
+          });
+          requestAnimationFrame(() => element.focus({ preventScroll: true }));
+        }
+        return;
+      }
+
+      if (attempt >= 5) {
+        section.focus({ preventScroll: requestType === "pop" });
+        return;
+      }
+
+      requestAnimationFrame(() => attemptFocus(attempt + 1));
+    };
+
+    if (shouldVirtualize) {
+      requestAnimationFrame(() => requestAnimationFrame(() => attemptFocus()));
+    } else {
+      requestAnimationFrame(() => attemptFocus());
+    }
+  }, [
+    gyms,
+    hasSelectedOnPage,
+    isPageLoading,
+    resultState.isLoading,
+    selectedSlug,
+    shouldVirtualize,
+  ]);
+
+  const requestFocus = useCallback(
+    (type: "page" | "pop") => {
+      focusRequestRef.current = type;
+      flushFocusRequest();
+    },
+    [flushFocusRequest],
+  );
+
   useEffect(() => {
-    if (!resultSectionRef.current) {
+    flushFocusRequest();
+  }, [flushFocusRequest]);
+
+  useEffect(() => {
+    const section = resultSectionRef.current;
+    if (!section) {
       previousPageRef.current = page;
       return;
     }
@@ -122,39 +235,46 @@ export function GymList({
       if (typeof saved === "number" && Number.isFinite(saved)) {
         window.scrollTo({ top: saved, behavior: "auto" });
       } else {
-        resultSectionRef.current.scrollIntoView({ behavior: "auto", block: "start" });
+        section.scrollIntoView({ behavior: "auto", block: "start" });
       }
-      resultSectionRef.current.focus();
+      requestFocus("pop");
       setNavigationSource("idle");
       previousPageRef.current = page;
       return;
     }
 
-    if (navigationSource === "push") {
-      if (previousPageRef.current !== page) {
-        resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        resultSectionRef.current.focus();
+    const hasPageChanged = previousPageRef.current !== page;
+
+    if (navigationSource === "push" || navigationSource === "replace") {
+      const shouldScroll = hasPageChanged || navigationSource === "push";
+      const shouldFocus = hasPageChanged;
+
+      if (shouldScroll) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (shouldFocus) {
+        requestFocus("page");
       }
       setNavigationSource("idle");
       previousPageRef.current = page;
       return;
     }
 
-    if (navigationSource === "replace") {
-      setNavigationSource("idle");
-      previousPageRef.current = page;
-      return;
+    if (hasPageChanged) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      requestFocus("page");
     }
 
-    if (previousPageRef.current !== page) {
-      resultSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      resultSectionRef.current.focus();
-    }
     previousPageRef.current = page;
-  }, [consumeScrollPosition, currentQueryString, navigationSource, page, setNavigationSource]);
-
-  const shouldVirtualize =
-    gyms.length >= VIRTUALIZE_THRESHOLD || (totalCount ?? 0) >= VIRTUALIZE_THRESHOLD;
+  }, [
+    consumeScrollPosition,
+    currentQueryString,
+    navigationSource,
+    page,
+    requestFocus,
+    setNavigationSource,
+  ]);
 
   const renderCard = useCallback(
     (gym: GymSummary, index: number) => (
@@ -183,7 +303,7 @@ export function GymList({
       content = (
         <div className="relative">
           {shouldVirtualize ? (
-            <VirtualizedGymGrid gyms={gyms} renderCard={renderCard} />
+            <VirtualizedGymGrid ref={virtualizedGridRef} gyms={gyms} renderCard={renderCard} />
           ) : (
             <div
               className={cn(
@@ -194,13 +314,14 @@ export function GymList({
               )}
             >
               {gyms.map((gym, index) => (
-                <GymCard
-                  key={gym.id}
-                  gym={gym}
-                  prefetch={index < PREFETCH_LIMIT}
-                  onSelect={onGymSelect}
-                  isSelected={selectedSlug === gym.slug}
-                />
+                <div
+                  className="h-full"
+                  data-gym-index={index}
+                  data-gym-slug={gym.slug}
+                  key={gym.id ?? gym.slug ?? index}
+                >
+                  {renderCard(gym, index)}
+                </div>
               ))}
             </div>
           )}
