@@ -55,7 +55,9 @@ export const useMapSelectionStore = create<MapSelectionState>((set, get) => ({
       source != null && (selectionChanged || sourceChanged || source !== "url");
 
     if (shouldRefreshTimestamp) {
-      update.lastSelectionAt = Date.now();
+      const now = Date.now();
+      const previous = state.lastSelectionAt ?? 0;
+      update.lastSelectionAt = now <= previous ? previous + 1 : now;
       shouldUpdate = true;
     }
 

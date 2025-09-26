@@ -306,4 +306,29 @@ describe("NearbyMap interactions", () => {
 
     expect(mockState.flyToCalls).toHaveLength(1);
   });
+
+  it("avoids repeated auto-pan when markers refresh without selection changes", async () => {
+    const utils = renderMap();
+    await act(async () => {});
+
+    act(() => {
+      useMapSelectionStore.getState().setSelected(2, "list");
+    });
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(mockState.flyToCalls).toHaveLength(1);
+
+    act(() => {
+      utils.rerender(<TestNearbyMap markers={[{ ...gyms[0] }, { ...gyms[1] }]} />);
+    });
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(mockState.flyToCalls).toHaveLength(1);
+  });
 });

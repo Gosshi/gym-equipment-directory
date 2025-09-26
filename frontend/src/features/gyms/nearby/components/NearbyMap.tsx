@@ -213,6 +213,11 @@ export function NearbyMap({
   const suppressMoveRef = useRef(false);
   const isUserDraggingRef = useRef(false);
   const pendingPanRef = useRef<number | null>(null);
+  const lastDragStartAtRef = useRef<number | null>(null);
+  const lastAutoPanRef = useRef<{ id: number | null; at: number | null }>({
+    id: null,
+    at: null,
+  });
   const lastMapSelectionRef = useRef<{ id: number | null; at: number | null }>({
     id: null,
     at: null,
@@ -364,10 +369,12 @@ export function NearbyMap({
         window.clearTimeout(pendingPanRef.current);
         pendingPanRef.current = null;
       }
+      lastDragStartAtRef.current = Date.now();
     };
 
     const handleDragEnd = () => {
       isUserDraggingRef.current = false;
+      lastDragStartAtRef.current = null;
     };
 
     map.on("moveend", handleMoveEnd);
@@ -458,6 +465,7 @@ export function NearbyMap({
     }
 
     if (selectedGymId === null) {
+      lastAutoPanRef.current = { id: null, at: null };
       return;
     }
 
@@ -473,6 +481,24 @@ export function NearbyMap({
       return;
     }
 
+    if (
+      lastDragStartAtRef.current !== null &&
+      lastSelectionAt !== null &&
+      lastSelectionAt - lastDragStartAtRef.current < 400
+    ) {
+      return;
+    }
+
+    const lastAutoPan = lastAutoPanRef.current;
+    if (
+      lastAutoPan.id === selectedGymId &&
+      lastAutoPan.at !== null &&
+      lastSelectionAt !== null &&
+      lastAutoPan.at >= lastSelectionAt
+    ) {
+      return;
+    }
+
     if (lastSelectionSource === "list") {
       const lastMapSelection = lastMapSelectionRef.current;
       if (
@@ -485,7 +511,8 @@ export function NearbyMap({
       }
     }
 
-    const targetGym = markers.find(gym => gym.id === selectedGymId);
+    const targetGymId = selectedGymId;
+    const targetGym = markers.find(gym => gym.id === targetGymId);
     if (!targetGym) {
       return;
     }
@@ -505,6 +532,7 @@ export function NearbyMap({
         currentZoom < DEFAULT_ZOOM ? Math.min(DEFAULT_ZOOM, currentZoom + 2) : currentZoom;
 
       suppressMoveRef.current = true;
+      lastAutoPanRef.current = { id: targetGymId, at: Date.now() };
       activeMap.flyTo({
         center: [targetGym.longitude, targetGym.latitude],
         zoom: targetZoom,
