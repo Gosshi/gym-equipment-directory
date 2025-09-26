@@ -8,6 +8,7 @@ import type { NearbyGym } from "@/types/gym";
 interface UseSelectedGymOptions {
   gyms: NearbyGym[];
   queryKey?: string;
+  requiredGymIds?: number[];
 }
 
 interface UseSelectedGymResult {
@@ -33,6 +34,7 @@ const toGymId = (raw: string | null): number | null => {
 export function useSelectedGym({
   gyms,
   queryKey = DEFAULT_QUERY_KEY,
+  requiredGymIds,
 }: UseSelectedGymOptions): UseSelectedGymResult {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,6 +45,13 @@ export function useSelectedGym({
   const lastSelectionSource = useMapSelectionStore(state => state.lastSelectionSource);
   const lastSelectionAt = useMapSelectionStore(state => state.lastSelectionAt);
   const setSelectedId = useMapSelectionStore(state => state.setSelected);
+
+  const requiredGymIdsSet = useMemo(() => {
+    if (!requiredGymIds || requiredGymIds.length === 0) {
+      return null;
+    }
+    return new Set(requiredGymIds);
+  }, [requiredGymIds]);
 
   const skipUrlToStoreSyncRef = useRef(false);
   const skipStoreToUrlSyncRef = useRef(false);
@@ -141,6 +150,14 @@ export function useSelectedGym({
       return;
     }
 
+    if (requiredGymIdsSet && !requiredGymIdsSet.has(selectedGymId)) {
+      skipUrlToStoreSyncRef.current = true;
+      skipStoreToUrlSyncRef.current = false;
+      nextNavigationModeRef.current = "replace";
+      setSelectedId(null);
+      return;
+    }
+
     if (gyms.some(gym => gym.id === selectedGymId)) {
       return;
     }
@@ -149,7 +166,7 @@ export function useSelectedGym({
     skipStoreToUrlSyncRef.current = false;
     nextNavigationModeRef.current = "replace";
     setSelectedId(null);
-  }, [gyms, selectedGymId, setSelectedId]);
+  }, [gyms, requiredGymIdsSet, selectedGymId, setSelectedId]);
 
   const selectedGym = useMemo(
     () => gyms.find(gym => gym.id === selectedGymId) ?? null,

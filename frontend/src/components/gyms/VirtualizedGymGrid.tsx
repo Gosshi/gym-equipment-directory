@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { JSX } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { GymSummary } from "@/types/gym";
 
@@ -25,21 +25,30 @@ const getColumnCount = (width: number) => {
   return 1;
 };
 
-type VirtualizedGymGridProps = {
+export type VirtualizedGymGridProps = {
   gyms: GymSummary[];
   renderCard: (gym: GymSummary, index: number) => JSX.Element;
   className?: string;
   overscan?: number;
+  onScrollElementChange?: (element: HTMLDivElement | null) => void;
 };
 
-export function VirtualizedGymGrid({
-  gyms,
-  renderCard,
-  className,
-  overscan = 4,
-}: VirtualizedGymGridProps) {
+export type VirtualizedGymGridHandle = {
+  scrollToIndex: (index: number, options?: { align?: "start" | "center" | "end" }) => void;
+  getScrollElement: () => HTMLDivElement | null;
+};
+
+export const VirtualizedGymGrid = forwardRef<VirtualizedGymGridHandle, VirtualizedGymGridProps>(
+  function VirtualizedGymGrid({
+    gyms,
+    renderCard,
+    className,
+    overscan = 4,
+    onScrollElementChange,
+  }, ref) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(1);
+  const columnsRef = useRef(columns);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -59,6 +68,17 @@ export function VirtualizedGymGrid({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    columnsRef.current = columns;
+  }, [columns]);
+
+  useEffect(() => {
+    onScrollElementChange?.(scrollRef.current);
+    return () => {
+      onScrollElementChange?.(null);
+    };
+  }, [onScrollElementChange]);
+
   const rowCount = useMemo(() => {
     if (columns <= 0) {
       return 0;
@@ -72,6 +92,23 @@ export function VirtualizedGymGrid({
     estimateSize: () => ROW_ESTIMATE,
     overscan,
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToIndex: (index, options) => {
+        if (!Number.isFinite(index) || index < 0) {
+          return;
+        }
+        const columnCount = columnsRef.current || 1;
+        const targetRow = Math.floor(index / columnCount);
+        const align = options?.align ?? "start";
+        rowVirtualizer.scrollToIndex(Math.max(targetRow, 0), { align });
+      },
+      getScrollElement: () => scrollRef.current,
+    }),
+    [rowVirtualizer],
+  );
 
   return (
     <div
@@ -116,7 +153,12 @@ export function VirtualizedGymGrid({
                 {visibleGyms.map((gym, columnIndex) => {
                   const itemIndex = startIndex + columnIndex;
                   return (
-                    <div className="h-full" key={`${gym.id ?? gym.slug ?? itemIndex}`}>
+                    <div
+                      className="h-full"
+                      data-gym-index={itemIndex}
+                      data-gym-slug={gym.slug ?? ""}
+                      key={`${gym.id ?? gym.slug ?? itemIndex}`}
+                    >
                       {renderCard(gym, itemIndex)}
                     </div>
                   );
@@ -128,4 +170,5 @@ export function VirtualizedGymGrid({
       </div>
     </div>
   );
-}
+  },
+);
