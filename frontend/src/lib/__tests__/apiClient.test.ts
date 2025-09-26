@@ -48,6 +48,7 @@ describe("apiClient favorites/history endpoints", () => {
 
     try {
       await expect(getFavorites("dev-1")).resolves.toEqual([]);
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -112,6 +113,7 @@ describe("apiClient favorites/history endpoints", () => {
 
     try {
       await expect(getHistory()).resolves.toEqual({ items: [] });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
     }

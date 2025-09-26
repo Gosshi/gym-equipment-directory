@@ -19,6 +19,7 @@ export class ApiError extends Error {
 export interface ApiRequestOptions extends RequestInit {
   timeoutMs?: number;
   query?: Record<string, unknown>;
+  suppressErrorLogStatuses?: number[];
 }
 
 export const getApiBaseUrl = () => {
@@ -105,7 +106,14 @@ const ensureCanonicalHeader = (headers: Record<string, string>, name: string, fa
 
 export async function apiRequest<TResponse>(
   path: string,
-  { timeoutMs = DEFAULT_TIMEOUT_MS, query, headers, signal, ...init }: ApiRequestOptions = {},
+  {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    query,
+    headers,
+    signal,
+    suppressErrorLogStatuses = [],
+    ...init
+  }: ApiRequestOptions = {},
 ): Promise<TResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -146,7 +154,8 @@ export async function apiRequest<TResponse>(
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      if (typeof window !== "undefined") {
+      const shouldSuppressLog = suppressErrorLogStatuses.includes(response.status);
+      if (!shouldSuppressLog && typeof window !== "undefined") {
         // eslint-disable-next-line no-console
         console.error("API error", { url, status: response.status, body: text });
       }
@@ -194,6 +203,7 @@ export const getFavorites = async (deviceId: string) => {
       `/me/favorites?device_id=${encodeURIComponent(deviceId)}`,
       {
         method: "GET",
+        suppressErrorLogStatuses: [404],
       },
     );
   } catch (error) {
@@ -219,7 +229,10 @@ type HistoryPayload = { gymId: number; gymIds?: never } | { gymIds: number[]; gy
 
 export const getHistory = async () => {
   try {
-    return await apiRequest<HistoryResponse>("/me/history", { method: "GET" });
+    return await apiRequest<HistoryResponse>("/me/history", {
+      method: "GET",
+      suppressErrorLogStatuses: [404],
+    });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       return { items: [] };

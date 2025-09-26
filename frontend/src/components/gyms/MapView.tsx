@@ -99,8 +99,10 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
 
   const handleViewportChange = useCallback(
     (viewport: MapViewport) => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
+      const pendingTimeout = debounceRef.current;
+      const hadPending = pendingTimeout !== null;
+      if (hadPending) {
+        window.clearTimeout(pendingTimeout);
         debounceRef.current = null;
       }
       const radiusKm = calculateRadius(viewport);
@@ -114,6 +116,9 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
       const sameRadius = Math.abs(current.radiusKm - radiusKm) < 0.05;
       const sameZoom = viewportZoom == null ? true : Math.abs(current.zoom - viewportZoom) < 0.01;
       if (sameCenter && sameRadius && sameZoom) {
+        if (hadPending) {
+          setBusyFlag("mapInteracting", false);
+        }
         return;
       }
       setBusyFlag("mapInteracting", true);
@@ -151,9 +156,10 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
       lastSelectionSource={lastSelectionSource}
       lastSelectionAt={lastSelectionAt}
       onCenterChange={center => {
-        setBusyFlag("mapInteracting", true);
-        if (debounceRef.current !== null) {
-          window.clearTimeout(debounceRef.current);
+        const pendingTimeout = debounceRef.current;
+        const hadPending = pendingTimeout !== null;
+        if (hadPending) {
+          window.clearTimeout(pendingTimeout);
           debounceRef.current = null;
         }
         const current = gymSearchStore.getState();
@@ -163,9 +169,12 @@ export function MapView({ markers, status, error, isInitialLoading, onRetry }: M
           Math.abs(current.lat - center.lat) < 1e-6 &&
           Math.abs(current.lng - center.lng) < 1e-6;
         if (sameCenter) {
-          setBusyFlag("mapInteracting", false);
+          if (hadPending) {
+            setBusyFlag("mapInteracting", false);
+          }
           return;
         }
+        setBusyFlag("mapInteracting", true);
         debounceRef.current = window.setTimeout(() => {
           setBusyFlag("mapInteracting", false);
           setMapState({ lat: center.lat, lng: center.lng });

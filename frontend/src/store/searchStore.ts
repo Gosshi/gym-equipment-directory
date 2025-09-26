@@ -317,32 +317,45 @@ export const useGymSearchStore = create<GymSearchStore>()(
       logEvent("filter_change", { filter: "distance", value: next });
     },
     setMapState: ({ lat, lng, radiusKm, zoom }) => {
+      const prev = get();
       const sanitizedLat = clampLatitude(lat);
       const sanitizedLng = clampLongitude(lng);
-      const sanitizedRadius = radiusKm != null ? clampRadius(radiusKm) : undefined;
-      const sanitizedZoom = zoom != null && Number.isFinite(zoom) ? zoom : undefined;
-      set(state => ({
+      const nextRadius = radiusKm != null ? clampRadius(radiusKm) : prev.radiusKm;
+      const nextZoom =
+        zoom != null && Number.isFinite(zoom) && !Number.isNaN(zoom) ? zoom : prev.zoom;
+      const sameLat = typeof prev.lat === "number" && Math.abs(prev.lat - sanitizedLat) < 1e-6;
+      const sameLng = typeof prev.lng === "number" && Math.abs(prev.lng - sanitizedLng) < 1e-6;
+      const sameRadius = Math.abs(prev.radiusKm - nextRadius) < 0.05;
+      const sameZoom = Math.abs(prev.zoom - nextZoom) < 0.01;
+      if (sameLat && sameLng && sameRadius && sameZoom) {
+        return;
+      }
+      set({
         lat: sanitizedLat,
         lng: sanitizedLng,
-        radiusKm: sanitizedRadius ?? state.radiusKm,
-        zoom: sanitizedZoom ?? state.zoom,
+        radiusKm: nextRadius,
+        zoom: nextZoom,
         page: 1,
         pendingHistory: "replace",
-      }));
-      const state = get();
+      });
       logEvent("map_move", {
         lat: sanitizedLat,
         lng: sanitizedLng,
-        radiusKm: sanitizedRadius ?? state.radiusKm,
-        zoom: sanitizedZoom ?? state.zoom,
+        radiusKm: nextRadius,
+        zoom: nextZoom,
       });
     },
     setPagination: (page, options) => {
       const nextPage = clampPage(page);
-      set(state => ({
-        page: nextPage,
-        pendingHistory: options?.history ?? "push",
-      }));
+      set(state => {
+        if (state.page === nextPage) {
+          return state;
+        }
+        return {
+          page: nextPage,
+          pendingHistory: options?.history ?? "push",
+        };
+      });
       logEvent("page_change", { page: nextPage });
     },
     setLimit: limit => {
@@ -375,10 +388,15 @@ export const useGymSearchStore = create<GymSearchStore>()(
       }));
     },
     setRightPanelOpen: open => {
-      set(state => ({
-        rightPanelOpen: open,
-        pendingHistory: "replace",
-      }));
+      set(state => {
+        if (state.rightPanelOpen === open) {
+          return state;
+        }
+        return {
+          rightPanelOpen: open,
+          pendingHistory: "replace",
+        };
+      });
     },
     resetFilters: () => {
       set(state => ({
@@ -432,12 +450,17 @@ export const useGymSearchStore = create<GymSearchStore>()(
       });
     },
     setBusyFlag: (key, value) => {
-      set(state => ({
-        busyFlags: {
-          ...state.busyFlags,
-          [key]: value,
-        },
-      }));
+      set(state => {
+        if (state.busyFlags[key] === value) {
+          return state;
+        }
+        return {
+          busyFlags: {
+            ...state.busyFlags,
+            [key]: value,
+          },
+        };
+      });
     },
   })),
 );
