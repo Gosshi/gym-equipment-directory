@@ -90,6 +90,8 @@ type FormState = {
   lng: number | null;
 };
 
+type NavigationModeOption = "auto" | "push" | "replace";
+
 const toFormState = (filters: FilterState): FormState => ({
   q: filters.q,
   prefecture: filters.pref ?? "",
@@ -281,10 +283,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     let source: NavigationSource;
     if (!initializedRef.current) {
       source = "initial";
-    } else if (
-      pendingNavigationRef.current &&
-      pendingQueryRef.current === nextQuery
-    ) {
+    } else if (pendingNavigationRef.current && pendingQueryRef.current === nextQuery) {
       source = pendingNavigationRef.current;
     } else {
       source = "pop";
@@ -353,7 +352,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   useEffect(() => cancelPendingDebounce, [cancelPendingDebounce]);
 
   const applyFilters = useCallback(
-    (nextFilters: FilterState, options: { force?: boolean } = {}) => {
+    (
+      nextFilters: FilterState,
+      options: { force?: boolean; navigationMode?: NavigationModeOption } = {},
+    ) => {
       const params = serializeFilterState(nextFilters);
       const nextQuery = params.toString();
 
@@ -361,8 +363,12 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         return;
       }
 
-      const navigationMode: NavigationSource =
-        nextQuery === searchParamsKey ? "replace" : "push";
+      const navigationMode: NavigationSource = (() => {
+        if (options.navigationMode === "push" || options.navigationMode === "replace") {
+          return options.navigationMode;
+        }
+        return nextQuery === searchParamsKey ? "replace" : "push";
+      })();
 
       if (navigationMode === "push" && typeof window !== "undefined") {
         saveScrollPosition(currentQueryString, window.scrollY);
@@ -715,7 +721,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           ...filters,
           page: nextPage,
         },
-        { force: true },
+        { force: true, navigationMode: "replace" },
       );
     },
     [applyFilters, cancelPendingDebounce, filters],

@@ -123,8 +123,7 @@ export function useSelectedGym({
     const nextQuery = params.toString();
     const url = nextQuery ? `${pathname}?${nextQuery}` : pathname;
     const navigationMode =
-      nextNavigationModeRef.current ??
-      (nextQuery === searchParamsSnapshot ? "replace" : "push");
+      nextNavigationModeRef.current ?? (nextQuery === searchParamsSnapshot ? "replace" : "push");
 
     skipUrlToStoreSyncRef.current = true;
     lastSyncedIdRef.current = selectedGymId;
