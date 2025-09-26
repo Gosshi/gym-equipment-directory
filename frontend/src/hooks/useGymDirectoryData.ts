@@ -9,12 +9,13 @@ import {
   type SetStateAction,
 } from "react";
 
+import { MAX_LIMIT } from "@/lib/searchParams";
 import { fetchNearbyGyms } from "@/services/gymNearby";
 import { searchGyms } from "@/services/gyms";
 import { useGymSearchStore } from "@/store/searchStore";
 import type { GymNearbyResponse, GymSearchResponse } from "@/types/gym";
 
-const MAP_RESULT_LIMIT = 200;
+const MAP_RESULT_MIN = 60;
 
 type QueryStatus = "idle" | "pending" | "success" | "error";
 
@@ -120,12 +121,13 @@ export function useGymDirectoryData() {
   const runMapFetch = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const pageSize = typeof limit === "number" && limit > 0 ? limit : MAP_RESULT_LIMIT;
+        const baseLimit = typeof limit === "number" && limit > 0 ? limit : MAP_RESULT_MIN;
+        const perPage = Math.min(Math.max(baseLimit * 2, MAP_RESULT_MIN), MAX_LIMIT);
         const response = await fetchNearbyGyms({
           lat: lat ?? undefined,
           lng: lng ?? undefined,
           radiusKm: radiusKm ?? undefined,
-          perPage: Math.max(pageSize * 2, MAP_RESULT_LIMIT),
+          perPage,
           page: 1,
           signal,
         });
