@@ -2,6 +2,7 @@
   "name": "gym-equipment-directory",
   "private": true,
   "scripts": {
+    "postinstall": "npm install --prefix frontend",
     "lint": "npm run lint --prefix frontend",
     "typecheck": "npm run typecheck --prefix frontend",
     "test:unit": "npm run test:unit --prefix frontend",
