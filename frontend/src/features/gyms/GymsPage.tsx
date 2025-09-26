@@ -27,7 +27,7 @@ const DEFAULT_META: GymSearchMeta = {
 export function GymsPage() {
   useUrlSync();
 
-  const { searchQuery, mapQuery } = useGymDirectoryData();
+  const { searchQuery, mapQuery, isMapEnabled } = useGymDirectoryData();
   const filterControls = useGymFilterControls();
 
   const { page, limit, selectedGymSlug, rightPanelOpen } = useGymSearchStore(
@@ -80,13 +80,14 @@ export function GymsPage() {
     setTotalPages(totalPages);
   }, [limit, searchQuery.data, setTotalPages]);
 
-  const mapMarkers = useMemo<NearbyGym[]>(
-    () =>
-      (mapQuery.data?.items ?? []).filter(
-        marker => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude),
-      ),
-    [mapQuery.data?.items],
-  );
+  const mapMarkers = useMemo<NearbyGym[]>(() => {
+    if (!isMapEnabled) {
+      return [];
+    }
+    return (mapQuery.data?.items ?? []).filter(
+      marker => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude),
+    );
+  }, [isMapEnabled, mapQuery.data?.items]);
 
   useEffect(() => {
     const slugSet = new Set<string>();
@@ -95,8 +96,9 @@ export function GymsPage() {
     resetSelectionIfMissing(slugSet);
   }, [gyms, mapMarkers, resetSelectionIfMissing]);
 
-  const mapStatus: "idle" | "loading" | "success" | "error" =
-    mapQuery.status === "pending"
+  const mapStatus: "idle" | "loading" | "success" | "error" = !isMapEnabled
+    ? "idle"
+    : mapQuery.status === "pending"
       ? "loading"
       : mapQuery.status === "error"
         ? "error"
@@ -104,13 +106,15 @@ export function GymsPage() {
           ? "success"
           : "idle";
 
-  const mapError = mapQuery.error
-    ? mapQuery.error instanceof Error
-      ? mapQuery.error.message
-      : String(mapQuery.error)
-    : null;
+  const mapError = !isMapEnabled
+    ? null
+    : mapQuery.error
+      ? mapQuery.error instanceof Error
+        ? mapQuery.error.message
+        : String(mapQuery.error)
+      : null;
 
-  const mapInitialLoading = mapQuery.status === "pending" && !mapQuery.data;
+  const mapInitialLoading = isMapEnabled && mapQuery.status === "pending" && !mapQuery.data;
 
   const handleSelectGym = useCallback(
     (slug: string) => {

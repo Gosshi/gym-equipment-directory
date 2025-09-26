@@ -24,7 +24,8 @@
       "@/features/*": ["src/features/*"],
       "@/hooks/*": ["src/hooks/*"],
       "@/store/*": ["src/store/*"],
-      "@/state/*": ["src/state/*"]
+      "@/state/*": ["src/state/*"],
+      "@/providers/*": ["src/providers/*"]
     },
     "plugins": [{ "name": "next" }]
   },

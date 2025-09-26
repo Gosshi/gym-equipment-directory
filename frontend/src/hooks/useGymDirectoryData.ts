@@ -1,42 +1,51 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useMemo } from "react";
 
-import { MAX_LIMIT } from "@/lib/searchParams";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
+
+import { MAX_LIMIT, type SortOption, type SortOrder } from "@/lib/searchParams";
 import { fetchNearbyGyms } from "@/services/gymNearby";
 import { searchGyms } from "@/services/gyms";
 import { useGymSearchStore } from "@/store/searchStore";
-import { useShallow } from "zustand/react/shallow";
 import type { GymNearbyResponse, GymSearchResponse } from "@/types/gym";
 
 const MAP_RESULT_MIN = 60;
 
-type QueryStatus = "idle" | "pending" | "success" | "error";
+type SearchQueryKey = [
+  "gyms",
+  "search",
+  {
+    q: string;
+    categories: string[];
+    prefecture: string;
+    city: string;
+    sort: SortOption;
+    order: SortOrder;
+    page: number;
+    limit: number;
+    lat: number | null;
+    lng: number | null;
+    radiusKm: number;
+  },
+];
 
-interface QueryState<TData> {
-  data: TData | null;
-  error: unknown;
-  status: QueryStatus;
-  isLoading: boolean;
-  isFetching: boolean;
-  isError: boolean;
-}
+type MapQueryKey = [
+  "gyms",
+  "map",
+  {
+    lat: number;
+    lng: number;
+    radiusKm: number;
+    limit: number;
+  },
+];
 
-const createInitialState = <TData>(): QueryState<TData> => ({
-  data: null,
-  error: null,
-  status: "idle",
-  isLoading: true,
-  isFetching: false,
-  isError: false,
-});
+const createSearchKey = (params: SearchQueryKey[2]): SearchQueryKey => ["gyms", "search", params];
+
+const createMapKey = (params: MapQueryKey[2]): MapQueryKey => ["gyms", "map", params];
+const DISABLED_MAP_KEY: MapQueryKey = ["gyms", "map", { lat: 0, lng: 0, radiusKm: 0, limit: 0 }];
 
 export function useGymDirectoryData() {
   const { q, categories, prefecture, city, sort, order, lat, lng, radiusKm, page, limit } =
@@ -56,214 +65,78 @@ export function useGymDirectoryData() {
       })),
     );
 
-  const [searchState, setSearchState] = useState<QueryState<GymSearchResponse>>(() =>
-    createInitialState<GymSearchResponse>(),
-  );
-  const [mapState, setMapState] = useState<QueryState<GymNearbyResponse>>(() =>
-    createInitialState<GymNearbyResponse>(),
-  );
-
-  const searchAbortRef = useRef<AbortController | null>(null);
-  const mapAbortRef = useRef<AbortController | null>(null);
-
-  const updatePendingState = useCallback(
-    <TData>(setState: Dispatch<SetStateAction<QueryState<TData>>>) => {
-      setState(prev => ({
-        ...prev,
-        status: prev.data ? prev.status : "pending",
-        isLoading: !prev.data,
-        isFetching: true,
-        isError: false,
-        error: null,
-      }));
-    },
-    [],
+  const searchKey = useMemo<SearchQueryKey>(
+    () =>
+      createSearchKey({
+        q,
+        categories,
+        prefecture,
+        city,
+        sort,
+        order,
+        page,
+        limit,
+        lat,
+        lng,
+        radiusKm,
+      }),
+    [q, categories, prefecture, city, sort, order, page, limit, lat, lng, radiusKm],
   );
 
-  const runSearchFetch = useCallback(
-    async (signal: AbortSignal) => {
-      try {
-        const response = await searchGyms(
-          {
-            q: q || undefined,
-            categories: categories.length > 0 ? categories : undefined,
-            prefecture: prefecture || undefined,
-            city: city || undefined,
-            page,
-            limit,
-            sort,
-            order,
-            lat: lat ?? undefined,
-            lng: lng ?? undefined,
-            radiusKm,
-          },
-          { signal },
-        );
-
-        if (signal.aborted) {
-          return;
-        }
-
-        setSearchState({
-          data: response,
-          error: null,
-          status: "success",
-          isLoading: false,
-          isFetching: false,
-          isError: false,
-        });
-      } catch (error) {
-        if (signal.aborted) {
-          return;
-        }
-
-        setSearchState(prev => ({
-          ...prev,
-          error,
-          status: "error",
-          isLoading: !prev.data,
-          isFetching: false,
-          isError: true,
-        }));
-      }
-    },
-    [categories, city, lat, limit, lng, order, page, prefecture, q, radiusKm, sort],
-  );
-
-  const runMapFetch = useCallback(
-    async (signal: AbortSignal) => {
-      const hasLat = typeof lat === "number" && Number.isFinite(lat);
-      const hasLng = typeof lng === "number" && Number.isFinite(lng);
-      if (!hasLat || !hasLng) {
-        setMapState(prev => ({
-          ...prev,
-          status: "idle",
-          isFetching: false,
-          isLoading: false,
-          isError: false,
-          error: null,
-        }));
-        return;
-      }
-
-      try {
-        const baseLimit = typeof limit === "number" && limit > 0 ? limit : MAP_RESULT_MIN;
-        const perPage = Math.min(Math.max(baseLimit * 2, MAP_RESULT_MIN), MAX_LIMIT);
-        const response = await fetchNearbyGyms({
-          lat,
-          lng,
-          radiusKm: radiusKm ?? undefined,
-          perPage,
-          page: 1,
-          signal,
-        });
-
-        if (signal.aborted) {
-          return;
-        }
-
-        setMapState({
-          data: response,
-          error: null,
-          status: "success",
-          isLoading: false,
-          isFetching: false,
-          isError: false,
-        });
-      } catch (error) {
-        if (signal.aborted) {
-          return;
-        }
-
-        setMapState(prev => ({
-          ...prev,
-          error,
-          status: "error",
-          isLoading: !prev.data,
-          isFetching: false,
-          isError: true,
-        }));
-      }
-    },
-    [lat, limit, lng, radiusKm],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    searchAbortRef.current?.abort();
-    searchAbortRef.current = controller;
-    updatePendingState(setSearchState);
-    void runSearchFetch(controller.signal);
-    return () => {
-      controller.abort();
-    };
-  }, [runSearchFetch, updatePendingState]);
-
-  useEffect(() => {
-    const mapEnabled =
-      typeof lat === "number" &&
-      Number.isFinite(lat) &&
-      typeof lng === "number" &&
-      Number.isFinite(lng);
-    if (!mapEnabled) {
-      mapAbortRef.current?.abort();
-      setMapState(prev => ({
-        ...prev,
-        status: "idle",
-        isFetching: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-      }));
-      return undefined;
+  const mapKey = useMemo<MapQueryKey | null>(() => {
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
     }
+    const baseLimit = typeof limit === "number" && limit > 0 ? limit : MAP_RESULT_MIN;
+    const perPage = Math.min(Math.max(baseLimit * 2, MAP_RESULT_MIN), MAX_LIMIT);
+    return createMapKey({
+      lat,
+      lng,
+      radiusKm,
+      limit: perPage,
+    });
+  }, [lat, lng, radiusKm, limit]);
 
-    const controller = new AbortController();
-    mapAbortRef.current?.abort();
-    mapAbortRef.current = controller;
-    updatePendingState(setMapState);
-    void runMapFetch(controller.signal);
-    return () => {
-      controller.abort();
-    };
-  }, [lat, lng, updatePendingState, runMapFetch]);
+  const searchQuery = useQuery<GymSearchResponse, unknown, GymSearchResponse, SearchQueryKey>({
+    queryKey: searchKey,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ queryKey: [, , params] }) =>
+      searchGyms({
+        q: params.q || undefined,
+        categories: params.categories.length > 0 ? params.categories : undefined,
+        prefecture: params.prefecture || undefined,
+        city: params.city || undefined,
+        page: params.page,
+        limit: params.limit,
+        sort: params.sort,
+        order: params.order,
+        lat: params.lat ?? undefined,
+        lng: params.lng ?? undefined,
+        radiusKm: params.radiusKm,
+      }),
+    gcTime: 1000 * 60 * 5,
+    staleTime: 1000 * 10,
+  });
 
-  const refetchSearch = useCallback(async () => {
-    const controller = new AbortController();
-    searchAbortRef.current?.abort();
-    searchAbortRef.current = controller;
-    updatePendingState(setSearchState);
-    await runSearchFetch(controller.signal);
-  }, [runSearchFetch, updatePendingState]);
-
-  const refetchMap = useCallback(async () => {
-    const mapEnabled = Number.isFinite(lat) && Number.isFinite(lng);
-    if (!mapEnabled) {
-      setMapState(prev => ({
-        ...prev,
-        status: "idle",
-        isFetching: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-      }));
-      return;
-    }
-    const controller = new AbortController();
-    mapAbortRef.current?.abort();
-    mapAbortRef.current = controller;
-    updatePendingState(setMapState);
-    await runMapFetch(controller.signal);
-  }, [lat, lng, runMapFetch, updatePendingState]);
+  const mapQuery = useQuery<GymNearbyResponse, unknown, GymNearbyResponse, MapQueryKey>({
+    queryKey: mapKey ?? DISABLED_MAP_KEY,
+    enabled: mapKey !== null,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ queryKey: [, , params] }) =>
+      fetchNearbyGyms({
+        lat: params.lat,
+        lng: params.lng,
+        radiusKm: params.radiusKm ?? undefined,
+        perPage: params.limit,
+        page: 1,
+      }),
+    gcTime: 1000 * 60 * 5,
+    staleTime: 1000 * 5,
+  });
 
   return {
-    searchQuery: {
-      ...searchState,
-      refetch: refetchSearch,
-    },
-    mapQuery: {
-      ...mapState,
-      refetch: refetchMap,
-    },
+    searchQuery,
+    mapQuery,
+    isMapEnabled: mapKey !== null,
   };
 }
