@@ -23,6 +23,8 @@ import type { SortOption } from "@/lib/searchParams";
 import type { GymSearchMeta, GymSummary, NearbyGym } from "@/types/gym";
 import type { EquipmentCategoryOption } from "@/types/meta";
 
+const CATEGORY_ALL_VALUE = "__all";
+
 const SORT_LABELS: Record<string, string> = {
   distance: "距離が近い順",
   rating: "評価が高い順",
@@ -210,12 +212,15 @@ export function GymsPage() {
             >
               カテゴリ
             </label>
-            <Select value={category || ""} onValueChange={value => setCategory(value)}>
+            <Select
+              value={category ? category : CATEGORY_ALL_VALUE}
+              onValueChange={value => setCategory(value === CATEGORY_ALL_VALUE ? "" : value)}
+            >
               <SelectTrigger id="gym-search-category">
                 <SelectValue placeholder="すべて" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">すべて</SelectItem>
+                <SelectItem value={CATEGORY_ALL_VALUE}>すべて</SelectItem>
                 {categoryOptions.map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
