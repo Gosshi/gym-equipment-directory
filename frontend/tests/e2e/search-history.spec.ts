@@ -161,12 +161,16 @@ test.describe("検索条件の履歴ナビゲーション", () => {
 
     await expect(prefectureSelect).toHaveValue("");
     await expect(sortSelect).toHaveValue("rating:desc");
-    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText("ナショナルジム");
+    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText(
+      "ナショナルジム",
+    );
 
     await prefectureSelect.selectOption("tokyo");
     await expect(prefectureSelect).toHaveValue("tokyo");
     await expect(page).toHaveURL(/pref=tokyo/);
-    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText("トーキョーストロング");
+    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText(
+      "トーキョーストロング",
+    );
 
     await sortSelect.selectOption("name:asc");
     await expect(sortSelect).toHaveValue("name:asc");
@@ -176,22 +180,30 @@ test.describe("検索条件の履歴ナビゲーション", () => {
     await expect(page).not.toHaveURL(/sort=name/);
     await expect(prefectureSelect).toHaveValue("tokyo");
     await expect(sortSelect).toHaveValue("rating:desc");
-    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText("トーキョーストロング");
+    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText(
+      "トーキョーストロング",
+    );
 
     await page.goBack();
     await expect(prefectureSelect).toHaveValue("");
     await expect(sortSelect).toHaveValue("rating:desc");
     await expect(page).not.toHaveURL(/pref=/);
-    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText("ナショナルジム");
+    await expect(resultsSection.getByRole("heading", { level: 3 }).first()).toHaveText(
+      "ナショナルジム",
+    );
 
     await page.goForward();
     await expect(prefectureSelect).toHaveValue("tokyo");
     await expect(sortSelect).toHaveValue("rating:desc");
-    await expect(resultsSection.getByRole("heading", { level: 3, name: "トーキョーストロング" })).toBeVisible();
+    await expect(
+      resultsSection.getByRole("heading", { level: 3, name: "トーキョーストロング" }),
+    ).toBeVisible();
 
     await page.goForward();
     await expect(prefectureSelect).toHaveValue("tokyo");
     await expect(sortSelect).toHaveValue("name:asc");
-    await expect(resultsSection.getByRole("heading", { level: 3, name: "シブヤフィットネス" })).toBeVisible();
+    await expect(
+      resultsSection.getByRole("heading", { level: 3, name: "シブヤフィットネス" }),
+    ).toBeVisible();
   });
 });
