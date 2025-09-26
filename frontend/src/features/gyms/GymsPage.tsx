@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { GymDetailPanel } from "@/components/gyms/GymDetailPanel";
@@ -104,13 +103,26 @@ export function GymsPage() {
     setTotalPages(totalPages);
   }, [limit, searchQuery.data, setTotalPages]);
 
-  const categoriesQuery = useQuery<EquipmentCategoryOption[]>({
-    queryKey: ["equipment-categories"],
-    queryFn: getEquipmentCategories,
-    staleTime: 86_400_000,
-  });
+  const [categoryOptions, setCategoryOptions] = useState<EquipmentCategoryOption[]>([]);
 
-  const categoryOptions = categoriesQuery.data ?? [];
+  useEffect(() => {
+    let cancelled = false;
+    getEquipmentCategories()
+      .then(options => {
+        if (!cancelled) {
+          setCategoryOptions(options);
+        }
+      })
+      .catch(error => {
+        if (!cancelled && process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.info("Failed to load equipment categories", error);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const mapMarkers = useMemo<NearbyGym[]>(
     () =>
