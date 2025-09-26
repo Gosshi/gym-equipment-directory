@@ -45,7 +45,31 @@ export function useSelectedGym({
   const setSelectedId = useMapSelectionStore(state => state.setSelected);
 
   const skipUrlToStoreSyncRef = useRef(false);
+  const skipStoreToUrlSyncRef = useRef(false);
+  const nextNavigationModeRef = useRef<"push" | "replace" | null>(null);
   const lastSyncedIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const nextId = toGymId(params.get(queryKey));
+
+      skipUrlToStoreSyncRef.current = true;
+      skipStoreToUrlSyncRef.current = true;
+      nextNavigationModeRef.current = null;
+      setSelectedId(nextId, "url");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [queryKey, setSelectedId]);
 
   useEffect(() => {
     if (skipUrlToStoreSyncRef.current) {
@@ -68,7 +92,15 @@ export function useSelectedGym({
       return;
     }
 
+    if (skipStoreToUrlSyncRef.current) {
+      skipStoreToUrlSyncRef.current = false;
+      lastSyncedIdRef.current = selectedGymId;
+      nextNavigationModeRef.current = null;
+      return;
+    }
+
     if (selectedGymId === lastSyncedIdRef.current) {
+      nextNavigationModeRef.current = null;
       return;
     }
 
@@ -78,6 +110,7 @@ export function useSelectedGym({
 
     if (next === current) {
       lastSyncedIdRef.current = selectedGymId;
+      nextNavigationModeRef.current = null;
       return;
     }
 
@@ -87,12 +120,20 @@ export function useSelectedGym({
       params.set(queryKey, next);
     }
 
-    const query = params.toString();
-    const url = query ? `${pathname}?${query}` : pathname;
+    const nextQuery = params.toString();
+    const url = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const navigationMode =
+      nextNavigationModeRef.current ?? (nextQuery === searchParamsSnapshot ? "replace" : "push");
 
     skipUrlToStoreSyncRef.current = true;
     lastSyncedIdRef.current = selectedGymId;
-    router.replace(url, { scroll: false });
+    nextNavigationModeRef.current = null;
+
+    if (navigationMode === "replace") {
+      router.replace(url, { scroll: false });
+    } else {
+      router.push(url, { scroll: false });
+    }
   }, [pathname, queryKey, router, searchParamsSnapshot, selectedGymId]);
 
   useEffect(() => {
@@ -105,6 +146,8 @@ export function useSelectedGym({
     }
 
     skipUrlToStoreSyncRef.current = true;
+    skipStoreToUrlSyncRef.current = false;
+    nextNavigationModeRef.current = "replace";
     setSelectedId(null);
   }, [gyms, selectedGymId, setSelectedId]);
 
@@ -116,6 +159,8 @@ export function useSelectedGym({
   const selectGym = useCallback(
     (id: number | null, source?: MapInteractionSource) => {
       skipUrlToStoreSyncRef.current = true;
+      skipStoreToUrlSyncRef.current = false;
+      nextNavigationModeRef.current = "push";
       if (id === selectedGymId) {
         setSelectedId(null, source);
         return;
@@ -130,6 +175,8 @@ export function useSelectedGym({
       return;
     }
     skipUrlToStoreSyncRef.current = true;
+    skipStoreToUrlSyncRef.current = false;
+    nextNavigationModeRef.current = "push";
     setSelectedId(null);
   }, [selectedGymId, setSelectedId]);
 

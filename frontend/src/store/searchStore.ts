@@ -28,7 +28,7 @@ export const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
   a.lng === b.lng &&
   areCategoriesEqual(a.categories, b.categories);
 
-export type NavigationSource = "initial" | "push" | "pop" | "idle";
+export type NavigationSource = "initial" | "push" | "pop" | "replace" | "idle";
 
 type SearchStoreState = {
   filters: FilterState;
