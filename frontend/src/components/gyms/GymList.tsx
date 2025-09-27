@@ -307,7 +307,7 @@ export function GymList({
           ) : (
             <div
               className={cn(
-                "grid grid-cols-1 gap-4",
+                "grid grid-cols-1 gap-5",
                 "sm:grid-cols-2 sm:gap-6",
                 "lg:grid-cols-2",
                 "xl:grid-cols-3 xl:gap-7",
@@ -326,7 +326,7 @@ export function GymList({
             </div>
           )}
           {isPageLoading ? (
-            <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-card/85 backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 z-10 rounded-3xl bg-card/85 backdrop-blur">
               <SearchSkeleton
                 announce={false}
                 className="h-full"
@@ -369,13 +369,19 @@ export function GymList({
       aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="rounded-2xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
+      className="rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
+      id="gym-search-results"
       ref={resultSectionRef}
       tabIndex={-1}
     >
       <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="space-y-1.5">
-          <h2 className="text-2xl font-semibold tracking-tight" id="gym-search-results-heading">
+          <h2
+            className="text-2xl font-semibold tracking-tight"
+            id="gym-search-results-heading"
+            role="heading"
+            aria-level={2}
+          >
             検索結果
           </h2>
           <p className="text-sm leading-relaxed text-muted-foreground" id={headerDescriptionId}>
