@@ -1,0 +1,72 @@
+name: "機能要望"
+description: "改善アイデアや機能追加の提案はこちら"
+title: "[feature] <要望の概要を入力>"
+labels:
+  - ux
+  - roadmap
+body:
+  - type: markdown
+    attributes:
+      value: |
+        以下の項目をすべて記入してください。必要に応じて docs/backlog.md の該当行とリンクさせます。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 要望の概要
+      description: どのようなユーザー課題を解決したいか、背景と目的を記載してください。
+      placeholder: 例）マップ上でピンが密集した際に操作が難しいため、クラスタ閾値を調整したい。
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景・前提
+      description: 現状の課題、関連ドキュメント、想定する制約を整理してください。
+      placeholder: 例）QA で確認された操作ログ、関連する仕様書へのリンクなど。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 解決策の提案
+      description: 具体的な案があれば記載してください。まだ案が固まっていない場合は、検討したい論点を列挙してください。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 対象範囲
+      description: 影響が想定される画面・API・コンポーネントを列挙してください。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      description: 完了とみなすための条件を箇条書きで記載してください。
+      placeholder: |
+        - クラスタの展開ズームが 2 ステップ以内になる
+        - 手動 QA のチェックリストが更新されている
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: テスト計画
+      description: 追加・更新が必要な単体/統合/E2E/手動 QA の項目を記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依存関係・懸念点
+      description: 他タスクや外部要因との依存、懸念点があれば記載してください。
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: その他メモ
+      description: 補足事項があれば自由に記載してください。
+    validations:
+      required: false
