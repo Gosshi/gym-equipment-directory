@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -71,14 +71,33 @@ export function Pagination({
     [currentPage, siblingCount, totalPages],
   );
 
+  const pendingFocusRef = useRef<{ page: number; element: HTMLButtonElement | null } | null>(null);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    const pending = pendingFocusRef.current;
+    if (!pending || pending.page !== currentPage) {
+      return;
+    }
+
+    const { element } = pending;
+    pendingFocusRef.current = null;
+    if (element && element.isConnected) {
+      element.focus();
+    }
+  }, [currentPage, isLoading]);
+
   if (totalPages <= 1 && !hasNextPage) {
     return null;
   }
 
-  const handleChange = (page: number) => {
+  const handleChange = (page: number, element: HTMLButtonElement | null) => {
     if (page < 1 || page === currentPage || (page > totalPages && !hasNextPage)) {
       return;
     }
+    pendingFocusRef.current = { page, element };
     onChange(page);
   };
 
@@ -92,13 +111,14 @@ export function Pagination({
     <nav
       aria-describedby={ariaDescribedBy}
       aria-label="ページネーション"
+      aria-live="polite"
       className="flex justify-center"
     >
       <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         <Button
           aria-label="前のページ"
           disabled={isPrevDisabled}
-          onClick={() => handleChange(currentPage - 1)}
+          onClick={event => handleChange(currentPage - 1, event.currentTarget)}
           type="button"
           variant="outline"
         >
@@ -126,7 +146,7 @@ export function Pagination({
                 <Button
                   aria-current={isActive ? "page" : undefined}
                   aria-label={`ページ ${pageNumber}`}
-                  onClick={() => handleChange(pageNumber)}
+                  onClick={event => handleChange(pageNumber, event.currentTarget)}
                   type="button"
                   variant={isActive ? "default" : "outline"}
                 >
@@ -139,7 +159,7 @@ export function Pagination({
         <Button
           aria-label="次のページ"
           disabled={isNextDisabled}
-          onClick={() => handleChange(currentPage + 1)}
+          onClick={event => handleChange(currentPage + 1, event.currentTarget)}
           type="button"
         >
           次へ

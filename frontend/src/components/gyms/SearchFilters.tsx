@@ -126,6 +126,7 @@ export function SearchFilters({
   const distanceHelpTextId = useId();
   const prefectureHelpTextId = useId();
   const cityHelpTextId = useId();
+  const keywordHelpTextId = useId();
 
   useEffect(() => {
     if (location.lat != null) {
@@ -332,24 +333,30 @@ export function SearchFilters({
     : manualLocationHintId;
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-28 lg:max-h-[calc(100vh-7rem)] lg:space-y-6 lg:overflow-y-auto lg:pr-2">
+    <aside className="space-y-4 lg:sticky lg:top-28 lg:max-h-[calc(100vh-7rem)] lg:space-y-6 lg:overflow-y-auto lg:pr-3">
       <form
-        className="flex flex-col gap-6 rounded-2xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-7"
+        className="flex flex-col gap-6 rounded-3xl border border-border/80 bg-card/95 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-7"
         onSubmit={event => {
           event.preventDefault();
           onSubmitSearch();
         }}
       >
-        <div className="sticky top-[5.5rem] z-10 -mx-6 -mt-6 space-y-4 rounded-t-2xl border-b border-border/60 bg-card/95 px-6 pb-4 pt-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:-mx-0 sm:-mt-0 sm:space-y-6 sm:border-none sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none">
+        <div className="sticky top-[5.25rem] z-10 -mx-5 -mt-5 space-y-4 rounded-t-3xl border-b border-border/60 bg-card/95 px-5 pb-4 pt-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:-mx-0 sm:-mt-0 sm:space-y-6 sm:border-none sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none">
           <SearchBar
             id="gym-search-keyword"
-            inputProps={{ name: "keyword" }}
+            inputProps={{
+              name: "keyword",
+              "aria-describedby": keywordHelpTextId,
+            }}
             inputRef={keywordInputRef}
             label="キーワード"
             onChange={onKeywordChange}
             placeholder="設備やジム名で検索"
             value={state.q}
           >
+            <p className="text-xs text-muted-foreground" id={keywordHelpTextId}>
+              キーワードは2文字以上入力すると候補が表示されます。
+            </p>
             {state.q.trim().length >= 2 ? (
               <div className="space-y-1">
                 {isSuggestLoading ? (
@@ -381,7 +388,12 @@ export function SearchFilters({
             ) : null}
           </SearchBar>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Button aria-label="検索を実行" disabled={isSearchLoading} type="submit">
+            <Button
+              aria-label="検索を実行"
+              className="w-full sm:w-auto"
+              disabled={isSearchLoading}
+              type="submit"
+            >
               {isSearchLoading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -391,7 +403,7 @@ export function SearchFilters({
                 "検索"
               )}
             </Button>
-            <Button onClick={onClear} type="button" variant="outline">
+            <Button className="w-full sm:w-auto" onClick={onClear} type="button" variant="outline">
               条件をクリア
             </Button>
           </div>
@@ -701,6 +713,9 @@ export function SearchFilters({
               max={MAX_DISTANCE_KM}
               min={MIN_DISTANCE_KM}
               onChange={event => onDistanceChange(Number.parseInt(event.target.value, 10))}
+              onInput={event =>
+                onDistanceChange(Number.parseInt((event.target as HTMLInputElement).value, 10))
+              }
               step={DISTANCE_STEP_KM}
               type="range"
               value={state.distance}
@@ -715,6 +730,12 @@ export function SearchFilters({
               id="gym-search-distance-select"
               onChange={event => {
                 const next = Number.parseInt(event.target.value, 10);
+                if (!Number.isNaN(next)) {
+                  onDistanceChange(next);
+                }
+              }}
+              onInput={event => {
+                const next = Number.parseInt((event.target as HTMLSelectElement).value, 10);
                 if (!Number.isNaN(next)) {
                   onDistanceChange(next);
                 }

@@ -83,12 +83,24 @@ export function GymsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/10">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:gap-10 sm:pt-12 lg:px-6 xl:px-0">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-7 px-4 pb-16 pt-6 sm:gap-10 sm:px-6 sm:pt-10 lg:px-8 xl:px-0">
+        <a
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-5 focus:py-2 focus:text-sm focus:text-primary-foreground focus:shadow-lg"
+          href="#gym-search-results"
+        >
+          検索結果一覧へスキップ
+        </a>
         <header className="space-y-3 sm:space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-sm">
             Gym Directory
           </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">ジム一覧・検索</h1>
+          <h1
+            className="text-3xl font-bold tracking-tight sm:text-4xl"
+            role="heading"
+            aria-level={1}
+          >
+            ジム一覧・検索
+          </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
             設備カテゴリやエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
           </p>
