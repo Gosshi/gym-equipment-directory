@@ -26,6 +26,7 @@ import { searchGyms } from "@/services/gyms";
 import { getCities, getEquipmentCategories, getPrefectures } from "@/services/meta";
 import type { GymSearchMeta, GymSearchResponse, GymSummary } from "@/types/gym";
 import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import { planNavigation, type HistoryNavigationMode } from "@/lib/urlNavigation";
 import { useSearchStore, areFilterStatesEqual, type NavigationSource } from "@/store/searchStore";
 
 const DEFAULT_DEBOUNCE_MS = 300;
@@ -90,7 +91,7 @@ type FormState = {
   lng: number | null;
 };
 
-type NavigationModeOption = "auto" | "push" | "replace";
+type NavigationModeOption = "push" | "replace";
 
 const toFormState = (filters: FilterState): FormState => ({
   q: filters.q,
@@ -199,6 +200,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const setFilters = useSearchStore(state => state.setFilters);
   const updateFilters = useSearchStore(state => state.updateFilters);
   const currentQueryString = useSearchStore(state => state.queryString);
+  const currentQueryStringRef = useRef(currentQueryString);
   const setNavigationSource = useSearchStore(state => state.setNavigationSource);
   const saveScrollPosition = useSearchStore(state => state.saveScrollPosition);
   const [, startTransition] = useTransition();
@@ -279,12 +281,16 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     const params = new URLSearchParams(searchParamsKey);
     const next = parseFilterState(params);
     const nextQuery = filterStateToQueryString(next);
+    const previousQuery = currentQueryStringRef.current;
+    const isSameQuery = previousQuery === nextQuery;
 
     let source: NavigationSource;
     if (!initializedRef.current) {
       source = "initial";
     } else if (pendingNavigationRef.current && pendingQueryRef.current === nextQuery) {
       source = pendingNavigationRef.current;
+    } else if (isSameQuery) {
+      source = "idle";
     } else {
       source = "pop";
     }
@@ -296,6 +302,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setFilters(next, { queryString: nextQuery });
     setNavigationSource(source);
   }, [searchParamsKey, setFilters, setNavigationSource]);
+
+  useEffect(() => {
+    currentQueryStringRef.current = currentQueryString;
+  }, [currentQueryString]);
 
   useEffect(() => {
     const next = toFormState(filters);
@@ -363,32 +373,40 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
         return;
       }
 
-      const navigationMode: NavigationSource = (() => {
-        if (options.navigationMode === "push" || options.navigationMode === "replace") {
-          return options.navigationMode;
-        }
-        return nextQuery === searchParamsKey ? "replace" : "push";
-      })();
+      const desiredMode: HistoryNavigationMode =
+        options.navigationMode ?? (nextQuery === searchParamsKey ? "replace" : "push");
 
-      if (navigationMode === "push" && typeof window !== "undefined") {
+      const plan = planNavigation({
+        pathname,
+        currentSearch: searchParamsKey,
+        nextSearch: nextQuery,
+        mode: desiredMode,
+      });
+
+      if (plan.shouldNavigate && plan.mode === "push" && typeof window !== "undefined") {
         saveScrollPosition(currentQueryString, window.scrollY);
       }
 
-      pendingNavigationRef.current = navigationMode;
-      pendingQueryRef.current = nextQuery;
-      setFilters(nextFilters, { queryString: nextQuery, force: true });
-      setNavigationSource(navigationMode);
+      if (plan.shouldNavigate) {
+        pendingNavigationRef.current = plan.mode;
+        pendingQueryRef.current = nextQuery;
+      } else {
+        pendingNavigationRef.current = null;
+        pendingQueryRef.current = null;
+      }
 
-      if (!pathname) {
+      setFilters(nextFilters, { queryString: nextQuery, force: true });
+      setNavigationSource(plan.mode);
+
+      if (!plan.shouldNavigate || !plan.url) {
         return;
       }
 
-      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
       startTransition(() => {
-        if (navigationMode === "replace") {
-          router.replace(nextUrl, { scroll: false });
+        if (plan.mode === "replace") {
+          router.replace(plan.url!, { scroll: false });
         } else {
-          router.push(nextUrl, { scroll: false });
+          router.push(plan.url!, { scroll: false });
         }
       });
     },
@@ -411,12 +429,16 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       options: {
         overrides?: Partial<FilterState>;
         debounceMs?: number;
+        navigationMode?: NavigationModeOption;
       } = {},
     ) => {
       cancelPendingDebounce();
       const delay = options.debounceMs ?? debounceMs;
       const run = () => {
-        applyFilters(buildFilterStateFromForm(nextFormState, filters, options.overrides));
+        applyFilters(
+          buildFilterStateFromForm(nextFormState, filters, options.overrides),
+          { navigationMode: options.navigationMode },
+        );
       };
 
       if (delay <= 0) {
@@ -429,7 +451,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   );
 
   const scheduleApply = useCallback(
-    (updater: (prev: FormState) => FormState, options?: { debounceMs?: number }) => {
+    (
+      updater: (prev: FormState) => FormState,
+      options?: { debounceMs?: number; navigationMode?: NavigationModeOption },
+    ) => {
       setFormState(prev => {
         const normalized = normalizeFormState(updater(prev));
 
@@ -437,7 +462,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           return prev;
         }
 
-        queueFilters(normalized, { debounceMs: options?.debounceMs });
+        queueFilters(normalized, {
+          debounceMs: options?.debounceMs,
+          navigationMode: options?.navigationMode,
+        });
 
         return normalized;
       });
@@ -465,7 +493,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setLocationStatus("success");
     setLocationError(null);
     if (!areFilterStatesEqual(filters, nextFilters)) {
-      applyFilters(nextFilters, { force: true });
+      applyFilters(nextFilters, { force: true, navigationMode: "replace" });
     }
   }, [applyFilters, filters]);
 
@@ -518,7 +546,15 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   );
 
   const applyLocation = useCallback(
-    (lat: number | null, lng: number | null, mode: LocationMode) => {
+    (
+      lat: number | null,
+      lng: number | null,
+      mode: LocationMode,
+      options?: { navigationMode?: NavigationModeOption },
+    ) => {
+      const resolvedNavigationMode: NavigationModeOption =
+        options?.navigationMode ?? (mode === "fallback" ? "replace" : "push");
+
       setFormState(prev => {
         const hasLocation = lat != null && lng != null;
         const nextDistance = hasLocation ? prev.distance : DEFAULT_DISTANCE_KM;
@@ -550,6 +586,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
             queueFilters(next, {
               overrides: { lat, lng, distance: nextDistance },
               debounceMs: Math.min(150, debounceMs),
+              navigationMode: resolvedNavigationMode,
             });
           }
         }
@@ -572,7 +609,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   const applyFallbackLocation = useCallback(
     (message: string | null = null) => {
-      applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback");
+        applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback", {
+          navigationMode: "replace",
+        });
       if (message) {
         setLocationStatus("error");
         setLocationError(message);
@@ -626,6 +665,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           clampLatitude(position.coords.latitude),
           clampLongitude(position.coords.longitude),
           "auto",
+          { navigationMode: "push" },
         );
       },
       error => {
@@ -638,10 +678,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   const setManualLocation = useCallback(
     (lat: number | null, lng: number | null) => {
       if (lat == null || lng == null) {
-        applyLocation(null, null, "off");
+        applyLocation(null, null, "off", { navigationMode: "push" });
         return;
       }
-      applyLocation(clampLatitude(lat), clampLongitude(lng), "manual");
+      applyLocation(clampLatitude(lat), clampLongitude(lng), "manual", { navigationMode: "push" });
     },
     [applyLocation],
   );
@@ -651,7 +691,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }, [applyFallbackLocation]);
 
   const clearLocation = useCallback(() => {
-    applyLocation(null, null, "off");
+    applyLocation(null, null, "off", { navigationMode: "push" });
   }, [applyLocation]);
 
   const clearFilters = useCallback(() => {

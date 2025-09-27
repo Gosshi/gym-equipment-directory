@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { planNavigation, type HistoryNavigationMode } from "@/lib/urlNavigation";
 import { useMapSelectionStore, type MapInteractionSource } from "@/state/mapSelection";
 import type { NearbyGym } from "@/types/gym";
 
@@ -130,18 +131,27 @@ export function useSelectedGym({
     }
 
     const nextQuery = params.toString();
-    const url = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    const navigationMode =
+    const desiredMode: HistoryNavigationMode =
       nextNavigationModeRef.current ?? (nextQuery === searchParamsSnapshot ? "replace" : "push");
+    const plan = planNavigation({
+      pathname,
+      currentSearch: searchParamsSnapshot,
+      nextSearch: nextQuery,
+      mode: desiredMode,
+    });
 
-    skipUrlToStoreSyncRef.current = true;
+    skipUrlToStoreSyncRef.current = plan.shouldNavigate;
     lastSyncedIdRef.current = selectedGymId;
     nextNavigationModeRef.current = null;
 
-    if (navigationMode === "replace") {
-      router.replace(url, { scroll: false });
+    if (!plan.shouldNavigate || !plan.url) {
+      return;
+    }
+
+    if (plan.mode === "replace") {
+      router.replace(plan.url, { scroll: false });
     } else {
-      router.push(url, { scroll: false });
+      router.push(plan.url, { scroll: false });
     }
   }, [pathname, queryKey, router, searchParamsSnapshot, selectedGymId]);
 

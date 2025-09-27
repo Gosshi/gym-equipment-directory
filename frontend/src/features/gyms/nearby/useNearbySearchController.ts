@@ -10,6 +10,7 @@ import {
   MAX_DISTANCE_KM,
   MIN_DISTANCE_KM,
 } from "@/lib/searchParams";
+import { planNavigation, type HistoryNavigationMode } from "@/lib/urlNavigation";
 
 const DEFAULT_RADIUS_KM = 3;
 
@@ -197,7 +198,10 @@ export function useNearbySearchController({
   const pendingSourceRef = useRef<LocationMode | null>(null);
 
   const applyQuery = useCallback(
-    (next: NearbyQueryState, options: { replace?: boolean; source?: LocationMode } = {}) => {
+    (
+      next: NearbyQueryState,
+      options: { historyMode?: HistoryNavigationMode; source?: LocationMode } = {},
+    ) => {
       const isSame = areStatesEqual(applied, next);
       setApplied(next);
       setFormState({
@@ -233,9 +237,24 @@ export function useNearbySearchController({
         params.set("page", String(next.page));
       }
       const nextQuery = params.toString();
-      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-      const method = options.replace ? router.replace : router.push;
-      method(nextUrl, { scroll: false });
+      const desiredMode: HistoryNavigationMode = options.historyMode ?? "push";
+      const plan = planNavigation({
+        pathname,
+        currentSearch: searchParamsKey,
+        nextSearch: nextQuery,
+        mode: desiredMode,
+      });
+
+      if (!plan.shouldNavigate || !plan.url) {
+        pendingSourceRef.current = null;
+        return;
+      }
+
+      if (plan.mode === "replace") {
+        router.replace(plan.url, { scroll: false });
+      } else {
+        router.push(plan.url, { scroll: false });
+      }
       setHasExplicitLocation(true);
     },
     [applied, pathname, router, searchParamsKey],
@@ -300,7 +319,7 @@ export function useNearbySearchController({
           radiusKm: nextRadius,
           page: 1,
         },
-        { source: locationMode },
+        { source: locationMode, historyMode: "push" },
       );
     },
     [applied, applyQuery, formState.radiusKm, locationMode],
@@ -326,7 +345,7 @@ export function useNearbySearchController({
         radiusKm: applied.radiusKm,
         page: 1,
       },
-      { source: "manual" },
+      { source: "manual", historyMode: "push" },
     );
   }, [applied.radiusKm, applyQuery, formState.latInput, formState.lngInput]);
 
@@ -341,7 +360,7 @@ export function useNearbySearchController({
           radiusKm: applied.radiusKm,
           page: 1,
         },
-        { source: "map" },
+        { source: "map", historyMode: "push" },
       );
     },
     [applied.radiusKm, applyQuery],
@@ -371,7 +390,7 @@ export function useNearbySearchController({
             radiusKm: applied.radiusKm,
             page: 1,
           },
-          { source: "auto" },
+          { source: "auto", historyMode: "push" },
         );
       },
       error => {
@@ -407,7 +426,7 @@ export function useNearbySearchController({
           ...applied,
           page: nextPage,
         },
-        { source: locationMode },
+        { source: locationMode, historyMode: "replace" },
       );
     },
     [applied, applyQuery, locationMode],
