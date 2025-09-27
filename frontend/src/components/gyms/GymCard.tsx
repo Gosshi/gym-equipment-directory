@@ -77,6 +77,7 @@ export function GymCard({
       aria-label={`${gym.name}の詳細を見る`}
       className={cn(
         "group block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "rounded-3xl",
         className,
       )}
       href={`/gyms/${gym.slug}`}
@@ -90,52 +91,59 @@ export function GymCard({
     >
       <Card
         className={cn(
-          "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-sm transition",
-          "group-hover:border-primary group-hover:shadow-md",
+          "flex h-full flex-col overflow-hidden rounded-3xl border border-border/70 bg-background/95 shadow-sm transition",
+          "group-hover:border-primary group-hover:shadow-lg",
           isSelected ? "border-primary ring-2 ring-primary/40" : undefined,
         )}
       >
-        <div className="flex h-44 items-center justify-center bg-muted text-sm text-muted-foreground">
-          {gym.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={gym.name}
-              className="h-full w-full object-cover transition group-hover:scale-[1.03]"
-              decoding="async"
-              loading="lazy"
-              src={gym.thumbnailUrl}
-            />
-          ) : (
-            <span className="text-xs">画像なし</span>
-          )}
+        <div className="relative isolate overflow-hidden bg-muted">
+          <div className="aspect-[4/3] w-full" aria-hidden />
+          <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs text-muted-foreground">
+            {gym.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt={gym.name}
+                className="h-full w-full rounded-none object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                decoding="async"
+                loading="lazy"
+                src={gym.thumbnailUrl}
+              />
+            ) : (
+              <span>画像なし</span>
+            )}
+          </div>
         </div>
-        <CardHeader className="space-y-1.5">
-          <CardTitle className="text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl">
+        <CardHeader className="space-y-2 px-6 pb-4 pt-5 sm:pb-5">
+          <CardTitle
+            className="text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl"
+            role="heading"
+            aria-level={3}
+          >
             {gym.name}
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground" data-testid="gym-address">
+          <CardDescription className="text-sm leading-relaxed text-muted-foreground" data-testid="gym-address">
             {addressLabel}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-1 flex-col gap-3">
+        <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
           {displayItems.length > 0 ? (
             <div className="flex flex-wrap gap-2" data-testid="gym-equipments">
               {displayItems.map(equipment => (
                 <span
                   key={equipment}
-                  className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
+                  className="rounded-full bg-secondary/90 px-3 py-1 text-xs font-medium leading-none text-secondary-foreground shadow-sm"
                 >
                   {equipment}
                 </span>
               ))}
               {remainingCount > 0 ? (
-                <span className="rounded-full border border-dashed border-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                <span className="rounded-full border border-dashed border-secondary px-3 py-1 text-xs leading-none text-muted-foreground">
                   +{remainingCount}
                 </span>
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">設備情報はまだ登録されていません。</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">設備情報はまだ登録されていません。</p>
           )}
         </CardContent>
       </Card>

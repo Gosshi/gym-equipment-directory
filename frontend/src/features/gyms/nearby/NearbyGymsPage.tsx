@@ -312,11 +312,19 @@ export function NearbyGymsPage() {
   }, [applied.page]);
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 px-4 py-10">
+    <div className="flex min-h-screen flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 sm:pt-10 lg:px-8 xl:px-0">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <a
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-5 focus:py-2 focus:text-sm focus:text-primary-foreground focus:shadow-lg"
+          href="#nearby-results"
+        >
+          近隣ジム一覧へスキップ
+        </a>
         <header className="space-y-2">
           <p className="text-sm font-medium text-primary">ジムを探す</p>
-          <h1 className="text-3xl font-bold text-foreground">近隣ジムをマップでチェック</h1>
+          <h1 className="text-3xl font-bold text-foreground" role="heading" aria-level={1}>
+            近隣ジムをマップでチェック
+          </h1>
           <p className="text-base text-muted-foreground">
             現在地または任意の座標を中心に、半径 {radiusKmLabel} のジムを表示します。
           </p>
@@ -351,7 +359,9 @@ export function NearbyGymsPage() {
               <div className="flex-1 space-y-4">
                 <Card className="overflow-hidden">
                   <CardHeader className="space-y-1">
-                    <CardTitle className="text-lg font-semibold">地図</CardTitle>
+                    <CardTitle className="text-lg font-semibold" role="heading" aria-level={2}>
+                      地図
+                    </CardTitle>
                     <p className="text-sm text-muted-foreground">
                       ピンを選択すると右側の詳細パネルが開きます。ドラッグで中心地点を調整できます。
                     </p>
@@ -375,10 +385,12 @@ export function NearbyGymsPage() {
                   </CardContent>
                 </Card>
 
-                <div ref={listContainerRef}>
-                  <Card>
+                <div ref={listContainerRef} id="nearby-results">
+                  <Card aria-live="polite">
                     <CardHeader>
-                      <CardTitle className="text-lg font-semibold">近隣のジム一覧</CardTitle>
+                      <CardTitle className="text-lg font-semibold" role="heading" aria-level={2}>
+                        近隣のジム一覧
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <NearbyList

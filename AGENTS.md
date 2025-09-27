@@ -57,6 +57,7 @@ ruff check . --fix
 ### レビュー前チェック
 
 - 「起動スモーク OK」「lint/format OK」「型 OK」「軽量テスト OK」に ✅。
+- lint/format の「OK」はバックエンド（`ruff check`, `ruff format --check`）とフロントエンド（`npm --prefix frontend run lint`, `npm --prefix frontend run format:check`）の双方が通っている状態を指します。
 
 ---
 
@@ -103,7 +104,7 @@ chore/update-ci-config
 ## 🔄 PR 作成（日本語）
 
 - **PR タイトル・本文は日本語**
-- **CI がグリーンでない PR はレビュー依頼しない**
+- **CI がグリーンでない PR はレビュー依頼しない**（落ちている状態では Draft のままにし、原因とリカバリ方針を記載）
 - `gh pr create` の使用例:
 
 ```bash
@@ -135,16 +136,34 @@ gh pr create \
 
 - CI が失敗している場合は **Ready for review にしないこと**
 
+### PR 本文テンプレート
+
+以下のテンプレートをベースにし、箇条書きで簡潔にまとめてください。
+
+```
+## 目的
+- 何を解決する PR なのか
+
+## 変更点
+- 主な実装や設定の追加・修正内容
+
+## 確認手順
+- [ ] ローカルでの起動確認
+- [ ] lint / format / test 実行結果
+
+## CI
+- [ ] GitHub Actions が全て成功
+```
+
 ---
 
 ## 🔍 CI/CD
 
 - CI では以下を必ず実行
-  - `ruff check .`
-  - `ruff format --check .`
-  - `pytest`
+  - バックエンド: `ruff check .`, `ruff format --check .`, `pytest`
+  - フロントエンド: `npm --prefix frontend run lint`（ESLint）, `npm --prefix frontend run format:check`（Prettier）, `npm --prefix frontend run test:unit`
 
-- CI が落ちている PR は **マージ不可**
+- **CI が落ちている PR はマージ不可。**落ちている場合はレビュー依頼せず、必ず修正コミットまたはリトライを入れてください。
 
 ---
 
