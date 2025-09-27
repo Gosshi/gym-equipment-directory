@@ -435,10 +435,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       cancelPendingDebounce();
       const delay = options.debounceMs ?? debounceMs;
       const run = () => {
-        applyFilters(
-          buildFilterStateFromForm(nextFormState, filters, options.overrides),
-          { navigationMode: options.navigationMode },
-        );
+        applyFilters(buildFilterStateFromForm(nextFormState, filters, options.overrides), {
+          navigationMode: options.navigationMode,
+        });
       };
 
       if (delay <= 0) {
@@ -609,9 +608,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   const applyFallbackLocation = useCallback(
     (message: string | null = null) => {
-        applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback", {
-          navigationMode: "replace",
-        });
+      applyLocation(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng, "fallback", {
+        navigationMode: "replace",
+      });
       if (message) {
         setLocationStatus("error");
         setLocationError(message);
