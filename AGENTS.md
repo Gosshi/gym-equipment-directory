@@ -171,6 +171,14 @@ gh pr create \
 
 - `README.md`: ユーザー向け
 - `AGENTS.md`: 開発者向け（本ファイル）
+- FE10 改善計画関連ドキュメント:
+  - [docs/roadmap-next.md](docs/roadmap-next.md)
+  - [docs/architecture.md](docs/architecture.md)
+  - [docs/testing-strategy.md](docs/testing-strategy.md)
+  - [docs/performance.md](docs/performance.md)
+  - [docs/accessibility.md](docs/accessibility.md)
+  - [docs/backlog.md](docs/backlog.md)
+  - [docs/fe10-progress.md](docs/fe10-progress.md)
 - API 仕様変更時は OpenAPI Docs を更新し、PR に含めてください
 
 ---

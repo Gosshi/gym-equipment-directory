@@ -1,0 +1,72 @@
+name: "バグ報告"
+description: "不具合の報告はこちら"
+title: "[bug] <不具合の概要を入力>"
+labels:
+  - bug
+  - test
+body:
+  - type: markdown
+    attributes:
+      value: |
+        再現手順と期待結果を明確に記入し、再発防止に繋げます。スクリーンショットやログがあれば添付してください。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: どのような不具合が発生したかを簡潔に記載してください。
+      placeholder: 例）ページネーションで 3 ページ目に移動すると URL が更新されない。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      description: 手順を番号付きで記載してください。QA チェックリストと関連付ける場合は項目名も記載します。
+      placeholder: |
+        1. `/gyms/search` にアクセスする
+        2. 「次へ」を 2 回クリックする
+        3. ブラウザの戻るボタンを押す
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待結果
+      description: 本来どうあるべきかを記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の結果
+      description: 表示された内容やログ、スクリーンショットなどを記載してください。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 環境情報
+      description: 発生環境（本番 / ステージング / ローカル）とブラウザ、OS バージョンなどを記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・スクリーンショット
+      description: 関連するログや画像があれば貼り付けてください。
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      description: 修正完了と判断する条件を箇条書きで記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足
+      description: その他共有したい情報があれば記載してください。
+    validations:
+      required: false

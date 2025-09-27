@@ -1,0 +1,37 @@
+[
+  {
+    "name": "ux",
+    "color": "f4c2c2",
+    "description": "UI/UX 改善タスク"
+  },
+  {
+    "name": "a11y",
+    "color": "c8e1ff",
+    "description": "アクセシビリティ対応"
+  },
+  {
+    "name": "test",
+    "color": "d4f8e8",
+    "description": "テスト整備・品質保証"
+  },
+  {
+    "name": "perf",
+    "color": "fbe7a1",
+    "description": "パフォーマンス最適化"
+  },
+  {
+    "name": "docs",
+    "color": "e2d5f9",
+    "description": "ドキュメント整備"
+  },
+  {
+    "name": "roadmap",
+    "color": "f6f8fa",
+    "description": "ロードマップ・計画策定"
+  },
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "不具合修正"
+  }
+]
