@@ -4,16 +4,16 @@ Issue テンプレ整備と合わせ、当面の改善項目を優先度別に�
 
 ## 一覧
 
-| 優先度 | カテゴリ | タイトル | 概要 | 担当 | 参考ドキュメント |
-| --- | --- | --- | --- | --- | --- |
-| P0 | test | URL 履歴とページネーションの回帰監視 | ブラウザ履歴と Zustand 同期のチェックリストを整備し、リリース前に確認する。 | 未割当 | [testing-strategy](./testing-strategy.md) |
-| P0 | ux | 近隣マップのズーム・ドラッグ回帰監視 | 自動パン抑止とフォーカス制御の確認観点を更新する。 | 未割当 | [roadmap-next](./roadmap-next.md) |
-| P1 | ux | クラスタ閾値と展開ズームの調整計画 | MapLibre 設定値の比較とユーザーフィードバック整理。 | 未割当 | [roadmap-next](./roadmap-next.md) |
-| P1 | a11y | 詳細パネルのモーション / フォーカス管理改善 | フォーカス遷移、スクリーンリーダー文言、モーション制御を定義する。 | 未割当 | [accessibility](./accessibility.md) |
-| P2 | test | 履歴 × ページング統合テスト方針の具体化 | 単体/統合テストのケース分解とモック戦略を決定する。 | 未割当 | [testing-strategy](./testing-strategy.md) |
-| P2 | perf | 手動バンドル分析の手順策定 | `analyze:bundle` スクリプト運用と結果共有のルールをまとめる。 | 未割当 | [performance](./performance.md) |
-| P3 | docs | アーキ図 / 戦略系ドキュメントの継続更新 | FE/BE 図やガイドの更新フローを整備する。 | 未割当 | [architecture](./architecture.md) |
-| P3 | roadmap | ジオコーディング / i18n / 観測基盤の調査 | 導入候補と次アクションの整理。 | 未割当 | [roadmap-next](./roadmap-next.md) |
+| 優先度 | カテゴリ | タイトル                                    | 概要                                                                        | 担当   | 参考ドキュメント                          |
+| ------ | -------- | ------------------------------------------- | --------------------------------------------------------------------------- | ------ | ----------------------------------------- |
+| P0     | test     | URL 履歴とページネーションの回帰監視        | ブラウザ履歴と Zustand 同期のチェックリストを整備し、リリース前に確認する。 | 未割当 | [testing-strategy](./testing-strategy.md) |
+| P0     | ux       | 近隣マップのズーム・ドラッグ回帰監視        | 自動パン抑止とフォーカス制御の確認観点を更新する。                          | 未割当 | [roadmap-next](./roadmap-next.md)         |
+| P1     | ux       | クラスタ閾値と展開ズームの調整計画          | MapLibre 設定値の比較とユーザーフィードバック整理。                         | 未割当 | [roadmap-next](./roadmap-next.md)         |
+| P1     | a11y     | 詳細パネルのモーション / フォーカス管理改善 | フォーカス遷移、スクリーンリーダー文言、モーション制御を定義する。          | 未割当 | [accessibility](./accessibility.md)       |
+| P2     | test     | 履歴 × ページング統合テスト方針の具体化     | 単体/統合テストのケース分解とモック戦略を決定する。                         | 未割当 | [testing-strategy](./testing-strategy.md) |
+| P2     | perf     | 手動バンドル分析の手順策定                  | `analyze:bundle` スクリプト運用と結果共有のルールをまとめる。               | 未割当 | [performance](./performance.md)           |
+| P3     | docs     | アーキ図 / 戦略系ドキュメントの継続更新     | FE/BE 図やガイドの更新フローを整備する。                                    | 未割当 | [architecture](./architecture.md)         |
+| P3     | roadmap  | ジオコーディング / i18n / 観測基盤の調査    | 導入候補と次アクションの整理。                                              | 未割当 | [roadmap-next](./roadmap-next.md)         |
 
 ## 各項目の受け入れ条件
 

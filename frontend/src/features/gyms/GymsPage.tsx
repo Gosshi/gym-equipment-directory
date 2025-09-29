@@ -94,7 +94,11 @@ export function GymsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-sm">
             Gym Directory
           </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" role="heading" aria-level={1}>
+          <h1
+            className="text-3xl font-bold tracking-tight sm:text-4xl"
+            role="heading"
+            aria-level={1}
+          >
             ジム一覧・検索
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
