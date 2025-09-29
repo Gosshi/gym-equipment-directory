@@ -121,7 +121,10 @@ export function GymCard({
           >
             {gym.name}
           </CardTitle>
-          <CardDescription className="text-sm leading-relaxed text-muted-foreground" data-testid="gym-address">
+          <CardDescription
+            className="text-sm leading-relaxed text-muted-foreground"
+            data-testid="gym-address"
+          >
             {addressLabel}
           </CardDescription>
         </CardHeader>
@@ -143,7 +146,9 @@ export function GymCard({
               ) : null}
             </div>
           ) : (
-            <p className="text-sm leading-relaxed text-muted-foreground">設備情報はまだ登録されていません。</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              設備情報はまだ登録されていません。
+            </p>
           )}
         </CardContent>
       </Card>

@@ -713,7 +713,9 @@ export function SearchFilters({
               max={MAX_DISTANCE_KM}
               min={MIN_DISTANCE_KM}
               onChange={event => onDistanceChange(Number.parseInt(event.target.value, 10))}
-              onInput={event => onDistanceChange(Number.parseInt((event.target as HTMLInputElement).value, 10))}
+              onInput={event =>
+                onDistanceChange(Number.parseInt((event.target as HTMLInputElement).value, 10))
+              }
               step={DISTANCE_STEP_KM}
               type="range"
               value={state.distance}
