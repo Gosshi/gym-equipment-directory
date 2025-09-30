@@ -6,15 +6,17 @@
 
 import argparse
 import asyncio
+import hashlib
 import logging
 import os
 import random
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
-from typing import TypedDict
+from datetime import datetime, timedelta
+from typing import Iterable, TypedDict
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # パス調整（repo 直下から実行する前提）
@@ -151,6 +153,36 @@ class BulkContext:
 
 
 BULK_CONTEXT: BulkContext | None = None
+
+
+DEFAULT_MIX_SPEC = "fw=4,m=4,c=2,o=1"
+CATEGORY_ALIAS_MAP: dict[str, str] = {
+    "fw": "free_weight",
+    "m": "machine",
+    "c": "cardio",
+    "o": "other",
+}
+DEFAULT_CATEGORY_WEIGHTS: dict[str, int] = {
+    "free_weight": 4,
+    "machine": 4,
+    "cardio": 2,
+    "other": 1,
+}
+MAX_WEIGHT_RANGES: dict[str, tuple[int, int]] = {
+    "free_weight": (30, 80),
+    "machine": (35, 90),
+    "cardio": (20, 40),
+    "other": (20, 50),
+}
+
+
+@dataclass(slots=True)
+class LinkSummary:
+    gym_count: int
+    equipment_count: int
+    inserted_count: int
+    updated_count: int
+    samples: list[tuple[str, int]]
 
 
 EQUIPMENT_SEED: list[tuple[str, str, str, str | None]] = [
@@ -395,6 +427,273 @@ async def link_gym_equipment(
     return ge
 
 
+def parse_mix_weights(value: str | None) -> dict[str, int]:
+    weights = DEFAULT_CATEGORY_WEIGHTS.copy()
+    if not value:
+        return weights
+
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    if not parts:
+        return weights
+
+    for part in parts:
+        if "=" not in part:
+            raise ValueError(f"Missing '=' in mix specification: '{part}'")
+        alias, weight_str = part.split("=", 1)
+        alias = alias.strip().lower()
+        category = CATEGORY_ALIAS_MAP.get(alias)
+        if not category:
+            raise ValueError(f"Unknown mix alias: '{alias}'")
+        try:
+            weight = int(weight_str)
+        except ValueError as exc:  # noqa: B904 - include context in error message
+            raise ValueError(f"Invalid weight for '{alias}': '{weight_str}'") from exc
+        if weight < 0:
+            raise ValueError(f"Weight for '{alias}' must be non-negative.")
+        weights[category] = weight
+
+    if all(weight == 0 for weight in weights.values()):
+        raise ValueError("At least one equipment category weight must be positive.")
+
+    return weights
+
+
+def parse_csv_tokens(value: str | None) -> tuple[str, ...]:
+    if not value:
+        return ()
+    tokens = [token.strip().lower() for token in value.split(",") if token.strip()]
+    return tuple(dict.fromkeys(tokens))
+
+
+def derive_seed(master_seed: int, *parts: str) -> int:
+    payload = ":".join((str(master_seed), *parts)).encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    return int.from_bytes(digest[:8], "big", signed=False)
+
+
+def choose_category(
+    rng: random.Random,
+    available_by_cat: dict[str, list[str]],
+    weights: dict[str, int],
+) -> str | None:
+    candidates = [cat for cat, slugs in available_by_cat.items() if slugs]
+    if not candidates:
+        return None
+
+    weighted_candidates = [cat for cat in candidates if weights.get(cat, 0) > 0]
+    if weighted_candidates:
+        candidate_weights = [weights.get(cat, 0) for cat in weighted_candidates]
+        return rng.choices(weighted_candidates, weights=candidate_weights, k=1)[0]
+
+    return rng.choice(candidates)
+
+
+def create_eq_rng(
+    base_rng: random.Random,
+    deterministic_seed: int | None,
+    gym_slug: str,
+    equipment_slug: str,
+) -> random.Random:
+    if deterministic_seed is not None:
+        eq_seed = derive_seed(deterministic_seed, "equipment", gym_slug, equipment_slug)
+        return random.Random(eq_seed)
+    # Use a fresh RNG seeded from the base RNG to avoid cross-talk between equipments.
+    return random.Random(base_rng.random())
+
+
+def ensure_category_lists(slug_to_eq: dict[str, Equipment]) -> dict[str, list[str]]:
+    category_to_slugs: dict[str, list[str]] = defaultdict(list)
+    for slug, eq in slug_to_eq.items():
+        category = getattr(eq, "category", None) or "other"
+        category_to_slugs[category].append(slug)
+    for slugs in category_to_slugs.values():
+        slugs.sort()
+    return category_to_slugs
+
+
+async def link_existing_gyms(
+    sess: AsyncSession,
+    slug_to_eq: dict[str, Equipment],
+    *,
+    source: Source,
+    base_rng: random.Random,
+    deterministic_seed: int | None,
+    target_mode: str,
+    min_equip: int,
+    max_equip: int,
+    mix_weights: dict[str, int],
+    pref_filters: Iterable[str],
+    city_filters: Iterable[str],
+    now_anchor: datetime,
+) -> LinkSummary:
+    category_to_slugs = ensure_category_lists(slug_to_eq)
+    if not category_to_slugs:
+        logger.info("Equipment master is empty; skipping equipment linking.")
+        return LinkSummary(0, 0, 0, 0, [])
+
+    gym_query = select(Gym).order_by(Gym.id)
+    pref_filters = tuple(pref_filters)
+    city_filters = tuple(city_filters)
+    if pref_filters:
+        gym_query = gym_query.where(func.lower(Gym.pref).in_(pref_filters))
+    if city_filters:
+        gym_query = gym_query.where(func.lower(Gym.city).in_(city_filters))
+
+    gyms = (await sess.execute(gym_query)).scalars().all()
+    if not gyms:
+        logger.info("No gyms matched the --link-existing filters; skipping equipment linking.")
+        return LinkSummary(0, 0, 0, 0, [])
+
+    gym_ids = [gym.id for gym in gyms]
+    existing_total: dict[int, int] = defaultdict(int)
+    existing_known: dict[int, set[str]] = defaultdict(set)
+    if gym_ids:
+        result = await sess.execute(
+            select(GymEquipment.gym_id, GymEquipment.equipment_id).where(
+                GymEquipment.gym_id.in_(gym_ids)
+            )
+        )
+        eq_id_to_slug = {eq.id: slug for slug, eq in slug_to_eq.items()}
+        for gym_id, equipment_id in result.all():
+            existing_total[gym_id] += 1
+            slug = eq_id_to_slug.get(equipment_id)
+            if slug:
+                existing_known[gym_id].add(slug)
+
+    if target_mode == "empty-only":
+        gyms = [gym for gym in gyms if existing_total.get(gym.id, 0) == 0]
+        if not gyms:
+            logger.info("No empty gyms matched the --link-existing filters; skipping equipment linking.")
+            return LinkSummary(0, 0, 0, 0, [])
+
+    total_assignments = 0
+    inserted = 0
+    updated = 0
+    samples: list[tuple[str, int]] = []
+
+    for gym in gyms:
+        if deterministic_seed is not None:
+            gym_rng = random.Random(derive_seed(deterministic_seed, "gym", gym.slug, "selection"))
+        else:
+            gym_rng = base_rng
+
+        existing_slugs = existing_known.get(gym.id, set())
+        selected_set = set(existing_slugs)
+        target_count = gym_rng.randint(min_equip, max_equip)
+        if len(selected_set) > target_count:
+            target_count = len(selected_set)
+
+        available_by_cat = {
+            category: [slug for slug in slugs if slug not in selected_set]
+            for category, slugs in category_to_slugs.items()
+        }
+
+        while len(selected_set) < target_count:
+            category = choose_category(gym_rng, available_by_cat, mix_weights)
+            if category is None:
+                break
+            choices = available_by_cat[category]
+            if not choices:
+                break
+            idx = gym_rng.randrange(len(choices))
+            slug = choices.pop(idx)
+            selected_set.add(slug)
+
+        if not selected_set:
+            continue
+
+        selected_slugs = sorted(selected_set)
+        assignment_count = len(selected_slugs)
+        total_assignments += assignment_count
+
+        gym_max_verified = gym.last_verified_at_cached
+
+        for slug in selected_slugs:
+            eq = slug_to_eq.get(slug)
+            if not eq:
+                continue
+            eq_rng = create_eq_rng(base_rng, deterministic_seed, gym.slug, slug)
+            roll = eq_rng.random()
+            if roll < 0.8:
+                availability = Availability.present
+            elif roll < 0.9:
+                availability = Availability.unknown
+            else:
+                availability = Availability.absent
+
+            count: int | None = None
+            max_weight: int | None = None
+            if availability is Availability.present:
+                count = eq_rng.randint(1, 6)
+                weight_min, weight_max = MAX_WEIGHT_RANGES.get(eq.category or "other", (20, 60))
+                max_weight = eq_rng.randint(weight_min, weight_max)
+            else:
+                count = None
+                max_weight = None
+
+            days_ago = eq_rng.randint(0, 270)
+            seconds_offset = eq_rng.randint(0, 86_399)
+            last_verified_at = now_anchor - timedelta(days=days_ago, seconds=seconds_offset)
+
+            verification_status = (
+                VerificationStatus.user_verified
+                if availability is Availability.present
+                else VerificationStatus.unverified
+            )
+
+            await link_gym_equipment(
+                sess,
+                gym,
+                eq,
+                availability=availability,
+                count=count,
+                max_weight_kg=max_weight,
+                verification_status=verification_status,
+                source=source,
+                last_verified_at=last_verified_at,
+            )
+
+            if slug in existing_slugs:
+                updated += 1
+            else:
+                inserted += 1
+
+            if gym_max_verified is None or (
+                last_verified_at is not None and last_verified_at > gym_max_verified
+            ):
+                gym_max_verified = last_verified_at
+
+        if gym_max_verified is not None:
+            gym.last_verified_at_cached = gym_max_verified
+
+        if len(samples) < 5:
+            samples.append((gym.name, assignment_count))
+
+    summary = LinkSummary(
+        gym_count=len(gyms),
+        equipment_count=total_assignments,
+        inserted_count=inserted,
+        updated_count=updated,
+        samples=samples,
+    )
+
+    if summary.equipment_count == 0:
+        logger.info("No equipment assignments were generated for the selected gyms.")
+        return summary
+
+    logger.info(
+        "Linked equipment for %s gyms (assignments=%s, new=%s, updated=%s).",
+        summary.gym_count,
+        summary.equipment_count,
+        summary.inserted_count,
+        summary.updated_count,
+    )
+    for name, count in summary.samples:
+        logger.info("Sample gym: %s -> %s equipments", name, count)
+
+    return summary
+
+
 async def get_or_create_source(
     sess: AsyncSession,
     stype: SourceType,
@@ -532,6 +831,49 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Seed only the equipment master and exit.",
     )
     parser.add_argument(
+        "--link-existing",
+        action="store_true",
+        help="Link equipment to existing gyms based on EQUIPMENT_SEED.",
+    )
+    parser.add_argument(
+        "--target",
+        choices=["all", "empty-only"],
+        default="empty-only",
+        help="Target gyms for --link-existing (default: empty-only).",
+    )
+    parser.add_argument(
+        "--min-equip",
+        type=int,
+        default=4,
+        metavar="N",
+        help="Minimum equipment count per gym for --link-existing (default: 4).",
+    )
+    parser.add_argument(
+        "--max-equip",
+        type=int,
+        default=7,
+        metavar="N",
+        help="Maximum equipment count per gym for --link-existing (default: 7).",
+    )
+    parser.add_argument(
+        "--mix",
+        type=str,
+        default=DEFAULT_MIX_SPEC,
+        help="Category mix for --link-existing (default: fw=4,m=4,c=2,o=1).",
+    )
+    parser.add_argument(
+        "--pref",
+        type=str,
+        default=None,
+        help="Comma-separated prefecture filter for --link-existing.",
+    )
+    parser.add_argument(
+        "--city",
+        type=str,
+        default=None,
+        help="Comma-separated city filter for --link-existing.",
+    )
+    parser.add_argument(
         "--bulk-gyms",
         type=int,
         default=None,
@@ -650,6 +992,27 @@ async def async_main(args: argparse.Namespace) -> int:
                 BULK_CONTEXT = None
             await sess.commit()
 
+        if getattr(args, "link_existing", False):
+            mix_weights = getattr(args, "mix_weights", DEFAULT_CATEGORY_WEIGHTS)
+            pref_filters = getattr(args, "pref_filters", ())
+            city_filters = getattr(args, "city_filters", ())
+            now_anchor = datetime.utcnow()
+            await link_existing_gyms(
+                sess,
+                slug_to_eq,
+                source=src,
+                base_rng=rng,
+                deterministic_seed=args.seed,
+                target_mode=args.target,
+                min_equip=args.min_equip,
+                max_equip=args.max_equip,
+                mix_weights=mix_weights,
+                pref_filters=pref_filters,
+                city_filters=city_filters,
+                now_anchor=now_anchor,
+            )
+            await sess.commit()
+
     print("✅ Seed completed.")
     if args.bulk_gyms is not None:
         print(
@@ -675,6 +1038,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.equip_per_gym <= 0:
         logger.error("--equip-per-gym must be a positive integer.")
         return 1
+
+    if args.link_existing:
+        if args.min_equip <= 0 or args.max_equip <= 0:
+            logger.error("--min-equip and --max-equip must be positive integers.")
+            return 1
+        if args.min_equip > args.max_equip:
+            logger.error("--min-equip must be less than or equal to --max-equip.")
+            return 1
+
+    try:
+        args.mix_weights = parse_mix_weights(args.mix)
+    except ValueError as exc:
+        logger.error("Invalid --mix value: %s", exc)
+        return 1
+
+    args.pref_filters = parse_csv_tokens(args.pref)
+    args.city_filters = parse_csv_tokens(args.city)
 
     try:
         return asyncio.run(async_main(args))
