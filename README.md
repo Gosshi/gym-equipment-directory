@@ -82,6 +82,11 @@ gym-equipment-directory/
 └─ README.md
 ```
 
+## Docs
+- [MVP 定義](docs/MVP.md)
+- [ユーザテスト計画](docs/USER_TEST_PLAN.md)
+- [Go To Market](docs/GO_TO_MARKET.md)
+
 ## 📝 今後の予定（M1スコープ）
 
 - [ ] SQLAlchemyモデル定義
