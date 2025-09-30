@@ -4,5 +4,10 @@ export interface MetaOption {
 }
 
 export type PrefectureOption = MetaOption;
-export type EquipmentCategoryOption = MetaOption;
 export type CityOption = MetaOption;
+
+export interface EquipmentOption extends MetaOption {
+  slug: string;
+  name: string;
+  category: string | null;
+}

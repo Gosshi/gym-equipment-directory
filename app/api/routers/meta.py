@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import get_meta_service
 from app.schemas.common import ErrorResponse
-from app.schemas.meta import CityCount, PrefCount
+from app.schemas.meta import CityCount, EquipmentOption, PrefCount
 from app.services.meta import MetaService
 
 # ルータ側は prefix のみ（tags は各EPに付与して重複回避）
@@ -73,3 +73,17 @@ async def list_cities(
 )
 async def list_equipment_categories(svc: MetaService = Depends(get_meta_service)):
     return await svc.list_equipment_categories()
+
+
+@router.get(
+    "/equipments",
+    tags=["meta"],
+    response_model=list[EquipmentOption],
+    summary="設備スラッグ一覧（distinct）",
+    description="登録されている設備スラッグと名称・カテゴリを重複なしで返します。空/NULLは除外。",
+    responses={
+        503: {"model": ErrorResponse, "description": "database unavailable"},
+    },
+)
+async def list_equipments_meta(svc: MetaService = Depends(get_meta_service)):
+    return await svc.list_equipments()

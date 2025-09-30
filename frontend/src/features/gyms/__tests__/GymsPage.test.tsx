@@ -106,9 +106,9 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSear
       { value: "chiba", label: "Chiba" },
     ],
     cities: [{ value: "shinjuku", label: "Shinjuku" }],
-    equipmentCategories: [
-      { value: "free-weight", label: "Free Weight" },
-      { value: "cardio", label: "Cardio" },
+    equipmentOptions: [
+      { value: "squat-rack", label: "スクワットラック", slug: "squat-rack", name: "スクワットラック", category: "free_weight" },
+      { value: "smith-machine", label: "スミスマシン", slug: "smith-machine", name: "スミスマシン", category: "strength" },
     ],
     isMetaLoading: false,
     metaError: null,

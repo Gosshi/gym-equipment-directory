@@ -37,7 +37,7 @@ export function GymsPage() {
     retry,
     prefectures,
     cities,
-    equipmentCategories,
+    equipmentOptions,
     isMetaLoading,
     metaError,
     reloadMeta,
@@ -102,12 +102,12 @@ export function GymsPage() {
             ジム一覧・検索
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            設備カテゴリやエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
+            設備やエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
           </p>
         </header>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:gap-8">
           <SearchFilters
-            categories={equipmentCategories}
+            categories={equipmentOptions}
             cities={cities}
             cityError={cityError}
             isCityLoading={isCityLoading}

@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/apiClient";
 import { FALLBACK_LOCATION, type LocationState } from "@/hooks/useGymSearch";
 import { suggestGyms, type GymSuggestItem } from "@/services/suggest";
-import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import type { CityOption, EquipmentOption, PrefectureOption } from "@/types/meta";
 
 const SORT_SELECT_OPTIONS: Array<{
   value: string;
@@ -55,7 +55,7 @@ type SearchFiltersProps = {
   };
   prefectures: PrefectureOption[];
   cities: CityOption[];
-  categories: EquipmentCategoryOption[];
+  categories: EquipmentOption[];
   isMetaLoading: boolean;
   isCityLoading: boolean;
   metaError: string | null;
@@ -466,7 +466,7 @@ export function SearchFilters({
         </div>
 
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium">設備カテゴリ</legend>
+          <legend className="text-sm font-medium">設備</legend>
           <div className="flex flex-wrap gap-2">
             {sortedCategories.map(category => {
               const checked = state.categories.includes(category.value);
@@ -493,7 +493,7 @@ export function SearchFilters({
               );
             })}
             {sortedCategories.length === 0 ? (
-              <span className="text-xs text-muted-foreground">設備カテゴリが読み込み中です…</span>
+              <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
             ) : null}
           </div>
         </fieldset>

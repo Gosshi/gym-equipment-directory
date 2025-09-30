@@ -1,7 +1,11 @@
 import { http, HttpResponse } from "msw";
 
 const prefectureSlugs = ["tokyo", "kanagawa"];
-const equipmentCategories = ["フリーウェイト", "マシン", "カーディオ"];
+const equipmentOptions = [
+  { slug: "squat-rack", name: "スクワットラック", category: "free_weight" },
+  { slug: "smith-machine", name: "スミスマシン", category: "strength" },
+  { slug: "treadmill", name: "トレッドミル", category: "cardio" },
+];
 
 const tokyoCities = [
   { city: "shinjuku", count: 12 },
@@ -44,7 +48,7 @@ export const defaultGymSearchResponse = {
 
 export const handlers = [
   http.get("*/meta/prefectures", () => HttpResponse.json(prefectureSlugs)),
-  http.get("*/meta/equipment-categories", () => HttpResponse.json(equipmentCategories)),
+  http.get("*/meta/equipments", () => HttpResponse.json(equipmentOptions)),
   http.get("*/meta/cities", ({ request }) => {
     const url = new URL(request.url);
     const pref = url.searchParams.get("pref");

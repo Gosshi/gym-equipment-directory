@@ -76,3 +76,10 @@ class MetaService:
             return await self._repo.list_distinct_equipment_categories()
         except SQLAlchemyError:
             raise HTTPException(status_code=503, detail="database unavailable")
+
+    async def list_equipments(self) -> list[dict[str, str | None]]:
+        """Return equipment options used for search filters."""
+        try:
+            return await self._repo.list_equipment_options()
+        except SQLAlchemyError:
+            raise HTTPException(status_code=503, detail="database unavailable")
