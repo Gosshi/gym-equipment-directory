@@ -342,7 +342,11 @@ describe("Pagination integration", () => {
       page_token: null,
     };
 
-    let releaseSecondPage: (() => void) | null = null;
+    // Promise の resolve シグネチャ (value?: void | PromiseLike<void>) => void を受けられるように型を拡張
+    // 以前は (() => void) だったため、割り当て時のシグネチャ不一致が原因で tsc が不正に never 推論し
+    // optional call 時に "Type 'never' has no call signatures" が発生していた可能性がある。
+    // 型推論の段階で never にならないよう、箱オブジェクトに格納
+    const releaseHolder: { fn?: (value?: void | PromiseLike<void>) => void } = {};
 
     server.use(
       http.get("*/gyms/search", async ({ request }) => {
@@ -350,7 +354,7 @@ describe("Pagination integration", () => {
         const page = url.searchParams.get("page") ?? "1";
         if (page === "2") {
           await new Promise<void>(resolve => {
-            releaseSecondPage = resolve;
+            releaseHolder.fn = resolve;
           });
           return HttpResponse.json(pageTwoResponse);
         }
@@ -369,7 +373,7 @@ describe("Pagination integration", () => {
     await userEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(releaseSecondPage).toBeTruthy();
+      expect(releaseHolder.fn).toBeTruthy();
     });
 
     expect(useSearchStore.getState().filters.page).toBe(2);
@@ -378,7 +382,10 @@ describe("Pagination integration", () => {
     expect(latestReplaceCall).toContain("page=2");
     expect(getReplaceCallsForPage("1").length).toBe(initialPageOneCalls);
 
-    releaseSecondPage?.();
+    const toRelease = releaseHolder.fn;
+    if (toRelease) {
+      toRelease();
+    }
 
     await screen.findByText("待機中・ベータジム");
   });
