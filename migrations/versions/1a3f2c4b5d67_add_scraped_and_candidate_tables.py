@@ -1,7 +1,7 @@
 """add scraped_pages and gym_candidates tables
 
 Revision ID: 1a3f2c4b5d67
-Revises: a210e2f5d9ab
+Revises: e1f2a3b4c5d6
 Create Date: 2025-09-13 00:00:00.000000
 """
 
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "1a3f2c4b5d67"
-down_revision: str | None = "a210e2f5d9ab"
+down_revision: str | None = "e1f2a3b4c5d6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
