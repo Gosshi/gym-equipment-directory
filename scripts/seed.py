@@ -12,9 +12,10 @@ import os
 import random
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable, TypedDict
+from typing import TypedDict
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -563,7 +564,9 @@ async def link_existing_gyms(
     if target_mode == "empty-only":
         gyms = [gym for gym in gyms if existing_total.get(gym.id, 0) == 0]
         if not gyms:
-            logger.info("No empty gyms matched the --link-existing filters; skipping equipment linking.")
+            logger.info(
+                "No empty gyms matched the --link-existing filters; skipping equipment linking."
+            )
             return LinkSummary(0, 0, 0, 0, [])
 
     total_assignments = 0
