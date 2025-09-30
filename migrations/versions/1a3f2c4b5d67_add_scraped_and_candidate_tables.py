@@ -17,18 +17,19 @@ down_revision: str | None = "e1f2a3b4c5d6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-candidate_status_enum = sa.Enum(
+candidate_status_enum = postgresql.ENUM(
     "new",
     "reviewing",
     "approved",
     "rejected",
     name="candidate_status",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
     bind = op.get_bind()
-    candidate_status_enum.create(bind, checkfirst=False)
+    candidate_status_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "scraped_pages",
@@ -139,4 +140,4 @@ def downgrade() -> None:
     op.drop_index("ix_scraped_pages_fetched_at_desc", table_name="scraped_pages")
     op.drop_table("scraped_pages")
 
-    candidate_status_enum.drop(op.get_bind(), checkfirst=False)
+    candidate_status_enum.drop(op.get_bind(), checkfirst=True)
