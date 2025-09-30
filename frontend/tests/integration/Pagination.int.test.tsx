@@ -115,6 +115,16 @@ const setSearchParams = (query: string) => {
   syncStoreFromSearchParams();
 };
 
+const getReplaceCallsForPage = (pageValue: string) =>
+  mockRouter.replace.mock.calls.filter(([url]) => {
+    try {
+      const parsed = new URL(url, "http://localhost");
+      return parsed.searchParams.get("page") === pageValue;
+    } catch {
+      return false;
+    }
+  });
+
 type GeolocationMock = Pick<Geolocation, "getCurrentPosition" | "watchPosition" | "clearWatch">;
 
 const applyGeolocationMock = (mock: GeolocationMock) => {
@@ -266,16 +276,6 @@ describe("Pagination integration", () => {
     const nextButton = screen.getByRole("button", { name: "次のページ" });
     expect(nextButton).not.toBeDisabled();
 
-    const getReplaceCallsForPage = (pageValue: string) =>
-      mockRouter.replace.mock.calls.filter(([url]) => {
-        try {
-          const parsed = new URL(url, "http://localhost");
-          return parsed.searchParams.get("page") === pageValue;
-        } catch {
-          return false;
-        }
-      });
-
     const initialPageTwoCalls = getReplaceCallsForPage("2").length;
     await userEvent.click(nextButton);
 
@@ -292,6 +292,95 @@ describe("Pagination integration", () => {
     await screen.findByRole("button", { name: "ページ 2" });
 
     expect(searchRequests.at(-1)?.searchParams.get("page")).toBe("2");
+  });
+
+  it("keeps the requested page while the next page is loading", async () => {
+    createSuccessGeolocation(35.68, 139.76);
+
+    const pageOneResponse = {
+      items: [
+        {
+          id: 211,
+          slug: "pending-alpha",
+          name: "待機中・アルファジム",
+          city: "setagaya",
+          pref: "tokyo",
+          equipments: ["ストレッチ"],
+          thumbnail_url: null,
+          last_verified_at: "2024-03-01T09:00:00Z",
+        },
+      ],
+      total: 4,
+      page: 1,
+      page_size: 2,
+      per_page: 2,
+      has_next: true,
+      has_prev: false,
+      has_more: true,
+      page_token: null,
+    };
+    const pageTwoResponse = {
+      items: [
+        {
+          id: 212,
+          slug: "pending-beta",
+          name: "待機中・ベータジム",
+          city: "chuo",
+          pref: "tokyo",
+          equipments: ["パワーラック"],
+          thumbnail_url: null,
+          last_verified_at: "2024-03-05T09:00:00Z",
+        },
+      ],
+      total: 4,
+      page: 2,
+      page_size: 2,
+      per_page: 2,
+      has_next: false,
+      has_prev: true,
+      has_more: false,
+      page_token: null,
+    };
+
+    let releaseSecondPage: (() => void) | null = null;
+
+    server.use(
+      http.get("*/gyms/search", async ({ request }) => {
+        const url = new URL(request.url);
+        const page = url.searchParams.get("page") ?? "1";
+        if (page === "2") {
+          await new Promise<void>(resolve => {
+            releaseSecondPage = resolve;
+          });
+          return HttpResponse.json(pageTwoResponse);
+        }
+        return HttpResponse.json(pageOneResponse);
+      }),
+    );
+
+    renderGymsPage();
+
+    expect(await screen.findByText("待機中・アルファジム")).toBeInTheDocument();
+
+    const nextButton = screen.getByRole("button", { name: "次のページ" });
+    expect(nextButton).not.toBeDisabled();
+
+    const initialPageOneCalls = getReplaceCallsForPage("1").length;
+    await userEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(releaseSecondPage).toBeTruthy();
+    });
+
+    expect(useSearchStore.getState().filters.page).toBe(2);
+    const latestReplaceCall = mockRouter.replace.mock.calls.at(-1)?.[0];
+    expect(latestReplaceCall).toBeDefined();
+    expect(latestReplaceCall).toContain("page=2");
+    expect(getReplaceCallsForPage("1").length).toBe(initialPageOneCalls);
+
+    releaseSecondPage?.();
+
+    await screen.findByText("待機中・ベータジム");
   });
 
   it("changes the page size when a new limit is selected", async () => {
