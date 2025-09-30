@@ -39,11 +39,22 @@ def test_assemble_gym_detail_builds_nested_dtos() -> None:
     )
     detail = assemble_gym_detail(
         gym,
-        equipments=[{"equipment_slug": "rack", "equipment_name": "Rack"}],
+        equipments=[
+            {
+                "equipment_slug": "rack",
+                "equipment_name": "Rack",
+                "category": "strength",
+                "count": 2,
+                "max_weight_kg": 180,
+            }
+        ],
         equipment_summaries=[
             {
                 "slug": "rack",
                 "name": "Rack",
+                "category": "strength",
+                "count": 2,
+                "max_weight_kg": 180,
                 "availability": "present",
                 "verification_status": "verified",
                 "last_verified_at": None,
@@ -61,6 +72,10 @@ def test_assemble_gym_detail_builds_nested_dtos() -> None:
     assert detail.images[0].url == "https://example.com/image.jpg"
     assert detail.freshness == 0.5
     assert detail.updated_at == datetime(2024, 2, 3, 4, 5, 6).isoformat()
+    assert detail.equipments[0].name == "Rack"
+    assert detail.equipments[0].category == "strength"
+    assert detail.equipments[0].description == "2台 / 最大180kg"
+    assert detail.equipment_details[0].name == "Rack"
 
 
 def test_map_equipment_master_from_mapping() -> None:

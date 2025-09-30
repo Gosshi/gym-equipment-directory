@@ -53,6 +53,7 @@ def map_equipment_row(row: Mapping[str, Any]) -> GymEquipmentLineDTO:
     return GymEquipmentLineDTO(
         equipment_slug=str(row.get("equipment_slug")),
         equipment_name=str(row.get("equipment_name")),
+        category=row.get("category"),
         count=row.get("count"),
         max_weight_kg=row.get("max_weight_kg"),
     )
@@ -62,6 +63,9 @@ def map_equipment_summary(row: Mapping[str, Any]) -> GymEquipmentSummaryDTO:
     return GymEquipmentSummaryDTO(
         slug=str(row.get("slug")),
         name=str(row.get("name")),
+        category=row.get("category"),
+        count=row.get("count"),
+        max_weight_kg=row.get("max_weight_kg"),
         availability=str(row.get("availability")),
         verification_status=str(row.get("verification_status")),
         last_verified_at=row.get("last_verified_at"),

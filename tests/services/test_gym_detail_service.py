@@ -103,6 +103,8 @@ async def test_get_returns_detail_with_scores():
     assert dto.slug == "gym-alpha"
     assert dto.score is not None and dto.freshness is not None
     assert dto.gym_equipments[0].slug == "rack"
+    assert dto.equipments[0].name == "Power Rack"
+    assert dto.equipments[0].description == "2台 / 最大120kg"
 
 
 @pytest.mark.asyncio
