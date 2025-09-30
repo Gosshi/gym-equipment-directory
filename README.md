@@ -83,6 +83,7 @@ gym-equipment-directory/
 ```
 
 ## Docs
+
 - [MVP 定義](docs/MVP.md)
 - [ユーザテスト計画](docs/USER_TEST_PLAN.md)
 - [Go To Market](docs/GO_TO_MARKET.md)

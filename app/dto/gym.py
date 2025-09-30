@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class GymBasicDTO(BaseModel):
@@ -20,13 +20,40 @@ class GymBasicDTO(BaseModel):
 class GymEquipmentLineDTO(BaseModel):
     equipment_slug: str = Field(description="設備スラッグ")
     equipment_name: str = Field(description="設備名")
+    category: str | None = Field(default=None, description="設備カテゴリ（任意）")
     count: int | None = Field(default=None, description="台数（任意）")
     max_weight_kg: int | None = Field(default=None, description="最大重量（任意）")
+
+    @computed_field(return_type=str)
+    def name(self) -> str:
+        """旧API互換用の name フィールド。"""
+
+        return self.equipment_name
+
+    @computed_field(return_type=str)
+    def slug(self) -> str:
+        """旧API互換用の slug フィールド。"""
+
+        return self.equipment_slug
+
+    @computed_field(return_type=str | None)
+    def description(self) -> str | None:
+        """台数や最大重量をまとめた説明文を生成する。"""
+
+        parts: list[str] = []
+        if self.count is not None:
+            parts.append(f"{self.count}台")
+        if self.max_weight_kg is not None:
+            parts.append(f"最大{self.max_weight_kg}kg")
+        return " / ".join(parts) if parts else None
 
 
 class GymEquipmentSummaryDTO(BaseModel):
     slug: str = Field(description="設備スラッグ")
     name: str = Field(description="設備名")
+    category: str | None = Field(default=None, description="設備カテゴリ（任意）")
+    count: int | None = Field(default=None, description="台数（任意）")
+    max_weight_kg: int | None = Field(default=None, description="最大重量（任意）")
     availability: str = Field(description="present/absent/unknown")
     verification_status: str = Field(description="検証状況")
     last_verified_at: datetime | None = Field(default=None, description="最終確認時刻")
@@ -75,6 +102,7 @@ class GymDetailDTO(BaseModel):
                         {
                             "equipment_slug": "squat-rack",
                             "equipment_name": "スクワットラック",
+                            "category": "strength",
                             "count": 2,
                             "max_weight_kg": 180,
                         }
@@ -83,6 +111,9 @@ class GymDetailDTO(BaseModel):
                         {
                             "slug": "squat-rack",
                             "name": "スクワットラック",
+                            "category": "strength",
+                            "count": 2,
+                            "max_weight_kg": 180,
                             "availability": "present",
                             "verification_status": "verified",
                             "last_verified_at": "2025-09-01T12:34:56Z",
@@ -105,3 +136,9 @@ class GymDetailDTO(BaseModel):
             ]
         }
     )
+
+    @computed_field(return_type=list[GymEquipmentLineDTO])
+    def equipment_details(self) -> list[GymEquipmentLineDTO]:
+        """旧API互換のため equipment_details を提供する。"""
+
+        return self.equipments

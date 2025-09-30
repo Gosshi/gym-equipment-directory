@@ -33,4 +33,10 @@ async def test_gym_detail_fields(session):
         assert body["city"] == "chiyoda"
         eq = body["equipments"][0]
         assert eq["equipment_slug"] == "smith-machine"
+        assert eq["slug"] == "smith-machine"
+        assert eq["name"] == "Smith Machine"
+        assert eq["category"] == "machine"
+        assert eq["description"] == "1台 / 最大80kg"
         assert "count" in eq and "max_weight_kg" in eq
+        detail_eq = body["equipment_details"][0]
+        assert detail_eq["name"] == "Smith Machine"

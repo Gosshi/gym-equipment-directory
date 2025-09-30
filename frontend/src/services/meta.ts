@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/apiClient";
-import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import type { CityOption, EquipmentOption, PrefectureOption } from "@/types/meta";
 
 const formatSlugLabel = (slug: string) =>
   slug
@@ -18,13 +18,22 @@ export async function getPrefectures(): Promise<PrefectureOption[]> {
     }));
 }
 
-export async function getEquipmentCategories(): Promise<EquipmentCategoryOption[]> {
-  const response = await apiRequest<string[]>("/meta/equipment-categories", { method: "GET" });
+type EquipmentMetaResponse = {
+  slug: string;
+  name: string;
+  category: string | null;
+};
+
+export async function getEquipmentOptions(): Promise<EquipmentOption[]> {
+  const response = await apiRequest<EquipmentMetaResponse[]>("/meta/equipments", { method: "GET" });
   return response
-    .filter(value => Boolean(value))
-    .map(name => ({
-      value: name,
-      label: name,
+    .filter(item => Boolean(item?.slug))
+    .map(item => ({
+      value: item.slug,
+      label: item.name ?? item.slug,
+      slug: item.slug,
+      name: item.name ?? item.slug,
+      category: item.category ?? null,
     }));
 }
 

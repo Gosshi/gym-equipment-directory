@@ -43,7 +43,7 @@ vi.mock("@/services/gyms", () => ({
 
 vi.mock("@/services/meta", () => ({
   getPrefectures: vi.fn().mockResolvedValue([]),
-  getEquipmentCategories: vi.fn().mockResolvedValue([]),
+  getEquipmentOptions: vi.fn().mockResolvedValue([]),
   getCities: vi.fn().mockResolvedValue([]),
 }));
 

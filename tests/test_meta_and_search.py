@@ -32,6 +32,22 @@ async def test_meta_prefs_and_cities(session):
 
 
 @pytest.mark.asyncio
+async def test_meta_equipments(session):
+    e1 = Equipment(slug="smith-machine", name="Smith Machine", category="strength")
+    e2 = Equipment(slug="leg-press", name="Leg Press", category="machine")
+    session.add_all([e1, e2])
+    await session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        r = await ac.get("/meta/equipments")
+        assert r.status_code == 200
+        equipments = r.json()
+        slugs = {item["slug"] for item in equipments}
+        assert "smith-machine" in slugs
+
+
+@pytest.mark.asyncio
 async def test_search_minimal(session):
     g = Gym(slug="search-g1", name="Search G1", pref="chiba", city="funabashi")
     session.add(g)

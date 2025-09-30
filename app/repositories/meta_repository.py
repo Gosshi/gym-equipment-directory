@@ -43,3 +43,31 @@ class MetaRepository:
         )
         rows = (await self._session.execute(stmt)).scalars().all()
         return [c for c in rows if c]
+
+    async def list_equipment_options(self) -> list[dict[str, str | None]]:
+        stmt: Select = (
+            select(
+                Equipment.slug.label("slug"),
+                Equipment.name.label("name"),
+                Equipment.category.label("category"),
+            )
+            .where(Equipment.slug.is_not(None), Equipment.slug != "")
+            .order_by(Equipment.name.asc(), Equipment.slug.asc())
+        )
+        rows = (await self._session.execute(stmt)).mappings().all()
+        results: list[dict[str, str | None]] = []
+        seen: set[str] = set()
+        for row in rows:
+            slug = row.get("slug")
+            name = row.get("name")
+            if not slug or slug in seen:
+                continue
+            seen.add(slug)
+            results.append(
+                {
+                    "slug": slug,
+                    "name": name or slug,
+                    "category": row.get("category"),
+                }
+            )
+        return results

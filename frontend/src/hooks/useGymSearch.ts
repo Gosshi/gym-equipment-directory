@@ -23,9 +23,9 @@ import {
   clampLongitude,
 } from "@/lib/searchParams";
 import { searchGyms } from "@/services/gyms";
-import { getCities, getEquipmentCategories, getPrefectures } from "@/services/meta";
+import { getCities, getEquipmentOptions, getPrefectures } from "@/services/meta";
 import type { GymSearchMeta, GymSearchResponse, GymSummary } from "@/types/gym";
-import type { CityOption, EquipmentCategoryOption, PrefectureOption } from "@/types/meta";
+import type { CityOption, EquipmentOption, PrefectureOption } from "@/types/meta";
 import { planNavigation, type HistoryNavigationMode } from "@/lib/urlNavigation";
 import { useSearchStore, areFilterStatesEqual, type NavigationSource } from "@/store/searchStore";
 
@@ -180,7 +180,7 @@ export interface UseGymSearchResult {
   retry: () => void;
   prefectures: PrefectureOption[];
   cities: CityOption[];
-  equipmentCategories: EquipmentCategoryOption[];
+  equipmentOptions: EquipmentOption[];
   isMetaLoading: boolean;
   metaError: string | null;
   reloadMeta: () => void;
@@ -881,8 +881,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }
 
   const serverPage = queryData?.meta?.page;
+  const isUsingPlaceholderData = gymsQuery.isPlaceholderData ?? false;
   useEffect(() => {
-    if (missingLocationForDistance) {
+    if (missingLocationForDistance || isUsingPlaceholderData) {
       return;
     }
     const resolvedServerPage =
@@ -890,7 +891,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     if (resolvedServerPage != null && resolvedServerPage !== filters.page) {
       setPage(resolvedServerPage);
     }
-  }, [filters.page, missingLocationForDistance, serverPage, setPage]);
+  }, [filters.page, isUsingPlaceholderData, missingLocationForDistance, serverPage, setPage]);
 
   const loadNextPage = useCallback(() => {
     if (isLoading || !meta.hasNext) {
@@ -900,7 +901,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }, [filters.page, isLoading, meta.hasNext, setPage]);
 
   const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
-  const [equipmentCategories, setEquipmentCategories] = useState<EquipmentCategoryOption[]>([]);
+  const [equipmentOptions, setEquipmentOptions] = useState<EquipmentOption[]>([]);
   const [isMetaLoading, setIsMetaLoading] = useState(false);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaReloadIndex, setMetaReloadIndex] = useState(0);
@@ -912,13 +913,13 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     setIsMetaLoading(true);
     setMetaError(null);
 
-    Promise.all([getPrefectures(), getEquipmentCategories()])
+    Promise.all([getPrefectures(), getEquipmentOptions()])
       .then(([prefData, equipmentData]) => {
         if (!active) {
           return;
         }
         setPrefectures(prefData);
-        setEquipmentCategories(equipmentData);
+        setEquipmentOptions(equipmentData);
       })
       .catch(err => {
         if (!active) {
@@ -1070,7 +1071,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     retry,
     prefectures,
     cities,
-    equipmentCategories,
+    equipmentOptions,
     isMetaLoading,
     metaError,
     reloadMeta,
