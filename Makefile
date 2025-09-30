@@ -38,12 +38,20 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
-.PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve
+.PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve \
+        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a
 ingest-fetch:
-	python -m scripts.ingest fetch --source dummy --limit 10
+        python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
-	python -m scripts.ingest parse --source dummy --limit 10
+        python -m scripts.ingest parse --source dummy --limit 10
 ingest-normalize:
-	python -m scripts.ingest normalize --source dummy --limit 10
+        python -m scripts.ingest normalize --source dummy --limit 10
 ingest-approve:
-	python -m scripts.ingest approve --candidate-id 1 --dry-run
+        python -m scripts.ingest approve --candidate-id 1 --dry-run
+
+ingest-fetch-site-a:
+        python -m scripts.ingest fetch --source site_a --limit 10
+ingest-parse-site-a:
+        python -m scripts.ingest parse --source site_a --limit 10
+ingest-normalize-site-a:
+        python -m scripts.ingest normalize --source site_a --limit 10
