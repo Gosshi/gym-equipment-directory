@@ -37,3 +37,13 @@ pre-commit-install:
 
 pre-commit-run:
 	pre-commit run --all-files
+
+.PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve
+ingest-fetch:
+	python -m scripts.ingest fetch --source dummy --limit 10
+ingest-parse:
+	python -m scripts.ingest parse --source dummy --limit 10
+ingest-normalize:
+	python -m scripts.ingest normalize --source dummy --limit 10
+ingest-approve:
+	python -m scripts.ingest approve --candidate-id 1 --dry-run
