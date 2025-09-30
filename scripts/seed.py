@@ -153,27 +153,56 @@ class BulkContext:
 BULK_CONTEXT: BulkContext | None = None
 
 
-EQUIPMENT_SEED: list[tuple[str, str, str]] = [
-    ("squat-rack", "スクワットラック", "free_weight"),
-    ("bench-press", "ベンチプレス", "free_weight"),
-    ("dumbbell", "ダンベル", "free_weight"),
-    ("smith-machine", "スミスマシン", "free_weight"),
-    ("power-rack", "パワーラック", "free_weight"),
-    ("lat-pulldown", "ラットプルダウン", "machine"),
-    ("chest-press", "チェストプレス", "machine"),
-    ("leg-press", "レッグプレス", "machine"),
-    ("leg-curl", "レッグカール", "machine"),
-    ("leg-extension", "レッグエクステンション", "machine"),
-    ("pec-deck", "ペックデック", "machine"),
-    ("treadmill", "トレッドミル", "cardio"),
-    ("bike", "エアロバイク", "cardio"),
-    ("elliptical", "クロストレーナー", "cardio"),
-    ("rowing", "ローイングマシン", "cardio"),
-    ("stretch-area", "ストレッチエリア", "other"),
-    ("cable-machine", "ケーブルマシン", "machine"),
-    ("hack-squat", "ハックスクワット", "machine"),
-    ("dip-bar", "ディップバー", "free_weight"),
-    ("pullup-bar", "懸垂バー", "free_weight"),
+EQUIPMENT_SEED: list[tuple[str, str, str, str | None]] = [
+    ("power-rack", "パワーラック", "free_weight", "フリーウェイトの基幹ラック。"),
+    ("squat-rack", "スクワットラック", "free_weight", "スクワット専用ラック。"),
+    ("half-rack", "ハーフラック", "free_weight", "省スペースのラック。"),
+    ("bench-press", "ベンチプレス台", "free_weight", "王道のプレス台。"),
+    ("incline-bench", "インクラインベンチ", "free_weight", "角度調整可能なベンチ。"),
+    ("decline-bench", "デクラインベンチ", "free_weight", "下部狙いのプレスベンチ。"),
+    ("adjustable-bench", "アジャスタブルベンチ", "free_weight", None),
+    ("smith-machine", "スミスマシン", "free_weight", "軌道が固定されたバー。"),
+    ("deadlift-platform", "デッドリフトプラットフォーム", "free_weight", "床を保護する専用台。"),
+    ("barbell-set", "バーベルセット", "free_weight", "20kgバーとプレート一式。"),
+    ("dumbbell", "ダンベルセット", "free_weight", "可変ダンベル一式。"),
+    ("kettlebell-set", "ケトルベルセット", "free_weight", "重量違いのケトルベル。"),
+    ("ez-curl-bar", "EZカールバー", "free_weight", "肘に優しい湾曲バー。"),
+    ("preacher-bench", "プリーチャーベンチ", "free_weight", "アームカール用ベンチ。"),
+    ("dip-bar", "ディップスタンド", "free_weight", None),
+    ("pullup-bar", "懸垂バー", "free_weight", None),
+    ("lat-pulldown", "ラットプルダウン", "machine", "背中の牽引系マシン。"),
+    ("seated-row", "シーテッドロー", "machine", "水平ローイング。"),
+    ("cable-crossover", "ケーブルクロスオーバー", "machine", "ケーブルの多用途マシン。"),
+    ("chest-press", "チェストプレス", "machine", None),
+    ("shoulder-press", "ショルダープレス", "machine", "肩周りを鍛えるマシン。"),
+    ("pec-deck", "ペックデック", "machine", "胸を絞り込むマシン。"),
+    ("leg-press", "レッグプレス", "machine", "下半身全体を鍛える。"),
+    ("leg-extension", "レッグエクステンション", "machine", "大腿四頭筋を孤立。"),
+    ("leg-curl", "レッグカール", "machine", "ハムストリングを刺激。"),
+    ("hack-squat", "ハックスクワット", "machine", "軌道固定のスクワット。"),
+    ("calf-raise-machine", "カーフレイズマシン", "machine", "ふくらはぎ強化。"),
+    ("glute-drive", "グルートドライブ", "machine", "ヒップスラスト補助。"),
+    ("hip-abductor", "ヒップアブダクター", "machine", "股関節外転を鍛える。"),
+    ("hip-adductor", "ヒップアダクター", "machine", "股関節内転を鍛える。"),
+    ("back-extension-machine", "バックエクステンション", "machine", "下背部を強化。"),
+    ("ab-crunch-machine", "アブクランチマシン", "machine", None),
+    ("assisted-dip-chin", "アシストディップ＆チン", "machine", "自重補助マシン。"),
+    ("functional-trainer", "ファンクショナルトレーナー", "machine", "多関節のケーブル装置。"),
+    ("treadmill", "トレッドミル", "cardio", "定番のランニングマシン。"),
+    ("bike", "エアロバイク", "cardio", "定番の有酸素バイク。"),
+    ("air-bike", "エアバイク", "cardio", "全身連動のファンバイク。"),
+    ("recumbent-bike", "リカンベントバイク", "cardio", "背もたれ付きバイク。"),
+    ("elliptical", "クロストレーナー", "cardio", "関節に優しい全身運動。"),
+    ("stair-climber", "ステアクライマー", "cardio", "階段昇降を再現。"),
+    ("rowing", "ローイングマシン", "cardio", "ボート漕ぎ運動。"),
+    ("ski-erg", "スキーエルゴ", "cardio", "クロカンスキー動作。"),
+    ("battle-rope", "バトルロープ", "other", "全身を使うロープ運動。"),
+    ("plyo-box", "プライオボックス", "other", "ジャンプ系トレーニング用。"),
+    ("medicine-ball", "メディシンボール", "other", "投げて鍛えるボール。"),
+    ("agility-ladder", "アジリティラダー", "other", "フットワーク向上用。"),
+    ("resistance-band", "トレーニングバンド", "other", "多用途のチューブ。"),
+    ("foam-roller", "フォームローラー", "other", "セルフケア用ローラー。"),
+    ("yoga-block", "ヨガブロック", "other", "柔軟をサポート。"),
 ]
 
 
@@ -257,16 +286,31 @@ GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] 
 
 
 async def get_or_create_equipment(
-    sess: AsyncSession, slug: str, name: str, category: str, desc: str | None = None
+    sess: AsyncSession,
+    slug: str,
+    name: str,
+    category: str,
+    desc: str | None = None,
 ) -> Equipment:
     result = await sess.execute(select(Equipment).where(Equipment.slug == slug))
     eq = result.scalar_one_or_none()
     if eq:
+        if desc and not getattr(eq, "description", None):
+            eq.description = desc
+            await sess.flush()
         return eq
     eq = Equipment(slug=slug, name=name, category=category, description=desc)
     sess.add(eq)
     await sess.flush()
     return eq
+
+
+async def ensure_equipment_master(sess: AsyncSession) -> dict[str, Equipment]:
+    slug_to_eq: dict[str, Equipment] = {}
+    for slug, name, category, desc in EQUIPMENT_SEED:
+        eq = await get_or_create_equipment(sess, slug=slug, name=name, category=category, desc=desc)
+        slug_to_eq[slug] = eq
+    return slug_to_eq
 
 
 async def get_or_create_gym(
@@ -483,6 +527,11 @@ async def bulk_seed_gyms(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Seed dummy data for gyms and equipment.")
     parser.add_argument(
+        "--equip-only",
+        action="store_true",
+        help="Seed only the equipment master and exit.",
+    )
+    parser.add_argument(
         "--bulk-gyms",
         type=int,
         default=None,
@@ -519,12 +568,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 async def async_main(args: argparse.Namespace) -> int:
+    if getattr(args, "equip_only", False):
+        async with SessionLocal() as sess:
+            await ensure_equipment_master(sess)
+            await sess.commit()
+        logger.info("Equipment master seeded successfully.")
+        return 0
+
     overwrite_geo_env = os.getenv("SEED_OVERWRITE_GEO", "").lower() in {"1", "true", "yes"}
     overwrite_geo = args.overwrite_geo or overwrite_geo_env
 
     rng = random.Random(args.seed) if args.seed is not None else random.Random()
 
     async with SessionLocal() as sess:
+        slug_to_eq = await ensure_equipment_master(sess)
+
         src = await get_or_create_source(
             sess,
             stype=SourceType.user_submission,
@@ -532,11 +590,6 @@ async def async_main(args: argparse.Namespace) -> int:
             url=None,
             captured_at=datetime.utcnow(),
         )
-
-        slug_to_eq: dict[str, Equipment] = {}
-        for slug, name, cat in EQUIPMENT_SEED:
-            eq = await get_or_create_equipment(sess, slug=slug, name=name, category=cat)
-            slug_to_eq[slug] = eq
 
         slug_to_gym: dict[str, Gym] = {}
         for slug, name, pref, city, addr, url, lat, lng in GYM_SEED:
@@ -582,7 +635,7 @@ async def async_main(args: argparse.Namespace) -> int:
             BULK_CONTEXT = BulkContext(
                 source=src,
                 slug_to_eq=slug_to_eq,
-                equipment_categories={slug: cat for slug, _, cat in EQUIPMENT_SEED},
+                equipment_categories={slug: cat for slug, _, cat, _ in EQUIPMENT_SEED},
                 overwrite_geo=overwrite_geo,
             )
             try:

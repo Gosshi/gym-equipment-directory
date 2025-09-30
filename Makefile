@@ -23,10 +23,13 @@ rev:
 	docker compose exec api alembic revision --autogenerate -m "$(m)"
 
 freshness:
-	docker compose exec api python -m scripts.update_freshness
+        docker compose exec api python -m scripts.update_freshness
 
 test:
-	@TEST_DATABASE_URL=$(PG_DSN) pytest -q
+        @TEST_DATABASE_URL=$(PG_DSN) pytest -q
+
+seed-equip:
+        python -m scripts.seed --equip-only
 
 # --- Dev tooling ---
 pre-commit-install:
