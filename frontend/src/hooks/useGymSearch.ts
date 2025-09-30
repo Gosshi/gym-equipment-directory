@@ -891,13 +891,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     if (resolvedServerPage != null && resolvedServerPage !== filters.page) {
       setPage(resolvedServerPage);
     }
-  }, [
-    filters.page,
-    isUsingPlaceholderData,
-    missingLocationForDistance,
-    serverPage,
-    setPage,
-  ]);
+  }, [filters.page, isUsingPlaceholderData, missingLocationForDistance, serverPage, setPage]);
 
   const loadNextPage = useCallback(() => {
     if (isLoading || !meta.hasNext) {
