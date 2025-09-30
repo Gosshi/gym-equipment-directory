@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,10 +12,8 @@ from sqlalchemy.sql import func
 
 from app.models.base import Base
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from app.models.scraped_page import ScrapedPage
-else:  # pragma: no cover - fallback for circular import at runtime
-    ScrapedPage = Any
 
 
 class CandidateStatus(str, Enum):
@@ -27,6 +25,11 @@ class CandidateStatus(str, Enum):
 
 class GymCandidate(Base):
     __tablename__ = "gym_candidates"
+    __table_args__ = (
+        Index("ix_gym_candidates_status", "status"),
+        Index("ix_gym_candidates_pref_city", "pref_slug", "city_slug"),
+        Index("ix_gym_candidates_parsed_json", "parsed_json", postgresql_using="gin"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     source_page_id: Mapped[int] = mapped_column(
@@ -40,7 +43,7 @@ class GymCandidate(Base):
     city_slug: Mapped[str | None] = mapped_column(String(64), nullable=True)
     latitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     longitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
-    parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    parsed_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[CandidateStatus] = mapped_column(
         SQLEnum(CandidateStatus, name="candidate_status"),
         nullable=False,

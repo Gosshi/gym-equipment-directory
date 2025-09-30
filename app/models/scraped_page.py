@@ -1,8 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import CHAR, BigInteger, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import (
+    CHAR,
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+    desc,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -11,6 +22,11 @@ from app.models.base import Base
 
 class ScrapedPage(Base):
     __tablename__ = "scraped_pages"
+    __table_args__ = (
+        UniqueConstraint("source_id", "url", name="uq_scraped_pages_source_url"),
+        Index("ix_scraped_pages_fetched_at_desc", desc("fetched_at")),
+        Index("ix_scraped_pages_content_hash", "content_hash"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     source_id: Mapped[int] = mapped_column(
@@ -31,10 +47,12 @@ class ScrapedPage(Base):
     )
 
     candidates: Mapped[list[GymCandidate]] = relationship(
+        "GymCandidate",
         back_populates="source_page",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
 
 
-from app.models.gym_candidate import GymCandidate  # noqa: E402  # avoid circular import
+if TYPE_CHECKING:  # pragma: no cover
+    from app.models.gym_candidate import GymCandidate
