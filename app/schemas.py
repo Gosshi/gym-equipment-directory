@@ -1,7 +1,7 @@
 # app/schemas.py
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 # --- 共通 ---
 
@@ -84,6 +84,14 @@ class EquipmentRow(BaseModel):
     max_weight_kg: int | None = None
     verification_status: str
     last_verified_at: datetime | None = None
+
+    @computed_field(return_type=str)
+    def name(self) -> str:
+        return self.equipment_name
+
+    @computed_field(return_type=str)
+    def slug(self) -> str:
+        return self.equipment_slug
 
 
 class SourceRow(BaseModel):
