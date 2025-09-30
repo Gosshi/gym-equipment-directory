@@ -4,9 +4,11 @@ from .base import Base
 from .equipment import Equipment
 from .favorite import Favorite
 from .gym import Gym
+from .gym_candidate import GymCandidate
 from .gym_equipment import GymEquipment
 from .gym_image import GymImage
 from .report import Report
+from .scraped_page import ScrapedPage
 from .source import Source
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "Report",
     "Favorite",
     "GymImage",
+    "ScrapedPage",
+    "GymCandidate",
 ]
