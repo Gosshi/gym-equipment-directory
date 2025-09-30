@@ -67,8 +67,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 select(GymCandidate).where(GymCandidate.source_page_id.in_(page_ids))
             )
             existing_candidates = {
-                candidate.source_page_id: candidate
-                for candidate in result.scalars()
+                candidate.source_page_id: candidate for candidate in result.scalars()
             }
 
         created = 0
@@ -110,12 +109,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
         await session.commit()
 
     total = created + updated
-    sample_names = ", ".join(
-        [
-            _extract_name(page.raw_html, page.url)
-            for page in pages[:3]
-        ]
-    )
+    sample_names = ", ".join([_extract_name(page.raw_html, page.url) for page in pages[:3]])
     logger.info(
         "Processed %s scraped pages into candidates (created=%s, updated=%s)",
         total,

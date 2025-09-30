@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -50,7 +50,7 @@ async def fetch_pages(source: str, limit: int | None, file_path: Path | None) ->
         )
         existing_pages = {page.url: page for page in result.scalars()}
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created = 0
         updated = 0
         for idx, url in enumerate(urls, start=1):
@@ -77,7 +77,7 @@ async def fetch_pages(source: str, limit: int | None, file_path: Path | None) ->
     total = created + updated
     preview = ", ".join(urls[:3])
     logger.info(
-        "Upserted %s scraped pages (created=%s, updated=%s) for source '%s'", 
+        "Upserted %s scraped pages (created=%s, updated=%s) for source '%s'",
         total,
         created,
         updated,

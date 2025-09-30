@@ -5,9 +5,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Sequence
 
 from .approve import approve_candidate
 from .fetch import fetch_pages
@@ -74,9 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def _run_async_command(
-    func: Callable[..., Awaitable[int]], *args, **kwargs
-) -> int:
+async def _run_async_command(func: Callable[..., Awaitable[int]], *args, **kwargs) -> int:
     return await func(*args, **kwargs)
 
 
@@ -89,9 +86,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if command == "normalize":
         return asyncio.run(_run_async_command(normalize_candidates, args.source, args.limit))
     if command == "approve":
-        return asyncio.run(
-            _run_async_command(approve_candidate, args.candidate_id, args.dry_run)
-        )
+        return asyncio.run(_run_async_command(approve_candidate, args.candidate_id, args.dry_run))
     msg = f"Unknown command: {command}"
     raise ValueError(msg)
 

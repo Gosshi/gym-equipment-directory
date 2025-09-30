@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from sqlalchemy import select
 
@@ -61,9 +61,7 @@ async def normalize_candidates(source: str, limit: int | None) -> int:
             logger.info("No gym candidates found for source '%s'", source)
             return 0
 
-        equipment_slugs = set(
-            (await session.execute(select(Equipment.slug))).scalars().all()
-        )
+        equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
 
         updated = 0
         for candidate in candidates:
