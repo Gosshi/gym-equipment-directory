@@ -178,7 +178,7 @@ PREF_WEIGHTS: dict[str, float] = {
 }
 
 EQUIPMENT_SLUGS: tuple[str, ...] = tuple(slug for slug, *_ in EQUIPMENT_SEED)
-EQUIPMENT_CATEGORY: dict[str, str] = {slug: category for slug, _, category in EQUIPMENT_SEED}
+EQUIPMENT_CATEGORY: dict[str, str] = {slug: category for slug, _, category, _ in EQUIPMENT_SEED}
 
 AVAILABILITY_CHOICES: tuple[Availability, ...] = (
     Availability.present,
@@ -285,8 +285,8 @@ def to_last_verified_timestamp(rng: random.Random) -> datetime:
 
 async def ensure_equipment_master(sess: AsyncSession) -> dict[str, Equipment]:
     slug_to_equipment: dict[str, Equipment] = {}
-    for slug, name, category in EQUIPMENT_SEED:
-        eq = await get_or_create_equipment(sess, slug=slug, name=name, category=category)
+    for slug, name, category, desc in EQUIPMENT_SEED:
+        eq = await get_or_create_equipment(sess, slug=slug, name=name, category=category, desc=desc)
         slug_to_equipment[slug] = eq
     await sess.flush()
     return slug_to_equipment
