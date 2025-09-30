@@ -88,6 +88,34 @@ gym-equipment-directory/
 - [ユーザテスト計画](docs/USER_TEST_PLAN.md)
 - [Go To Market](docs/GO_TO_MARKET.md)
 
+## 🏋️ Ingest パイプラインの使い方
+
+`site_a` のスクレイピングフローをローカルで試す場合は、以下のコマンドを順番に実行します。
+
+1. 依存関係をインストール
+   ```bash
+   pip install -r requirements.txt -r requirements-dev.txt
+   ```
+2. ダミー HTML を保存
+   ```bash
+   make ingest-fetch-site-a
+   ```
+3. HTML を解析して候補テーブルへ反映
+   ```bash
+   make ingest-parse-site-a
+   ```
+4. 候補データを正規化
+   ```bash
+   make ingest-normalize-site-a
+   ```
+
+各ターゲットは `--limit 10` で固定実行されます。必要に応じて下記のように直接コマンドを
+呼び出し、件数などのオプションを調整してください。
+
+```bash
+python -m scripts.ingest fetch --source site_a --limit 5
+```
+
 ## 📝 今後の予定（M1スコープ）
 
 - [ ] SQLAlchemyモデル定義

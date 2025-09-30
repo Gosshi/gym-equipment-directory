@@ -1,4 +1,4 @@
-"""Parse dummy HTML into ``gym_candidates`` records."""
+"""Parse scraped HTML into ``gym_candidates`` records."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
+from .sites import site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ _EQUIPMENT_PATTERNS = (
 )
 
 
-def _extract_name(raw_html: str | None, url: str) -> str:
+def _extract_dummy_name(raw_html: str | None, url: str) -> str:
     if raw_html:
         match = _TITLE_RE.search(raw_html)
         if match:
@@ -42,8 +43,31 @@ def _extract_name(raw_html: str | None, url: str) -> str:
     return slug.replace("-", " ").replace("_", " ").title() or "Unnamed Gym"
 
 
+def _build_dummy_payload(
+    page: ScrapedPage,
+    address_iter,
+    equipment_iter,
+) -> tuple[str, str, dict[str, Any]]:
+    name_raw = _extract_dummy_name(page.raw_html, page.url)
+    address_raw = next(address_iter)
+    equipments = next(equipment_iter)
+    parsed_json: dict[str, Any] = {"equipments": equipments}
+    return name_raw, address_raw, parsed_json
+
+
+def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
+    parsed = site_a.parse_gym_html(page.raw_html or "")
+    parsed_json: dict[str, Any] = {
+        "site": site_a.SITE_ID,
+        "equipments": parsed.equipments,
+        "equipments_raw": parsed.equipments_raw,
+    }
+    return parsed.name_raw, parsed.address_raw, parsed_json
+
+
 async def parse_pages(source: str, limit: int | None) -> int:
     """Create or update ``gym_candidates`` from scraped pages."""
+
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
 
@@ -72,13 +96,24 @@ async def parse_pages(source: str, limit: int | None) -> int:
 
         created = 0
         updated = 0
-        address_iter = cycle(_ADDRESS_POOL)
-        equipment_iter = cycle(_EQUIPMENT_PATTERNS)
+        sample_names: list[str] = []
+        address_iter = cycle(_ADDRESS_POOL) if source == "dummy" else None
+        equipment_iter = cycle(_EQUIPMENT_PATTERNS) if source == "dummy" else None
+
         for page in pages:
-            name_raw = _extract_name(page.raw_html, page.url)
-            address_raw = next(address_iter)
-            equipments = next(equipment_iter)
-            parsed_json: dict[str, Any] = {"equipments": equipments}
+            if source == "dummy":
+                assert address_iter is not None and equipment_iter is not None
+                name_raw, address_raw, parsed_json = _build_dummy_payload(
+                    page, address_iter, equipment_iter
+                )
+            elif source == site_a.SITE_ID:
+                name_raw, address_raw, parsed_json = _build_site_a_payload(page)
+            else:
+                msg = f"Unsupported source: {source}"
+                raise ValueError(msg)
+
+            if name_raw and len(sample_names) < 2:
+                sample_names.append(name_raw)
 
             candidate = existing_candidates.get(page.id)
             if candidate is None:
@@ -109,7 +144,6 @@ async def parse_pages(source: str, limit: int | None) -> int:
         await session.commit()
 
     total = created + updated
-    sample_names = ", ".join([_extract_name(page.raw_html, page.url) for page in pages[:3]])
     logger.info(
         "Processed %s scraped pages into candidates (created=%s, updated=%s)",
         total,
@@ -117,5 +151,10 @@ async def parse_pages(source: str, limit: int | None) -> int:
         updated,
     )
     if sample_names:
-        logger.info("Sample candidate names: %s%s", sample_names, "..." if len(pages) > 3 else "")
+        suffix = "..." if len(pages) > 2 else ""
+        logger.info(
+            "Sample candidate names: %s%s",
+            ", ".join(sample_names),
+            suffix,
+        )
     return 0
