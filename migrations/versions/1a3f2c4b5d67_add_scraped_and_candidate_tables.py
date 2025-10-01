@@ -45,6 +45,7 @@ def upgrade() -> None:
         sa.Column("http_status", sa.Integer(), nullable=True),
         sa.Column("content_hash", sa.CHAR(length=64), nullable=True),
         sa.Column("raw_html", sa.Text(), nullable=True),
+        sa.Column("response_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

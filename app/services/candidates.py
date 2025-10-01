@@ -79,6 +79,12 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC).replace(tzinfo=None)
 
 
+def _strip_nul(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return value.replace("\x00", "")
+
+
 def _slugify(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\s-]", "", normalized)
@@ -368,6 +374,7 @@ async def ensure_equipment_links(
     updated = 0
     timestamps: list[datetime] = []
     now = datetime.now(UTC)
+    now_naive = _as_naive_utc(now)
     for assign in assigns:
         equipment = equipment_map[assign.slug]
         existing = existing_map.get(equipment.id)
@@ -382,10 +389,10 @@ async def ensure_equipment_links(
                     count=assign.count,
                     max_weight_kg=assign.max_weight_kg,
                     verification_status=VerificationStatus.user_verified,
-                    last_verified_at=now,
+                    last_verified_at=now_naive,
                 )
                 session.add(link)
-            timestamps.append(now)
+            timestamps.append(now_naive)
         else:
             updated += 1
             if apply_changes:
@@ -395,8 +402,8 @@ async def ensure_equipment_links(
                 if assign.max_weight_kg is not None:
                     existing.max_weight_kg = assign.max_weight_kg
                 existing.verification_status = VerificationStatus.user_verified
-                existing.last_verified_at = now
-            timestamps.append(now)
+                existing.last_verified_at = now_naive
+            timestamps.append(now_naive)
     if apply_changes:
         await session.flush()
     summary = EquipmentUpsertSummary(
@@ -414,10 +421,18 @@ async def approve_candidate(
     row = await _fetch_candidate_row(session, candidate_id)
     candidate = row.candidate
     override = request.override or ApproveOverride()
-    name = override.name or candidate.name_raw
-    pref_slug = override.pref_slug or candidate.pref_slug
-    city_slug = override.city_slug or candidate.city_slug
-    address = override.address or candidate.address_raw
+    candidate_name = _strip_nul(candidate.name_raw)
+    candidate_pref = _strip_nul(candidate.pref_slug)
+    candidate_city = _strip_nul(candidate.city_slug)
+    candidate_address = _strip_nul(candidate.address_raw)
+    override_name = _strip_nul(override.name)
+    override_pref = _strip_nul(override.pref_slug)
+    override_city = _strip_nul(override.city_slug)
+    override_address = _strip_nul(override.address)
+    name = override_name or candidate_name
+    pref_slug = override_pref or candidate_pref
+    city_slug = override_city or candidate_city
+    address = override_address or candidate_address
     latitude = override.latitude if override.latitude is not None else candidate.latitude
     longitude = override.longitude if override.longitude is not None else candidate.longitude
     if not name:

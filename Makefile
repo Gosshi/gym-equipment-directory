@@ -39,7 +39,9 @@ pre-commit-run:
 	pre-commit run --all-files
 
 .PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve \
-        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a
+        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
+        ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
+        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi
 ingest-fetch:
         python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
@@ -51,9 +53,29 @@ ingest-approve:
 
 ingest-fetch-site-a:
         python -m scripts.ingest fetch --source site_a --limit 10
+ingest-fetch-http-site-a-koto:
+        python -m scripts.ingest fetch-http \
+                --source site_a \
+                --pref tokyo \
+                --city koto \
+                --limit 10 \
+                --min-delay 2 \
+                --max-delay 4
+ingest-fetch-http-site-a-funabashi:
+        python -m scripts.ingest fetch-http \
+                --source site_a \
+                --pref chiba \
+                --city funabashi \
+                --limit 10 \
+                --min-delay 2 \
+                --max-delay 4
 ingest-parse-site-a:
         python -m scripts.ingest parse --source site_a --limit 10
+ingest-parse-site-a-funabashi:
+        python -m scripts.ingest parse --source site_a --limit 10
 ingest-normalize-site-a:
+        python -m scripts.ingest normalize --source site_a --limit 10
+ingest-normalize-site-a-funabashi:
         python -m scripts.ingest normalize --source site_a --limit 10
 
 curl-admin-candidates:
