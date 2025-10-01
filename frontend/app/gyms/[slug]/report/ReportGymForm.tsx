@@ -259,7 +259,7 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
         title: "報告を受け付けました",
         description: "ご協力ありがとうございます。内容を確認いたします。",
       });
-      router.replace(`/gyms/${encodeURIComponent(slug)}`);
+      router.replace(`/gyms/${slug}`);
     } catch (error) {
       if (error instanceof ApiError) {
         const parsed = parseApiError(error);
@@ -317,7 +317,7 @@ export function ReportGymForm({ slug, gymName }: ReportGymFormProps) {
       <div className="space-y-8">
         <div className="space-y-2">
           <Link
-            href={`/gyms/${encodeURIComponent(slug)}`}
+            href={`/gyms/${slug}`}
             className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
             aria-label="ジム詳細ページへ戻る"
           >

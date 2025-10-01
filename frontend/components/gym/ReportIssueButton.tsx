@@ -18,7 +18,7 @@ interface ReportIssueButtonProps {
 }
 
 export function ReportIssueButton({ slug, gymName }: ReportIssueButtonProps) {
-  const reportUrl = `/gyms/${encodeURIComponent(slug)}/report`;
+  const reportUrl = `/gyms/${slug}/report`;
 
   return (
     <Dialog>
