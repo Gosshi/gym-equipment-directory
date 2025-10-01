@@ -55,3 +55,12 @@ ingest-parse-site-a:
         python -m scripts.ingest parse --source site_a --limit 10
 ingest-normalize-site-a:
         python -m scripts.ingest normalize --source site_a --limit 10
+
+curl-admin-candidates:
+        @echo "# 一覧"
+        @curl -s "http://localhost:8000/admin/candidates?status=new&limit=5" | jq
+        @echo "# 承認ドライラン"
+        @curl -s -X POST \
+                "http://localhost:8000/admin/candidates/1/approve" \
+                -H "Content-Type: application/json" \
+                -d '{"dry_run":true}' | jq
