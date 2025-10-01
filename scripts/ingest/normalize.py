@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 from collections.abc import Iterable
 
 from sqlalchemy import select
@@ -12,10 +13,61 @@ from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 
-from .sites import site_a
+from .sites import municipal_koto, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
+
+
+def _nkfc(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).replace("\x00", "").strip()
+
+
+_KOTO_HINTS: tuple[str, ...] = (
+    "有明",
+    "亀戸",
+    "深川",
+    "東砂",
+    "大島",
+    "猿江",
+    "豊洲",
+    "辰巳",
+    "南砂",
+    "木場",
+    "森下",
+)
+
+
+def _assign_pref_city_for_municipal_koto(
+    addr: str | None,
+    name: str | None,
+    *,
+    parsed: dict | None = None,
+) -> tuple[str | None, str | None]:
+    """Heuristic assignment for Koto ward facilities."""
+
+    segments: list[str] = []
+    if addr:
+        segments.append(addr)
+    if name:
+        segments.append(name)
+    if parsed and isinstance(parsed, dict):
+        for value in parsed.values():
+            if isinstance(value, str):
+                segments.append(value)
+            elif isinstance(value, list | tuple):
+                segments.extend(str(item) for item in value if isinstance(item, str))
+
+    if not segments:
+        return None, None
+
+    text = _nkfc(" ".join(segments))
+    if "東京都" in text or "江東区" in text:
+        return "tokyo", "koto"
+    if any(hint in text for hint in _KOTO_HINTS):
+        return "tokyo", "koto"
+    return None, None
+
 
 _DUMMY_PREF_MAP = {
     "東京都": "tokyo",
@@ -43,13 +95,21 @@ _SITE_A_CITY_MAP = {
     "千葉市": "chiba",
     "美浜区": "mihama",
 }
+_MUNICIPAL_KOTO_PREF_MAP = {
+    "東京都": "tokyo",
+}
+_MUNICIPAL_KOTO_CITY_MAP = {
+    "江東区": "koto",
+}
 _PREF_MAPS = {
     "dummy": _DUMMY_PREF_MAP,
     site_a.SITE_ID: _SITE_A_PREF_MAP,
+    municipal_koto.SITE_ID: _MUNICIPAL_KOTO_PREF_MAP,
 }
 _CITY_MAPS = {
     "dummy": _DUMMY_CITY_MAP,
     site_a.SITE_ID: _SITE_A_CITY_MAP,
+    municipal_koto.SITE_ID: _MUNICIPAL_KOTO_CITY_MAP,
 }
 
 
@@ -109,6 +169,17 @@ async def normalize_candidates(source: str, limit: int | None) -> int:
 
             pref_slug = _find_slug(candidate.address_raw, pref_map)
             city_slug = _find_slug(candidate.address_raw, city_map)
+
+            if source == municipal_koto.SITE_ID and (not pref_slug or not city_slug):
+                fallback_pref, fallback_city = _assign_pref_city_for_municipal_koto(
+                    candidate.address_raw,
+                    candidate.name_raw,
+                    parsed=candidate.parsed_json
+                    if isinstance(candidate.parsed_json, dict)
+                    else None,
+                )
+                pref_slug = pref_slug or fallback_pref
+                city_slug = city_slug or fallback_city
 
             changed = False
             if candidate.pref_slug != pref_slug:

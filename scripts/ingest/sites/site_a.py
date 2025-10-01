@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 SITE_ID = "site_a"
 BASE_URL = "https://site-a.example.com"
+ALLOWED_HOSTS = ("site-a.example.com",)
 SUPPORTED_HTTP_AREAS = {("tokyo", "koto"), ("chiba", "funabashi")}
 _LISTING_PAGE_RANGE = range(1, 4)
 

@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { ApiError, apiRequest } from "@/lib/apiClient";
+import { encodeOnce } from "@/lib/url";
 import type {
   GymDetailApiResponse,
   GymEquipmentDetailApiResponse,
@@ -323,7 +324,7 @@ const normalizeGymDetail = (data: GymDetailApiResponse): NormalizedGymDetail => 
 };
 
 async function fetchGymDetail(slug: string, signal?: AbortSignal): Promise<NormalizedGymDetail> {
-  const response = await apiRequest<GymDetailApiResponse>(`/gyms/${encodeURIComponent(slug)}`, {
+  const response = await apiRequest<GymDetailApiResponse>(`/gyms/${encodeOnce(slug)}`, {
     method: "GET",
     signal,
   });

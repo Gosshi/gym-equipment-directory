@@ -1,3 +1,5 @@
+import { encodeOnce } from "@/lib/url";
+
 export type SearchParams = {
   pref?: string;
   city?: string;
@@ -72,7 +74,7 @@ export async function searchGyms(params: SearchParams): Promise<SearchResponse> 
 }
 
 export async function getGymBySlug(slug: string): Promise<GymDetail> {
-  return fetchJson<GymDetail>(`/gyms/${encodeURIComponent(slug)}`);
+  return fetchJson<GymDetail>(`/gyms/${encodeOnce(slug)}`);
 }
 
 // Nearby gyms (by geolocation)

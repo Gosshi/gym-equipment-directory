@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit",
         type=int,
         default=DEFAULT_LIMIT,
-        help="Number of detail pages to fetch (1-50)",
+        help="Number of detail pages to fetch (1-30)",
     )
     fetch_http_parser.add_argument(
         "--min-delay",

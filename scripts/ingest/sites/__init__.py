@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from . import site_a
+from . import municipal_koto, site_a
 
-__all__ = ["site_a"]
+__all__ = ["site_a", "municipal_koto"]

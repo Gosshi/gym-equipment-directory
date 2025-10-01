@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/apiClient";
+import { encodeOnce } from "@/lib/url";
 import {
   fetchGyms as fetchGymsApi,
   normalizeGymSummary,
@@ -256,7 +257,7 @@ export async function getGymBySlug(
   slug: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<GymDetail> {
-  const response = await apiRequest<RawGymDetail>(`/gyms/${slug}`, {
+  const response = await apiRequest<RawGymDetail>(`/gyms/${encodeOnce(slug)}`, {
     method: "GET",
     signal: options.signal,
   });
