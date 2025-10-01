@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
-from app.models import Equipment, Gym, GymEquipment, Source
+from app.models import Equipment, Gym, GymEquipment, GymSlug, Source
 from app.models.gym_image import GymImage
 from app.repositories.interfaces import (
     GymEquipmentBasicRow,
@@ -179,6 +179,10 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
     async def get_by_slug(self, slug: str) -> Gym | None:
         return await self._session.scalar(select(Gym).where(Gym.slug == slug))
 
+    async def get_by_slug_from_history(self, slug: str) -> Gym | None:
+        stmt = select(Gym).join(GymSlug, GymSlug.gym_id == Gym.id).where(GymSlug.slug == slug)
+        return await self._session.scalar(stmt)
+
     async def get_by_canonical_id(self, canonical_id: str) -> Gym | None:
         return await self._session.scalar(select(Gym).where(Gym.canonical_id == canonical_id))
 
@@ -187,6 +191,8 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
 
     async def resolve_id_by_slug(self, slug: str) -> int | None:
         gym_id = await self._session.scalar(select(Gym.id).where(Gym.slug == slug))
+        if gym_id is None:
+            gym_id = await self._session.scalar(select(GymSlug.gym_id).where(GymSlug.slug == slug))
         return int(gym_id) if gym_id is not None else None
 
     async def count_gym_equipments(self, gym_id: int) -> int:

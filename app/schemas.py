@@ -103,6 +103,12 @@ class SourceRow(BaseModel):
     captured_at: datetime | None = None
 
 
+class GymDetailMeta(BaseModel):
+    redirect: bool = Field(
+        False, description="requested_slug と canonical_slug が異なる場合に true"
+    )
+
+
 class GymDetailResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
@@ -129,6 +135,9 @@ class GymDetailResponse(BaseModel):
                 ],
                 "sources": [],
                 "updated_at": "2025-09-01T12:34:56Z",
+                "requested_slug": "gold-gym",
+                "canonical_slug": "gold-gym-funabashi",
+                "meta": {"redirect": True},
             }
         }
     )
@@ -136,6 +145,11 @@ class GymDetailResponse(BaseModel):
     equipments: list[EquipmentRow]
     sources: list[SourceRow]
     updated_at: datetime | None = None
+    requested_slug: str = Field(..., description="リクエストされた slug")
+    canonical_slug: str = Field(..., description="現在の正規 slug")
+    meta: GymDetailMeta | None = Field(
+        None, description="補助情報。redirect が true の場合は URL の更新を推奨"
+    )
 
 
 # app/schemas.py に追加（任意）

@@ -7,6 +7,7 @@ from .gym import Gym
 from .gym_candidate import CandidateStatus, GymCandidate
 from .gym_equipment import GymEquipment
 from .gym_image import GymImage
+from .gym_slug import GymSlug
 from .report import Report
 from .scraped_page import ScrapedPage
 from .source import Source, SourceType
@@ -16,6 +17,7 @@ __all__ = [
     "Gym",
     "Equipment",
     "GymEquipment",
+    "GymSlug",
     "Source",
     "Report",
     "Favorite",
