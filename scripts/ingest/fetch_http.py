@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -113,6 +113,13 @@ def _ensure_allowed_domain(url: str, allowed_hosts: Iterable[str]) -> str:
     return url
 
 
+def _resolve_absolute_url(url_or_path: str, base_url: str) -> str:
+    parsed = urlparse(url_or_path)
+    if parsed.scheme in {"http", "https"}:
+        return url_or_path
+    return urljoin(base_url, url_or_path)
+
+
 def _parse_robots(txt: str, *, user_agent: str) -> RobotsRules:
     disallow: list[str] = []
     active = False
@@ -158,27 +165,57 @@ async def _request_with_retries(
     raise last_error
 
 
+class RobotsDecision(NamedTuple):
+    rules: RobotsRules | None
+    proceed: bool
+
+
 async def _load_robots(
     client: httpx.AsyncClient,
     *,
     base_url: str,
     user_agent: str,
     timeout: float,
-) -> RobotsRules | None:
+    respect_robots: bool,
+) -> RobotsDecision:
     robots_url = urljoin(base_url, "/robots.txt")
     try:
         response = await client.get(robots_url, timeout=timeout)
     except httpx.HTTPError as exc:
         logger.warning("Failed to fetch robots.txt from %s: %s", robots_url, exc)
-        return None
-    if response.status_code >= 400:
+        if respect_robots:
+            logger.warning("Aborting fetch because robots.txt could not be loaded")
+            return RobotsDecision(None, False)
+        logger.warning("Continuing because --respect-robots=false")
+        return RobotsDecision(None, True)
+
+    status = response.status_code
+    if status == 200:
+        rules = _parse_robots(response.text or "", user_agent=user_agent)
+        return RobotsDecision(rules, True)
+    if status == 404:
         logger.warning(
-            "robots.txt returned unexpected status %s from %s",
-            response.status_code,
+            "robots.txt returned 404; proceeding as 'no robots' for %s",
             robots_url,
         )
-        return None
-    return _parse_robots(response.text or "", user_agent=user_agent)
+        return RobotsDecision(None, True)
+    if status >= 400:
+        if respect_robots:
+            logger.warning(
+                "robots.txt returned status %s from %s; aborting due to respect_robots",
+                status,
+                robots_url,
+            )
+            return RobotsDecision(None, False)
+        logger.warning(
+            "robots.txt status %s from %s; continuing because --respect-robots=false",
+            status,
+            robots_url,
+        )
+        return RobotsDecision(None, True)
+
+    rules = _parse_robots(response.text or "", user_agent=user_agent)
+    return RobotsDecision(rules, True)
 
 
 async def _collect_detail_urls(
@@ -192,30 +229,36 @@ async def _collect_detail_urls(
     robots: RobotsRules | None,
     timeout: float,
 ) -> list[str]:
-    listing_urls = list(config.module.iter_listing_urls(pref, city))
+    try:
+        listing_iterable = config.module.iter_listing_urls(pref, city, limit=limit)
+    except TypeError:
+        listing_iterable = config.module.iter_listing_urls(pref, city)
+    listing_urls = list(listing_iterable)
     detail_urls: list[str] = []
     seen: set[str] = set()
     if config.uses_listing_pages:
         for listing_url in listing_urls:
-            _ensure_allowed_domain(listing_url, config.allowed_hosts)
-            parsed_listing = urlparse(listing_url)
+            absolute_listing = _resolve_absolute_url(listing_url, config.base_url)
+            _ensure_allowed_domain(absolute_listing, config.allowed_hosts)
+            parsed_listing = urlparse(absolute_listing)
             if respect_robots and robots and not robots.allows(parsed_listing.path):
-                logger.warning("Skipping listing due to robots.txt: %s", listing_url)
+                logger.warning("Skipping listing due to robots.txt: %s", absolute_listing)
                 continue
             try:
-                response = await client.get(listing_url, timeout=timeout)
+                response = await client.get(absolute_listing, timeout=timeout)
             except httpx.HTTPError as exc:
-                logger.warning("Failed to fetch listing %s: %s", listing_url, exc)
+                logger.warning("Failed to fetch listing %s: %s", absolute_listing, exc)
                 continue
             if response.status_code != 200:
                 logger.warning(
                     "Listing request returned status %s for %s",
                     response.status_code,
-                    listing_url,
+                    absolute_listing,
                 )
                 continue
             for url in config.module.iter_detail_urls_from_listing(response.text):
-                absolute = _ensure_allowed_domain(url, config.allowed_hosts)
+                resolved = _resolve_absolute_url(url, config.base_url)
+                absolute = _ensure_allowed_domain(resolved, config.allowed_hosts)
                 parsed = urlparse(absolute)
                 if respect_robots and robots and not robots.allows(parsed.path):
                     logger.warning("Skipping detail due to robots.txt: %s", absolute)
@@ -228,7 +271,8 @@ async def _collect_detail_urls(
                     return detail_urls
     else:
         for detail_url in listing_urls:
-            absolute = _ensure_allowed_domain(detail_url, config.allowed_hosts)
+            resolved = _resolve_absolute_url(detail_url, config.base_url)
+            absolute = _ensure_allowed_domain(resolved, config.allowed_hosts)
             parsed = urlparse(absolute)
             if respect_robots and robots and not robots.allows(parsed.path):
                 logger.warning("Skipping detail due to robots.txt: %s", absolute)
@@ -352,17 +396,16 @@ async def fetch_http_pages(
         timeout=timeout,
         follow_redirects=True,
     ) as client:
-        robots: RobotsRules | None = None
-        if respect_robots:
-            robots = await _load_robots(
-                client,
-                base_url=config.base_url,
-                user_agent=user_agent,
-                timeout=timeout,
-            )
-            if robots is None:
-                logger.warning("Aborting fetch because robots.txt could not be loaded")
-                return 1
+        decision = await _load_robots(
+            client,
+            base_url=config.base_url,
+            user_agent=user_agent,
+            timeout=timeout,
+            respect_robots=respect_robots,
+        )
+        if respect_robots and not decision.proceed:
+            return 1
+        robots = decision.rules if respect_robots else None
 
         detail_urls = await _collect_detail_urls(
             client,

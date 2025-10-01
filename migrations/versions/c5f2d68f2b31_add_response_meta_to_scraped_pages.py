@@ -18,13 +18,11 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.execute(
-        "ALTER TABLE scraped_pages "
-        "ADD COLUMN IF NOT EXISTS response_meta JSONB",
+        "ALTER TABLE scraped_pages ADD COLUMN IF NOT EXISTS response_meta JSONB",
     )
 
 
 def downgrade() -> None:
     op.execute(
-        "ALTER TABLE scraped_pages "
-        "DROP COLUMN IF EXISTS response_meta",
+        "ALTER TABLE scraped_pages DROP COLUMN IF EXISTS response_meta",
     )

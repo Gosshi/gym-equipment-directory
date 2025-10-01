@@ -32,39 +32,45 @@ _EQUIPMENT_PATTERNS = (
     ["squat-rack", "dumbbell"],
 )
 
-_MUNICIPAL_KOTO_EQUIPMENT_ALIASES: dict[str, tuple[str, ...]] = {
-    "smith-machine": ("スミスマシン", "スミス", "smith machine"),
-    "bench-press": ("ベンチプレス", "ベンチプレス台"),
-    "dumbbell": ("ダンベル", "ダンベルセット"),
-    "lat-pulldown": ("ラットプルダウン", "ラットプル"),
-    "leg-press": ("レッグプレス", "レッグプレスマシン"),
-    "upright-bike": ("エアロバイク", "バイク", "フィットネスバイク"),
-    "leg-extension": ("レッグエクステンション",),
-    "chest-press": ("チェストプレス", "チェストプレスマシン"),
-}
+
+def _normalize_equipment_text(value: str | None) -> str:
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFKC", value)
+    stripped = normalized.strip().lower()
+    return stripped
 
 
-def _normalize_equipment_key(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value or "").strip().lower()
-    return normalized.replace(" ", "").replace("\u3000", "")
-
-
-_MUNICIPAL_KOTO_LOOKUP: dict[str, str] = {}
-for slug, variants in _MUNICIPAL_KOTO_EQUIPMENT_ALIASES.items():
-    for variant in variants:
-        _MUNICIPAL_KOTO_LOOKUP[_normalize_equipment_key(variant)] = slug
+_MUNICIPAL_KOTO_EQUIPMENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = tuple(
+    (
+        slug,
+        tuple(_normalize_equipment_text(keyword) for keyword in keywords),
+    )
+    for slug, keywords in (
+        ("smith-machine", ("スミス", "スミスマシン")),
+        ("bench-press", ("ベンチプレス",)),
+        ("dumbbell", ("ダンベル",)),
+        ("lat-pulldown", ("ラットプル", "ラットプルダウン")),
+        ("leg-press", ("レッグプレス",)),
+        ("upright-bike", ("エアロバイク", "バイク")),
+    )
+)
 
 
 def map_municipal_koto_equipments(equipments: Iterable[str]) -> list[str]:
     slugs: list[str] = []
     seen: set[str] = set()
-    for item in equipments:
-        key = _normalize_equipment_key(item)
-        slug = _MUNICIPAL_KOTO_LOOKUP.get(key)
-        if slug is None or slug in seen:
+    for raw in equipments:
+        text = _normalize_equipment_text(raw)
+        if not text:
             continue
-        slugs.append(slug)
-        seen.add(slug)
+        for slug, keywords in _MUNICIPAL_KOTO_EQUIPMENT_KEYWORDS:
+            if slug in seen:
+                continue
+            if any(keyword and keyword in text for keyword in keywords):
+                slugs.append(slug)
+                seen.add(slug)
+                break
     return slugs
 
 
@@ -102,16 +108,21 @@ def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
     return parsed.name_raw, parsed.address_raw, parsed_json
 
 
-def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
+def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
     detail = municipal_koto.parse_detail(page.raw_html or "")
-    equipments_raw = municipal_koto.normalize_equipments(detail.equipments_raw)
-    equipments = map_municipal_koto_equipments(equipments_raw)
+    name = str(detail.get("name") or "").strip()
+    if not name:
+        name = _extract_dummy_name(page.raw_html, page.url)
+    raw_address = detail.get("address")
+    address = str(raw_address).strip() if raw_address is not None else None
+    raw_equipments = [str(item) for item in detail.get("equipments_raw") or []]
+    equipments = map_municipal_koto_equipments(raw_equipments)
     parsed_json: dict[str, Any] = {
         "site": municipal_koto.SITE_ID,
         "equipments": equipments,
-        "equipments_raw": equipments_raw,
+        "equipments_raw": raw_equipments,
     }
-    return detail.name, detail.address, parsed_json
+    return name, address, parsed_json
 
 
 async def parse_pages(source: str, limit: int | None) -> int:

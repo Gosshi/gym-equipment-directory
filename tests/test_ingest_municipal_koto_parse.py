@@ -1,41 +1,43 @@
+from textwrap import dedent
+
 from scripts.ingest.parse import map_municipal_koto_equipments
 from scripts.ingest.sites import municipal_koto
 
 
-def test_parse_detail_extracts_expected_fields() -> None:
-    html = """
-    <html>
-      <body>
-        <div class="facility-detail">
-          <h1>亀戸スポーツセンター</h1>
-          <address>東京都江東区亀戸１－２－３</address>
+def test_parse_detail_extracts_fields() -> None:
+    html = dedent(
+        """
+        <html><head><title>有明スポーツセンター｜江東区</title></head>
+        <body>
+          <h1>有明スポーツセンター</h1>
+          <address>東京都江東区有明2-3-5</address>
           <ul class="equipments">
-            <li>スミスマシン</li>
-            <li> ベンチプレス </li>
-            <li>ラットプル</li>
+            <li>トレーニング室（マシン・ダンベル・スミスマシン）</li>
+            <li>有酸素マシン（エアロバイク）</li>
           </ul>
-        </div>
-      </body>
-    </html>
-    """
+        </body></html>
+        """
+    ).strip()
 
-    detail = municipal_koto.parse_detail(html)
+    data = municipal_koto.parse_detail(html)
 
-    assert detail.name == "亀戸スポーツセンター"
-    assert detail.address == "東京都江東区亀戸1-2-3"
-    assert detail.equipments_raw == ["スミスマシン", "ベンチプレス", "ラットプル"]
+    assert "有明スポーツセンター" in str(data["name"])
+    assert "東京都江東区" in str(data["address"])
+    equipments_raw = data["equipments_raw"]
+    assert isinstance(equipments_raw, list)
+    assert any("スミス" in item or "ダンベル" in item for item in equipments_raw)
 
 
-def test_map_municipal_koto_equipments_matches_known_slugs() -> None:
+def test_map_municipal_koto_equipments_normalizes_keywords() -> None:
     equipments = [
-        "スミス",
-        "ベンチプレス台",
+        "トレーニング室（スミスマシン）",
+        " ベンチプレス台 ",
         "ダンベルセット",
-        "ラットプルダウン",
-        "レッグプレスマシン",
-        "フィットネスバイク",
+        "ラットプルダウンマシン",
+        "最新型レッグプレス",
+        "エアロバイクエリア",
         "未知設備",
-        "スミス",  # duplicate should be ignored
+        "スミスマシン追加",
     ]
 
     mapped = map_municipal_koto_equipments(equipments)

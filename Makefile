@@ -85,15 +85,13 @@ ingest-fetch-municipal-koto:
                 --source municipal_koto \
                 --pref tokyo \
                 --city koto \
-                --limit 10 \
-                --min-delay 2 \
-                --max-delay 4
+                --limit 6
 
 ingest-parse-municipal-koto:
-        python -m scripts.ingest parse --source municipal_koto --limit 10
+        python -m scripts.ingest parse --source municipal_koto --limit 6
 
 ingest-normalize-municipal-koto:
-        python -m scripts.ingest normalize --source municipal_koto --limit 10
+        python -m scripts.ingest normalize --source municipal_koto --limit 6
 
 curl-admin-candidates:
         @echo "# 一覧"
