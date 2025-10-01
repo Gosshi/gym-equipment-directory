@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 from collections.abc import Iterable
 
 from sqlalchemy import select
@@ -16,6 +17,22 @@ from .sites import municipal_koto, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
+
+
+def _nkfc(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).replace("\x00", "").strip()
+
+
+def _assign_pref_city_for_municipal_koto(addr: str | None) -> tuple[str | None, str | None]:
+    """Heuristic assignment for Koto ward facilities."""
+
+    if not addr:
+        return None, None
+    normalized = _nkfc(addr)
+    if "江東区" in normalized or "東京都" in normalized:
+        return "tokyo", "koto"
+    return None, None
+
 
 _DUMMY_PREF_MAP = {
     "東京都": "tokyo",
@@ -117,6 +134,13 @@ async def normalize_candidates(source: str, limit: int | None) -> int:
 
             pref_slug = _find_slug(candidate.address_raw, pref_map)
             city_slug = _find_slug(candidate.address_raw, city_map)
+
+            if source == municipal_koto.SITE_ID and (not pref_slug or not city_slug):
+                fallback_pref, fallback_city = _assign_pref_city_for_municipal_koto(
+                    candidate.address_raw
+                )
+                pref_slug = pref_slug or fallback_pref
+                city_slug = city_slug or fallback_city
 
             changed = False
             if candidate.pref_slug != pref_slug:

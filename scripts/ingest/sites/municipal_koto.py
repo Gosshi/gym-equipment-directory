@@ -40,7 +40,7 @@ def iter_listing_urls(pref: str, city: str, *, limit: int | None = None) -> Iter
 def _norm(value: str | None) -> str:
     if not value:
         return ""
-    return unicodedata.normalize("NFKC", value).strip()
+    return unicodedata.normalize("NFKC", value).replace("\x00", "").strip()
 
 
 def parse_detail(html: str) -> dict[str, str | list[str] | None]:
@@ -80,6 +80,9 @@ def parse_detail(html: str) -> dict[str, str | list[str] | None]:
             value = _norm(paragraph.get_text(" ", strip=True))
             if value and any(keyword in value for keyword in keywords):
                 equipments_raw.append(value)
+
+    if name:
+        name = name.replace("施設案内 | ", "").replace("| 江東区", "").strip()
 
     return {
         "name": name,
