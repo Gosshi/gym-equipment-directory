@@ -71,6 +71,14 @@ def _decode_cursor(token: str) -> dict[str, int]:
     return {"id": cursor_id}
 
 
+def _as_naive_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
 def _slugify(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\s-]", "", normalized)
@@ -461,10 +469,12 @@ async def approve_candidate(
         assigns,
         apply_changes=True,
     )
-    if latest:
-        gym.last_verified_at_cached = latest
-    elif preview_latest:
-        gym.last_verified_at_cached = preview_latest
+    latest_cached = _as_naive_utc(latest)
+    preview_cached = _as_naive_utc(preview_latest)
+    if latest_cached:
+        gym.last_verified_at_cached = latest_cached
+    elif preview_cached:
+        gym.last_verified_at_cached = preview_cached
     candidate.status = CandidateStatus.approved
     await session.flush()
     await session.commit()

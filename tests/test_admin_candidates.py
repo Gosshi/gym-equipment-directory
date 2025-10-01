@@ -191,8 +191,11 @@ async def test_approve_candidate_commits(app_client: AsyncClient, session: Async
     payload = resp.json()
     assert "result" in payload
     gym_slug = payload["result"]["gym"]["slug"]
-    gym = await session.execute(select(Gym).where(Gym.slug == gym_slug))
-    assert gym.scalar_one_or_none() is not None
+    gym_result = await session.execute(select(Gym).where(Gym.slug == gym_slug))
+    gym_obj = gym_result.scalar_one_or_none()
+    assert gym_obj is not None
+    assert gym_obj.last_verified_at_cached is not None
+    assert gym_obj.last_verified_at_cached.tzinfo is None
     refreshed_candidate = await session.get(GymCandidate, candidate.id)
     assert refreshed_candidate.status == CandidateStatus.approved
 
