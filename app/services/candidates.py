@@ -79,7 +79,6 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC).replace(tzinfo=None)
 
 
-
 def _strip_nul(value: str | None) -> str | None:
     if value is None:
         return None
