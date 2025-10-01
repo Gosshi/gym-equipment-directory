@@ -88,6 +88,15 @@ gym-equipment-directory/
 - [ユーザテスト計画](docs/USER_TEST_PLAN.md)
 - [Go To Market](docs/GO_TO_MARKET.md)
 
+## 🔐 Admin 候補モデレーション API
+
+スクレイピング候補を人手で審査するための API を追加しました。`/admin/candidates`
+配下に以下の機能を揃えています。
+
+- 一覧取得・詳細確認・部分更新
+- 承認: 公開テーブルへの upsert（`dry_run` 指定でプレビューのみ実行も可能）
+- 却下: 理由付きで候補を非承認扱いに変更
+
 ## 🏋️ Ingest パイプラインの使い方
 
 `site_a` のスクレイピングフローをローカルで試す場合は、以下のコマンドを順番に実行します。

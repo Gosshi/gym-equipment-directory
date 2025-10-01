@@ -1,0 +1,27 @@
+"""add response_meta column to scraped_pages
+
+Revision ID: c5f2d68f2b31
+Revises: 784e740115be
+Create Date: 2024-05-24 00:00:00.000000
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql as pg
+
+# revision identifiers, used by Alembic.
+revision = "c5f2d68f2b31"
+down_revision = "784e740115be"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.add_column(
+        "scraped_pages",
+        sa.Column("response_meta", pg.JSONB, nullable=True),
+    )
+
+
+def downgrade() -> None:
+    op.drop_column("scraped_pages", "response_meta")
