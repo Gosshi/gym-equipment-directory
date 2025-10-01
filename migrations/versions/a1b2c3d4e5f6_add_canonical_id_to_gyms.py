@@ -10,7 +10,7 @@ from app.services.canonical import make_canonical_id
 
 # revision identifiers, used by Alembic.
 revision: str = "a1b2c3d4e5f6"
-down_revision: str | None = "5d74d73e056c"
+down_revision: str | None = "c5f2d68f2b31"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
