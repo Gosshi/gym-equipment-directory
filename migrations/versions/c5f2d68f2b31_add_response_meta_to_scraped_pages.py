@@ -7,9 +7,7 @@ Create Date: 2025-10-01 10:00:00.000000
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "c5f2d68f2b31"
@@ -19,11 +17,14 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "scraped_pages",
-        sa.Column("response_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    op.execute(
+        "ALTER TABLE scraped_pages "
+        "ADD COLUMN IF NOT EXISTS response_meta JSONB",
     )
 
 
 def downgrade() -> None:
-    op.drop_column("scraped_pages", "response_meta")
+    op.execute(
+        "ALTER TABLE scraped_pages "
+        "DROP COLUMN IF EXISTS response_meta",
+    )
