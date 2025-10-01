@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
 SITE_ID = "site_a"
+BASE_URL = "https://site-a.example.com"
+SUPPORTED_HTTP_AREAS = {("tokyo", "koto"), ("chiba", "funabashi")}
+_LISTING_PAGE_RANGE = range(1, 4)
 
 
 @dataclass(frozen=True)
@@ -215,3 +219,53 @@ def seed_data() -> Sequence[SiteAGymSeed]:
     """Return the immutable seed dataset."""
 
     return _GYM_SEEDS
+
+
+def _normalize_area(pref: str, city: str) -> tuple[str, str]:
+    pref_slug = pref.strip().lower()
+    city_slug = city.strip().lower()
+    if (pref_slug, city_slug) not in SUPPORTED_HTTP_AREAS:
+        msg = f"Unsupported area for site_a HTTP fetch: pref={pref}, city={city}"
+        raise ValueError(msg)
+    return pref_slug, city_slug
+
+
+def build_listing_url(pref: str, city: str, page: int) -> str:
+    """Return the listing URL for the provided area and page index."""
+
+    pref_slug, city_slug = _normalize_area(pref, city)
+    if page < 1:
+        msg = "Listing page index must be >= 1"
+        raise ValueError(msg)
+    return f"{BASE_URL}/gyms/{pref_slug}/{city_slug}?page={page}"
+
+
+def build_detail_url(pref: str, city: str, slug: str) -> str:
+    """Return the absolute detail URL for a gym slug."""
+
+    pref_slug, city_slug = _normalize_area(pref, city)
+    if not slug:
+        msg = "Gym slug must be provided"
+        raise ValueError(msg)
+    return f"{BASE_URL}/gyms/{pref_slug}/{city_slug}/{slug}"
+
+
+def iter_listing_urls(pref: str, city: str) -> Iterator[str]:
+    """Yield listing URLs for supported prefecture/city pairs."""
+
+    pref_slug, city_slug = _normalize_area(pref, city)
+    for page in _LISTING_PAGE_RANGE:
+        yield build_listing_url(pref_slug, city_slug, page)
+
+
+def iter_detail_urls_from_listing(html: str) -> list[str]:
+    """Extract absolute detail URLs from a listing HTML page."""
+
+    soup = BeautifulSoup(html or "", "html.parser")
+    urls: list[str] = []
+    for link in soup.select("a.gym-link"):
+        href = (link.get("href") or "").strip()
+        if not href:
+            continue
+        urls.append(urljoin(BASE_URL, href))
+    return urls

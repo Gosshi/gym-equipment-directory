@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     CHAR,
@@ -40,7 +40,10 @@ class ScrapedPage(Base):
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content_hash: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
     raw_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    response_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    response_meta: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(astext_type=Text()),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
