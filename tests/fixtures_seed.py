@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models import Equipment, Gym, GymEquipment
+from app.services.canonical import make_canonical_id
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -29,6 +30,7 @@ async def seed_test_data():
             g1 = Gym(
                 name="ダミージム 船橋イースト",
                 slug="dummy-funabashi-east",
+                canonical_id=make_canonical_id("chiba", "funabashi", "ダミージム 船橋イースト"),
                 prefecture="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",
@@ -37,6 +39,7 @@ async def seed_test_data():
             g2 = Gym(
                 name="ダミージム 船橋ウエスト",
                 slug="dummy-funabashi-west",
+                canonical_id=make_canonical_id("chiba", "funabashi", "ダミージム 船橋ウエスト"),
                 prefecture="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",

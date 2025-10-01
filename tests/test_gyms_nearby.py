@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.gym import Gym
+from app.services.canonical import make_canonical_id
 
 
 async def _add_gym(
@@ -22,6 +23,7 @@ async def _add_gym(
     g = Gym(
         slug=slug,
         name=name,
+        canonical_id=make_canonical_id(pref, city, name),
         pref=pref,
         city=city,
         latitude=lat,

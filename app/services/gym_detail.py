@@ -10,6 +10,7 @@ from app.core.exceptions import NotFoundError
 from app.dto import GymDetailDTO
 from app.dto.mappers import assemble_gym_detail
 from app.infra.unit_of_work import UnitOfWork
+from app.models import Gym
 from app.repositories.interfaces import (
     GymEquipmentBasicRow,
     GymEquipmentSummaryRow,
@@ -37,6 +38,19 @@ class GymDetailService:
             except NotFoundError:
                 return None
 
+    async def get_by_canonical_id(self, canonical_id: str, include: str | None) -> GymDetailDTO:
+        async with self._uow_factory() as uow:
+            return await get_gym_detail_by_canonical_id(uow, canonical_id, include)
+
+    async def get_by_canonical_id_opt(
+        self, canonical_id: str, include: str | None
+    ) -> GymDetailDTO | None:
+        async with self._uow_factory() as uow:
+            try:
+                return await get_gym_detail_by_canonical_id(uow, canonical_id, include)
+            except NotFoundError:
+                return None
+
     async def get_legacy(self, slug: str) -> legacy_schemas.GymDetailResponse | None:
         async with self._uow_factory() as uow:
             return await get_gym_detail_v1(uow, slug)
@@ -46,7 +60,19 @@ async def get_gym_detail(uow: UnitOfWork, slug: str, include: str | None) -> Gym
     gym = await uow.gyms.get_by_slug(slug)
     if gym is None:
         raise NotFoundError("gym not found")
+    return await _build_gym_detail(uow, gym, include)
 
+
+async def get_gym_detail_by_canonical_id(
+    uow: UnitOfWork, canonical_id: str, include: str | None
+) -> GymDetailDTO:
+    gym = await uow.gyms.get_by_canonical_id(canonical_id)
+    if gym is None:
+        raise NotFoundError("gym not found")
+    return await _build_gym_detail(uow, gym, include)
+
+
+async def _build_gym_detail(uow: UnitOfWork, gym: Gym, include: str | None) -> GymDetailDTO:
     gym_id = int(getattr(gym, "id", 0))
 
     equipments_basic = await uow.gyms.fetch_equipment_basic(gym_id)

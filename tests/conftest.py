@@ -19,6 +19,7 @@ from app.main import app, create_app
 # `app` / `create_app` は後で import する（下で環境変数を設定してから）
 from app.models import Equipment, Gym, GymEquipment
 from app.models.base import Base
+from app.services.canonical import make_canonical_id
 
 # ==== 1) DSN を必須化（Postgresのみ） ====
 # Load .env.test if available (pytest.ini env_file is not supported without plugin)
@@ -172,6 +173,7 @@ async def seed_test_data(engine):
             g1 = Gym(
                 name="ダミージム 船橋イースト",
                 slug="dummy-funabashi-east",
+                canonical_id=make_canonical_id("chiba", "funabashi", "ダミージム 船橋イースト"),
                 pref="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",
@@ -182,6 +184,7 @@ async def seed_test_data(engine):
             g2 = Gym(
                 name="ダミージム 船橋ウエスト",
                 slug="dummy-funabashi-west",
+                canonical_id=make_canonical_id("chiba", "funabashi", "ダミージム 船橋ウエスト"),
                 pref="chiba",
                 city="funabashi",
                 address="千葉県船橋市…",

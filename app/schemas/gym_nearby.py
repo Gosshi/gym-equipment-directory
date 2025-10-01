@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class GymNearbyItem(BaseModel):
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
+    canonical_id: str = Field(description="ジムの canonical UUID")
     name: str = Field(description="名称")
     pref: str = Field(description="都道府県スラッグ")
     city: str = Field(description="市区町村スラッグ")

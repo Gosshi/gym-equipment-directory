@@ -3,12 +3,21 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.models import Gym
+from app.services.canonical import make_canonical_id
 
 
 @pytest.mark.asyncio
 async def test_meta_prefectures_and_categories(session):
     # extra seed to ensure multiple values
-    session.add(Gym(slug="meta-x", name="Meta X", pref="tokyo", city="shinjuku"))
+    session.add(
+        Gym(
+            slug="meta-x",
+            name="Meta X",
+            canonical_id=make_canonical_id("tokyo", "shinjuku", "Meta X"),
+            pref="tokyo",
+            city="shinjuku",
+        )
+    )
     await session.commit()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

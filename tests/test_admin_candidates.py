@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -161,6 +161,7 @@ async def test_approve_candidate_dry_run(app_client: AsyncClient, session: Async
     payload = resp.json()
     assert "preview" in payload
     assert payload["preview"]["equipments"]["total"] == 2
+    assert "canonical_id" in payload["preview"]["gym"]
     refreshed = await session.get(GymCandidate, candidate.id)
     assert refreshed.status == CandidateStatus.new
 
@@ -191,6 +192,7 @@ async def test_approve_candidate_commits(app_client: AsyncClient, session: Async
     payload = resp.json()
     assert "result" in payload
     gym_slug = payload["result"]["gym"]["slug"]
+    assert payload["result"]["gym"]["canonical_id"]
     gym_result = await session.execute(select(Gym).where(Gym.slug == gym_slug))
     gym_obj = gym_result.scalar_one_or_none()
     assert gym_obj is not None
@@ -198,6 +200,51 @@ async def test_approve_candidate_commits(app_client: AsyncClient, session: Async
     assert gym_obj.last_verified_at_cached.tzinfo is None
     refreshed_candidate = await session.get(GymCandidate, candidate.id)
     assert refreshed_candidate.status == CandidateStatus.approved
+
+
+@pytest.mark.asyncio
+async def test_approve_candidate_upserts_by_canonical_id(
+    app_client: AsyncClient, session: AsyncSession
+) -> None:
+    await _ensure_equipments(session, ["smith-machine"])
+
+    candidate1 = await _create_candidate(
+        session,
+        name="カノニカルジム",
+        parsed_json={"equipments": ["smith-machine"]},
+    )
+
+    resp1 = await app_client.post(
+        f"/admin/candidates/{candidate1.id}/approve",
+        json={"override": {"address": "東京都江東区豊洲1-2-3 1F"}},
+    )
+    assert resp1.status_code == 200
+    result1 = resp1.json()["result"]["gym"]
+    canonical_id = result1["canonical_id"]
+
+    total_after_first = await session.scalar(select(func.count()).select_from(Gym))
+
+    candidate2 = await _create_candidate(
+        session,
+        name="施設案内 ｜ カノニカルジム ｜江東区",
+        parsed_json={"equipments": ["smith-machine"]},
+    )
+
+    resp2 = await app_client.post(
+        f"/admin/candidates/{candidate2.id}/approve",
+        json={
+            "override": {
+                "name": "カノニカルジム",
+                "address": "東京都江東区豊洲5-6-7 別館",
+            }
+        },
+    )
+    assert resp2.status_code == 200
+    result2 = resp2.json()["result"]["gym"]
+    assert result2["canonical_id"] == canonical_id
+
+    total_after_second = await session.scalar(select(func.count()).select_from(Gym))
+    assert total_after_second == total_after_first
 
 
 @pytest.mark.asyncio

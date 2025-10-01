@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.models import Equipment, Gym, GymEquipment
+from app.services.canonical import make_canonical_id
 
 
 @pytest.mark.asyncio
@@ -13,6 +14,7 @@ async def test_gym_detail_fields(session):
     g = Gym(
         slug="tokyo-x",
         name="Tokyo X",
+        canonical_id=make_canonical_id("tokyo", "chiyoda", "Tokyo X"),
         pref="tokyo",
         city="chiyoda",
         last_verified_at_cached=datetime(2024, 8, 1, 10, 0, 0),
@@ -31,6 +33,7 @@ async def test_gym_detail_fields(session):
         assert body["slug"] == "tokyo-x"
         assert body["pref"] == "tokyo"
         assert body["city"] == "chiyoda"
+        assert body["canonical_id"] == g.canonical_id
         eq = body["equipments"][0]
         assert eq["equipment_slug"] == "smith-machine"
         assert eq["slug"] == "smith-machine"

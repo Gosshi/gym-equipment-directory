@@ -34,6 +34,7 @@ from app.schemas.admin_candidates import (
     EquipmentUpsertSummary,
     GymUpsertPreview,
 )
+from app.services.canonical import make_canonical_id
 
 
 @dataclass
@@ -101,7 +102,9 @@ def _build_slug(name: str, address: str | None, city: str | None, pref: str | No
     if pref:
         parts.append(pref)
     if address:
-        parts.append(address)
+        cleaned_address = re.sub(r"\b\d{3}-\d{4}\b", "", address).strip()
+        if cleaned_address:
+            parts.append(cleaned_address)
     slug = _slugify("-".join(parts))
     if not slug:
         raise CandidateServiceError("failed to generate slug")
@@ -274,6 +277,7 @@ def _gym_to_preview(gym: Gym) -> GymUpsertPreview:
     return GymUpsertPreview(
         slug=gym.slug,
         name=gym.name,
+        canonical_id=gym.canonical_id,
         pref_slug=gym.pref,
         city_slug=gym.city,
         address=gym.address,
@@ -287,6 +291,7 @@ def _compose_gym_preview(
     *,
     slug: str,
     name: str,
+    canonical_id: str,
     pref_slug: str,
     city_slug: str,
     address: str | None,
@@ -303,6 +308,7 @@ def _compose_gym_preview(
     return GymUpsertPreview(
         slug=slug,
         name=name,
+        canonical_id=canonical_id,
         pref_slug=pref_slug,
         city_slug=city_slug,
         address=address,
@@ -317,6 +323,7 @@ async def _apply_gym_upsert(
     *,
     slug: str,
     name: str,
+    canonical_id: str,
     pref_slug: str,
     city_slug: str,
     address: str | None,
@@ -327,6 +334,7 @@ async def _apply_gym_upsert(
         gym = Gym(
             slug=slug,
             name=name,
+            canonical_id=canonical_id,
             pref=pref_slug,
             city=city_slug,
             address=address,
@@ -338,6 +346,7 @@ async def _apply_gym_upsert(
         return gym
     gym = existing
     gym.name = name
+    gym.canonical_id = canonical_id
     gym.pref = pref_slug
     gym.city = city_slug
     gym.address = address
@@ -442,14 +451,20 @@ async def approve_candidate(
     if not city_slug:
         raise CandidateServiceError("city_slug is required")
     slug = _build_slug(name, address, city_slug, pref_slug)
+    canonical_id = make_canonical_id(pref_slug, city_slug, name)
     assigns = _collect_equipment_assigns(request.equipments, candidate.parsed_json)
-    existing_stmt = select(Gym).where(Gym.slug == slug)
-    existing_result = await session.execute(existing_stmt)
+    canonical_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
+    existing_result = await session.execute(canonical_stmt)
     existing_gym = existing_result.scalars().first()
+    if existing_gym is None:
+        existing_stmt = select(Gym).where(Gym.slug == slug)
+        existing_result = await session.execute(existing_stmt)
+        existing_gym = existing_result.scalars().first()
     preview_gym = _compose_gym_preview(
         existing_gym,
         slug=slug,
         name=name,
+        canonical_id=canonical_id,
         pref_slug=pref_slug,
         city_slug=city_slug,
         address=address,
@@ -470,6 +485,7 @@ async def approve_candidate(
             existing_gym,
             slug=slug,
             name=name,
+            canonical_id=canonical_id,
             pref_slug=pref_slug,
             city_slug=city_slug,
             address=address,

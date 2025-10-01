@@ -5,6 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.models import Equipment, Gym, GymEquipment
+from app.services.canonical import make_canonical_id
 
 
 @pytest.mark.asyncio
@@ -12,8 +13,20 @@ async def test_meta_prefs_and_cities(session):
     # シード
     session.add_all(
         [
-            Gym(slug="meta-g1", name="Meta G1", pref="chiba", city="funabashi"),
-            Gym(slug="meta-g2", name="Meta G2", pref="chiba", city="urayasu"),
+            Gym(
+                slug="meta-g1",
+                name="Meta G1",
+                canonical_id=make_canonical_id("chiba", "funabashi", "Meta G1"),
+                pref="chiba",
+                city="funabashi",
+            ),
+            Gym(
+                slug="meta-g2",
+                name="Meta G2",
+                canonical_id=make_canonical_id("chiba", "urayasu", "Meta G2"),
+                pref="chiba",
+                city="urayasu",
+            ),
         ]
     )
     await session.commit()
@@ -49,7 +62,13 @@ async def test_meta_equipments(session):
 
 @pytest.mark.asyncio
 async def test_search_minimal(session):
-    g = Gym(slug="search-g1", name="Search G1", pref="chiba", city="funabashi")
+    g = Gym(
+        slug="search-g1",
+        name="Search G1",
+        canonical_id=make_canonical_id("chiba", "funabashi", "Search G1"),
+        pref="chiba",
+        city="funabashi",
+    )
     session.add(g)
     await session.commit()
 
@@ -66,7 +85,13 @@ async def test_search_minimal(session):
 async def test_search_richness_any_equipment(session):
     e_bp = Equipment(slug="bench-press", name="Bench Press", category="strength")
     e_db = Equipment(slug="dumbbell", name="Dumbbell", category="strength")
-    g = Gym(slug="rich-any-2", name="Rich Any 2", pref="chiba", city="funabashi")
+    g = Gym(
+        slug="rich-any-2",
+        name="Rich Any 2",
+        canonical_id=make_canonical_id("chiba", "funabashi", "Rich Any 2"),
+        pref="chiba",
+        city="funabashi",
+    )
     session.add_all([e_bp, e_db, g])
     await session.flush()
     session.add(GymEquipment(gym_id=g.id, equipment_id=e_bp.id, count=1, max_weight_kg=80))

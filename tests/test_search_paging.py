@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.models import Equipment, Gym, GymEquipment
+from app.services.canonical import make_canonical_id
 
 
 @pytest.mark.asyncio
@@ -16,6 +17,7 @@ async def test_freshness_paging_has_next_and_end(session):
     g1 = Gym(
         slug="g1",
         name="G1",
+        canonical_id=make_canonical_id("chiba", test_city, "G1"),
         pref="chiba",
         city=test_city,
         last_verified_at_cached=datetime(2024, 9, 1, 12, 0, 0),
@@ -23,6 +25,7 @@ async def test_freshness_paging_has_next_and_end(session):
     g2 = Gym(
         slug="g2",
         name="G2",
+        canonical_id=make_canonical_id("chiba", test_city, "G2"),
         pref="chiba",
         city=test_city,
         last_verified_at_cached=datetime(2024, 9, 2, 12, 0, 0),
@@ -80,6 +83,7 @@ async def test_token_sort_mismatch_400(session):
     g = Gym(
         slug="g3",
         name="G3",
+        canonical_id=make_canonical_id("chiba", "funabashi", "G3"),
         pref="chiba",
         city="funabashi",
         last_verified_at_cached=datetime(2024, 9, 3, 12, 0, 0),
@@ -114,8 +118,20 @@ async def test_richness_paging_and_any_all(session):
     session.add_all([e_squat, e_db])
     await session.flush()
 
-    g_any = Gym(slug="g-any", name="G Any", pref="chiba", city="funabashi")
-    g_all = Gym(slug="g-all", name="G All", pref="chiba", city="funabashi")
+    g_any = Gym(
+        slug="g-any",
+        name="G Any",
+        canonical_id=make_canonical_id("chiba", "funabashi", "G Any"),
+        pref="chiba",
+        city="funabashi",
+    )
+    g_all = Gym(
+        slug="g-all",
+        name="G All",
+        canonical_id=make_canonical_id("chiba", "funabashi", "G All"),
+        pref="chiba",
+        city="funabashi",
+    )
     session.add_all([g_any, g_all])
     await session.flush()
 

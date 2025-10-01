@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 class GymBasicDTO(BaseModel):
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
+    canonical_id: str = Field(description="ジムの canonical UUID")
     name: str = Field(description="ジム名")
     pref: str | None = Field(default=None, description="都道府県スラッグ")
     city: str | None = Field(default=None, description="市区町村スラッグ")
@@ -74,6 +75,7 @@ class GymDetailDTO(BaseModel):
 
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
+    canonical_id: str = Field(description="ジムの canonical UUID")
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
@@ -95,6 +97,7 @@ class GymDetailDTO(BaseModel):
                 {
                     "id": 1,
                     "slug": "awesome-gym",
+                    "canonical_id": "11111111-2222-3333-4444-555555555555",
                     "name": "Awesome Gym",
                     "city": "funabashi",
                     "pref": "chiba",
