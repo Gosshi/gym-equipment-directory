@@ -10,10 +10,28 @@ from pathlib import Path
 
 from .approve import approve_candidate
 from .fetch import fetch_pages
+from .fetch_http import (
+    DEFAULT_LIMIT,
+    DEFAULT_MAX_DELAY,
+    DEFAULT_MIN_DELAY,
+    DEFAULT_TIMEOUT,
+    DEFAULT_USER_AGENT,
+    fetch_http_pages,
+)
 from .normalize import normalize_candidates
 from .parse import parse_pages
 
 logger = logging.getLogger(__name__)
+
+
+def _str_to_bool(value: str) -> bool:
+    lowered = value.lower()
+    if lowered in {"true", "1", "yes", "y"}:
+        return True
+    if lowered in {"false", "0", "no", "n"}:
+        return False
+    msg = f"Invalid boolean value: {value}"
+    raise argparse.ArgumentTypeError(msg)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,6 +51,59 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Path to a file that contains URLs (one per line)",
+    )
+
+    fetch_http_parser = subparsers.add_parser(
+        "fetch-http",
+        help="Fetch pages for a source using HTTP",
+    )
+    fetch_http_parser.add_argument("--source", required=True, help="Source identifier")
+    fetch_http_parser.add_argument("--pref", required=True, help="Prefecture slug")
+    fetch_http_parser.add_argument("--city", required=True, help="City slug")
+    fetch_http_parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="Number of detail pages to fetch (1-50)",
+    )
+    fetch_http_parser.add_argument(
+        "--min-delay",
+        type=float,
+        default=DEFAULT_MIN_DELAY,
+        help="Minimum delay between requests in seconds",
+    )
+    fetch_http_parser.add_argument(
+        "--max-delay",
+        type=float,
+        default=DEFAULT_MAX_DELAY,
+        help="Maximum delay between requests in seconds",
+    )
+    fetch_http_parser.add_argument(
+        "--respect-robots",
+        type=_str_to_bool,
+        default=True,
+        help="Whether to respect robots.txt",
+    )
+    fetch_http_parser.add_argument(
+        "--user-agent",
+        default=DEFAULT_USER_AGENT,
+        help="User-Agent header to use",
+    )
+    fetch_http_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help="Request timeout in seconds",
+    )
+    fetch_http_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List URLs without fetching detail pages",
+    )
+    fetch_http_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore conditional headers and force re-fetch",
     )
 
     parse_parser = subparsers.add_parser("parse", help="Parse scraped pages into candidates")
@@ -81,6 +152,23 @@ def _dispatch(args: argparse.Namespace) -> int:
     command = args.command
     if command == "fetch":
         return asyncio.run(_run_async_command(fetch_pages, args.source, args.limit, args.file))
+    if command == "fetch-http":
+        return asyncio.run(
+            _run_async_command(
+                fetch_http_pages,
+                args.source,
+                pref=args.pref,
+                city=args.city,
+                limit=args.limit,
+                min_delay=args.min_delay,
+                max_delay=args.max_delay,
+                respect_robots=args.respect_robots,
+                user_agent=args.user_agent,
+                timeout=args.timeout,
+                dry_run=args.dry_run,
+                force=args.force,
+            )
+        )
     if command == "parse":
         return asyncio.run(_run_async_command(parse_pages, args.source, args.limit))
     if command == "normalize":
