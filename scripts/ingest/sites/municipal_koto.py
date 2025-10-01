@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Final
 from urllib.parse import urljoin
-import unicodedata
 
 from bs4 import BeautifulSoup
 

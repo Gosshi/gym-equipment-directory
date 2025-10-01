@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from collections.abc import Iterable
 from itertools import cycle
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import urlparse
 
 from sqlalchemy import select
