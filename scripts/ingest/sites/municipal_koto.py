@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from collections.abc import Iterable
 from typing import Final
@@ -43,6 +44,14 @@ def _norm(value: str | None) -> str:
     return unicodedata.normalize("NFKC", value).replace("\x00", "").strip()
 
 
+_ADDRESS_LABELS: Final[tuple[str, ...]] = ("所在地", "住所")
+_ADDRESS_TAGS: Final[tuple[str, ...]] = ("dt", "dd", "th", "td", "p", "li", "span", "div")
+_BREADCRUMB_TAGS: Final[tuple[str, ...]] = ("nav", "ol", "ul", "h2", "h3", "h4", "h5")
+_ADDRESS_REGEX: Final[re.Pattern[str]] = re.compile(
+    r"(東京都[^\n]+?区[^\n]+?\d[\d\-－ー丁目番地号]*|江東区[^\n]+?\d[\d\-－ー丁目番地号]*)"
+)
+
+
 def parse_detail(html: str) -> dict[str, str | list[str] | None]:
     """Extract name, address, and equipment strings from a detail HTML page."""
 
@@ -61,6 +70,39 @@ def parse_detail(html: str) -> dict[str, str | list[str] | None]:
     if address_tag := soup.find("address"):
         text = address_tag.get_text(" ", strip=True)
         address = _norm(text)
+    if not address:
+        # Labels such as 所在地 / 住所 that accompany a nearby value.
+        for tag in soup.find_all(_ADDRESS_TAGS):
+            raw_text = _norm(tag.get_text(" ", strip=True))
+            if not raw_text:
+                continue
+            for label in _ADDRESS_LABELS:
+                if label not in raw_text:
+                    continue
+                # Try to extract the value embedded in the same element.
+                candidate = re.sub(rf"^{re.escape(label)}\s*[:：\-－\|｜]*", "", raw_text)
+                candidate = _norm(candidate)
+                if _looks_like_address(candidate):
+                    address = candidate
+                    break
+                # Otherwise inspect adjacent siblings (dt/dd, th/td etc.).
+                if sibling := _extract_sibling_value(tag):
+                    address = sibling
+                    break
+            if address:
+                break
+    if not address:
+        # Regex based extraction from the whole text content.
+        text_blob = soup.get_text("\n", strip=True)
+        if match := _ADDRESS_REGEX.search(text_blob):
+            address = _norm(match.group(0))
+    if not address:
+        # Breadcrumb or heading that at least indicates the ward.
+        for crumb in soup.find_all(_BREADCRUMB_TAGS):
+            crumb_text = _norm(crumb.get_text(" ", strip=True))
+            if "江東区" in crumb_text:
+                address = crumb_text
+                break
     if not address:
         text = soup.get_text("\n", strip=True)
         for line in text.splitlines():
@@ -82,7 +124,9 @@ def parse_detail(html: str) -> dict[str, str | list[str] | None]:
                 equipments_raw.append(value)
 
     if name:
-        name = name.replace("施設案内 | ", "").replace("| 江東区", "").strip()
+        name = re.sub(r"^(施設案内\s*[\|｜]\s*)", "", name)
+        name = re.sub(r"[\|｜]\s*江東区$", "", name)
+        name = name.strip()
 
     return {
         "name": name,
@@ -99,3 +143,36 @@ __all__ = [
     "iter_listing_urls",
     "parse_detail",
 ]
+
+
+def _extract_sibling_value(tag: object) -> str:
+    if not hasattr(tag, "name"):
+        return ""
+    sibling_tags = {
+        "dt": ("dd",),
+        "th": ("td",),
+        "li": (),
+        "p": (),
+        "span": (),
+        "div": (),
+    }
+    tag_name = getattr(tag, "name", "")
+    for sibling_name in sibling_tags.get(tag_name, ("dd", "td")):
+        sibling = tag.find_next_sibling(sibling_name) if sibling_name else None
+        if sibling:
+            candidate = _norm(sibling.get_text(" ", strip=True))
+            if _looks_like_address(candidate):
+                return candidate
+            if candidate:
+                return candidate
+    return ""
+
+
+def _looks_like_address(value: str) -> bool:
+    if not value:
+        return False
+    if "東京都" in value or "江東区" in value:
+        return True
+    if re.search(r"\d", value):
+        return True
+    return False

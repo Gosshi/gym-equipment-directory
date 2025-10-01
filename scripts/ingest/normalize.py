@@ -23,13 +23,48 @@ def _nkfc(value: str) -> str:
     return unicodedata.normalize("NFKC", value).replace("\x00", "").strip()
 
 
-def _assign_pref_city_for_municipal_koto(addr: str | None) -> tuple[str | None, str | None]:
+_KOTO_HINTS: tuple[str, ...] = (
+    "有明",
+    "亀戸",
+    "深川",
+    "東砂",
+    "大島",
+    "猿江",
+    "豊洲",
+    "辰巳",
+    "南砂",
+    "木場",
+    "森下",
+)
+
+
+def _assign_pref_city_for_municipal_koto(
+    addr: str | None,
+    name: str | None,
+    *,
+    parsed: dict | None = None,
+) -> tuple[str | None, str | None]:
     """Heuristic assignment for Koto ward facilities."""
 
-    if not addr:
+    segments: list[str] = []
+    if addr:
+        segments.append(addr)
+    if name:
+        segments.append(name)
+    if parsed and isinstance(parsed, dict):
+        for value in parsed.values():
+            if isinstance(value, str):
+                segments.append(value)
+            elif isinstance(value, list | tuple):
+                segments.extend(str(item) for item in value if isinstance(item, str))
+
+    if not segments:
         return None, None
-    normalized = _nkfc(addr)
-    if "江東区" in normalized or "東京都" in normalized:
+
+    text = _nkfc(" ".join(segments))
+    if "東京都" in text or "江東区" in text:
+        return "tokyo", "koto"
+    if any(hint in text for hint in _KOTO_HINTS):
         return "tokyo", "koto"
     return None, None
 
@@ -137,7 +172,11 @@ async def normalize_candidates(source: str, limit: int | None) -> int:
 
             if source == municipal_koto.SITE_ID and (not pref_slug or not city_slug):
                 fallback_pref, fallback_city = _assign_pref_city_for_municipal_koto(
-                    candidate.address_raw
+                    candidate.address_raw,
+                    candidate.name_raw,
+                    parsed=candidate.parsed_json
+                    if isinstance(candidate.parsed_json, dict)
+                    else None,
                 )
                 pref_slug = pref_slug or fallback_pref
                 city_slug = city_slug or fallback_city
