@@ -1,6 +1,7 @@
 """/gyms routers that delegate to services via DI."""
 
 from collections.abc import Callable
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,6 +134,32 @@ async def get_gym_detail(
 ):
     # サービスに委譲。見つからない場合は router 側で 404 を返す。
     detail = await svc.get_opt(slug, include)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="gym not found")
+    return detail
+
+
+@router.get(
+    "/by-id/{canonical_id}",
+    response_model=GymDetailDTO,
+    summary="ジム詳細を canonical_id で取得",
+    description=(
+        "canonical UUID を用いてジムの詳細を返却します。"
+        "`include=score` を指定すると freshness/richness/score を同梱します。"
+    ),
+    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
+)
+async def get_gym_detail_by_id(
+    canonical_id: str,
+    include: str | None = Query(default=None, description="例: include=score"),
+    svc: GymDetailService = Depends(get_gym_detail_api_service),
+):
+    try:
+        canonical_uuid = UUID(canonical_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="gym not found")
+
+    detail = await svc.get_by_canonical_id_opt(str(canonical_uuid), include)
     if detail is None:
         raise HTTPException(status_code=404, detail="gym not found")
     return detail

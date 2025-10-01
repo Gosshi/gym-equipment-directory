@@ -179,6 +179,9 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
     async def get_by_slug(self, slug: str) -> Gym | None:
         return await self._session.scalar(select(Gym).where(Gym.slug == slug))
 
+    async def get_by_canonical_id(self, canonical_id: str) -> Gym | None:
+        return await self._session.scalar(select(Gym).where(Gym.canonical_id == canonical_id))
+
     async def get_by_id(self, gym_id: int) -> Gym | None:
         return await self._session.get(Gym, gym_id)
 

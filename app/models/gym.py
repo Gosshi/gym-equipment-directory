@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -11,6 +12,7 @@ class Gym(Base):
     name = Column(String, nullable=False)
     chain_name = Column(String, nullable=True)
     slug = Column(String, unique=True, nullable=False, index=True)
+    canonical_id = Column(UUID(as_uuid=False), unique=True, nullable=False)
     address = Column(String, nullable=True)
     pref = Column(String, nullable=True)
     city = Column(String, nullable=True)

@@ -67,6 +67,7 @@ async def search_gyms(
                     {
                         "id": it.id,
                         "slug": it.slug,
+                        "canonical_id": it.canonical_id,
                         "name": it.name,
                         "pref": it.pref,
                         "city": it.city,

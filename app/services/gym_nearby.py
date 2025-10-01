@@ -131,6 +131,7 @@ async def search_nearby(
             GymNearbyItem(
                 id=int(getattr(g, "id", 0)),
                 slug=str(getattr(g, "slug", "")),
+                canonical_id=str(getattr(g, "canonical_id", "")),
                 name=str(getattr(g, "name", "")),
                 pref=str(getattr(g, "pref", "")),
                 city=str(getattr(g, "city", "")),

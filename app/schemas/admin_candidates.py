@@ -82,6 +82,7 @@ class ApproveRequest(BaseModel):
 class GymUpsertPreview(BaseModel):
     slug: str
     name: str
+    canonical_id: str
     pref_slug: str | None = None
     city_slug: str | None = None
     address: str | None = None

@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 class GymBasic(BaseModel):
     id: int = Field(..., description="ジムID")
     slug: str = Field(..., description="ジムのスラッグ（URL識別子）")
+    canonical_id: str = Field(..., description="ジムの canonical UUID")
     name: str = Field(..., description="ジム名")
     chain_name: str | None = Field(None, description="チェーン名スラッグ")
     address: str | None = Field(None, description="住所スラッグ")
@@ -45,6 +46,7 @@ class SearchResponse(BaseModel):
                         "gym": {
                             "id": 101,
                             "slug": "gold-gym-funabashi",
+                            "canonical_id": "11111111-2222-3333-4444-555555555555",
                             "name": "Gold Gym Funabashi",
                             "pref": "chiba",
                             "city": "funabashi",
@@ -108,6 +110,7 @@ class GymDetailResponse(BaseModel):
                 "gym": {
                     "id": 101,
                     "slug": "gold-gym-funabashi",
+                    "canonical_id": "11111111-2222-3333-4444-555555555555",
                     "name": "Gold Gym Funabashi",
                     "pref": "chiba",
                     "city": "funabashi",

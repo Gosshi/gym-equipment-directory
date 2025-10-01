@@ -38,6 +38,7 @@ def map_gym_to_summary(
     return GymSummaryDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "") or ""),
+        canonical_id=str(getattr(gym, "canonical_id", "") or ""),
         name=str(getattr(gym, "name", "") or ""),
         pref=str(getattr(gym, "pref", "") or ""),
         city=str(getattr(gym, "city", "") or ""),
@@ -96,6 +97,7 @@ def assemble_gym_detail(
     return GymDetailDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "")),
+        canonical_id=str(getattr(gym, "canonical_id", "")),
         name=str(getattr(gym, "name", "")),
         city=str(getattr(gym, "city", "")),
         pref=str(getattr(gym, "pref", "")),

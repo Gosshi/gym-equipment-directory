@@ -39,6 +39,7 @@ class GymDetailResponse(BaseModel):
     model_config = {"from_attributes": True}  # ★ v2 で必須
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
+    canonical_id: str = Field(description="ジムの canonical UUID")
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
@@ -80,6 +81,7 @@ class GymDetailResponse(BaseModel):
                 {
                     "id": 1,
                     "slug": "awesome-gym",
+                    "canonical_id": "11111111-2222-3333-4444-555555555555",
                     "name": "Awesome Gym",
                     "city": "funabashi",
                     "pref": "chiba",

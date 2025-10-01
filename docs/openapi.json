@@ -194,6 +194,52 @@
         }
       }
     },
+    "/gyms/by-id/{canonical_id}": {
+      "get": {
+        "tags": ["gyms", "gyms"],
+        "summary": "ジム詳細を canonical_id で取得",
+        "description": "canonical UUID でジム詳細（設備一覧・最新更新時刻）を返します。",
+        "operationId": "get_gym_detail_by_id_gyms_by_id__canonical_id__get",
+        "parameters": [
+          {
+            "name": "canonical_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Canonical Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GymDetailResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "ジムが見つかりません",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/equipments": {
       "get": {
         "tags": ["equipments", "equipments"],
@@ -387,6 +433,11 @@
             "title": "Slug",
             "description": "ジムスラッグ"
           },
+          "canonical_id": {
+            "type": "string",
+            "title": "Canonical Id",
+            "description": "ジムの canonical UUID"
+          },
           "name": { "type": "string", "title": "Name", "description": "名称" },
           "city": {
             "type": "string",
@@ -411,7 +462,7 @@
           }
         },
         "type": "object",
-        "required": ["id", "slug", "name", "city", "pref", "equipments"],
+        "required": ["id", "slug", "canonical_id", "name", "city", "pref", "equipments"],
         "title": "GymDetailResponse",
         "example": {
           "city": "funabashi",
@@ -430,6 +481,7 @@
             }
           ],
           "id": 1,
+          "canonical_id": "11111111-2222-3333-4444-555555555555",
           "name": "Awesome Gym",
           "pref": "chiba",
           "slug": "awesome-gym",
@@ -498,7 +550,8 @@
               "last_verified_at": "2025-09-01T12:34:56Z",
               "name": "Awesome Gym",
               "pref": "chiba",
-              "slug": "awesome-gym"
+              "slug": "awesome-gym",
+              "canonical_id": "11111111-2222-3333-4444-555555555555"
             }
           ],
           "page_token": "abc123",
@@ -512,6 +565,11 @@
             "type": "string",
             "title": "Slug",
             "description": "ジムスラッグ"
+          },
+          "canonical_id": {
+            "type": "string",
+            "title": "Canonical Id",
+            "description": "ジムの canonical UUID"
           },
           "name": { "type": "string", "title": "Name", "description": "名称" },
           "city": {
@@ -531,7 +589,7 @@
           }
         },
         "type": "object",
-        "required": ["id", "slug", "name", "city", "pref"],
+        "required": ["id", "slug", "canonical_id", "name", "city", "pref"],
         "title": "GymSummary",
         "description": "検索結果のジム要約。\nlast_verified_at_cached は ISO8601 文字列（例: \"2025-09-05T12:34:5600:00\"）"
       },
