@@ -12,7 +12,7 @@ from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 
-from .sites import site_a
+from .sites import municipal_koto, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -43,13 +43,21 @@ _SITE_A_CITY_MAP = {
     "千葉市": "chiba",
     "美浜区": "mihama",
 }
+_MUNICIPAL_KOTO_PREF_MAP = {
+    "東京都": "tokyo",
+}
+_MUNICIPAL_KOTO_CITY_MAP = {
+    "江東区": "koto",
+}
 _PREF_MAPS = {
     "dummy": _DUMMY_PREF_MAP,
     site_a.SITE_ID: _SITE_A_PREF_MAP,
+    municipal_koto.SITE_ID: _MUNICIPAL_KOTO_PREF_MAP,
 }
 _CITY_MAPS = {
     "dummy": _DUMMY_CITY_MAP,
     site_a.SITE_ID: _SITE_A_CITY_MAP,
+    municipal_koto.SITE_ID: _MUNICIPAL_KOTO_CITY_MAP,
 }
 
 

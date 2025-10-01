@@ -7,6 +7,7 @@ import logging
 import os
 import random
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any
@@ -18,7 +19,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
 
-from .sites import site_a
+from .sites import municipal_koto, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -26,13 +27,38 @@ logger = logging.getLogger(__name__)
 DEFAULT_USER_AGENT = "GymDirectoryBot/0.1 (+contact-url)"
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_LIMIT = 20
-MAX_LIMIT = 50
+MAX_LIMIT = 30
 PROD_MAX_LIMIT = 20
 DEFAULT_MIN_DELAY = 2.0
 DEFAULT_MAX_DELAY = 5.0
 RETRY_ATTEMPTS = 3
-ALLOWED_DOMAINS = {"site-a.example.com"}
-SUPPORTED_AREAS = {("tokyo", "koto"), ("chiba", "funabashi")}
+
+
+@dataclass(frozen=True)
+class HttpSiteConfig:
+    module: Any
+    base_url: str
+    allowed_hosts: tuple[str, ...]
+    supported_areas: set[tuple[str, str]]
+    uses_listing_pages: bool
+
+
+SITE_CONFIGS: dict[str, HttpSiteConfig] = {
+    site_a.SITE_ID: HttpSiteConfig(
+        module=site_a,
+        base_url=site_a.BASE_URL,
+        allowed_hosts=site_a.ALLOWED_HOSTS,
+        supported_areas=set(site_a.SUPPORTED_HTTP_AREAS),
+        uses_listing_pages=True,
+    ),
+    municipal_koto.SITE_ID: HttpSiteConfig(
+        module=municipal_koto,
+        base_url=municipal_koto.BASE_URL,
+        allowed_hosts=municipal_koto.ALLOWED_HOSTS,
+        supported_areas=set(municipal_koto.SUPPORTED_AREAS),
+        uses_listing_pages=False,
+    ),
+}
 
 
 class RobotsRules:
@@ -75,12 +101,13 @@ def _resolve_limit(raw_limit: int | None, app_env: str) -> int:
     return raw_limit
 
 
-def _ensure_allowed_domain(url: str) -> str:
+def _ensure_allowed_domain(url: str, allowed_hosts: Iterable[str]) -> str:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         msg = f"Unsupported URL scheme for '{url}'"
         raise ValueError(msg)
-    if parsed.netloc not in ALLOWED_DOMAINS:
+    hosts = set(allowed_hosts)
+    if parsed.netloc not in hosts:
         msg = f"URL '{url}' is not part of the allowed domains"
         raise ValueError(msg)
     return url
@@ -157,6 +184,7 @@ async def _load_robots(
 async def _collect_detail_urls(
     client: httpx.AsyncClient,
     *,
+    config: HttpSiteConfig,
     pref: str,
     city: str,
     limit: int,
@@ -164,29 +192,43 @@ async def _collect_detail_urls(
     robots: RobotsRules | None,
     timeout: float,
 ) -> list[str]:
-    listing_urls = list(site_a.iter_listing_urls(pref, city))
+    listing_urls = list(config.module.iter_listing_urls(pref, city))
     detail_urls: list[str] = []
     seen: set[str] = set()
-    for listing_url in listing_urls:
-        _ensure_allowed_domain(listing_url)
-        parsed_listing = urlparse(listing_url)
-        if respect_robots and robots and not robots.allows(parsed_listing.path):
-            logger.warning("Skipping listing due to robots.txt: %s", listing_url)
-            continue
-        try:
-            response = await client.get(listing_url, timeout=timeout)
-        except httpx.HTTPError as exc:
-            logger.warning("Failed to fetch listing %s: %s", listing_url, exc)
-            continue
-        if response.status_code != 200:
-            logger.warning(
-                "Listing request returned status %s for %s",
-                response.status_code,
-                listing_url,
-            )
-            continue
-        for url in site_a.iter_detail_urls_from_listing(response.text):
-            absolute = _ensure_allowed_domain(url)
+    if config.uses_listing_pages:
+        for listing_url in listing_urls:
+            _ensure_allowed_domain(listing_url, config.allowed_hosts)
+            parsed_listing = urlparse(listing_url)
+            if respect_robots and robots and not robots.allows(parsed_listing.path):
+                logger.warning("Skipping listing due to robots.txt: %s", listing_url)
+                continue
+            try:
+                response = await client.get(listing_url, timeout=timeout)
+            except httpx.HTTPError as exc:
+                logger.warning("Failed to fetch listing %s: %s", listing_url, exc)
+                continue
+            if response.status_code != 200:
+                logger.warning(
+                    "Listing request returned status %s for %s",
+                    response.status_code,
+                    listing_url,
+                )
+                continue
+            for url in config.module.iter_detail_urls_from_listing(response.text):
+                absolute = _ensure_allowed_domain(url, config.allowed_hosts)
+                parsed = urlparse(absolute)
+                if respect_robots and robots and not robots.allows(parsed.path):
+                    logger.warning("Skipping detail due to robots.txt: %s", absolute)
+                    continue
+                if absolute in seen:
+                    continue
+                seen.add(absolute)
+                detail_urls.append(absolute)
+                if len(detail_urls) >= limit:
+                    return detail_urls
+    else:
+        for detail_url in listing_urls:
+            absolute = _ensure_allowed_domain(detail_url, config.allowed_hosts)
             parsed = urlparse(absolute)
             if respect_robots and robots and not robots.allows(parsed.path):
                 logger.warning("Skipping detail due to robots.txt: %s", absolute)
@@ -196,7 +238,7 @@ async def _collect_detail_urls(
             seen.add(absolute)
             detail_urls.append(absolute)
             if len(detail_urls) >= limit:
-                return detail_urls
+                break
     return detail_urls
 
 
@@ -280,13 +322,14 @@ async def fetch_http_pages(
     force: bool,
 ) -> int:
     source = source.strip()
-    if source != site_a.SITE_ID:
+    config = SITE_CONFIGS.get(source)
+    if config is None:
         msg = f"Unsupported source for HTTP fetch: {source}"
         raise ValueError(msg)
 
     pref = pref.strip().lower()
     city = city.strip().lower()
-    if (pref, city) not in SUPPORTED_AREAS:
+    if (pref, city) not in config.supported_areas:
         msg = f"Unsupported area combination: pref={pref}, city={city}"
         raise ValueError(msg)
 
@@ -313,7 +356,7 @@ async def fetch_http_pages(
         if respect_robots:
             robots = await _load_robots(
                 client,
-                base_url=site_a.BASE_URL,
+                base_url=config.base_url,
                 user_agent=user_agent,
                 timeout=timeout,
             )
@@ -323,6 +366,7 @@ async def fetch_http_pages(
 
         detail_urls = await _collect_detail_urls(
             client,
+            config=config,
             pref=pref,
             city=city,
             limit=effective_limit,
@@ -352,7 +396,7 @@ async def fetch_http_pages(
             not_modified = 0
             failures = 0
             for index, url in enumerate(detail_urls):
-                _ensure_allowed_domain(url)
+                _ensure_allowed_domain(url, config.allowed_hosts)
                 headers = {"User-Agent": user_agent}
                 existing_result = await session.execute(
                     select(ScrapedPage).where(

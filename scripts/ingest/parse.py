@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from itertools import cycle
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import urlparse
 
 from sqlalchemy import select
@@ -14,7 +15,7 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
-from .sites import site_a
+from .sites import municipal_koto, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,41 @@ _EQUIPMENT_PATTERNS = (
     ["smith-machine", "bench-press"],
     ["squat-rack", "dumbbell"],
 )
+
+_MUNICIPAL_KOTO_EQUIPMENT_ALIASES: dict[str, tuple[str, ...]] = {
+    "smith-machine": ("スミスマシン", "スミス", "smith machine"),
+    "bench-press": ("ベンチプレス", "ベンチプレス台"),
+    "dumbbell": ("ダンベル", "ダンベルセット"),
+    "lat-pulldown": ("ラットプルダウン", "ラットプル"),
+    "leg-press": ("レッグプレス", "レッグプレスマシン"),
+    "upright-bike": ("エアロバイク", "バイク", "フィットネスバイク"),
+    "leg-extension": ("レッグエクステンション",),
+    "chest-press": ("チェストプレス", "チェストプレスマシン"),
+}
+
+
+def _normalize_equipment_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value or "").strip().lower()
+    return normalized.replace(" ", "").replace("\u3000", "")
+
+
+_MUNICIPAL_KOTO_LOOKUP: dict[str, str] = {}
+for slug, variants in _MUNICIPAL_KOTO_EQUIPMENT_ALIASES.items():
+    for variant in variants:
+        _MUNICIPAL_KOTO_LOOKUP[_normalize_equipment_key(variant)] = slug
+
+
+def map_municipal_koto_equipments(equipments: Iterable[str]) -> list[str]:
+    slugs: list[str] = []
+    seen: set[str] = set()
+    for item in equipments:
+        key = _normalize_equipment_key(item)
+        slug = _MUNICIPAL_KOTO_LOOKUP.get(key)
+        if slug is None or slug in seen:
+            continue
+        slugs.append(slug)
+        seen.add(slug)
+    return slugs
 
 
 def _extract_dummy_name(raw_html: str | None, url: str) -> str:
@@ -63,6 +99,18 @@ def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
         "equipments_raw": parsed.equipments_raw,
     }
     return parsed.name_raw, parsed.address_raw, parsed_json
+
+
+def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
+    detail = municipal_koto.parse_detail(page.raw_html or "")
+    equipments_raw = municipal_koto.normalize_equipments(detail.equipments_raw)
+    equipments = map_municipal_koto_equipments(equipments_raw)
+    parsed_json: dict[str, Any] = {
+        "site": municipal_koto.SITE_ID,
+        "equipments": equipments,
+        "equipments_raw": equipments_raw,
+    }
+    return detail.name, detail.address, parsed_json
 
 
 async def parse_pages(source: str, limit: int | None) -> int:
@@ -108,6 +156,8 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 )
             elif source == site_a.SITE_ID:
                 name_raw, address_raw, parsed_json = _build_site_a_payload(page)
+            elif source == municipal_koto.SITE_ID:
+                name_raw, address_raw, parsed_json = _build_municipal_koto_payload(page)
             else:
                 msg = f"Unsupported source: {source}"
                 raise ValueError(msg)

@@ -41,7 +41,9 @@ pre-commit-run:
 .PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve \
         ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
         ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
-        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi
+        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
+        ingest-fetch-municipal-koto ingest-parse-municipal-koto \
+        ingest-normalize-municipal-koto
 ingest-fetch:
         python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
@@ -77,6 +79,21 @@ ingest-normalize-site-a:
         python -m scripts.ingest normalize --source site_a --limit 10
 ingest-normalize-site-a-funabashi:
         python -m scripts.ingest normalize --source site_a --limit 10
+
+ingest-fetch-municipal-koto:
+        python -m scripts.ingest fetch-http \
+                --source municipal_koto \
+                --pref tokyo \
+                --city koto \
+                --limit 10 \
+                --min-delay 2 \
+                --max-delay 4
+
+ingest-parse-municipal-koto:
+        python -m scripts.ingest parse --source municipal_koto --limit 10
+
+ingest-normalize-municipal-koto:
+        python -m scripts.ingest normalize --source municipal_koto --limit 10
 
 curl-admin-candidates:
         @echo "# 一覧"
