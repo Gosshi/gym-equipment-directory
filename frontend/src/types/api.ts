@@ -49,9 +49,28 @@ export interface GymLocationApiResponse {
   address?: string | null;
 }
 
+export interface GymDetailMetaApiResponse {
+  redirect?: boolean | null;
+}
+
+export interface GymDetailGymApiResponse {
+  id?: number | null;
+  slug?: string | null;
+  canonical_id?: string | null;
+  name?: string | null;
+  address?: string | null;
+  pref?: string | null;
+  city?: string | null;
+  prefecture?: string | null;
+}
+
 export interface GymDetailApiResponse {
-  slug: string;
-  name: string;
+  requested_slug?: string | null;
+  canonical_slug?: string | null;
+  meta?: GymDetailMetaApiResponse | null;
+  gym?: GymDetailGymApiResponse | null;
+  slug?: string | null;
+  name?: string | null;
   description?: string | null;
   address?: string | null;
   prefecture?: string | null;

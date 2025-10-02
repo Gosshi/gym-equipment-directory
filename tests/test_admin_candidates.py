@@ -12,6 +12,7 @@ from app.models import (
     Equipment,
     Gym,
     GymCandidate,
+    GymSlug,
     ScrapedPage,
     Source,
     SourceType,
@@ -245,6 +246,70 @@ async def test_approve_candidate_upserts_by_canonical_id(
 
     total_after_second = await session.scalar(select(func.count()).select_from(Gym))
     assert total_after_second == total_after_first
+
+
+@pytest.mark.asyncio
+async def test_approve_candidate_updates_slug_history(
+    app_client: AsyncClient, session: AsyncSession
+) -> None:
+    await _ensure_equipments(session, ["smith-machine"])
+    candidate = await _create_candidate(
+        session,
+        name="Test Gym",
+        parsed_json={"equipments": ["smith-machine"]},
+    )
+
+    initial_resp = await app_client.post(
+        f"/admin/candidates/{candidate.id}/approve",
+        json={
+            "override": {
+                "name": "Test Gym",
+                "address": "Tokyo Koto 1-2-3",
+            }
+        },
+    )
+    assert initial_resp.status_code == 200
+    initial_payload = initial_resp.json()["result"]["gym"]
+    initial_slug = initial_payload["slug"]
+    gym_id = int(initial_payload["id"])
+
+    followup_candidate = await _create_candidate(
+        session,
+        name="Test Gym",
+        parsed_json={"equipments": ["smith-machine"]},
+    )
+
+    updated_resp = await app_client.post(
+        f"/admin/candidates/{followup_candidate.id}/approve",
+        json={
+            "override": {
+                "name": "Test Gym",
+                "address": "Tokyo Koto 9-9-9",
+            }
+        },
+    )
+    assert updated_resp.status_code == 200
+    updated_payload = updated_resp.json()["result"]["gym"]
+    updated_slug = updated_payload["slug"]
+    assert updated_slug != initial_slug
+
+    slug_rows = (
+        (
+            await session.execute(
+                select(GymSlug).where(GymSlug.gym_id == gym_id).order_by(GymSlug.slug)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(slug_rows) == 2
+    status_map = {row.slug: bool(row.is_current) for row in slug_rows}
+    assert status_map[initial_slug] is False
+    assert status_map[updated_slug] is True
+
+    refreshed_gym = await session.get(Gym, gym_id)
+    assert refreshed_gym is not None
+    assert refreshed_gym.slug == updated_slug
 
 
 @pytest.mark.asyncio

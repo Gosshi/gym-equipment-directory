@@ -35,6 +35,7 @@ from app.schemas.admin_candidates import (
     GymUpsertPreview,
 )
 from app.services.canonical import make_canonical_id
+from app.services.slug_history import set_current_slug
 
 
 @dataclass
@@ -492,6 +493,7 @@ async def approve_candidate(
             latitude=preview_gym.latitude,
             longitude=preview_gym.longitude,
         )
+        await set_current_slug(session, gym, slug)
     except IntegrityError as exc:  # pragma: no cover - handled by caller
         raise exc
     summary, latest = await ensure_equipment_links(

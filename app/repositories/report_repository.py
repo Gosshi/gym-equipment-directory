@@ -6,6 +6,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.gym import Gym
+from app.models.gym_slug import GymSlug
 from app.models.report import Report
 
 
@@ -15,6 +16,10 @@ class ReportRepository:
 
     async def get_gym_by_slug(self, slug: str) -> Gym | None:
         stmt = select(Gym).where(Gym.slug == slug)
+        gym = (await self._session.scalars(stmt)).first()
+        if gym:
+            return gym
+        stmt = select(Gym).join(GymSlug, GymSlug.gym_id == Gym.id).where(GymSlug.slug == slug)
         return (await self._session.scalars(stmt)).first()
 
     async def create(

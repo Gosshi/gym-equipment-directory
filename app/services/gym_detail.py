@@ -105,9 +105,17 @@ async def _build_gym_detail(uow: UnitOfWork, gym: Gym, include: str | None) -> G
 
 
 async def get_gym_detail_v1(uow: UnitOfWork, slug: str) -> legacy_schemas.GymDetailResponse | None:
+    requested_slug = slug
     gym = await uow.gyms.get_by_slug(slug)
     if gym is None:
-        return None
+        gym = await uow.gyms.get_by_slug_from_history(slug)
+        if gym is None:
+            return None
+
+    canonical_slug = str(getattr(gym, "slug", requested_slug))
+    meta: legacy_schemas.GymDetailMeta | None = None
+    if canonical_slug != requested_slug:
+        meta = legacy_schemas.GymDetailMeta(redirect=True)
 
     gym_id = int(getattr(gym, "id", 0))
     rows = await uow.gyms.fetch_equipment_summaries(gym_id)
@@ -136,6 +144,9 @@ async def get_gym_detail_v1(uow: UnitOfWork, slug: str) -> legacy_schemas.GymDet
         equipments=equipments,
         sources=[],
         updated_at=updated_at,
+        requested_slug=requested_slug,
+        canonical_slug=canonical_slug,
+        meta=meta,
     )
 
 

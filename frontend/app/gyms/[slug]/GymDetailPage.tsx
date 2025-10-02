@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { BookmarkCheck, BookmarkPlus } from "lucide-react";
 
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
@@ -18,6 +19,7 @@ import type {
   GymDetailApiResponse,
   GymEquipmentDetailApiResponse,
   GymFacilityCategoryApiResponse,
+  GymLocationApiResponse,
 } from "@/types/api";
 
 import { GymDetailError } from "./GymDetailError";
@@ -75,7 +77,7 @@ const formatRegion = (value?: string | null): string | undefined => {
     .join(" ");
 };
 
-const extractCategoryNames = (input: GymDetailApiResponse["categories"]): string[] => {
+const extractCategoryNames = (input: unknown): string[] => {
   const result: string[] = [];
   const seen = new Set<string>();
 
@@ -279,56 +281,101 @@ const extractFacilityGroups = (data: GymDetailApiResponse): FacilityGroup[] => {
   return result;
 };
 
-const normalizeGymDetail = (data: GymDetailApiResponse): NormalizedGymDetail => {
-  const categories = extractCategoryNames(data.categories);
+const normalizeGymDetail = (
+  data: GymDetailApiResponse,
+  canonicalSlug: string,
+): NormalizedGymDetail => {
+  const categories = extractCategoryNames(data.categories ?? data.facilities ?? []);
   const facilities = extractFacilityGroups(data);
-  const location = data.location ?? null;
+  const gymRecord = (data.gym ?? {}) as Record<string, unknown>;
+  const locationSource =
+    data.location ?? (gymRecord.location as GymLocationApiResponse | null | undefined);
+  const location = locationSource ?? null;
 
-  const latitude =
-    typeof data.latitude === "number"
-      ? data.latitude
-      : typeof data.lat === "number"
-        ? data.lat
-        : typeof location?.latitude === "number"
-          ? location.latitude
-          : typeof location?.lat === "number"
-            ? location.lat
-            : undefined;
+  const pickNumber = (...values: unknown[]): number | undefined => {
+    for (const value of values) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+      if (typeof value === "string") {
+        const parsed = Number(value);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return undefined;
+  };
 
-  const longitude =
-    typeof data.longitude === "number"
-      ? data.longitude
-      : typeof data.lng === "number"
-        ? data.lng
-        : typeof location?.longitude === "number"
-          ? location.longitude
-          : typeof location?.lng === "number"
-            ? location.lng
-            : undefined;
+  const latitude = pickNumber(
+    data.latitude,
+    data.lat,
+    gymRecord.latitude,
+    gymRecord.lat,
+    location?.latitude,
+    location?.lat,
+  );
+  const longitude = pickNumber(
+    data.longitude,
+    data.lng,
+    gymRecord.longitude,
+    gymRecord.lng,
+    location?.longitude,
+    location?.lng,
+  );
+
+  const resolvedName = sanitizeText(data.name) ?? sanitizeText(gymRecord.name) ?? canonicalSlug;
+  const resolvedAddress =
+    sanitizeText(data.address) ??
+    sanitizeText(gymRecord.address) ??
+    sanitizeText(location?.address);
+  const resolvedPref =
+    sanitizeText(data.prefecture ?? data.pref) ??
+    sanitizeText(gymRecord.pref ?? gymRecord.prefecture);
+  const resolvedCity = sanitizeText(data.city) ?? sanitizeText(gymRecord.city);
+  const resolvedWebsite = sanitizeText(data.website ?? data.website_url);
 
   return {
-    slug: data.slug,
-    name: data.name,
+    slug: canonicalSlug,
+    name: resolvedName,
     description: sanitizeText(data.description),
-    address: sanitizeText(data.address) ?? sanitizeText(location?.address),
-    prefecture: formatRegion(data.prefecture ?? data.pref ?? undefined),
-    city: formatRegion(data.city ?? undefined),
+    address: resolvedAddress,
+    prefecture: formatRegion(resolvedPref),
+    city: formatRegion(resolvedCity),
     categories,
     openingHours: sanitizeText(data.openingHours ?? data.opening_hours),
     fees: sanitizeText(data.fees ?? data.price),
-    website: sanitizeText(data.website ?? data.website_url),
+    website: resolvedWebsite,
     facilities,
     latitude,
     longitude,
   };
 };
 
-async function fetchGymDetail(slug: string, signal?: AbortSignal): Promise<NormalizedGymDetail> {
+interface FetchGymDetailResult {
+  normalized: NormalizedGymDetail;
+  canonicalSlug: string;
+  requestedSlug: string;
+  shouldRedirect: boolean;
+}
+
+async function fetchGymDetail(slug: string, signal?: AbortSignal): Promise<FetchGymDetailResult> {
   const response = await apiRequest<GymDetailApiResponse>(`/gyms/${encodeOnce(slug)}`, {
     method: "GET",
     signal,
   });
-  return normalizeGymDetail(response);
+
+  const gymRecord = (response.gym ?? {}) as Record<string, unknown>;
+  const canonicalSlug =
+    sanitizeText(response.canonical_slug) ??
+    sanitizeText(response.slug) ??
+    sanitizeText(gymRecord.slug) ??
+    slug;
+  const requestedSlug = sanitizeText(response.requested_slug) ?? slug;
+  const normalized = normalizeGymDetail(response, canonicalSlug);
+  const shouldRedirect = Boolean(response.meta?.redirect) || canonicalSlug !== requestedSlug;
+
+  return { normalized, canonicalSlug, requestedSlug, shouldRedirect };
 }
 
 const GymDetailSkeleton = () => (
@@ -364,13 +411,20 @@ const GymDetailSkeleton = () => (
   </div>
 );
 
-export function GymDetailPage({ slug }: { slug: string }) {
+export function GymDetailPage({
+  slug,
+  onCanonicalSlugChange,
+}: {
+  slug: string;
+  onCanonicalSlugChange?: (nextSlug: string) => void;
+}) {
   const [status, setStatus] = useState<FetchStatus>("idle");
   const [gym, setGym] = useState<NormalizedGymDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const loadGym = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -381,12 +435,16 @@ export function GymDetailPage({ slug }: { slug: string }) {
     setErrorMessage(null);
 
     fetchGymDetail(slug, controller.signal)
-      .then(data => {
+      .then(result => {
         if (controller.signal.aborted) {
           return;
         }
-        setGym(data);
+        setGym(result.normalized);
         setStatus("success");
+        onCanonicalSlugChange?.(result.canonicalSlug);
+        if (result.shouldRedirect && result.canonicalSlug) {
+          router.replace(`/gyms/${encodeOnce(result.canonicalSlug)}`);
+        }
       })
       .catch(error => {
         if (controller.signal.aborted) {
@@ -408,7 +466,7 @@ export function GymDetailPage({ slug }: { slug: string }) {
         setErrorMessage(message);
         setStatus("error");
       });
-  }, [slug]);
+  }, [slug, onCanonicalSlugChange, router]);
 
   useEffect(() => {
     loadGym();

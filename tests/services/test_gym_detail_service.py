@@ -47,6 +47,9 @@ class FakeGymRepository:
     async def get_by_slug(self, slug: str):  # noqa: D401
         return self._gym if slug == self._gym.slug else None
 
+    async def get_by_slug_from_history(self, slug: str):  # noqa: D401
+        return None
+
     async def fetch_equipment_basic(self, gym_id: int):
         return [
             GymEquipmentBasicRow(
