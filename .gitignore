@@ -24,3 +24,6 @@ venv*/
 
 # 生成される一時ファイル
 lh-temp.json
+
+.env.demo
+frontend/.env.demo.local
