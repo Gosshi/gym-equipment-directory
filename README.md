@@ -97,6 +97,17 @@ gym-equipment-directory/
 - 承認: 公開テーブルへの upsert（`dry_run` 指定でプレビューのみ実行も可能）
 - 却下: 理由付きで候補を非承認扱いに変更
 
+### Admin UI
+
+- `.env` に `ADMIN_UI_TOKEN` を設定すると、Next.js フロントの `/admin` 配下を同じトークンで保護します。
+- ブラウザで `http://localhost:3000/admin/login` にアクセス → トークンを入力すると Cookie に保存され、`/admin/candidates` へ遷移します。
+- 一覧から候補を選択すると詳細画面に移動し、以下を UI 上で実行できます。
+  - フィールドの編集 (`PATCH /admin/candidates/{id}`)
+  - Dry-run 承認（差分プレビュー表示）
+  - 本承認（成功時に `/gyms/{slug}` へのリンク付きトーストを表示）
+  - 却下（理由必須）
+- 承認 API のレート制限(HTTP 429)には UI 側で自動リトライ（Retry-After 対応）を実装しています。
+
 ## 🏋️ Ingest パイプラインの使い方
 
 `site_a` のスクレイピングフローをローカルで試す場合は、以下のコマンドを順番に実行します。
