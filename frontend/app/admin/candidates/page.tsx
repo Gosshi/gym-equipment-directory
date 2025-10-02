@@ -7,15 +7,15 @@ import type { AdminCandidateItem, AdminCandidateListParams } from "@/lib/adminAp
 import { AdminApiError, listCandidates } from "@/lib/adminApi";
 import { toast } from "@/components/ui/use-toast";
 
-const DEFAULT_FILTERS: AdminCandidateListParams = {
+type Filters = AdminCandidateListParams & { q: string };
+
+const DEFAULT_FILTERS: Filters = {
   status: "",
   source: "",
   q: "",
   pref: "",
   city: "",
 };
-
-type Filters = AdminCandidateListParams & { q: string };
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) {

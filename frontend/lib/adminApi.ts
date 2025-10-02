@@ -5,8 +5,11 @@ const BASE_BACKOFF_MS = 500;
 
 type JsonRecord = Record<string, unknown>;
 
+type QueryValue = string | number | boolean | null | undefined;
+type QueryParams = Record<string, QueryValue | QueryValue[]>;
+
 type RequestOptions = RequestInit & {
-  query?: Record<string, unknown>;
+  query?: QueryParams;
 };
 
 const getAdminToken = (): string | null => {
@@ -19,7 +22,7 @@ const getAdminToken = (): string | null => {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const buildQueryString = (query: Record<string, unknown> | undefined) => {
+const buildQueryString = (query: QueryParams | undefined) => {
   if (!query) {
     return "";
   }
@@ -184,7 +187,7 @@ export interface AdminCandidateListResponse {
   count: number;
 }
 
-export interface AdminCandidateListParams {
+export interface AdminCandidateListParams extends QueryParams {
   status?: string | null;
   source?: string | null;
   q?: string | null;
