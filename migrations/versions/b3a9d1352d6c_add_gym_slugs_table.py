@@ -1,7 +1,7 @@
 """add gym_slugs table and backfill current slugs
 
 Revision ID: b3a9d1352d6c
-Revises: a210e2f5d9ab
+Revises: a1b2c3d4e5f6
 Create Date: 2024-10-05 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b3a9d1352d6c"
-down_revision: str | Sequence[str] | None = "a210e2f5d9ab"
+down_revision: str | Sequence[str] | None = "a1b2c3d4e5f6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

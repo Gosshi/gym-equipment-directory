@@ -19,6 +19,7 @@ import type {
   GymDetailApiResponse,
   GymEquipmentDetailApiResponse,
   GymFacilityCategoryApiResponse,
+  GymLocationApiResponse,
 } from "@/types/api";
 
 import { GymDetailError } from "./GymDetailError";
@@ -76,7 +77,7 @@ const formatRegion = (value?: string | null): string | undefined => {
     .join(" ");
 };
 
-const extractCategoryNames = (input: GymDetailApiResponse["categories"]): string[] => {
+const extractCategoryNames = (input: unknown): string[] => {
   const result: string[] = [];
   const seen = new Set<string>();
 
@@ -287,10 +288,9 @@ const normalizeGymDetail = (
   const categories = extractCategoryNames(data.categories ?? data.facilities ?? []);
   const facilities = extractFacilityGroups(data);
   const gymRecord = (data.gym ?? {}) as Record<string, unknown>;
-  const location =
-    data.location ??
-    ((gymRecord.location as GymLocationApiResponse | null | undefined) ?? null) ??
-    null;
+  const locationSource =
+    data.location ?? (gymRecord.location as GymLocationApiResponse | null | undefined);
+  const location = locationSource ?? null;
 
   const pickNumber = (...values: unknown[]): number | undefined => {
     for (const value of values) {
@@ -324,10 +324,7 @@ const normalizeGymDetail = (
     location?.lng,
   );
 
-  const resolvedName =
-    sanitizeText(data.name) ??
-    sanitizeText(gymRecord.name) ??
-    canonicalSlug;
+  const resolvedName = sanitizeText(data.name) ?? sanitizeText(gymRecord.name) ?? canonicalSlug;
   const resolvedAddress =
     sanitizeText(data.address) ??
     sanitizeText(gymRecord.address) ??
