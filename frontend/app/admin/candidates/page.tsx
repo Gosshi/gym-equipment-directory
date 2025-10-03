@@ -33,6 +33,7 @@ export default function AdminCandidatesPage() {
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [items, setItems] = useState<AdminCandidateItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,12 +57,14 @@ export default function AdminCandidatesPage() {
         const response = await listCandidates(buildParams(cursor));
         setItems(response.items);
         setNextCursor(response.next_cursor ?? null);
+        setTotalCount(typeof response.count === "number" ? response.count : response.items.length);
       } catch (err) {
         if (err instanceof AdminApiError) {
           setError(err.message);
         } else {
           setError("ネットワークエラーが発生しました");
         }
+        setTotalCount(null);
       } finally {
         setLoading(false);
       }
@@ -241,7 +244,9 @@ export default function AdminCandidatesPage() {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">件数: {items.length}</p>
+        <p className="text-xs text-gray-500">
+          総件数: {totalCount ?? "-"}（表示: {items.length}件）
+        </p>
         <button
           type="button"
           className="rounded border border-gray-300 px-4 py-2 text-sm"

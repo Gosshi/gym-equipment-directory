@@ -74,6 +74,38 @@ const INITIAL_PREVIEW_STATE: PreviewState = {
 
 type CandidateActionState = "idle" | "saving" | "approving" | "rejecting";
 
+type OverrideFormValues = {
+  name: string;
+  pref_slug: string;
+  city_slug: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+};
+
+type OverrideDialogState = {
+  open: boolean;
+  message: string | null;
+  error: string | null;
+  values: OverrideFormValues;
+};
+
+const DEFAULT_OVERRIDE_VALUES: OverrideFormValues = {
+  name: "",
+  pref_slug: "",
+  city_slug: "",
+  address: "",
+  latitude: "",
+  longitude: "",
+};
+
+const INITIAL_OVERRIDE_DIALOG: OverrideDialogState = {
+  open: false,
+  message: null,
+  error: null,
+  values: { ...DEFAULT_OVERRIDE_VALUES },
+};
+
 export default function AdminCandidateDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -84,6 +116,8 @@ export default function AdminCandidateDetailPage() {
   const [actionState, setActionState] = useState<CandidateActionState>("idle");
   const [rejectReason, setRejectReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [overrideDialog, setOverrideDialog] =
+    useState<OverrideDialogState>(INITIAL_OVERRIDE_DIALOG);
 
   const loadCandidate = useCallback(async () => {
     if (Number.isNaN(candidateId)) {
@@ -205,55 +239,109 @@ export default function AdminCandidateDetailPage() {
     }
   };
 
-  const performApproval = async (override?: ApproveOverride | null) => {
-    if (!candidate) {
-      return;
-    }
-    setActionState("approving");
-    try {
-      const response = (await approveCandidate(candidate.id, {
-        dry_run: false,
-        override: override ?? undefined,
-      })) as ApproveResultResponse;
-      const { result } = response;
-      const slugLink = `/gyms/${result.gym.slug}`;
-      toast({
-        title: "承認しました",
-        description: (
-          <a className="text-blue-600 underline" href={slugLink} target="_blank" rel="noreferrer">
-            {slugLink}
-          </a>
-        ),
-      });
-      setPreview({ summary: result, open: true });
-      void loadCandidate();
-    } catch (err) {
-      if (err instanceof AdminApiError) {
-        if (err.status === 409) {
-          const overrideName = window.prompt(
-            "slug が重複しています。上書きする名称を入力してください",
-          );
-          if (overrideName) {
-            await performApproval({ name: overrideName });
-          }
-          return;
-        }
-        toast({
-          title: "承認に失敗しました",
-          description: typeof err.detail === "string" ? err.detail : err.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "承認に失敗しました",
-          description: err instanceof Error ? err.message : "不明なエラーです",
-          variant: "destructive",
-        });
+  const openOverrideDialog = useCallback(
+    (message: string | null = null, values?: Partial<OverrideFormValues>) => {
+      if (!formState || !candidate) {
+        return;
       }
-    } finally {
-      setActionState("idle");
-    }
-  };
+      setOverrideDialog({
+        open: true,
+        message,
+        error: null,
+        values: {
+          name: values?.name ?? (formState.name_raw || candidate.name_raw || ""),
+          pref_slug: values?.pref_slug ?? formState.pref_slug,
+          city_slug: values?.city_slug ?? formState.city_slug,
+          address: values?.address ?? formState.address_raw,
+          latitude: values?.latitude ?? formState.latitude,
+          longitude: values?.longitude ?? formState.longitude,
+        },
+      });
+    },
+    [candidate, formState],
+  );
+
+  const closeOverrideDialog = useCallback(() => {
+    setOverrideDialog(INITIAL_OVERRIDE_DIALOG);
+  }, []);
+
+  const performApproval = useCallback(
+    async (override?: ApproveOverride | null): Promise<boolean> => {
+      if (!candidate) {
+        return false;
+      }
+      setActionState("approving");
+      try {
+        const response = (await approveCandidate(candidate.id, {
+          dry_run: false,
+          override: override ?? undefined,
+        })) as ApproveResultResponse;
+        const { result } = response;
+        const slugLink = `/gyms/${result.gym.slug}`;
+        toast({
+          title: "承認しました",
+          description: (
+            <a className="text-blue-600 underline" href={slugLink} target="_blank" rel="noreferrer">
+              {slugLink}
+            </a>
+          ),
+        });
+        setPreview({ summary: result, open: true });
+        void loadCandidate();
+        return true;
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          if (err.status === 400) {
+            const detailMessage =
+              typeof err.detail === "string"
+                ? err.detail
+                : err instanceof Error
+                  ? err.message
+                  : "承認に必要な情報が不足しています";
+            openOverrideDialog(detailMessage, {
+              name: override?.name ?? undefined,
+              pref_slug: override?.pref_slug ?? undefined,
+              city_slug: override?.city_slug ?? undefined,
+              address: override?.address ?? undefined,
+              latitude:
+                override?.latitude !== undefined && override?.latitude !== null
+                  ? String(override.latitude)
+                  : undefined,
+              longitude:
+                override?.longitude !== undefined && override?.longitude !== null
+                  ? String(override.longitude)
+                  : undefined,
+            });
+            return false;
+          }
+          if (err.status === 409) {
+            const overrideName = window.prompt(
+              "slug が重複しています。上書きする名称を入力してください",
+            );
+            if (overrideName) {
+              return await performApproval({ ...(override ?? {}), name: overrideName });
+            }
+            return false;
+          }
+          toast({
+            title: "承認に失敗しました",
+            description: typeof err.detail === "string" ? err.detail : err.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "承認に失敗しました",
+            description: err instanceof Error ? err.message : "不明なエラーです",
+            variant: "destructive",
+          });
+        }
+        return false;
+      } finally {
+        setActionState("idle");
+      }
+    },
+    [candidate, loadCandidate, openOverrideDialog],
+  );
 
   const handleReject = async () => {
     if (!candidate || !rejectReason.trim()) {
@@ -293,6 +381,74 @@ export default function AdminCandidateDetailPage() {
   const closePreview = useCallback(() => {
     setPreview({ summary: null, open: false });
   }, []);
+
+  const handleOverrideFieldChange = useCallback(
+    <T extends keyof OverrideFormValues>(key: T, value: OverrideFormValues[T]) => {
+      setOverrideDialog(prev => ({
+        ...prev,
+        values: { ...prev.values, [key]: value },
+        error: null,
+      }));
+    },
+    [],
+  );
+
+  const handleOverrideSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const { values } = overrideDialog;
+      const prefSlug = values.pref_slug.trim();
+      const citySlug = values.city_slug.trim();
+      if (!prefSlug || !citySlug) {
+        setOverrideDialog(prev => ({
+          ...prev,
+          error: "都道府県と市区町村のスラッグを入力してください",
+        }));
+        return;
+      }
+
+      const parseCoordinate = (label: string, input: string) => {
+        if (!input.trim()) {
+          return undefined;
+        }
+        const parsed = Number(input);
+        if (Number.isNaN(parsed)) {
+          throw new Error(`${label} には数値を入力してください`);
+        }
+        return parsed;
+      };
+
+      let latitudeValue: number | undefined;
+      let longitudeValue: number | undefined;
+      try {
+        latitudeValue = parseCoordinate("緯度", values.latitude);
+        longitudeValue = parseCoordinate("経度", values.longitude);
+      } catch (coordinateError) {
+        setOverrideDialog(prev => ({
+          ...prev,
+          error:
+            coordinateError instanceof Error
+              ? coordinateError.message
+              : "緯度・経度には数値を入力してください",
+        }));
+        return;
+      }
+
+      const success = await performApproval({
+        name: values.name.trim() || undefined,
+        pref_slug: prefSlug,
+        city_slug: citySlug,
+        address: values.address.trim() || undefined,
+        latitude: latitudeValue,
+        longitude: longitudeValue,
+      });
+
+      if (success) {
+        closeOverrideDialog();
+      }
+    },
+    [closeOverrideDialog, overrideDialog, performApproval],
+  );
 
   const isLoading = !candidate && !error;
 
@@ -343,6 +499,111 @@ export default function AdminCandidateDetailPage() {
       </div>
     );
   }, [preview, closePreview]);
+
+  const renderOverrideDialog = useMemo(() => {
+    if (!overrideDialog.open) {
+      return null;
+    }
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-xl rounded-md bg-white p-6 shadow-lg">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">承認に必要な情報を入力してください</h2>
+              {overrideDialog.message ? (
+                <p className="mt-1 text-sm text-gray-600">{overrideDialog.message}</p>
+              ) : null}
+            </div>
+            <button type="button" className="text-sm text-gray-500" onClick={closeOverrideDialog}>
+              閉じる
+            </button>
+          </div>
+          <form className="flex flex-col gap-3" onSubmit={handleOverrideSubmit}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">都道府県スラッグ *</span>
+                <input
+                  className="rounded border border-gray-300 px-3 py-2"
+                  value={overrideDialog.values.pref_slug}
+                  onChange={event => handleOverrideFieldChange("pref_slug", event.target.value)}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">市区町村スラッグ *</span>
+                <input
+                  className="rounded border border-gray-300 px-3 py-2"
+                  value={overrideDialog.values.city_slug}
+                  onChange={event => handleOverrideFieldChange("city_slug", event.target.value)}
+                  required
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">名称（必要に応じて上書き）</span>
+              <input
+                className="rounded border border-gray-300 px-3 py-2"
+                value={overrideDialog.values.name}
+                onChange={event => handleOverrideFieldChange("name", event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">住所</span>
+              <textarea
+                className="h-20 rounded border border-gray-300 px-3 py-2"
+                value={overrideDialog.values.address}
+                onChange={event => handleOverrideFieldChange("address", event.target.value)}
+              />
+            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">緯度</span>
+                <input
+                  className="rounded border border-gray-300 px-3 py-2"
+                  value={overrideDialog.values.latitude}
+                  onChange={event => handleOverrideFieldChange("latitude", event.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">経度</span>
+                <input
+                  className="rounded border border-gray-300 px-3 py-2"
+                  value={overrideDialog.values.longitude}
+                  onChange={event => handleOverrideFieldChange("longitude", event.target.value)}
+                />
+              </label>
+            </div>
+            {overrideDialog.error ? (
+              <p className="text-sm text-red-600">{overrideDialog.error}</p>
+            ) : null}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="rounded border border-gray-300 px-4 py-2 text-sm"
+                onClick={closeOverrideDialog}
+                disabled={actionState === "approving"}
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                className="rounded bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                disabled={actionState === "approving"}
+              >
+                {actionState === "approving" ? "送信中..." : "承認を再試行"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }, [
+    actionState,
+    closeOverrideDialog,
+    handleOverrideFieldChange,
+    handleOverrideSubmit,
+    overrideDialog,
+  ]);
 
   if (error) {
     return (
@@ -555,6 +816,7 @@ export default function AdminCandidateDetailPage() {
         </div>
       </section>
       {renderPreview}
+      {renderOverrideDialog}
     </Fragment>
   );
 }
