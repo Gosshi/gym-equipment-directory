@@ -1,7 +1,6 @@
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,6 +9,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+import "leaflet/dist/leaflet.css";
+
+const LeafletMap = dynamic(
+  () => import("./LeafletClientMap").then(module => module.LeafletClientMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
+  },
+);
 
 interface GymMapProps {
   name: string;
@@ -18,12 +28,20 @@ interface GymMapProps {
   longitude?: number;
 }
 
-export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
-  const hasCoordinates = typeof latitude === "number" && typeof longitude === "number";
-  const query = hasCoordinates ? `${latitude},${longitude}` : address ? `${address}` : undefined;
+const hasValidCoordinate = (value?: number): value is number =>
+  typeof value === "number" && Number.isFinite(value);
 
-  const mapUrl = query
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
+  const hasCoordinates = hasValidCoordinate(latitude) && hasValidCoordinate(longitude);
+
+  const mapQuery = hasCoordinates
+    ? `${latitude},${longitude}`
+    : address
+      ? `${address}`
+      : undefined;
+
+  const mapUrl = mapQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
     : undefined;
 
   return (
@@ -33,17 +51,20 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
         <CardDescription>所在地の確認やルート検索にご利用ください。</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative overflow-hidden rounded-lg border bg-muted/40">
-          <div className="flex aspect-[4/3] items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <MapPin aria-hidden className="h-8 w-8" />
-              <span className="text-sm font-medium">{name}</span>
-              <span className="text-xs text-muted-foreground/80">
-                {address ?? "地図情報は現在準備中です。"}
-              </span>
-            </div>
+        {hasCoordinates ? (
+          <div className="aspect-[4/3] overflow-hidden rounded-lg">
+            <LeafletMap
+              address={address ?? ""}
+              lat={latitude!}
+              lng={longitude!}
+              name={name}
+            />
           </div>
-        </div>
+        ) : (
+          <div className="flex min-h-[6rem] items-center justify-center rounded-lg border border-dashed">
+            <p className="text-sm text-muted-foreground">地図情報なし</p>
+          </div>
+        )}
       </CardContent>
       <CardFooter>
         {mapUrl ? (
@@ -59,3 +80,5 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
     </Card>
   );
 }
+
+export default GymMap;
