@@ -79,6 +79,9 @@ class GymDetailDTO(BaseModel):
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
+    address: str | None = Field(default=None, description="住所（任意）")
+    latitude: float | None = Field(default=None, description="緯度（任意）")
+    longitude: float | None = Field(default=None, description="経度（任意）")
     equipments: list[GymEquipmentLineDTO] = Field(description="設備一覧（JOIN済み）")
     gym_equipments: list[GymEquipmentSummaryDTO] = Field(
         default_factory=list, description="設備ごとの在/無・検証状況などの詳細サマリ"
@@ -101,6 +104,9 @@ class GymDetailDTO(BaseModel):
                     "name": "Awesome Gym",
                     "city": "funabashi",
                     "pref": "chiba",
+                    "address": "千葉県船橋市本町1-2-3",
+                    "latitude": 35.7001,
+                    "longitude": 139.9823,
                     "equipments": [
                         {
                             "equipment_slug": "squat-rack",
