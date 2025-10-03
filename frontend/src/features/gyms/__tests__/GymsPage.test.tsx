@@ -195,6 +195,51 @@ describe("GymsPage", () => {
     expect(setLimit).toHaveBeenCalledWith(50);
   });
 
+  it("automatically advances to the next page when only dummy gyms are returned", async () => {
+    const setPage = vi.fn();
+    const originalEnv = process.env.NEXT_PUBLIC_APP_ENV;
+    process.env.NEXT_PUBLIC_APP_ENV = "demo";
+
+    try {
+      mockedUseGymSearch.mockReturnValue(
+        buildHookState({
+          setPage,
+          items: [
+            {
+              id: 1,
+              slug: "dummy-funabashi-east",
+              name: "ダミージム 船橋イースト",
+              prefecture: "chiba",
+              city: "funabashi",
+              address: undefined,
+              equipments: [],
+              thumbnailUrl: null,
+              score: undefined,
+              lastVerifiedAt: null,
+            },
+          ],
+          meta: {
+            total: 40,
+            page: 1,
+            perPage: 20,
+            hasNext: true,
+            hasPrev: false,
+            hasMore: true,
+            pageToken: null,
+          },
+        }),
+      );
+
+      render(<GymsPage />);
+
+      await waitFor(() => {
+        expect(setPage).toHaveBeenCalledWith(2);
+      });
+    } finally {
+      process.env.NEXT_PUBLIC_APP_ENV = originalEnv;
+    }
+  });
+
   it("disables pagination buttons when there is no previous or next page", () => {
     mockedUseGymSearch.mockReturnValue(
       buildHookState({

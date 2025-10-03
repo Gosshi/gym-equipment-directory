@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
@@ -45,7 +45,32 @@ export function GymsPage() {
     isCityLoading,
     cityError,
     reloadCities,
+    appliedFilters,
   } = useGymSearch();
+
+  const autoSkippedPagesRef = useRef<Set<number>>(new Set());
+
+  const appliedFiltersSignature = useMemo(
+    () =>
+      JSON.stringify({
+        q: appliedFilters.q ?? null,
+        pref: appliedFilters.pref ?? null,
+        city: appliedFilters.city ?? null,
+        categories: appliedFilters.categories,
+        sort: appliedFilters.sort,
+        order: appliedFilters.order,
+        page: appliedFilters.page,
+        limit: appliedFilters.limit,
+        distance: appliedFilters.distance,
+        lat: appliedFilters.lat,
+        lng: appliedFilters.lng,
+      }),
+    [appliedFilters],
+  );
+
+  useEffect(() => {
+    autoSkippedPagesRef.current.clear();
+  }, [appliedFiltersSignature]);
 
   const handleSelectGym = useCallback((slug: string) => {
     setSelectedSlug(slug);
@@ -58,6 +83,43 @@ export function GymsPage() {
   }, []);
 
   const visibleItems = useMemo(() => filterOutDummyGyms(items), [items]);
+
+  const currentPage = useMemo(() => {
+    if (meta.page > 0) {
+      return meta.page;
+    }
+    return page;
+  }, [meta.page, page]);
+
+  useEffect(() => {
+    const hasNextPage = Boolean(meta.hasNext ?? meta.hasMore);
+    if (isLoading || !hasNextPage) {
+      return;
+    }
+
+    if (visibleItems.length > 0) {
+      return;
+    }
+
+    if (items.length === 0) {
+      return;
+    }
+
+    if (autoSkippedPagesRef.current.has(currentPage)) {
+      return;
+    }
+
+    autoSkippedPagesRef.current.add(currentPage);
+    setPage(currentPage + 1);
+  }, [
+    currentPage,
+    isLoading,
+    items.length,
+    meta.hasMore,
+    meta.hasNext,
+    setPage,
+    visibleItems.length,
+  ]);
 
   useEffect(() => {
     if (isLoading) {

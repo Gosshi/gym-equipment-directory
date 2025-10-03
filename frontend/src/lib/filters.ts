@@ -17,8 +17,9 @@ const isDummyGym = (gym: GymLite): boolean => {
     return true;
   }
 
-  const name = (gym.name ?? "").toString();
-  if (name.startsWith("ダミー")) {
+  const name = (gym.name ?? "").toString().trim();
+  const dummyPrefixes = ["ダミージム", "ダミーホテル", "ダミーデータ"];
+  if (dummyPrefixes.some(prefix => name.startsWith(prefix))) {
     return true;
   }
 
