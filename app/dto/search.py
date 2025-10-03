@@ -14,6 +14,7 @@ class GymSummaryDTO(BaseModel):
     name: str = Field(description="名称")
     pref: str = Field(description="都道府県スラッグ")
     city: str = Field(description="市区町村スラッグ")
+    official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
     last_verified_at: str | None = Field(
         default=None, description="最終検証日時（ISO8601, nullable）"
     )
@@ -50,6 +51,7 @@ class GymSearchPageDTO(BaseModel):
                             "name": "Dummy Gym",
                             "pref": "chiba",
                             "city": "funabashi",
+                            "official_url": "https://dummy-gym.example.com",
                             "last_verified_at": "2025-09-01T12:34:56Z",
                             "score": 0.84,
                             "freshness_score": 0.93,

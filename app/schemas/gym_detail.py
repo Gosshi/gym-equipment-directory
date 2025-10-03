@@ -43,6 +43,7 @@ class GymDetailResponse(BaseModel):
     name: str = Field(description="名称")
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
+    official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
     equipments: list[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
 
     # 追加: 関連する gym_equipments の要約（N+1 回避して取得）
@@ -85,6 +86,7 @@ class GymDetailResponse(BaseModel):
                     "name": "Awesome Gym",
                     "city": "funabashi",
                     "pref": "chiba",
+                    "official_url": "https://awesome-gym.example.com",
                     "equipments": [
                         {
                             "equipment_slug": "squat-rack",
