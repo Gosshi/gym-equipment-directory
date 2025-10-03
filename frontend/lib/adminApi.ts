@@ -151,10 +151,18 @@ async function request<TResponse>(path: string, { query, headers, ...init }: Req
   throw new AdminApiError("Request retry limit reached", 429);
 }
 
-export const listCandidates = (params: AdminCandidateListParams = {}) =>
-  request<AdminCandidateListResponse>("/admin/candidates", {
-    query: params,
+export const listCandidates = (params: AdminCandidateListParams = {}) => {
+  const query: QueryParams = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    query[key] = value as QueryValue | QueryValue[];
   });
+  return request<AdminCandidateListResponse>("/admin/candidates", {
+    query,
+  });
+};
 
 export const getCandidate = (id: number) =>
   request<AdminCandidateDetail>(`/admin/candidates/${id}`);
