@@ -14,12 +14,12 @@ const icon = L.icon({
   shadowSize: [41, 41],
 });
 
-interface LeafletClientMapProps {
+export type LeafletClientMapProps = {
   lat: number;
   lng: number;
   name: string;
   address: string;
-}
+};
 
 export function LeafletClientMap({ lat, lng, name, address }: LeafletClientMapProps) {
   const center: LatLngExpression = [lat, lng];

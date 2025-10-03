@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const LeafletMap = dynamic(
-  () => import("./LeafletClientMap").then(module => module.LeafletClientMap),
+import type { LeafletClientMapProps } from "./LeafletClientMap";
+
+const LeafletMap = dynamic<LeafletClientMapProps>(
+  () => import("./LeafletClientMap"),
   {
     ssr: false,
     loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
