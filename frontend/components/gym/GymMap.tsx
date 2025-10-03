@@ -67,6 +67,16 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
   }, [address]);
 
   useEffect(() => {
+    console.log("[GymMap] address debug", {
+      name,
+      rawAddress: address,
+      sanitizedAddress,
+      latitude,
+      longitude,
+    });
+  }, [address, latitude, longitude, name, sanitizedAddress]);
+
+  useEffect(() => {
     if (hasValidCoordinate(latitude) && hasValidCoordinate(longitude)) {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
