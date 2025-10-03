@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -16,7 +17,7 @@ class Gym(Base):
     address = Column(String, nullable=True)
     pref = Column(String, nullable=True)
     city = Column(String, nullable=True)
-    official_url = Column(String, nullable=True)
+    official_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     affiliate_url = Column(String, nullable=True)
     owner_verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -204,6 +204,35 @@ async def test_approve_candidate_commits(app_client: AsyncClient, session: Async
 
 
 @pytest.mark.asyncio
+async def test_approve_candidate_sets_official_url(
+    app_client: AsyncClient, session: AsyncSession
+) -> None:
+    await _ensure_equipments(session, ["smith-machine"])
+    candidate = await _create_candidate(
+        session,
+        name="公式サイトありジム",
+        parsed_json={"equipments": ["smith-machine"]},
+    )
+
+    resp = await app_client.post(
+        f"/admin/candidates/{candidate.id}/approve",
+        json={
+            "override": {
+                "name": "公式サイトありジム",
+                "pref_slug": "tokyo",
+                "city_slug": "koto",
+            }
+        },
+    )
+    assert resp.status_code == 200
+
+    gym_slug = resp.json()["result"]["gym"]["slug"]
+    gym_result = await session.execute(select(Gym).where(Gym.slug == gym_slug))
+    gym_obj = gym_result.scalar_one()
+    assert gym_obj.official_url == f"https://example.com/gym/{candidate.name_raw}"
+
+
+@pytest.mark.asyncio
 async def test_approve_candidate_upserts_by_canonical_id(
     app_client: AsyncClient, session: AsyncSession
 ) -> None:

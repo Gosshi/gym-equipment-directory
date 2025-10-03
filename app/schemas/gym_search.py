@@ -25,6 +25,7 @@ class GymSummary(BaseModel):
     freshness_score: float | None = Field(default=None, description="新鮮さスコア（nullable）")
     richness_score: float | None = Field(default=None, description="充実度スコア（nullable）")
     distance_km: float | None = Field(default=None, description="検索基準点からの距離（km）")
+    official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
 
 
 class GymSearchResponse(BaseModel):
@@ -51,6 +52,7 @@ class GymSearchResponse(BaseModel):
                             "score": 0.84,
                             "freshness_score": 0.93,
                             "richness_score": 0.68,
+                            "official_url": "https://dummy-funabashi-east.example.com",
                             "distance_km": 1.23,
                         }
                     ],

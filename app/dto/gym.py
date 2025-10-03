@@ -80,6 +80,7 @@ class GymDetailDTO(BaseModel):
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
     address: str | None = Field(default=None, description="住所（任意）")
+    official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
     latitude: float | None = Field(default=None, description="緯度（任意）")
     longitude: float | None = Field(default=None, description="経度（任意）")
     equipments: list[GymEquipmentLineDTO] = Field(description="設備一覧（JOIN済み）")
@@ -105,6 +106,7 @@ class GymDetailDTO(BaseModel):
                     "city": "funabashi",
                     "pref": "chiba",
                     "address": "千葉県船橋市本町1-2-3",
+                    "official_url": "https://awesome-gym.example.com",
                     "latitude": 35.7001,
                     "longitude": 139.9823,
                     "equipments": [

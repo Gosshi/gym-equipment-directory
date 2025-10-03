@@ -494,6 +494,13 @@ async def approve_candidate(
             longitude=preview_gym.longitude,
         )
         await set_current_slug(session, gym, slug)
+        page_url = getattr(row.page, "url", None)
+        source_url = getattr(row.source, "url", None) if row.source else None
+        official = page_url or source_url
+        if official and existing_gym is None:
+            gym.official_url = official
+        elif official and not getattr(gym, "official_url", None):
+            gym.official_url = official
     except IntegrityError as exc:  # pragma: no cover - handled by caller
         raise exc
     summary, latest = await ensure_equipment_links(

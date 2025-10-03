@@ -9,7 +9,14 @@ from app.dto.mappers import (
 
 
 def test_map_gym_to_summary_converts_timestamp_to_iso() -> None:
-    gym = SimpleNamespace(id=1, slug="test-gym", name="Test Gym", pref="chiba", city="funabashi")
+    gym = SimpleNamespace(
+        id=1,
+        slug="test-gym",
+        name="Test Gym",
+        pref="chiba",
+        city="funabashi",
+        official_url="https://example.com/test-gym",
+    )
     dt = datetime(2024, 1, 2, 3, 4, 5)
 
     dto = map_gym_to_summary(
@@ -27,6 +34,7 @@ def test_map_gym_to_summary_converts_timestamp_to_iso() -> None:
     assert dto.freshness_score == 0.8
     assert dto.richness_score == 0.7
     assert dto.distance_km == 12.3
+    assert dto.official_url == "https://example.com/test-gym"
 
 
 def test_assemble_gym_detail_builds_nested_dtos() -> None:
@@ -36,6 +44,7 @@ def test_assemble_gym_detail_builds_nested_dtos() -> None:
         name="Detail Gym",
         city="tokyo",
         pref="tokyo",
+        official_url="https://example.com/detail-gym",
     )
     detail = assemble_gym_detail(
         gym,
@@ -76,6 +85,7 @@ def test_assemble_gym_detail_builds_nested_dtos() -> None:
     assert detail.equipments[0].category == "strength"
     assert detail.equipments[0].description == "2台 / 最大180kg"
     assert detail.equipment_details[0].name == "Rack"
+    assert detail.official_url == "https://example.com/detail-gym"
 
 
 def test_map_equipment_master_from_mapping() -> None:

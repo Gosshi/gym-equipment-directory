@@ -144,6 +144,7 @@ async def get_gym_detail_v1(uow: UnitOfWork, slug: str) -> legacy_schemas.GymDet
         equipments=equipments,
         sources=[],
         updated_at=updated_at,
+        official_url=getattr(gym, "official_url", None),
         requested_slug=requested_slug,
         canonical_slug=canonical_slug,
         meta=meta,
