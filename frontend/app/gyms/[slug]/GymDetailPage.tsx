@@ -605,6 +605,9 @@ export function GymDetailPage({
               latitude={gym.latitude}
               longitude={gym.longitude}
               name={gym.name}
+              prefecture={gym.prefecture}
+              city={gym.city}
+              slug={gym.slug}
             />
           </div>
         </div>
