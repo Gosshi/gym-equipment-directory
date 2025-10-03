@@ -15,9 +15,16 @@ export default function AdminLoginPage() {
       setError("トークンを入力してください");
       return;
     }
-    const expires = new Date();
-    expires.setDate(expires.getDate() + 7);
-    document.cookie = `admin_token=${encodeURIComponent(trimmed)}; path=/; max-age=${7 * 24 * 60 * 60}`;
+    const cookieAttributes = [
+      `admin_token=${encodeURIComponent(trimmed)}`,
+      "path=/",
+      `max-age=${7 * 24 * 60 * 60}`,
+      "SameSite=Lax",
+    ];
+    if (typeof window !== "undefined" && window.location.protocol === "https:") {
+      cookieAttributes.push("Secure");
+    }
+    document.cookie = cookieAttributes.join("; ");
     setError(null);
     router.push("/admin/candidates");
     router.refresh();
