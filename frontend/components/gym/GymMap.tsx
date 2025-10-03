@@ -97,7 +97,7 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
       return;
     }
 
-    if (state.status === "success" && lastGeocodedAddressRef.current === sanitizedAddress) {
+    if (lastGeocodedAddressRef.current === sanitizedAddress) {
       return;
     }
 
@@ -153,6 +153,11 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
             ? error.message
             : "住所から位置情報を取得できませんでした";
         setState({ status: "error", coordinates: null, error: message });
+      })
+      .finally(() => {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
       });
 
     return () => {
@@ -161,7 +166,7 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
         abortControllerRef.current = null;
       }
     };
-  }, [latitude, longitude, sanitizedAddress, state.status]);
+  }, [latitude, longitude, sanitizedAddress]);
 
   const coordinates = state.status === "success" ? state.coordinates : null;
 
