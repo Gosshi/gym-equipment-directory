@@ -11,8 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-import "leaflet/dist/leaflet.css";
-
 const LeafletMap = dynamic(
   () => import("./LeafletClientMap").then(module => module.LeafletClientMap),
   {

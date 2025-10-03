@@ -2,6 +2,7 @@
 
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import L, { type LatLngExpression } from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const icon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
