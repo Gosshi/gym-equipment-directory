@@ -1,9 +1,18 @@
 import { ApiError, getApiBaseUrl } from "@/lib/apiClient";
+import type {
+  AdminCandidateDetail,
+  AdminCandidateItem,
+  AdminCandidateListParams,
+  AdminCandidateListResponse,
+  AdminCandidatePatchPayload,
+  ApprovePreviewResponse,
+  ApproveRequest,
+  ApproveResultResponse,
+  ApproveResponse,
+} from "@/lib/types";
 
 const MAX_RETRY_ATTEMPTS = 8;
 const BASE_BACKOFF_MS = 500;
-
-type JsonRecord = Record<string, unknown>;
 
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue | QueryValue[]>;
@@ -99,7 +108,7 @@ async function request<TResponse>(path: string, { query, headers, ...init }: Req
 
     if (response.status === 429) {
       const retryAfter = parseRetryAfterHeader(response.headers.get("Retry-After"));
-      const fallbackDelay = BASE_BACKOFF_MS * 2 ** attempt;
+      const fallbackDelay = Math.min(16000, BASE_BACKOFF_MS * 2 ** attempt);
       const delay = retryAfter ?? fallbackDelay;
       if (attempt === MAX_RETRY_ATTEMPTS - 1) {
         const text = await response.text().catch(() => "Too Many Requests");
@@ -142,131 +151,18 @@ async function request<TResponse>(path: string, { query, headers, ...init }: Req
   throw new AdminApiError("Request retry limit reached", 429);
 }
 
-export interface AdminSourceRef {
-  id: number;
-  title?: string | null;
-  url?: string | null;
-}
-
-export interface AdminCandidateItem {
-  id: number;
-  status: string;
-  name_raw: string;
-  address_raw?: string | null;
-  pref_slug?: string | null;
-  city_slug?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  parsed_json?: JsonRecord | null;
-  source: AdminSourceRef;
-  fetched_at?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ScrapedPageInfo {
-  url: string;
-  fetched_at: string;
-  http_status?: number | null;
-}
-
-export interface SimilarGymInfo {
-  gym_id: number;
-  gym_slug: string;
-  gym_name: string;
-}
-
-export interface AdminCandidateDetail extends AdminCandidateItem {
-  scraped_page: ScrapedPageInfo;
-  similar?: SimilarGymInfo[] | null;
-}
-
-export interface AdminCandidateListResponse {
-  items: AdminCandidateItem[];
-  next_cursor?: string | null;
-  count: number;
-}
-
-export interface AdminCandidateListParams extends QueryParams {
-  status?: string | null;
-  source?: string | null;
-  q?: string | null;
-  pref?: string | null;
-  city?: string | null;
-  cursor?: string | null;
-  limit?: number;
-}
-
-export interface AdminCandidatePatchPayload {
-  name_raw?: string | null;
-  address_raw?: string | null;
-  pref_slug?: string | null;
-  city_slug?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  parsed_json?: JsonRecord | null;
-}
-
-export interface EquipmentAssign {
-  slug: string;
-  availability?: "present" | "absent" | "unknown";
-  count?: number | null;
-  max_weight_kg?: number | null;
-}
-
-export interface ApproveOverride {
-  name?: string | null;
-  pref_slug?: string | null;
-  city_slug?: string | null;
-  address?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-}
-
-export interface ApproveRequestPayload {
-  dry_run: boolean;
-  override?: ApproveOverride | null;
-  equipments?: EquipmentAssign[] | null;
-}
-
-export interface GymUpsertPreview {
-  slug: string;
-  name: string;
-  canonical_id: string;
-  pref_slug?: string | null;
-  city_slug?: string | null;
-  address?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-}
-
-export interface EquipmentUpsertSummary {
-  inserted: number;
-  updated: number;
-  total: number;
-}
-
-export interface ApproveSummary {
-  gym: GymUpsertPreview;
-  equipments: EquipmentUpsertSummary;
-}
-
-export interface ApprovePreviewResponse {
-  preview: ApproveSummary;
-}
-
-export interface ApproveResultResponse {
-  result: ApproveSummary;
-}
-
-export interface RejectRequestPayload {
-  reason: string;
-}
-
-export const listCandidates = (params: AdminCandidateListParams = {}) =>
-  request<AdminCandidateListResponse>("/admin/candidates", {
-    query: params,
+export const listCandidates = (params: AdminCandidateListParams = {}) => {
+  const query: QueryParams = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    query[key] = value as QueryValue | QueryValue[];
   });
+  return request<AdminCandidateListResponse>("/admin/candidates", {
+    query,
+  });
+};
 
 export const getCandidate = (id: number) =>
   request<AdminCandidateDetail>(`/admin/candidates/${id}`);
@@ -277,14 +173,29 @@ export const patchCandidate = (id: number, payload: AdminCandidatePatchPayload) 
     body: JSON.stringify(payload),
   });
 
-export const approveCandidate = (id: number, payload: ApproveRequestPayload) =>
-  request<ApprovePreviewResponse | ApproveResultResponse>(`/admin/candidates/${id}/approve`, {
+export const approveCandidate = (id: number, payload: ApproveRequest) =>
+  request<ApproveResponse>(`/admin/candidates/${id}/approve`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-export const rejectCandidate = (id: number, payload: RejectRequestPayload) =>
+export const rejectCandidate = (id: number, reason: string) =>
   request<AdminCandidateItem>(`/admin/candidates/${id}/reject`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ reason }),
   });
+
+export type {
+  AdminCandidateDetail,
+  AdminCandidateItem,
+  AdminCandidateListParams,
+  AdminCandidateListResponse,
+  AdminCandidatePatchPayload,
+  ApproveOverride,
+  ApprovePreviewResponse,
+  ApproveRequest,
+  ApproveResponse,
+  ApproveResultResponse,
+  ApproveSummary,
+  EquipmentAssign,
+} from "@/lib/types";

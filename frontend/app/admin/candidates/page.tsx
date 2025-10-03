@@ -38,14 +38,21 @@ export default function AdminCandidatesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const buildParams = useCallback(
-    (cursor?: string | null): AdminCandidateListParams => ({
-      status: filters.status?.trim() || undefined,
-      source: filters.source?.trim() || undefined,
-      q: filters.q?.trim() || undefined,
-      pref: filters.pref?.trim() || undefined,
-      city: filters.city?.trim() || undefined,
-      cursor: cursor || undefined,
-    }),
+    (cursor?: string | null): AdminCandidateListParams => {
+      const rawStatus = filters.status?.trim();
+      const statusValue = rawStatus
+        ? (rawStatus as Exclude<AdminCandidateListParams["status"], "" | null | undefined>)
+        : undefined;
+
+      return {
+        status: statusValue,
+        source: filters.source?.trim() || undefined,
+        q: filters.q?.trim() || undefined,
+        pref: filters.pref?.trim() || undefined,
+        city: filters.city?.trim() || undefined,
+        cursor: cursor || undefined,
+      };
+    },
     [filters],
   );
 
@@ -109,7 +116,12 @@ export default function AdminCandidatesPage() {
             id="status"
             className="rounded border border-gray-300 px-3 py-2"
             value={filters.status ?? ""}
-            onChange={event => setFilters(prev => ({ ...prev, status: event.target.value }))}
+            onChange={event =>
+              setFilters(prev => ({
+                ...prev,
+                status: event.target.value as AdminCandidateListParams["status"],
+              }))
+            }
           >
             <option value="">全て</option>
             <option value="new">new</option>
