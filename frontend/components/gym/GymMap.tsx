@@ -26,6 +26,9 @@ interface GymMapProps {
   address?: string;
   latitude?: number;
   longitude?: number;
+  prefecture?: string;
+  city?: string;
+  slug?: string;
 }
 
 type Coordinates = { lat: number; lng: number };
@@ -33,7 +36,53 @@ type Coordinates = { lat: number; lng: number };
 const hasValidCoordinate = (value?: number): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+const sanitizeText = (value?: string | null) => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const appendJapanContext = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (/[日本]/u.test(trimmed) || trimmed.toLowerCase().includes("japan")) {
+    return trimmed;
+  }
+  return `${trimmed} 日本`;
+};
+
+const deriveCandidateFromSlug = (slug?: string) => {
+  if (!slug) {
+    return undefined;
+  }
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch (error) {
+    decoded = slug;
+  }
+  const normalized = decoded.replace(/[_-]/g, " ");
+  const withHyphenatedNumbers = normalized.replace(/(?<=\d)\s+(?=\d)/g, "-");
+  const collapsed = withHyphenatedNumbers.replace(/\s+/g, " ").trim();
+  if (!collapsed) {
+    return undefined;
+  }
+  const segments = collapsed
+    .split(" ")
+    .filter(segment => /[^\x00-\x7F]/u.test(segment) || /\d/.test(segment));
+  if (segments.length === 0) {
+    return collapsed;
+  }
+  return segments.join(" ");
+};
+
 const NOMINATIM_ENDPOINT = "https://nominatim.openstreetmap.org/search";
+
+type GeocodeCandidate = { query: string; display: string };
 
 type GeocodeState =
   | { status: "idle"; coordinates: null; error: null }
@@ -43,7 +92,57 @@ type GeocodeState =
 
 const INITIAL_STATE: GeocodeState = { status: "idle", coordinates: null, error: null };
 
-export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
+class GeocodeError extends Error {
+  constructor(
+    message: string,
+    readonly code: "not_found" | "invalid_response" | "request_failed",
+  ) {
+    super(message);
+    this.name = "GeocodeError";
+  }
+}
+
+async function geocode(query: string, signal: AbortSignal): Promise<Coordinates> {
+  const params = new URLSearchParams({ q: query, format: "jsonv2", limit: "1" });
+  const response = await fetch(`${NOMINATIM_ENDPOINT}?${params.toString()}`, {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "ja",
+    },
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new GeocodeError(
+      `Geocoding request failed with status ${response.status}`,
+      "request_failed",
+    );
+  }
+
+  const results = (await response.json()) as Array<{ lat?: string; lon?: string }>;
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new GeocodeError("住所に対応する位置情報が見つかりませんでした", "not_found");
+  }
+
+  const [first] = results;
+  const lat = Number.parseFloat(first?.lat ?? "");
+  const lng = Number.parseFloat(first?.lon ?? "");
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new GeocodeError("緯度経度の解析に失敗しました", "invalid_response");
+  }
+
+  return { lat, lng };
+}
+
+export function GymMap({
+  name,
+  address,
+  latitude,
+  longitude,
+  prefecture,
+  city,
+  slug,
+}: GymMapProps) {
   const [state, setState] = useState<GeocodeState>(() => {
     if (hasValidCoordinate(latitude) && hasValidCoordinate(longitude)) {
       return {
@@ -56,31 +155,58 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
   });
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const lastGeocodedAddressRef = useRef<string | null>(null);
 
-  const sanitizedAddress = useMemo(() => {
-    if (!address) {
-      return undefined;
+  const geocodeCandidates = useMemo<GeocodeCandidate[]>(() => {
+    const candidates: GeocodeCandidate[] = [];
+    const seen = new Set<string>();
+
+    const pushCandidate = (value?: string | null) => {
+      const sanitized = sanitizeText(value);
+      if (!sanitized) {
+        return;
+      }
+      const query = appendJapanContext(sanitized);
+      if (seen.has(query)) {
+        return;
+      }
+      seen.add(query);
+      candidates.push({ query, display: sanitized });
+    };
+
+    pushCandidate(address);
+
+    const regionParts = [sanitizeText(prefecture), sanitizeText(city)]
+      .filter((part): part is string => Boolean(part))
+      .join(" ");
+
+    const nameWithRegion = [sanitizeText(name), regionParts]
+      .filter((part): part is string => Boolean(part))
+      .join(" ");
+
+    if (nameWithRegion) {
+      pushCandidate(nameWithRegion);
     }
-    const trimmed = address.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }, [address]);
 
-  useEffect(() => {
-    console.log("[GymMap] address debug", {
-      name,
-      rawAddress: address,
-      sanitizedAddress,
-      latitude,
-      longitude,
-    });
-  }, [address, latitude, longitude, name, sanitizedAddress]);
+    if (regionParts) {
+      pushCandidate(regionParts);
+    }
+
+    pushCandidate(name);
+
+    if (!address) {
+      const slugCandidate = deriveCandidateFromSlug(slug);
+      if (slugCandidate) {
+        pushCandidate(slugCandidate);
+      }
+    }
+
+    return candidates;
+  }, [address, city, name, prefecture, slug]);
 
   useEffect(() => {
     if (hasValidCoordinate(latitude) && hasValidCoordinate(longitude)) {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
-      lastGeocodedAddressRef.current = null;
       setState({
         status: "success",
         coordinates: { lat: latitude, lng: longitude },
@@ -89,70 +215,66 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
       return;
     }
 
-    if (!sanitizedAddress) {
+    if (geocodeCandidates.length === 0) {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
-      lastGeocodedAddressRef.current = null;
       setState(INITIAL_STATE);
       return;
     }
 
-    if (lastGeocodedAddressRef.current === sanitizedAddress) {
-      return;
-    }
-
-    abortControllerRef.current?.abort();
     const controller = new AbortController();
+    abortControllerRef.current?.abort();
     abortControllerRef.current = controller;
 
     setState({ status: "loading", coordinates: null, error: null });
 
-    const query = new URLSearchParams({
-      q: sanitizedAddress,
-      format: "jsonv2",
-      limit: "1",
-    });
+    let isActive = true;
 
-    fetch(`${NOMINATIM_ENDPOINT}?${query.toString()}`, {
-      headers: {
-        Accept: "application/json",
-        "Accept-Language": "ja",
-      },
-      signal: controller.signal,
-    })
-      .then(async response => {
-        if (!response.ok) {
-          throw new Error(`Geocoding request failed with status ${response.status}`);
-        }
-        const results = (await response.json()) as Array<{
-          lat?: string;
-          lon?: string;
-        }>;
-        if (!Array.isArray(results) || results.length === 0) {
-          throw new Error("住所に対応する位置情報が見つかりませんでした");
-        }
-        const [first] = results;
-        const lat = Number.parseFloat(first?.lat ?? "");
-        const lng = Number.parseFloat(first?.lon ?? "");
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          throw new Error("緯度経度の解析に失敗しました");
-        }
-        lastGeocodedAddressRef.current = sanitizedAddress;
-        setState({
-          status: "success",
-          coordinates: { lat, lng },
-          error: null,
-        });
-      })
-      .catch(error => {
-        if (controller.signal.aborted) {
+    (async () => {
+      let lastError: string | null = null;
+
+      for (const candidate of geocodeCandidates) {
+        try {
+          const coordinates = await geocode(candidate.query, controller.signal);
+          if (!isActive || controller.signal.aborted) {
+            return;
+          }
+          setState({ status: "success", coordinates, error: null });
           return;
+        } catch (error) {
+          if (!isActive || controller.signal.aborted) {
+            return;
+          }
+
+          if (error instanceof GeocodeError) {
+            if (error.code === "not_found") {
+              lastError = error.message;
+              continue;
+            }
+            lastError = error.message;
+            break;
+          }
+
+          lastError =
+            error instanceof Error && error.message
+              ? error.message
+              : "住所から位置情報を取得できませんでした";
+          break;
         }
-        const message =
-          error instanceof Error && error.message
-            ? error.message
-            : "住所から位置情報を取得できませんでした";
-        setState({ status: "error", coordinates: null, error: message });
+      }
+
+      if (!isActive || controller.signal.aborted) {
+        return;
+      }
+
+      setState({
+        status: "error",
+        coordinates: null,
+        error: lastError ?? "住所に対応する位置情報が見つかりませんでした",
+      });
+    })()
+      .catch(() => {
+        // 既に setState でエラーを反映しているため、ここでは握りつぶす
       })
       .finally(() => {
         if (abortControllerRef.current === controller) {
@@ -161,20 +283,19 @@ export function GymMap({ name, address, latitude, longitude }: GymMapProps) {
       });
 
     return () => {
+      isActive = false;
       controller.abort();
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
     };
-  }, [latitude, longitude, sanitizedAddress]);
+  }, [geocodeCandidates, latitude, longitude]);
 
   const coordinates = state.status === "success" ? state.coordinates : null;
 
   const mapQuery = coordinates
     ? `${coordinates.lat},${coordinates.lng}`
-    : sanitizedAddress
-      ? `${sanitizedAddress}`
-      : undefined;
+    : geocodeCandidates[0]?.query;
 
   const mapUrl = mapQuery
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
