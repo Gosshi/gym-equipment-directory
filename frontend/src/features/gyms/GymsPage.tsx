@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { useGymSearch } from "@/hooks/useGymSearch";
+import { filterOutDummyGyms } from "@/lib/filters";
 
 export function GymsPage() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -56,11 +57,13 @@ export function GymsPage() {
     setDetailModalOpen(false);
   }, []);
 
+  const visibleItems = useMemo(() => filterOutDummyGyms(items), [items]);
+
   useEffect(() => {
     if (isLoading) {
       return;
     }
-    if (items.length === 0) {
+    if (visibleItems.length === 0) {
       setSelectedSlug(null);
       setDetailModalOpen(false);
       return;
@@ -68,12 +71,12 @@ export function GymsPage() {
     if (!selectedSlug) {
       return;
     }
-    const isSelectedVisible = items.some(item => item.slug === selectedSlug);
+    const isSelectedVisible = visibleItems.some(item => item.slug === selectedSlug);
     if (!isSelectedVisible) {
       setSelectedSlug(null);
       setDetailModalOpen(false);
     }
-  }, [isLoading, items, selectedSlug]);
+  }, [isLoading, selectedSlug, visibleItems]);
 
   useEffect(() => {
     if (!selectedSlug) {
@@ -135,7 +138,7 @@ export function GymsPage() {
           <div className="flex flex-col gap-6">
             <GymList
               error={error}
-              gyms={items}
+              gyms={visibleItems}
               isInitialLoading={isInitialLoading}
               isLoading={isLoading}
               limit={limit}
