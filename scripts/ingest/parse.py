@@ -16,7 +16,7 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
-from .sites import municipal_koto, site_a
+from .sites import municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -125,6 +125,19 @@ def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str | None, d
     return name, address, parsed_json
 
 
+def _build_municipal_sumida_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
+    detail = municipal_sumida.parse(page.raw_html or "", url=page.url)
+    name = detail.name.strip() or _extract_dummy_name(page.raw_html, page.url)
+    address = detail.address.strip() if detail.address else None
+    parsed_json: dict[str, Any] = {
+        "site": municipal_sumida.SITE_ID,
+        "detail_url": detail.detail_url or page.url,
+        "official_url": detail.official_url,
+        "notes": detail.notes,
+    }
+    return name, address, parsed_json
+
+
 async def parse_pages(source: str, limit: int | None) -> int:
     """Create or update ``gym_candidates`` from scraped pages."""
 
@@ -170,6 +183,8 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 name_raw, address_raw, parsed_json = _build_site_a_payload(page)
             elif source == municipal_koto.SITE_ID:
                 name_raw, address_raw, parsed_json = _build_municipal_koto_payload(page)
+            elif source == municipal_sumida.SITE_ID:
+                name_raw, address_raw, parsed_json = _build_municipal_sumida_payload(page)
             else:
                 msg = f"Unsupported source: {source}"
                 raise ValueError(msg)
