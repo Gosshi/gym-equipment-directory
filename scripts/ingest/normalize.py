@@ -13,7 +13,7 @@ from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 
-from .sites import municipal_koto, site_a
+from .sites import municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -101,15 +101,23 @@ _MUNICIPAL_KOTO_PREF_MAP = {
 _MUNICIPAL_KOTO_CITY_MAP = {
     "江東区": "koto",
 }
+_MUNICIPAL_SUMIDA_PREF_MAP = {
+    "東京都": "tokyo",
+}
+_MUNICIPAL_SUMIDA_CITY_MAP = {
+    "墨田区": "sumida",
+}
 _PREF_MAPS = {
     "dummy": _DUMMY_PREF_MAP,
     site_a.SITE_ID: _SITE_A_PREF_MAP,
     municipal_koto.SITE_ID: _MUNICIPAL_KOTO_PREF_MAP,
+    municipal_sumida.SITE_ID: _MUNICIPAL_SUMIDA_PREF_MAP,
 }
 _CITY_MAPS = {
     "dummy": _DUMMY_CITY_MAP,
     site_a.SITE_ID: _SITE_A_CITY_MAP,
     municipal_koto.SITE_ID: _MUNICIPAL_KOTO_CITY_MAP,
+    municipal_sumida.SITE_ID: _MUNICIPAL_SUMIDA_CITY_MAP,
 }
 
 
