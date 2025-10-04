@@ -47,6 +47,18 @@ class AdminCandidateDetail(AdminCandidateItem):
     similar: list[SimilarGymInfo] | None = None
 
 
+class AdminCandidateCreate(BaseModel):
+    name_raw: str
+    address_raw: str | None = None
+    pref_slug: str
+    city_slug: str
+    latitude: float | None = None
+    longitude: float | None = None
+    parsed_json: dict[str, Any] | None = None
+    official_url: str | None = None
+    equipments: list[EquipmentAssign] | None = None
+
+
 class AdminCandidatePatch(BaseModel):
     name_raw: str | None = None
     address_raw: str | None = None

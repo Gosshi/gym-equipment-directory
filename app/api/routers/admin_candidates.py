@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_async_session
 from app.models.gym_candidate import CandidateStatus
 from app.schemas.admin_candidates import (
+    AdminCandidateCreate,
     AdminCandidateDetail,
     AdminCandidateItem,
     AdminCandidateListResponse,
@@ -72,6 +73,17 @@ def _to_detail(row: CandidateDetailRow) -> AdminCandidateDetail:
         scraped_page=scraped_page,
         similar=similar,
     )
+
+
+@router.post("", response_model=AdminCandidateItem, status_code=201)
+async def create_candidate(
+    payload: AdminCandidateCreate, session: AsyncSession = Depends(get_async_session)
+):
+    try:
+        row = await candidate_service.create_manual_candidate(session, payload)
+    except CandidateServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_item(row)
 
 
 @router.get("", response_model=AdminCandidateListResponse)
