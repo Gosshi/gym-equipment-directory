@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import Select, and_, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -21,9 +22,11 @@ from app.models import (
     GymEquipment,
     ScrapedPage,
     Source,
+    SourceType,
 )
 from app.models.gym_equipment import Availability, VerificationStatus
 from app.schemas.admin_candidates import (
+    AdminCandidateCreate,
     AdminCandidatePatch,
     ApproveOverride,
     ApprovePreview,
@@ -198,6 +201,61 @@ async def _fetch_candidate_row(session: AsyncSession, candidate_id: int) -> Cand
     if not row:
         raise LookupError("candidate not found")
     return CandidateRow(candidate=row[0], page=row[1], source=row[2])
+
+
+async def create_manual_candidate(
+    session: AsyncSession, payload: AdminCandidateCreate
+) -> CandidateRow:
+    source_stmt = select(Source).where(
+        Source.source_type == SourceType.user_submission,
+        Source.title == "manual",
+        Source.url.is_(None),
+    )
+    source_result = await session.execute(source_stmt)
+    source = source_result.scalars().first()
+    if source is None:
+        source = Source(source_type=SourceType.user_submission, title="manual", url=None)
+        session.add(source)
+        await session.flush()
+
+    page_url = payload.official_url or f"manual:submission:{uuid4()}"
+    now = datetime.now(UTC)
+    page = ScrapedPage(
+        source_id=int(source.id),
+        url=page_url,
+        fetched_at=now,
+        http_status=0,
+        response_meta={"kind": "manual"},
+    )
+    session.add(page)
+    await session.flush()
+
+    parsed_json = dict(payload.parsed_json) if payload.parsed_json else {}
+    if payload.official_url:
+        parsed_json.setdefault("official_url", payload.official_url)
+    if payload.equipments is not None:
+        parsed_json["equipments_assign"] = [
+            assign.dict(exclude_none=True) for assign in payload.equipments
+        ]
+        parsed_json.setdefault(
+            "equipments", [assign.slug for assign in payload.equipments if assign.slug]
+        )
+
+    candidate = GymCandidate(
+        source_page_id=int(page.id),
+        name_raw=payload.name_raw,
+        address_raw=payload.address_raw,
+        pref_slug=payload.pref_slug,
+        city_slug=payload.city_slug,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        parsed_json=parsed_json or None,
+        status=CandidateStatus.new,
+    )
+    session.add(candidate)
+    await session.flush()
+    await session.commit()
+    return await _fetch_candidate_row(session, int(candidate.id))
 
 
 async def get_candidate_detail(session: AsyncSession, candidate_id: int) -> CandidateDetailRow:
