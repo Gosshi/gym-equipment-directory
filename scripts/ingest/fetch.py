@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
 
-from .sites import municipal_koto, municipal_sumida, site_a
+from .sites import municipal_edogawa, municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -174,6 +174,22 @@ async def _fetch_municipal_sumida(source: str, limit: int | None, file_path: Pat
     return 0
 
 
+async def _fetch_municipal_edogawa(source: str, limit: int | None, file_path: Path | None) -> int:
+    if file_path is not None:
+        msg = "File input is not supported for source 'municipal_edogawa'"
+        raise ValueError(msg)
+
+    raw_entries = municipal_edogawa.iter_seed_pages(limit)
+    if not raw_entries:
+        logger.info("No URLs provided; nothing to fetch for source '%s'", source)
+        return 0
+
+    entries = [(str(url), str(html)) for url, html in raw_entries]
+    created, updated = await _upsert_scraped_pages(source, entries)
+    _log_fetch_summary(source, entries, created, updated)
+    return 0
+
+
 async def fetch_pages(source: str, limit: int | None, file_path: Path | None) -> int:
     """Fetch HTML pages for the requested ingest ``source``."""
 
@@ -185,5 +201,7 @@ async def fetch_pages(source: str, limit: int | None, file_path: Path | None) ->
         return await _fetch_municipal_koto(source, limit, file_path)
     if source == municipal_sumida.SITE_ID:
         return await _fetch_municipal_sumida(source, limit, file_path)
+    if source == municipal_edogawa.SITE_ID:
+        return await _fetch_municipal_edogawa(source, limit, file_path)
     msg = f"Unsupported source: {source}"
     raise ValueError(msg)
