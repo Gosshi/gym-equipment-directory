@@ -125,6 +125,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Number of items to process",
     )
+    normalize_parser.add_argument(
+        "--geocode-missing",
+        action="store_true",
+        help="Also geocode candidates lacking coordinates",
+    )
 
     approve_parser = subparsers.add_parser(
         "approve", help="Approve a gym candidate (dummy implementation)"
@@ -172,7 +177,14 @@ def _dispatch(args: argparse.Namespace) -> int:
     if command == "parse":
         return asyncio.run(_run_async_command(parse_pages, args.source, args.limit))
     if command == "normalize":
-        return asyncio.run(_run_async_command(normalize_candidates, args.source, args.limit))
+        return asyncio.run(
+            _run_async_command(
+                normalize_candidates,
+                args.source,
+                args.limit,
+                geocode_missing=args.geocode_missing,
+            )
+        )
     if command == "approve":
         return asyncio.run(_run_async_command(approve_candidate, args.candidate_id, args.dry_run))
     msg = f"Unknown command: {command}"
