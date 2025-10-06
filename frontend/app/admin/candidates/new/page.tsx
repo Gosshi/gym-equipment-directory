@@ -91,16 +91,19 @@ export default function AdminCandidateNewPage() {
   const [approveImmediately, setApproveImmediately] = useState(false);
   const [previewState, setPreviewState] = useState<PreviewState>(INITIAL_PREVIEW_STATE);
 
-  const handleFieldChange = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setFormState(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-    setFormErrors(prev => ({
-      ...prev,
-      [key]: undefined,
-    }));
-  }, []);
+  const handleFieldChange = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setFormState(prev => ({
+        ...prev,
+        [key]: value,
+      }));
+      setFormErrors(prev => ({
+        ...prev,
+        [key]: undefined,
+      }));
+    },
+    [],
+  );
 
   const resetForm = () => {
     setFormState({ ...INITIAL_FORM_STATE });
@@ -128,12 +131,7 @@ export default function AdminCandidateNewPage() {
         toast({
           title: "承認しました",
           description: (
-            <a
-              className="text-blue-600 underline"
-              href={slugLink}
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a className="text-blue-600 underline" href={slugLink} target="_blank" rel="noreferrer">
               {slugLink}
             </a>
           ),
@@ -338,8 +336,8 @@ export default function AdminCandidateNewPage() {
                 <span className="font-medium">住所:</span> {gym.address ?? "-"}
               </p>
               <p>
-                <span className="font-medium">位置:</span> {gym.pref_slug ?? "-"} / {gym.city_slug ?? "-"} (
-                {gym.latitude ?? "-"}, {gym.longitude ?? "-"})
+                <span className="font-medium">位置:</span> {gym.pref_slug ?? "-"} /{" "}
+                {gym.city_slug ?? "-"} ({gym.latitude ?? "-"}, {gym.longitude ?? "-"})
               </p>
             </div>
           </section>
@@ -385,7 +383,10 @@ export default function AdminCandidateNewPage() {
           必須項目を入力して候補を作成してください。作成後は詳細ページに遷移します。
         </p>
       </div>
-      <form className="grid gap-4 rounded-md border border-gray-200 bg-white p-6 shadow-sm" onSubmit={handleSubmit}>
+      <form
+        className="grid gap-4 rounded-md border border-gray-200 bg-white p-6 shadow-sm"
+        onSubmit={handleSubmit}
+      >
         <div className="grid gap-2">
           <label className="text-sm font-medium text-gray-700" htmlFor="name_raw">
             名称 (必須)
