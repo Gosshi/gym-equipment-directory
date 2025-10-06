@@ -4,6 +4,7 @@ import type {
   AdminCandidateItem,
   AdminCandidateListParams,
   AdminCandidateListResponse,
+  AdminCandidateCreatePayload,
   AdminCandidatePatchPayload,
   ApprovePreviewResponse,
   ApproveRequest,
@@ -167,6 +168,12 @@ export const listCandidates = (params: AdminCandidateListParams = {}) => {
 export const getCandidate = (id: number) =>
   request<AdminCandidateDetail>(`/admin/candidates/${id}`);
 
+export const createCandidate = (payload: AdminCandidateCreatePayload) =>
+  request<AdminCandidateItem>("/admin/candidates", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 export const patchCandidate = (id: number, payload: AdminCandidatePatchPayload) =>
   request<AdminCandidateItem>(`/admin/candidates/${id}`, {
     method: "PATCH",
@@ -190,6 +197,7 @@ export type {
   AdminCandidateItem,
   AdminCandidateListParams,
   AdminCandidateListResponse,
+  AdminCandidateCreatePayload,
   AdminCandidatePatchPayload,
   ApproveOverride,
   ApprovePreviewResponse,

@@ -30,6 +30,7 @@ export interface AdminCandidateItem {
   latitude?: number | null;
   longitude?: number | null;
   parsed_json?: JsonRecord | null;
+  official_url?: string | null;
   source: AdminSourceRef;
   fetched_at?: string | null;
   created_at: string;
@@ -65,6 +66,17 @@ export interface AdminCandidatePatchPayload {
   latitude?: number | null;
   longitude?: number | null;
   parsed_json?: JsonRecord | null;
+}
+
+export interface AdminCandidateCreatePayload {
+  name_raw: string;
+  address_raw?: string | null;
+  pref_slug: string;
+  city_slug: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  parsed_json?: JsonRecord | null;
+  official_url?: string | null;
 }
 
 export type EquipmentAvailability = "present" | "absent" | "unknown";
