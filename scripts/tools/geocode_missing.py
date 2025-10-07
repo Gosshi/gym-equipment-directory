@@ -18,6 +18,7 @@ from app.services.geocode import geocode
 logger = logging.getLogger(__name__)
 
 _TARGET_CHOICES = {"gyms", "candidates"}
+_ORIGIN_CHOICES = {"all", "scraped"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -34,11 +35,25 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Maximum number of records to process",
     )
+    parser.add_argument(
+        "--origin",
+        choices=sorted(_ORIGIN_CHOICES),
+        default="all",
+        help="Filter gyms by origin (all or scraped)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run without applying updates",
+    )
     return parser
 
 
 async def _load_records(
-    session: AsyncSession, target: str, limit: int | None
+    session: AsyncSession,
+    target: str,
+    limit: int | None,
+    origin: str,
 ) -> list[Gym | GymCandidate]:
     if target == "gyms":
         query = (
@@ -47,6 +62,10 @@ async def _load_records(
             .where(Gym.address.isnot(None))
             .order_by(Gym.id)
         )
+        if origin == "scraped":
+            query = query.where(
+                or_(Gym.official_url.is_(None), Gym.official_url.notlike("manual:%"))
+            )
     elif target == "candidates":
         query = (
             select(GymCandidate)
@@ -65,8 +84,14 @@ async def _load_records(
     return list(result.scalars().all())
 
 
-async def _process_records(session: AsyncSession, target: str, limit: int | None) -> dict[str, int]:
-    records = await _load_records(session, target, limit)
+async def _process_records(
+    session: AsyncSession,
+    target: str,
+    limit: int | None,
+    origin: str,
+    dry_run: bool,
+) -> dict[str, int]:
+    records = await _load_records(session, target, limit, origin)
     if not records:
         logger.info("No %s with missing coordinates", target)
         return {"tried": 0, "updated": 0, "skipped": 0}
@@ -89,24 +114,34 @@ async def _process_records(session: AsyncSession, target: str, limit: int | None
             continue
 
         latitude, longitude = coords
-        changed = False
-        if getattr(record, "latitude") is None and latitude is not None:
-            record.latitude = latitude
-            changed = True
-        if getattr(record, "longitude") is None and longitude is not None:
-            record.longitude = longitude
-            changed = True
+        latitude_missing = getattr(record, "latitude") is None
+        longitude_missing = getattr(record, "longitude") is None
+        lat_update = latitude_missing and latitude is not None
+        lon_update = longitude_missing and longitude is not None
 
-        if changed:
+        if lat_update or lon_update:
             updated += 1
-            await session.flush()
-            logger.info(
-                "Updated %s id=%s with lat=%s lon=%s",
-                target[:-1],
-                record.id,
-                latitude,
-                longitude,
-            )
+            if dry_run:
+                logger.info(
+                    "DRY-RUN: would update %s id=%s with lat=%s lon=%s",
+                    target[:-1],
+                    record.id,
+                    latitude,
+                    longitude,
+                )
+            else:
+                if lat_update:
+                    record.latitude = latitude
+                if lon_update:
+                    record.longitude = longitude
+                await session.flush()
+                logger.info(
+                    "Updated %s id=%s with lat=%s lon=%s",
+                    target[:-1],
+                    record.id,
+                    latitude,
+                    longitude,
+                )
         else:
             skipped += 1
 
@@ -114,18 +149,26 @@ async def _process_records(session: AsyncSession, target: str, limit: int | None
 
 
 async def geocode_missing_records(
-    target: str, limit: int | None = None, session: AsyncSession | None = None
+    target: str,
+    limit: int | None = None,
+    origin: str = "all",
+    dry_run: bool = False,
+    session: AsyncSession | None = None,
 ) -> dict[str, int]:
     """Geocode missing coordinates for gyms or candidates."""
 
     if target not in _TARGET_CHOICES:
         msg = f"Invalid target: {target}"
         raise ValueError(msg)
+    if origin not in _ORIGIN_CHOICES:
+        msg = f"Invalid origin: {origin}"
+        raise ValueError(msg)
 
     if session is None:
         async with SessionLocal() as owned_session:
-            summary = await _process_records(owned_session, target, limit)
-            await owned_session.commit()
+            summary = await _process_records(owned_session, target, limit, origin, dry_run)
+            if not dry_run:
+                await owned_session.commit()
             logger.info(
                 "Finished geocoding %s: tried=%s, updated=%s, skipped=%s",
                 target,
@@ -135,7 +178,7 @@ async def geocode_missing_records(
             )
             return summary
 
-    summary = await _process_records(session, target, limit)
+    summary = await _process_records(session, target, limit, origin, dry_run)
     logger.info(
         "Finished geocoding %s: tried=%s, updated=%s, skipped=%s",
         target,
@@ -151,7 +194,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
-        summary = asyncio.run(geocode_missing_records(args.target, args.limit))
+        summary = asyncio.run(
+            geocode_missing_records(
+                args.target,
+                args.limit,
+                origin=args.origin,
+                dry_run=args.dry_run,
+            )
+        )
     except Exception:  # pragma: no cover - CLI safeguard
         logger.exception("Geocoding script failed")
         return 1
