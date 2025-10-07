@@ -12,6 +12,7 @@ from app.db import SessionLocal
 from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
+from app.services.geocode import geocode
 
 from .sites import municipal_edogawa, municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
@@ -143,7 +144,9 @@ def _filter_equipments(valid_slugs: Iterable[str], equipments: Iterable[str]) ->
     return [slug for slug in equipments if slug in valid]
 
 
-async def normalize_candidates(source: str, limit: int | None) -> int:
+async def normalize_candidates(
+    source: str, limit: int | None, geocode_missing: bool = False
+) -> int:
     """Normalize address and parsed payloads for gym candidates."""
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
@@ -221,6 +224,35 @@ async def normalize_candidates(source: str, limit: int | None) -> int:
                 updated += 1
 
         await session.commit()
+
+        if geocode_missing and processed_candidates:
+            geocoded = 0
+            for candidate in processed_candidates:
+                if not candidate.address_raw:
+                    continue
+                if candidate.latitude is not None and candidate.longitude is not None:
+                    continue
+
+                coords = await geocode(session, candidate.address_raw)
+                if coords is None:
+                    continue
+
+                latitude, longitude = coords
+                changed = False
+                if candidate.latitude is None and latitude is not None:
+                    candidate.latitude = latitude
+                    changed = True
+                if candidate.longitude is None and longitude is not None:
+                    candidate.longitude = longitude
+                    changed = True
+
+                if changed:
+                    geocoded += 1
+
+            if geocoded:
+                await session.flush()
+                await session.commit()
+            logger.info("Geocoded %s candidates", geocoded)
 
     sample_updates = [
         f"id={candidate.id}: pref={candidate.pref_slug}, city={candidate.city_slug}"

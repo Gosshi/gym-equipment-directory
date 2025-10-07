@@ -3,6 +3,7 @@
 from .base import Base
 from .equipment import Equipment
 from .favorite import Favorite
+from .geocode_cache import GeocodeCache
 from .gym import Gym
 from .gym_candidate import CandidateStatus, GymCandidate
 from .gym_equipment import GymEquipment
@@ -17,6 +18,7 @@ __all__ = [
     "Gym",
     "Equipment",
     "GymEquipment",
+    "GeocodeCache",
     "GymSlug",
     "Source",
     "Report",
