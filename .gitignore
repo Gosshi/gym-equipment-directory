@@ -27,3 +27,5 @@ lh-temp.json
 
 .env.demo
 frontend/.env.demo.local
+
+.env.prod

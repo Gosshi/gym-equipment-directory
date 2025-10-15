@@ -2,7 +2,7 @@ services:
   api:
     build: .
     container_name: gym_directory_api
-    env_file: .env
+    env_file: .env.prod
     ports:
       - "${APP_PORT}:8000"
     depends_on:
@@ -15,7 +15,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: gym_directory_db
-    env_file: .env
+    env_file: .env.prod
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -37,7 +37,7 @@ services:
   pg:
     image: postgres:16
     container_name: gymdir-pg
-    env_file: .env
+    env_file: .env.prod
     ports:
       - "5433:5432" # ← ホスト : コンテナ
     environment:

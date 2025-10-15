@@ -1,4 +1,23 @@
-PG_DSN=postgresql+asyncpg://postgres:pass@localhost:5433/gym_test
+## --- Environment loading ---
+## ENV_FILE は手動で上書き可: `make ENV_FILE=.env.prod target`
+ENV_FILE ?= .env
+ifdef APP_ENV
+ifneq ($(APP_ENV),)
+ifeq ($(APP_ENV),prod)
+ENV_FILE := .env.prod
+endif
+endif
+endif
+
+## ENV_FILE の変数を取り込む（存在すれば）
+ifneq (,$(wildcard $(ENV_FILE)))
+include $(ENV_FILE)
+## include で読み込んだキーを export（ps: sedで KEY=VAL の KEY を抽出）
+export $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' $(ENV_FILE))
+endif
+
+## PG_DSN は TEST_DATABASE_URL→DATABASE_URL→最後に開発用DSNの順で決定
+PG_DSN ?= $(or $(TEST_DATABASE_URL),$(DATABASE_URL),postgresql+asyncpg://postgres:pass@localhost:5433/gym_test)
 
 
 up:
@@ -23,13 +42,13 @@ rev:
 	docker compose exec api alembic revision --autogenerate -m "$(m)"
 
 freshness:
-        docker compose exec api python -m scripts.update_freshness
+	docker compose exec api python -m scripts.update_freshness
 
 test:
-        @TEST_DATABASE_URL=$(PG_DSN) pytest -q
+	@TEST_DATABASE_URL=$(PG_DSN) pytest -q
 
 seed-equip:
-        python -m scripts.seed --equip-only
+	python -m scripts.seed --equip-only
 
 # --- Dev tooling ---
 pre-commit-install:
@@ -38,25 +57,27 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
-.PHONY: ingest-fetch ingest-parse ingest-normalize ingest-approve \
-        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
-        ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
-        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
-        ingest-fetch-municipal-koto ingest-parse-municipal-koto \
-        ingest-normalize-municipal-koto
+.PHONY: up down logs bash db-bash migrate rev freshness test seed-equip \
+	pre-commit-install pre-commit-run curl-admin-candidates \
+	ingest-fetch ingest-parse ingest-normalize ingest-approve \
+	ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
+	ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
+	ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
+	ingest-fetch-municipal-koto ingest-parse-municipal-koto \
+	ingest-normalize-municipal-koto
 ingest-fetch:
-        python -m scripts.ingest fetch --source dummy --limit 10
+	python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
-        python -m scripts.ingest parse --source dummy --limit 10
+	python -m scripts.ingest parse --source dummy --limit 10
 ingest-normalize:
-        python -m scripts.ingest normalize --source dummy --limit 10
+	python -m scripts.ingest normalize --source dummy --limit 10
 ingest-approve:
-        python -m scripts.ingest approve --candidate-id 1 --dry-run
+	python -m scripts.ingest approve --candidate-id 1 --dry-run
 
 ingest-fetch-site-a:
-        python -m scripts.ingest fetch --source site_a --limit 10
+	python -m scripts.ingest fetch --source site_a --limit 10
 ingest-fetch-http-site-a-koto:
-        python -m scripts.ingest fetch-http \
+	python -m scripts.ingest fetch-http \
                 --source site_a \
                 --pref tokyo \
                 --city koto \
@@ -64,7 +85,7 @@ ingest-fetch-http-site-a-koto:
                 --min-delay 2 \
                 --max-delay 4
 ingest-fetch-http-site-a-funabashi:
-        python -m scripts.ingest fetch-http \
+	python -m scripts.ingest fetch-http \
                 --source site_a \
                 --pref chiba \
                 --city funabashi \
@@ -72,32 +93,32 @@ ingest-fetch-http-site-a-funabashi:
                 --min-delay 2 \
                 --max-delay 4
 ingest-parse-site-a:
-        python -m scripts.ingest parse --source site_a --limit 10
+	python -m scripts.ingest parse --source site_a --limit 10
 ingest-parse-site-a-funabashi:
-        python -m scripts.ingest parse --source site_a --limit 10
+	python -m scripts.ingest parse --source site_a --limit 10
 ingest-normalize-site-a:
-        python -m scripts.ingest normalize --source site_a --limit 10
+	python -m scripts.ingest normalize --source site_a --limit 10
 ingest-normalize-site-a-funabashi:
-        python -m scripts.ingest normalize --source site_a --limit 10
+	python -m scripts.ingest normalize --source site_a --limit 10
 
 ingest-fetch-municipal-koto:
-        python -m scripts.ingest fetch-http \
+	python -m scripts.ingest fetch-http \
                 --source municipal_koto \
                 --pref tokyo \
                 --city koto \
                 --limit 6
 
 ingest-parse-municipal-koto:
-        python -m scripts.ingest parse --source municipal_koto --limit 6
+	python -m scripts.ingest parse --source municipal_koto --limit 6
 
 ingest-normalize-municipal-koto:
-        python -m scripts.ingest normalize --source municipal_koto --limit 6
+	python -m scripts.ingest normalize --source municipal_koto --limit 6
 
 curl-admin-candidates:
-        @echo "# 一覧"
-        @curl -s "http://localhost:8000/admin/candidates?status=new&limit=5" | jq
-        @echo "# 承認ドライラン"
-        @curl -s -X POST \
-                "http://localhost:8000/admin/candidates/1/approve" \
-                -H "Content-Type: application/json" \
-                -d '{"dry_run":true}' | jq
+	@echo "# 一覧"
+	@curl -s "http://localhost:8000/admin/candidates?status=new&limit=5" | jq
+	@echo "# 承認ドライラン"
+	@curl -s -X POST \
+		"http://localhost:8000/admin/candidates/1/approve" \
+		-H "Content-Type: application/json" \
+		-d '{"dry_run":true}' | jq
