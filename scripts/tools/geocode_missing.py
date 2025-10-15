@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import logging
+import os
 import re
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +57,22 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run without applying updates",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Verbose logs per record",
+    )
+    parser.add_argument(
+        "--why",
+        action="store_true",
+        help="Print reason breakdown",
+    )
+    parser.add_argument(
+        "--dump-failures",
+        type=str,
+        default=None,
+        help="CSV path to dump geocode failures",
+    )
     return parser
 
 
@@ -69,6 +88,22 @@ def normalize_address(address: str | None) -> str:
     cleaned = _TEL_TRAIL_RE.sub("", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned.strip()
+
+
+def analyze_reasons(raw: str | None, clean: str) -> set[str]:
+    reasons: set[str] = set()
+    if not raw:
+        reasons.add("empty_address")
+    if raw and raw != clean:
+        if re.search(r"[\u200B\u200C\u200D\uFEFF]", raw):
+            reasons.add("zero_width_removed")
+        if re.match(r"^〒\d{3}-\d{4}\s*", raw):
+            reasons.add("postal_removed")
+        if re.search(r"TEL[:：]?\s*\d{2,4}-\d{2,4}-\d{3,4}", raw, flags=re.IGNORECASE):
+            reasons.add("tel_removed")
+    if not clean:
+        reasons.add("normalized_empty")
+    return reasons
 
 
 async def _load_records(
@@ -114,30 +149,49 @@ async def _process_records(
     limit: int | None,
     origin: str,
     dry_run: bool,
-) -> dict[str, int]:
+    verbose: bool,
+    show_why: bool,
+    dump_failures_path: str | None,
+) -> dict[str, int | dict[str, int]]:
     records = await _load_records(session, target, limit, origin)
     if not records:
         logger.info("No %s with missing coordinates", target)
-        return {"tried": 0, "updated": 0, "skipped": 0}
+        return {"tried": 0, "updated": 0, "skipped": 0, "reasons": {}}
 
     tried = 0
     updated = 0
     skipped = 0
+    reason_counts: dict[str, int] = {}
+    fail_rows: list[tuple[str | int, str, str, str, str]] = []
 
     for record in records:
         tried += 1
         raw_address = record.address if target == "gyms" else record.address_raw
         normalized_address = normalize_address(raw_address)
+        reasons = analyze_reasons(raw_address, normalized_address)
+
         if not normalized_address:
             skipped += 1
-            logger.info(
-                "Skipping id=%s due to empty normalized address (raw=%r)",
-                record.id,
-                raw_address,
+            for reason in reasons or {"normalized_empty"}:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            if verbose:
+                logger.info(
+                    "SKIP id=%s normalized_empty raw=%r",
+                    record.id,
+                    raw_address,
+                )
+            fail_rows.append(
+                (
+                    record.id,
+                    getattr(record, "name", ""),
+                    raw_address or "",
+                    normalized_address,
+                    ",".join(sorted(reasons)) or "normalized_empty",
+                )
             )
             continue
 
-        if raw_address and raw_address != normalized_address:
+        if raw_address and raw_address != normalized_address and verbose:
             logger.info(
                 "Normalized address id=%s: %r -> %r",
                 record.id,
@@ -145,10 +199,47 @@ async def _process_records(
                 normalized_address,
             )
 
-        coords = await geocode(session, normalized_address)
+        try:
+            coords = await geocode(session, normalized_address)
+        except Exception:  # pragma: no cover - external provider failure path
+            skipped += 1
+            reason_counts["exception"] = reason_counts.get("exception", 0) + 1
+            for reason in reasons:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            if verbose:
+                logger.exception("EXC id=%s addr=%r", record.id, normalized_address)
+            fail_rows.append(
+                (
+                    record.id,
+                    getattr(record, "name", ""),
+                    raw_address or "",
+                    normalized_address,
+                    ",".join(sorted(reasons | {"exception"})),
+                )
+            )
+            continue
+
         if coords is None:
             skipped += 1
-            logger.info("Geocode miss id=%s with address=%r", record.id, normalized_address)
+            reason_counts["provider_miss"] = reason_counts.get("provider_miss", 0) + 1
+            for reason in reasons:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            if verbose:
+                logger.info(
+                    "MISS id=%s addr=%r reasons=%s",
+                    record.id,
+                    normalized_address,
+                    ",".join(sorted(reasons)) or "provider_miss",
+                )
+            fail_rows.append(
+                (
+                    record.id,
+                    getattr(record, "name", ""),
+                    raw_address or "",
+                    normalized_address,
+                    ",".join(sorted(reasons | {"provider_miss"})),
+                )
+            )
             continue
 
         latitude, longitude = coords
@@ -184,14 +275,54 @@ async def _process_records(
                 )
         else:
             skipped += 1
-            logger.info(
-                "Skipping id=%s due to unchanged coordinates (lat=%s lon=%s)",
-                record.id,
-                getattr(record, "latitude"),
-                getattr(record, "longitude"),
+            reason_counts["unchanged"] = reason_counts.get("unchanged", 0) + 1
+            for reason in reasons:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            if verbose:
+                logger.info(
+                    "SKIP id=%s unchanged coords lat=%s lon=%s",
+                    record.id,
+                    getattr(record, "latitude"),
+                    getattr(record, "longitude"),
+                )
+            fail_rows.append(
+                (
+                    record.id,
+                    getattr(record, "name", ""),
+                    raw_address or "",
+                    normalized_address,
+                    ",".join(sorted(reasons | {"unchanged"})),
+                )
             )
 
-    return {"tried": tried, "updated": updated, "skipped": skipped}
+    if dump_failures_path:
+        write_header = not os.path.exists(dump_failures_path)
+        with open(dump_failures_path, "a", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            if write_header:
+                writer.writerow(["id", "name", "raw_address", "clean_address", "reasons"])
+            for row in fail_rows:
+                writer.writerow(row)
+        if verbose and fail_rows:
+            logger.info(
+                "Dumped %s failure rows to %s at %s",
+                len(fail_rows),
+                dump_failures_path,
+                datetime.now().isoformat(timespec="seconds"),
+            )
+
+    if show_why:
+        logger.info(
+            "Reason breakdown: %s",
+            {key: reason_counts.get(key, 0) for key in sorted(reason_counts)},
+        )
+
+    return {
+        "tried": tried,
+        "updated": updated,
+        "skipped": skipped,
+        "reasons": reason_counts,
+    }
 
 
 async def geocode_missing_records(
@@ -199,8 +330,11 @@ async def geocode_missing_records(
     limit: int | None = None,
     origin: str = "all",
     dry_run: bool = False,
+    verbose: bool = False,
+    show_why: bool = False,
+    dump_failures_path: str | None = None,
     session: AsyncSession | None = None,
-) -> dict[str, int]:
+) -> dict[str, int | dict[str, int]]:
     """Geocode missing coordinates for gyms or candidates."""
 
     if target not in _TARGET_CHOICES:
@@ -212,7 +346,16 @@ async def geocode_missing_records(
 
     if session is None:
         async with SessionLocal() as owned_session:
-            summary = await _process_records(owned_session, target, limit, origin, dry_run)
+            summary = await _process_records(
+                owned_session,
+                target,
+                limit,
+                origin,
+                dry_run,
+                verbose,
+                show_why,
+                dump_failures_path,
+            )
             if not dry_run:
                 await owned_session.commit()
             logger.info(
@@ -224,7 +367,16 @@ async def geocode_missing_records(
             )
             return summary
 
-    summary = await _process_records(session, target, limit, origin, dry_run)
+    summary = await _process_records(
+        session,
+        target,
+        limit,
+        origin,
+        dry_run,
+        verbose,
+        show_why,
+        dump_failures_path,
+    )
     logger.info(
         "Finished geocoding %s: tried=%s, updated=%s, skipped=%s",
         target,
@@ -246,6 +398,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.limit,
                 origin=args.origin,
                 dry_run=args.dry_run,
+                verbose=args.verbose,
+                show_why=args.why,
+                dump_failures_path=args.dump_failures,
             )
         )
     except Exception:  # pragma: no cover - CLI safeguard
