@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import re
 from collections.abc import Sequence
 
 from sqlalchemy import or_, select
@@ -16,6 +17,13 @@ from app.models.gym_candidate import GymCandidate
 from app.services.geocode import geocode
 
 logger = logging.getLogger(__name__)
+
+_ZERO_WIDTH_RE = re.compile(r"[\u200B\u200C\u200D\uFEFF]")
+_POSTAL_PREFIX_RE = re.compile(r"^〒\s*\d{3}-\d{4}\s*")
+_TEL_TRAIL_RE = re.compile(
+    r"\s*(?:TEL|ＴＥＬ)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
+    flags=re.IGNORECASE,
+)
 
 _TARGET_CHOICES = {"gyms", "candidates"}
 _ORIGIN_CHOICES = {"all", "scraped"}
@@ -49,6 +57,20 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def normalize_address(address: str | None) -> str:
+    """Normalize address strings for geocoding."""
+
+    if not address:
+        return ""
+
+    cleaned = _ZERO_WIDTH_RE.sub("", address)
+    cleaned = cleaned.replace("　", " ")
+    cleaned = _POSTAL_PREFIX_RE.sub("", cleaned)
+    cleaned = _TEL_TRAIL_RE.sub("", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
 async def _load_records(
     session: AsyncSession,
     target: str,
@@ -60,6 +82,7 @@ async def _load_records(
             select(Gym)
             .where(or_(Gym.latitude.is_(None), Gym.longitude.is_(None)))
             .where(Gym.address.isnot(None))
+            .where(Gym.address != "")
             .order_by(Gym.id)
         )
         if origin == "scraped":
@@ -71,6 +94,7 @@ async def _load_records(
             select(GymCandidate)
             .where(or_(GymCandidate.latitude.is_(None), GymCandidate.longitude.is_(None)))
             .where(GymCandidate.address_raw.isnot(None))
+            .where(GymCandidate.address_raw != "")
             .order_by(GymCandidate.id)
         )
     else:  # pragma: no cover - validation should prevent this
@@ -102,15 +126,29 @@ async def _process_records(
 
     for record in records:
         tried += 1
-        address = record.address if target == "gyms" else record.address_raw
-        if not address:
+        raw_address = record.address if target == "gyms" else record.address_raw
+        normalized_address = normalize_address(raw_address)
+        if not normalized_address:
             skipped += 1
-            logger.info("Skipping id=%s due to missing address", record.id)
+            logger.info(
+                "Skipping id=%s due to empty normalized address (raw=%r)",
+                record.id,
+                raw_address,
+            )
             continue
 
-        coords = await geocode(session, address)
+        if raw_address and raw_address != normalized_address:
+            logger.info(
+                "Normalized address id=%s: %r -> %r",
+                record.id,
+                raw_address,
+                normalized_address,
+            )
+
+        coords = await geocode(session, normalized_address)
         if coords is None:
             skipped += 1
+            logger.info("Geocode miss id=%s with address=%r", record.id, normalized_address)
             continue
 
         latitude, longitude = coords
@@ -134,6 +172,8 @@ async def _process_records(
                     record.latitude = latitude
                 if lon_update:
                     record.longitude = longitude
+                if target == "gyms" and raw_address != normalized_address:
+                    record.address = normalized_address
                 await session.flush()
                 logger.info(
                     "Updated %s id=%s with lat=%s lon=%s",
@@ -144,6 +184,12 @@ async def _process_records(
                 )
         else:
             skipped += 1
+            logger.info(
+                "Skipping id=%s due to unchanged coordinates (lat=%s lon=%s)",
+                record.id,
+                getattr(record, "latitude"),
+                getattr(record, "longitude"),
+            )
 
     return {"tried": tried, "updated": updated, "skipped": skipped}
 

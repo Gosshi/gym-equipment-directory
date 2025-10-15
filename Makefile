@@ -2,10 +2,8 @@
 ## ENV_FILE は手動で上書き可: `make ENV_FILE=.env.prod target`
 ENV_FILE ?= .env
 ifdef APP_ENV
-ifneq ($(APP_ENV),)
 ifeq ($(APP_ENV),prod)
 ENV_FILE := .env.prod
-endif
 endif
 endif
 
