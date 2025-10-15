@@ -5,6 +5,8 @@ gyms.last_verified_at_cached を一括更新するユーティリティ。
 - gym_equipments の MAX(last_verified_at) をキャッシュに反映
 """
 
+import asyncio
+
 from sqlalchemy import text
 
 from app.db import engine
@@ -27,13 +29,16 @@ WHERE g.id = sub.gym_id
 """)
 
 
-def main() -> int:
-    with engine.begin() as conn:
-        r1 = conn.execute(RESET_SQL)
-        r2 = conn.execute(UPDATE_SQL)
-        print(f"✅ reset rows: {r1.rowcount}, updated rows: {r2.rowcount}")
+async def main() -> int:
+    async with engine.begin() as conn:
+        r1 = await conn.execute(RESET_SQL)
+        r2 = await conn.execute(UPDATE_SQL)
+        # rowcount can be None on some drivers; guard with or 0
+        reset_rows = r1.rowcount or 0
+        updated_rows = r2.rowcount or 0
+        print(f"✅ reset rows: {reset_rows}, updated rows: {updated_rows}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(asyncio.run(main()))

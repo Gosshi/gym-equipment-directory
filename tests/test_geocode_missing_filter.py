@@ -50,9 +50,7 @@ async def test_geocode_missing_includes_manual_origin_when_all(session, monkeypa
 
     monkeypatch.setattr(geocode_missing, "geocode", fake_geocode)
 
-    summary = await geocode_missing.geocode_missing_records(
-        "gyms", origin="all", session=session
-    )
+    summary = await geocode_missing.geocode_missing_records("gyms", origin="all", session=session)
 
     await session.refresh(gym)
 
