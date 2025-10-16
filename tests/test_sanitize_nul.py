@@ -44,8 +44,8 @@ async def _create_candidate(session: AsyncSession) -> GymCandidate:
     page = await _create_scraped_page(session, source.id)
     candidate = GymCandidate(
         source_page_id=page.id,
-        name_raw="候補\x00ジム",
-        address_raw="東京都\x00千代田区1-1-1",
+        name_raw="候補\u200b\x00ジム",
+        address_raw="東京都\x00千代田区1-1-1\u200b",
         pref_slug="tokyo",
         city_slug="chiyoda",
         latitude=35.0,
@@ -79,8 +79,8 @@ async def test_approve_candidate_strips_nul_characters(
         json={
             "dry_run": False,
             "override": {
-                "name": "承認\x00ジム",
-                "address": "最終\x00住所",
+                "name": "承認\x00\u200bジム",
+                "address": "最終\x00住所\u200b",
                 "pref_slug": "tokyo",
                 "city_slug": "chiyoda",
             },
@@ -94,3 +94,6 @@ async def test_approve_candidate_strips_nul_characters(
     assert "\x00" not in gym.name
     assert "\x00" not in (gym.address or "")
     assert "\x00" not in gym.slug
+    assert "\u200b" not in gym.name
+    assert "\u200b" not in (gym.address or "")
+    assert "\u200b" not in gym.slug

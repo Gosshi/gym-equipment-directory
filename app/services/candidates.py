@@ -40,6 +40,14 @@ from app.schemas.admin_candidates import (
 from app.services.canonical import make_canonical_id
 from app.services.slug_history import set_current_slug
 
+_ARTICLE_PAT = re.compile(
+    r"/introduction/(?:post_|tr_detail\.html|trainingmachine\.html|notes\.html)$"
+)
+_INTRO_BASE_PAT = re.compile(r"(/sports_center\d+/introduction)/?")
+_CENTER_NO_PAT = re.compile(r"/sports_center(\d+)/")
+_ZW_CHARS = re.compile(r"[\u200B-\u200D\uFEFF]")
+_GENERIC_TITLES = {"トレーニングマシンの紹介", "トレーニングルーム", "利用上の注意"}
+
 
 @dataclass
 class CandidateRow:
@@ -84,12 +92,6 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC).replace(tzinfo=None)
 
 
-def _strip_nul(value: str | None) -> str | None:
-    if value is None:
-        return None
-    return value.replace("\x00", "")
-
-
 def _slugify(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\s-]", "", normalized)
@@ -97,6 +99,30 @@ def _slugify(value: str) -> str:
     tokens = re.split(r"[\s_-]+", lowered)
     slug = "-".join(filter(None, tokens))
     return slug[:64].strip("-")
+
+
+def _sanitize_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    sanitized = value.replace("\x00", "")
+    sanitized = _ZW_CHARS.sub("", sanitized)
+    sanitized = unicodedata.normalize("NFKC", sanitized).strip()
+    return sanitized or None
+
+
+def _is_generic_title(name: str) -> bool:
+    compact = name.replace(" ", "")
+    return any(compact.startswith(title.replace(" ", "")) for title in _GENERIC_TITLES)
+
+
+def _should_use_address_in_slug(address: str) -> bool:
+    if len(address) > 40:
+        return False
+    if ">>>" in address:
+        return False
+    if re.search(r"[。、「」、.!?]", address):
+        return False
+    return True
 
 
 def _build_slug(name: str, address: str | None, city: str | None, pref: str | None) -> str:
@@ -107,12 +133,54 @@ def _build_slug(name: str, address: str | None, city: str | None, pref: str | No
         parts.append(pref)
     if address:
         cleaned_address = re.sub(r"\b\d{3}-\d{4}\b", "", address).strip()
-        if cleaned_address:
+        if cleaned_address and _should_use_address_in_slug(cleaned_address):
             parts.append(cleaned_address)
     slug = _slugify("-".join(parts))
     if not slug:
         raise CandidateServiceError("failed to generate slug")
     return slug
+
+
+def _extract_center_no(url: str | None) -> int | None:
+    if not url:
+        return None
+    match = _CENTER_NO_PAT.search(url)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:  # pragma: no cover - defensive
+        return None
+
+
+def _to_intro_base_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    match = _INTRO_BASE_PAT.search(url)
+    if not match:
+        return None
+    end = match.end(1)
+    return f"{url[:end]}/"
+
+
+async def _find_gym_by_official_url(session: AsyncSession, url: str) -> Gym | None:
+    stmt = select(Gym).where(Gym.official_url == url)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+
+async def _find_gym_by_center_no_intro(session: AsyncSession, center_no: int) -> Gym | None:
+    pattern = f"%/sports_center{center_no}/%"
+    stmt = select(Gym).where(Gym.official_url.like(pattern))
+    result = await session.execute(stmt)
+    for gym in result.scalars():
+        official = gym.official_url or ""
+        if _extract_center_no(official) != center_no:
+            continue
+        base = _to_intro_base_url(official)
+        if base and official.rstrip("/") == base.rstrip("/"):
+            return gym
+    return None
 
 
 async def _base_query(
@@ -489,14 +557,18 @@ async def approve_candidate(
     row = await _fetch_candidate_row(session, candidate_id)
     candidate = row.candidate
     override = request.override or ApproveOverride()
-    candidate_name = _strip_nul(candidate.name_raw)
-    candidate_pref = _strip_nul(candidate.pref_slug)
-    candidate_city = _strip_nul(candidate.city_slug)
-    candidate_address = _strip_nul(candidate.address_raw)
-    override_name = _strip_nul(override.name)
-    override_pref = _strip_nul(override.pref_slug)
-    override_city = _strip_nul(override.city_slug)
-    override_address = _strip_nul(override.address)
+    page_url = getattr(row.page, "url", "") or ""
+    is_article = bool(_ARTICLE_PAT.search(page_url))
+    intro_url = _to_intro_base_url(page_url) if is_article else None
+    center_no = _extract_center_no(page_url)
+    candidate_name = _sanitize_text(candidate.name_raw)
+    candidate_pref = _sanitize_text(candidate.pref_slug)
+    candidate_city = _sanitize_text(candidate.city_slug)
+    candidate_address = _sanitize_text(candidate.address_raw)
+    override_name = _sanitize_text(override.name)
+    override_pref = _sanitize_text(override.pref_slug)
+    override_city = _sanitize_text(override.city_slug)
+    override_address = _sanitize_text(override.address)
     name = override_name or candidate_name
     pref_slug = override_pref or candidate_pref
     city_slug = override_city or candidate_city
@@ -509,9 +581,51 @@ async def approve_candidate(
         raise CandidateServiceError("pref_slug is required")
     if not city_slug:
         raise CandidateServiceError("city_slug is required")
+    assigns = _collect_equipment_assigns(request.equipments, candidate.parsed_json)
+    target_gym: Gym | None = None
+    if intro_url:
+        target_gym = await _find_gym_by_official_url(session, intro_url)
+    if target_gym is None and center_no is not None:
+        target_gym = await _find_gym_by_center_no_intro(session, center_no)
+    if target_gym:
+        preview_summary, preview_latest = await ensure_equipment_links(
+            session,
+            target_gym,
+            assigns,
+            apply_changes=False,
+        )
+        if request.dry_run:
+            return ApprovePreview(
+                preview=ApproveSummary(
+                    gym=_gym_to_preview(target_gym),
+                    equipments=preview_summary,
+                )
+            )
+        summary, latest = await ensure_equipment_links(
+            session,
+            target_gym,
+            assigns,
+            apply_changes=True,
+        )
+        latest_cached = _as_naive_utc(latest)
+        preview_cached = _as_naive_utc(preview_latest)
+        if latest_cached:
+            target_gym.last_verified_at_cached = latest_cached
+        elif preview_cached:
+            target_gym.last_verified_at_cached = preview_cached
+        candidate.status = CandidateStatus.approved
+        await session.flush()
+        await session.commit()
+        return ApproveResult(
+            result=ApproveSummary(
+                gym=_gym_to_preview(target_gym),
+                equipments=summary,
+            )
+        )
+    if is_article and (not address or not pref_slug or not city_slug or _is_generic_title(name)):
+        raise CandidateServiceError("cannot create gym from article page")
     slug = _build_slug(name, address, city_slug, pref_slug)
     canonical_id = make_canonical_id(pref_slug, city_slug, name)
-    assigns = _collect_equipment_assigns(request.equipments, candidate.parsed_json)
     canonical_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
     existing_result = await session.execute(canonical_stmt)
     existing_gym = existing_result.scalars().first()
