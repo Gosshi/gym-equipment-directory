@@ -291,6 +291,82 @@ curl -sS "http://localhost:8000/gyms/search?pref=chiba&city=funabashi&sort=fresh
 - ローカル uvicorn のときは `@127.0.0.1:5432`、コンテナ内からは `@db:5432` を使う。
 - `DATABASE_URL` は **.env** と **起動シェルの環境変数**の優先度に注意（起動前に `echo $DATABASE_URL` で確認）。
 
+### 運用Tips：記事ページから生成されたジムの整理
+
+`/introduction/post_*.html` や `tr_detail.html` 等の「記事ページ単体」を誤って承認してしまった既存レコードは、以下の手順で紹介トップのジムに設備を集約してから削除できます。事前に `gym_equipments` に `(gym_id, equipment_id)` のユニークインデックスがあることを確認してください（`CREATE UNIQUE INDEX IF NOT EXISTS gym_equipments_gym_id_equipment_id_key ON gym_equipments (gym_id, equipment_id);`）。
+
+1. 記事ジム → 紹介トップジムの対応表を作成し、設備を upsert で移管
+
+   ```sql
+   WITH article_gym AS (
+       SELECT
+           g.id AS article_gym_id,
+           regexp_replace(
+               g.official_url,
+               '(.*(/sports_center[0-9]+/introduction))/?.*$',
+               '\1/'
+           ) AS intro_url
+       FROM gyms AS g
+       WHERE g.official_url ~ '/introduction/(post_|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$'
+   ),
+   gym_pair AS (
+       SELECT
+           a.article_gym_id,
+           intro.id AS intro_gym_id
+       FROM article_gym AS a
+       JOIN gyms AS intro ON intro.official_url = a.intro_url
+   ),
+   moved AS (
+       INSERT INTO gym_equipments AS ge (
+           gym_id,
+           equipment_id,
+           availability,
+           count,
+           max_weight_kg,
+           notes,
+           verification_status,
+           last_verified_at,
+           source_id,
+           created_at,
+           updated_at
+       )
+       SELECT
+           gp.intro_gym_id,
+           e.equipment_id,
+           e.availability,
+           e.count,
+           CASE WHEN e.max_weight_kg < 0 THEN NULL ELSE e.max_weight_kg END,
+           e.notes,
+           e.verification_status,
+           e.last_verified_at,
+           e.source_id,
+           NOW(),
+           NOW()
+       FROM gym_equipments AS e
+       JOIN gym_pair AS gp ON e.gym_id = gp.article_gym_id
+       ON CONFLICT (gym_id, equipment_id) DO UPDATE SET
+           availability = EXCLUDED.availability,
+           count = EXCLUDED.count,
+           max_weight_kg = EXCLUDED.max_weight_kg,
+           notes = EXCLUDED.notes,
+           verification_status = EXCLUDED.verification_status,
+           last_verified_at = EXCLUDED.last_verified_at,
+           source_id = EXCLUDED.source_id,
+           updated_at = NOW()
+       RETURNING gp.article_gym_id
+   )
+   DELETE FROM gym_equipments WHERE gym_id IN (SELECT article_gym_id FROM gym_pair);
+   DELETE FROM gyms WHERE id IN (SELECT article_gym_id FROM gym_pair);
+   ```
+
+2. 念のため残存データの重量を正規化（負値を NULL 化）
+
+   ```sql
+   UPDATE gym_equipments SET max_weight_kg = NULL WHERE max_weight_kg < 0;
+   ```
+
+実行後は `SELECT * FROM gyms WHERE official_url ~ '/introduction/(post_|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$';` を確認し、記事ページ由来のジムが消えていることを検証してください。
+
 ---
 
 # 動作確認コマンドの再掲（最短セット）
