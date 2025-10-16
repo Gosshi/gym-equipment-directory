@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 import re
-import unicodedata
-from collections.abc import Iterable
 from itertools import cycle
 from typing import Any
 from urllib.parse import urlparse
@@ -16,6 +14,7 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
+from .parse_municipal_koto import parse_municipal_koto_page
 from .sites import municipal_edogawa, municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
 
@@ -31,47 +30,6 @@ _EQUIPMENT_PATTERNS = (
     ["smith-machine", "bench-press"],
     ["squat-rack", "dumbbell"],
 )
-
-
-def _normalize_equipment_text(value: str | None) -> str:
-    if not value:
-        return ""
-    normalized = unicodedata.normalize("NFKC", value)
-    stripped = normalized.strip().lower()
-    return stripped
-
-
-_MUNICIPAL_KOTO_EQUIPMENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = tuple(
-    (
-        slug,
-        tuple(_normalize_equipment_text(keyword) for keyword in keywords),
-    )
-    for slug, keywords in (
-        ("smith-machine", ("スミス", "スミスマシン")),
-        ("bench-press", ("ベンチプレス",)),
-        ("dumbbell", ("ダンベル",)),
-        ("lat-pulldown", ("ラットプル", "ラットプルダウン")),
-        ("leg-press", ("レッグプレス",)),
-        ("upright-bike", ("エアロバイク", "バイク")),
-    )
-)
-
-
-def map_municipal_koto_equipments(equipments: Iterable[str]) -> list[str]:
-    slugs: list[str] = []
-    seen: set[str] = set()
-    for raw in equipments:
-        text = _normalize_equipment_text(raw)
-        if not text:
-            continue
-        for slug, keywords in _MUNICIPAL_KOTO_EQUIPMENT_KEYWORDS:
-            if slug in seen:
-                continue
-            if any(keyword and keyword in text for keyword in keywords):
-                slugs.append(slug)
-                seen.add(slug)
-                break
-    return slugs
 
 
 def _extract_dummy_name(raw_html: str | None, url: str) -> str:
@@ -109,19 +67,13 @@ def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
 
 
 def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
-    detail = municipal_koto.parse_detail(page.raw_html or "")
-    name = str(detail.get("name") or "").strip()
+    parsed = parse_municipal_koto_page(page.raw_html or "", page.url)
+    name = parsed.name.strip()
     if not name:
         name = _extract_dummy_name(page.raw_html, page.url)
-    raw_address = detail.get("address")
-    address = str(raw_address).strip() if raw_address is not None else None
-    raw_equipments = [str(item) for item in detail.get("equipments_raw") or []]
-    equipments = map_municipal_koto_equipments(raw_equipments)
-    parsed_json: dict[str, Any] = {
-        "site": municipal_koto.SITE_ID,
-        "equipments": equipments,
-        "equipments_raw": raw_equipments,
-    }
+    address = parsed.address.strip() if isinstance(parsed.address, str) and parsed.address else None
+    parsed_json: dict[str, Any] = {"site": municipal_koto.SITE_ID}
+    parsed_json.update(parsed.to_payload())
     return name, address, parsed_json
 
 
