@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.scraped_page import ScrapedPage
 from scripts.ingest import fetch_http
-from scripts.ingest.sites import site_a
+from scripts.ingest.sites import municipal_koto, site_a
 
 
 @pytest.fixture(autouse=True)
@@ -253,3 +253,54 @@ async def test_fetch_http_persists_scraped_pages(
     conditional_headers = [headers for url, headers in second_log if url == detail_url]
     assert conditional_headers
     assert conditional_headers[0]["If-None-Match"] == '"alpha-etag"'
+
+
+@pytest.mark.asyncio
+async def test_municipal_koto_crawler_collects_directory_pages(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+):
+    monkeypatch.setenv("APP_ENV", "dev")
+    robots_url = f"{municipal_koto.BASE_URL}/robots.txt"
+    directory_url = f"{municipal_koto.BASE_URL}/sports_center4/introduction/"
+    directory_html = """
+    <html>
+      <body>
+        <a href="tr_detail.html">詳細</a>
+        <a href="trainingmachine.html">マシン</a>
+        <a href="post_18.html">投稿</a>
+        <a href="custom-note.html">カスタム</a>
+        <a href="/sports_center4/event.html">イベント</a>
+        <a href="/sports_center5/introduction/trainingmachine.html">他施設</a>
+      </body>
+    </html>
+    """
+    responses = {
+        robots_url: [httpx.Response(200, text="User-agent: *\nAllow: /\n")],
+        directory_url: [httpx.Response(200, text=directory_html)],
+    }
+    request_log: list[tuple[str, dict[str, str]]] = []
+    _install_http_stub(monkeypatch, responses, request_log)
+
+    await fetch_http.fetch_http_pages(
+        municipal_koto.SITE_ID,
+        pref="tokyo",
+        city="koto",
+        limit=10,
+        min_delay=0.1,
+        max_delay=0.2,
+        respect_robots=True,
+        user_agent="TestAgent/1.0",
+        timeout=5.0,
+        dry_run=True,
+        force=False,
+    )
+
+    output = [line.strip() for line in capsys.readouterr().out.strip().splitlines() if line.strip()]
+    assert output == [
+        directory_url,
+        f"{directory_url}tr_detail.html",
+        f"{directory_url}trainingmachine.html",
+        f"{directory_url}post_18.html",
+        f"{directory_url}custom-note.html",
+    ]

@@ -14,6 +14,7 @@ from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 from app.services.geocode import geocode
 
+from .normalize_municipal_koto import merge_payloads, normalize_payload
 from .sites import municipal_edogawa, municipal_koto, municipal_sumida, site_a
 from .utils import get_or_create_source
 
@@ -167,7 +168,7 @@ async def normalize_candidates(
 
         equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
 
-        updated = 0
+        updated_ids: set[int] = set()
         pref_map = _PREF_MAPS.get(source)
         city_map = _CITY_MAPS.get(source)
         if pref_map is None or city_map is None:
@@ -175,8 +176,12 @@ async def normalize_candidates(
             raise ValueError(msg)
 
         processed_candidates: list[GymCandidate] = []
+        center_primary: dict[str, GymCandidate] = {}
         for candidate in candidates:
-            if not candidate.name_raw or not candidate.address_raw:
+            if (
+                source != municipal_koto.SITE_ID
+                and (not candidate.name_raw or not candidate.address_raw)
+            ):
                 logger.warning(
                     "Skipping candidate id=%s for source '%s' due to missing name/address",
                     candidate.id,
@@ -189,6 +194,37 @@ async def normalize_candidates(
             pref_slug = _find_slug(candidate.address_raw, pref_map)
             city_slug = _find_slug(candidate.address_raw, city_map)
 
+            current_json = candidate.parsed_json if isinstance(candidate.parsed_json, dict) else {}
+            changed = False
+            if source == municipal_koto.SITE_ID:
+                normalized_payload = normalize_payload(current_json)
+                if normalized_payload != current_json:
+                    candidate.parsed_json = normalized_payload
+                    current_json = normalized_payload
+                    changed = True
+                center_no = current_json.get("center_no")
+                if isinstance(center_no, str) and center_no:
+                    primary = center_primary.get(center_no)
+                    if primary is None:
+                        center_primary[center_no] = candidate
+                    else:
+                        merged = merge_payloads(
+                            primary.parsed_json if isinstance(primary.parsed_json, dict) else {},
+                            current_json,
+                        )
+                        if merged != primary.parsed_json:
+                            primary.parsed_json = merged
+                            updated_ids.add(primary.id)
+                        if not primary.name_raw and candidate.name_raw:
+                            primary.name_raw = candidate.name_raw
+                            updated_ids.add(primary.id)
+                        if not primary.address_raw and candidate.address_raw:
+                            primary.address_raw = candidate.address_raw
+                            updated_ids.add(primary.id)
+                        if candidate.duplicate_of_id != primary.id:
+                            candidate.duplicate_of_id = primary.id
+                            changed = True
+
             if source == municipal_koto.SITE_ID and (not pref_slug or not city_slug):
                 fallback_pref, fallback_city = _assign_pref_city_for_municipal_koto(
                     candidate.address_raw,
@@ -200,7 +236,6 @@ async def normalize_candidates(
                 pref_slug = pref_slug or fallback_pref
                 city_slug = city_slug or fallback_city
 
-            changed = False
             if candidate.pref_slug != pref_slug:
                 candidate.pref_slug = pref_slug
                 changed = True
@@ -221,7 +256,7 @@ async def normalize_candidates(
                 changed = True
 
             if changed:
-                updated += 1
+                updated_ids.add(candidate.id)
 
         await session.commit()
 
@@ -248,6 +283,7 @@ async def normalize_candidates(
 
                 if changed:
                     geocoded += 1
+                    updated_ids.add(candidate.id)
 
             if geocoded:
                 await session.flush()
@@ -267,6 +303,6 @@ async def normalize_candidates(
     logger.info(
         "Normalized %s candidates (updated=%s)",
         len(processed_candidates),
-        updated,
+        len(updated_ids),
     )
     return 0

@@ -294,6 +294,20 @@ def _extract_response_meta(response: httpx.Response) -> dict[str, str]:
     last_modified = response.headers.get("Last-Modified")
     if last_modified:
         meta["last_modified"] = last_modified
+    content_type = response.headers.get("Content-Type")
+    if content_type:
+        parts = [part.strip() for part in content_type.split(";") if part.strip()]
+        if parts:
+            meta["content_type"] = parts[0]
+        for part in parts[1:]:
+            if part.lower().startswith("charset="):
+                meta["charset"] = part.split("=", 1)[1].strip()
+                break
+    if "charset" not in meta and response.encoding:
+        meta["charset"] = response.encoding
+    content_language = response.headers.get("Content-Language")
+    if content_language:
+        meta["lang"] = content_language.split(",")[0].strip()
     return meta
 
 
@@ -407,16 +421,30 @@ async def fetch_http_pages(
             return 1
         robots = decision.rules if respect_robots else None
 
-        detail_urls = await _collect_detail_urls(
-            client,
-            config=config,
-            pref=pref,
-            city=city,
-            limit=effective_limit,
-            respect_robots=respect_robots,
-            robots=robots,
-            timeout=timeout,
-        )
+        collector = getattr(config.module, "collect_detail_urls", None)
+        if callable(collector):
+            detail_urls = await collector(
+                client,
+                base_url=config.base_url,
+                allowed_hosts=config.allowed_hosts,
+                pref=pref,
+                city=city,
+                limit=effective_limit,
+                respect_robots=respect_robots,
+                robots_allows=robots.allows if (respect_robots and robots) else None,
+                timeout=timeout,
+            )
+        else:
+            detail_urls = await _collect_detail_urls(
+                client,
+                config=config,
+                pref=pref,
+                city=city,
+                limit=effective_limit,
+                respect_robots=respect_robots,
+                robots=robots,
+                timeout=timeout,
+            )
 
         if not detail_urls:
             logger.info(

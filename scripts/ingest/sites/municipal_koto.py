@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, Final
+from urllib.parse import urljoin, urlparse
 
+import httpx
 from bs4 import BeautifulSoup
 
 from ._municipal_base import extract_address, normalize_text
+
+logger = logging.getLogger(__name__)
 
 SITE_ID: Final[str] = "municipal_koto"
 ALLOWED_HOSTS: Final[tuple[str, ...]] = ("www.koto-hsc.or.jp",)
@@ -112,11 +117,39 @@ _SEED_FACILITIES: Final[tuple[dict[str, Any], ...]] = (
 )
 
 
+def _build_directory_paths() -> tuple[str, ...]:
+    directories: set[str] = set()
+    for facility in _SEED_FACILITIES:
+        path = str(facility.get("path", ""))
+        if not path:
+            continue
+        if not path.endswith("/"):
+            path = f"{path}/"
+        if path.endswith("/introduction//"):
+            path = path.rstrip("/")
+        if path.endswith("/introduction/"):
+            directories.add(path)
+            continue
+        directories.add(f"{path}introduction/")
+    return tuple(sorted(directories))
+
+
+_FACILITY_DIRECTORY_PATHS: Final[tuple[str, ...]] = _build_directory_paths()
+
+_ALLOWED_PATH_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
+    re.compile(r"/sports_center\d+/introduction/?$"),
+    re.compile(r"/sports_center\d+/introduction/tr_detail\.html$"),
+    re.compile(r"/sports_center\d+/introduction/trainingmachine\.html$"),
+    re.compile(r"/sports_center\d+/introduction/post_\d+\.html$"),
+    re.compile(r"/sports_center\d+/introduction/[a-z0-9_-]+\.html$"),
+)
+
+
 def iter_listing_urls(pref: str, city: str, *, limit: int | None = None) -> Iterable[str]:
     """Return a slice of known detail paths for the supported area."""
 
     _ = pref, city  # unused but keeps signature consistent
-    paths = [facility["path"] for facility in _SEED_FACILITIES]
+    paths = list(_FACILITY_DIRECTORY_PATHS)
     if limit is not None:
         clamped = max(0, min(limit, len(paths)))
         paths = paths[:clamped]
@@ -171,6 +204,94 @@ def seed_pages(limit: int | None = None) -> list[tuple[str, str]]:
 _ADDRESS_LABELS: Final[tuple[str, ...]] = ("所在地", "住所")
 _ADDRESS_TAGS: Final[tuple[str, ...]] = ("dt", "dd", "th", "td", "p", "li", "span", "div")
 _BREADCRUMB_TAGS: Final[tuple[str, ...]] = ("nav", "ol", "ul", "h2", "h3", "h4", "h5")
+
+
+def _path_matches(path: str) -> bool:
+    return any(pattern.match(path) for pattern in _ALLOWED_PATH_PATTERNS)
+
+
+def _same_directory(directory_path: str, candidate_path: str) -> bool:
+    normalized_directory = directory_path if directory_path.endswith("/") else f"{directory_path}/"
+    return candidate_path.startswith(normalized_directory)
+
+
+def _normalize_url(url: str, base_url: str) -> str:
+    cleaned = url.split("#", 1)[0]
+    return urljoin(base_url, cleaned)
+
+
+async def collect_detail_urls(
+    client: httpx.AsyncClient,
+    *,
+    base_url: str,
+    allowed_hosts: Iterable[str],
+    pref: str,
+    city: str,
+    limit: int,
+    respect_robots: bool,
+    robots_allows: Callable[[str], bool] | None,
+    timeout: float,
+) -> list[str]:
+    """Collect introduction subpages for municipal Koto facilities."""
+
+    _ = pref, city
+    detail_urls: list[str] = []
+    seen: set[str] = set()
+    for directory_path in _FACILITY_DIRECTORY_PATHS:
+        if limit and len(detail_urls) >= limit:
+            break
+        directory_url = urljoin(base_url, directory_path)
+        parsed_directory = urlparse(directory_url)
+        if parsed_directory.netloc not in allowed_hosts:
+            continue
+        if respect_robots and robots_allows and not robots_allows(parsed_directory.path):
+            logger.debug("Skipping directory due to robots: %s", directory_url)
+            continue
+        try:
+            response = await client.get(directory_url, timeout=timeout)
+        except httpx.HTTPError as exc:
+            logger.warning("Failed to fetch municipal Koto directory %s: %s", directory_url, exc)
+            continue
+        if response.status_code != 200:
+            logger.warning(
+                "Directory request returned status %s for %s",
+                response.status_code,
+                directory_url,
+            )
+            continue
+
+        candidates = [directory_url]
+        soup = BeautifulSoup(response.text or "", "html.parser")
+        for anchor in soup.find_all("a"):
+            href = anchor.get("href")
+            if not href:
+                continue
+            absolute = _normalize_url(href, directory_url)
+            parsed_absolute = urlparse(absolute)
+            if parsed_absolute.netloc not in allowed_hosts:
+                continue
+            if respect_robots and robots_allows and not robots_allows(parsed_absolute.path):
+                logger.debug("Skipping link due to robots: %s", absolute)
+                continue
+            if not _path_matches(parsed_absolute.path):
+                continue
+            if not _same_directory(parsed_directory.path, parsed_absolute.path):
+                continue
+            candidates.append(absolute)
+
+        for candidate in candidates:
+            if limit and len(detail_urls) >= limit:
+                break
+            parsed_candidate = urlparse(candidate)
+            if parsed_candidate.netloc not in allowed_hosts:
+                continue
+            if not _path_matches(parsed_candidate.path):
+                continue
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            detail_urls.append(candidate)
+    return detail_urls
 
 
 def parse_detail(html: str) -> dict[str, str | list[str] | None]:
@@ -261,6 +382,7 @@ __all__ = [
     "BASE_URL",
     "SUPPORTED_AREAS",
     "iter_listing_urls",
+    "collect_detail_urls",
     "seed_pages",
     "iter_seed_pages",
     "parse_detail",
