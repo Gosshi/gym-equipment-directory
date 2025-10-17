@@ -18,7 +18,7 @@ from ._municipal_base import (
 
 SITE_ID: Final[str] = "municipal_edogawa"
 BASE_URL: Final[str] = "https://www.city.edogawa.tokyo.jp"
-LISTING_PATH: Final[str] = "/e078/sports/trainingroom/index.html"
+LISTING_PATH: Final[str] = "/e028/sports/trainingroom/index.html"
 LISTING_URL: Final[str] = f"{BASE_URL}{LISTING_PATH}"
 
 
@@ -47,7 +47,7 @@ class MunicipalEdogawaParsedFacility:
 
 _FACILITY_SEEDS: Final[tuple[MunicipalEdogawaFacilitySeed, ...]] = (
     MunicipalEdogawaFacilitySeed(
-        path="/e078/sports/trainingroom/sogo_sports_center.html",
+        path="e078/sports/trainingroom/sogo_sports_center.html",
         name="江戸川区総合体育館 トレーニングルーム",
         postal_code="132-0031",
         address="東京都江戸川区松本1-35-1",

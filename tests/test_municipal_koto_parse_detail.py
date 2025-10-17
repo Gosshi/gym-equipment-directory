@@ -100,6 +100,7 @@ def test_parse_post_template_extracts_from_paragraphs() -> None:
     assert result.center_no == "2"
     assert len(result.equipments_raw) >= 5
     assert len(payload["equipments_slugs"]) >= 5
-    assert {
-        slot["slug"] for slot in payload["equipments_slotted"]
-    } & {"torso-rotation", "shoulder-press"}
+    assert {slot["slug"] for slot in payload["equipments_slotted"]} & {
+        "torso-rotation",
+        "shoulder-press",
+    }

@@ -1,4 +1,4 @@
-"""Wrapper normalizer for Koto municipal candidates."""
+"""Wrapper normalizer for Edogawa municipal candidates."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from .normalize_municipal_generic import (
 from .sources_registry import SOURCES
 
 
-def normalize_municipal_koto_payload(
+def normalize_municipal_edogawa_payload(
     parsed_json: dict[str, Any] | None,
     *,
     page_url: str,
 ) -> MunicipalNormalizationResult:
-    source = SOURCES["municipal_koto"]
+    source = SOURCES["municipal_edogawa"]
     return normalize_municipal_payload(parsed_json, source=source, page_url=page_url)
 
 
-__all__ = ["normalize_municipal_koto_payload", "MunicipalNormalizationResult"]
+__all__ = ["normalize_municipal_edogawa_payload", "MunicipalNormalizationResult"]
