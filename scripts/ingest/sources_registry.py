@@ -53,14 +53,21 @@ SOURCES: dict[str, MunicipalSource] = {
     "municipal_edogawa": MunicipalSource(
         title="municipal_edogawa",
         base_url="https://www.city.edogawa.tokyo.jp/",
-        intro_patterns=[r"/e078/sports/trainingroom/.*\.html$"],
+        # 施設「紹介トップ」を拾う（最初は少し緩めでOK）
+        intro_patterns=[
+            r"/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/.+/index\.html$",
+            r"/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/[^/]+\.html$",
+        ],
+        # お知らせ系は施設新規作成しない（必要に応じて追加）
         article_patterns=ARTICLE_PAT_DEFAULT
-        + [r"/e078/sports/.*/(news|notice)/.*\.html$"],
+        + [
+            r"/e028/.*/(news|oshirase|notice)/.*\.html$",
+        ],
         list_seeds=[
-            "/e078/sports/trainingroom/index.html",
-            "/e078/sports/trainingroom/sogo_sports_center.html",
-            "/e078/sports/trainingroom/shinozaki_plaza.html",
-            "/e078/sports/trainingroom/tobu_health_support.html",
+            "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html",
+            "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/sogo_sports_center/index.html",
+            "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/shinozaki_plaza/index.html",
+            "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/tobu_health_support/index.html",
         ],
         pref_slug="tokyo",
         city_slug="edogawa",
@@ -69,17 +76,22 @@ SOURCES: dict[str, MunicipalSource] = {
     "municipal_sumida": MunicipalSource(
         title="municipal_sumida",
         base_url="https://www.city.sumida.lg.jp/",
-        intro_patterns=[r"/sports/facility/training/.*\.html$"],
+        intro_patterns=[
+            r"/sisetu_info/[^/]+/(index\.html|[^/]+\.html)$",
+        ],
         article_patterns=ARTICLE_PAT_DEFAULT
-        + [r"/sports/.*/(oshirase|news)/.*\.html$"],
+        + [
+            r"/sisetu_info/.*/(oshirase|news)/.*\.html$",
+        ],
         list_seeds=[
-            "/sports/facility/training/sports_center.html",
-            "/sports/facility/training/edogawa_gym.html",
-            "/sports/facility/training/hikifune_center.html",
+            "/sisetu_info/setsubi_kinou/okunaisports.html",
+            "/sisetu_info/sports/umewaka.html",
+            "/sisetu_info/sports/sumidasportcenter.html",
+            "/sisetu_info/sports/sougou-undoujou.html",
+            "/sisetu_info/tamokuteki/midori_communityc.html",
         ],
         pref_slug="tokyo",
         city_slug="sumida",
-        parse_hints=None,
     ),
     # --- Additional wards will be registered here ---
     # "municipal_chuo": MunicipalSource(...),

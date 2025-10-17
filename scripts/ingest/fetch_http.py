@@ -179,8 +179,7 @@ async def _discover_municipal_pages(
     intro_patterns = source.compile_intro_patterns()
     article_patterns = source.compile_article_patterns()
     intro_seed_paths = {
-        _normalize_path(_resolve_absolute_url(seed, source.base_url))
-        for seed in source.list_seeds
+        _normalize_path(_resolve_absolute_url(seed, source.base_url)) for seed in source.list_seeds
     }
     queue: deque[tuple[str, int]] = deque()
     seen: set[str] = set()
@@ -587,8 +586,7 @@ async def fetch_http_pages(
                     timeout=timeout,
                 )
                 detail_urls = [
-                    MunicipalDiscoveredPage(url=item, page_type=None)
-                    for item in collected
+                    MunicipalDiscoveredPage(url=item, page_type=None) for item in collected
                 ]
             else:
                 collected_urls = await _collect_detail_urls(
@@ -602,8 +600,7 @@ async def fetch_http_pages(
                     timeout=timeout,
                 )
                 detail_urls = [
-                    MunicipalDiscoveredPage(url=item, page_type=None)
-                    for item in collected_urls
+                    MunicipalDiscoveredPage(url=item, page_type=None) for item in collected_urls
                 ]
 
         if not detail_urls:

@@ -159,9 +159,7 @@ async def normalize_candidates(
 
                 current_json = parsed_json or {}
                 equipments = (
-                    current_json.get("equipments", [])
-                    if isinstance(current_json, dict)
-                    else []
+                    current_json.get("equipments", []) if isinstance(current_json, dict) else []
                 )
                 filtered = _filter_equipments(equipment_slugs, equipments)
                 if filtered != equipments:

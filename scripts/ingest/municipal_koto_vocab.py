@@ -48,9 +48,7 @@ VOCABULARY: Final[tuple[EquipmentDefinition, ...]] = tuple(
 )
 
 _EXACT_LOOKUP: Final[dict[str, str]] = {
-    _nkfc(label): definition.slug
-    for definition in VOCABULARY
-    for label in definition.labels
+    _nkfc(label): definition.slug for definition in VOCABULARY for label in definition.labels
 }
 
 
