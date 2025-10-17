@@ -6,6 +6,7 @@ import logging
 from collections.abc import Iterable
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db import SessionLocal
 from app.models.equipment import Equipment
@@ -89,6 +90,7 @@ async def normalize_candidates(
 
         candidate_query = (
             select(GymCandidate)
+            .options(selectinload(GymCandidate.source_page))
             .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
             .where(ScrapedPage.source_id == source_obj.id)
             .order_by(GymCandidate.id)
