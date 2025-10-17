@@ -6,20 +6,24 @@ import asyncio
 import logging
 import os
 import random
+from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
+import re
 from typing import Any, NamedTuple
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from bs4 import BeautifulSoup
 from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
 
-from .sites import municipal_koto, site_a
+from .sites import site_a
+from .sources_registry import MunicipalSource, SOURCES
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -51,14 +55,16 @@ SITE_CONFIGS: dict[str, HttpSiteConfig] = {
         supported_areas=set(site_a.SUPPORTED_HTTP_AREAS),
         uses_listing_pages=True,
     ),
-    municipal_koto.SITE_ID: HttpSiteConfig(
-        module=municipal_koto,
-        base_url=municipal_koto.BASE_URL,
-        allowed_hosts=municipal_koto.ALLOWED_HOSTS,
-        supported_areas=set(municipal_koto.SUPPORTED_AREAS),
-        uses_listing_pages=False,
-    ),
 }
+
+MUNICIPAL_PAGE_TYPE_META_KEY = "municipal_page_type"
+MUNICIPAL_MAX_DEPTH = 2
+
+
+@dataclass(slots=True, frozen=True)
+class MunicipalDiscoveredPage:
+    url: str
+    page_type: str | None
 
 
 class RobotsRules:
@@ -118,6 +124,118 @@ def _resolve_absolute_url(url_or_path: str, base_url: str) -> str:
     if parsed.scheme in {"http", "https"}:
         return url_or_path
     return urljoin(base_url, url_or_path)
+
+
+def _normalize_path(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/") + "/"
+    return path
+
+
+def _classify_municipal_url(
+    url: str,
+    *,
+    source: MunicipalSource,
+    intro_patterns: list[re.Pattern[str]],
+    article_patterns: list[re.Pattern[str]],
+    intro_seed_paths: set[str],
+) -> str | None:
+    path = _normalize_path(url)
+    if path in intro_seed_paths:
+        return "intro"
+    for pattern in intro_patterns:
+        if pattern.search(path):
+            return "intro"
+    for pattern in article_patterns:
+        if pattern.search(path):
+            return "article"
+    return None
+
+
+def _iter_links(html: str) -> Iterable[str]:
+    soup = BeautifulSoup(html or "", "html.parser")
+    for anchor in soup.find_all("a"):
+        href = anchor.get("href")
+        if not href:
+            continue
+        yield href
+
+
+async def _discover_municipal_pages(
+    client: httpx.AsyncClient,
+    *,
+    source: MunicipalSource,
+    limit: int,
+    respect_robots: bool,
+    robots: RobotsRules | None,
+    timeout: float,
+) -> list[MunicipalDiscoveredPage]:
+    parsed_base = urlparse(source.base_url)
+    allowed_host = parsed_base.netloc
+    intro_patterns = source.compile_intro_patterns()
+    article_patterns = source.compile_article_patterns()
+    intro_seed_paths = {_normalize_path(_resolve_absolute_url(seed, source.base_url)) for seed in source.list_seeds}
+    queue: deque[tuple[str, int]] = deque()
+    seen: set[str] = set()
+    results: list[MunicipalDiscoveredPage] = []
+
+    for seed in source.list_seeds:
+        absolute = _resolve_absolute_url(seed, source.base_url)
+        queue.append((absolute, 0))
+
+    while queue and len(results) < limit:
+        current_url, depth = queue.popleft()
+        parsed = urlparse(current_url)
+        if parsed.scheme not in {"http", "https"}:
+            continue
+        if parsed.netloc != allowed_host:
+            continue
+        if current_url in seen:
+            continue
+        if respect_robots and robots and not robots.allows(parsed.path):
+            logger.debug("Skipping %s due to robots.txt", current_url)
+            continue
+        seen.add(current_url)
+        try:
+            response = await client.get(current_url, timeout=timeout)
+        except httpx.HTTPError as exc:
+            logger.warning("Failed to crawl %s: %s", current_url, exc)
+            continue
+        if response.status_code != 200:
+            logger.debug("Crawl for %s returned status %s", current_url, response.status_code)
+            continue
+
+        classification = _classify_municipal_url(
+            current_url,
+            source=source,
+            intro_patterns=intro_patterns,
+            article_patterns=article_patterns,
+            intro_seed_paths=intro_seed_paths,
+        )
+        if classification or current_url in intro_seed_paths:
+            results.append(MunicipalDiscoveredPage(url=current_url, page_type=classification))
+            if len(results) >= limit:
+                break
+
+        if depth >= MUNICIPAL_MAX_DEPTH:
+            continue
+
+        for href in _iter_links(response.text or ""):
+            resolved = _resolve_absolute_url(href, current_url)
+            parsed_resolved = urlparse(resolved)
+            if parsed_resolved.netloc != allowed_host:
+                continue
+            if respect_robots and robots and not robots.allows(parsed_resolved.path):
+                continue
+            if resolved in seen:
+                continue
+            queue.append((resolved, depth + 1))
+
+    return results
 
 
 def _parse_robots(txt: str, *, user_agent: str) -> RobotsRules:
@@ -326,6 +444,7 @@ async def _upsert_detail_page(
     url: str,
     response: httpx.Response,
     existing: ScrapedPage | None,
+    extra_meta: dict[str, Any] | None = None,
 ) -> tuple[bool, bool]:
     now = datetime.now(UTC)
     status = response.status_code
@@ -334,6 +453,7 @@ async def _upsert_detail_page(
         html = response.text
         content_hash = sha256(html.encode("utf-8")).hexdigest()
         merged_meta = _merge_meta(existing.response_meta if existing else None, meta)
+        merged_meta = _merge_extra_meta(merged_meta, extra_meta)
         if existing is None:
             page = ScrapedPage(
                 source_id=source_id,
@@ -359,10 +479,19 @@ async def _upsert_detail_page(
         existing.fetched_at = now
         existing.http_status = status
         merged_meta = _merge_meta(existing.response_meta, meta)
+        merged_meta = _merge_extra_meta(merged_meta, extra_meta)
         existing.response_meta = merged_meta
         return False, True
     logger.warning("Detail request returned status %s for %s", status, url)
     return False, False
+
+
+def _merge_extra_meta(meta: dict[str, Any] | None, extra: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not extra:
+        return meta
+    merged = dict(meta or {})
+    merged.update(extra)
+    return merged
 
 
 async def fetch_http_pages(
@@ -380,14 +509,19 @@ async def fetch_http_pages(
     force: bool,
 ) -> int:
     source = source.strip()
+    municipal_source = SOURCES.get(source)
     config = SITE_CONFIGS.get(source)
-    if config is None:
+    if municipal_source is None and config is None:
         msg = f"Unsupported source for HTTP fetch: {source}"
         raise ValueError(msg)
 
     pref = pref.strip().lower()
     city = city.strip().lower()
-    if (pref, city) not in config.supported_areas:
+    if municipal_source is not None:
+        if pref != municipal_source.pref_slug or city != municipal_source.city_slug:
+            msg = f"Unsupported area combination: pref={pref}, city={city}"
+            raise ValueError(msg)
+    elif config is not None and (pref, city) not in config.supported_areas:
         msg = f"Unsupported area combination: pref={pref}, city={city}"
         raise ValueError(msg)
 
@@ -410,9 +544,10 @@ async def fetch_http_pages(
         timeout=timeout,
         follow_redirects=True,
     ) as client:
+        base_url = municipal_source.base_url if municipal_source else config.base_url
         decision = await _load_robots(
             client,
-            base_url=config.base_url,
+            base_url=base_url,
             user_agent=user_agent,
             timeout=timeout,
             respect_robots=respect_robots,
@@ -421,30 +556,43 @@ async def fetch_http_pages(
             return 1
         robots = decision.rules if respect_robots else None
 
-        collector = getattr(config.module, "collect_detail_urls", None)
-        if callable(collector):
-            detail_urls = await collector(
+        if municipal_source is not None:
+            detail_pages = await _discover_municipal_pages(
                 client,
-                base_url=config.base_url,
-                allowed_hosts=config.allowed_hosts,
-                pref=pref,
-                city=city,
-                limit=effective_limit,
-                respect_robots=respect_robots,
-                robots_allows=robots.allows if (respect_robots and robots) else None,
-                timeout=timeout,
-            )
-        else:
-            detail_urls = await _collect_detail_urls(
-                client,
-                config=config,
-                pref=pref,
-                city=city,
+                source=municipal_source,
                 limit=effective_limit,
                 respect_robots=respect_robots,
                 robots=robots,
                 timeout=timeout,
             )
+            detail_urls = detail_pages
+        else:
+            collector = getattr(config.module, "collect_detail_urls", None)
+            if callable(collector):
+                collected = await collector(
+                    client,
+                    base_url=config.base_url,
+                    allowed_hosts=config.allowed_hosts,
+                    pref=pref,
+                    city=city,
+                    limit=effective_limit,
+                    respect_robots=respect_robots,
+                    robots_allows=robots.allows if (respect_robots and robots) else None,
+                    timeout=timeout,
+                )
+                detail_urls = [MunicipalDiscoveredPage(url=item, page_type=None) for item in collected]
+            else:
+                collected_urls = await _collect_detail_urls(
+                    client,
+                    config=config,
+                    pref=pref,
+                    city=city,
+                    limit=effective_limit,
+                    respect_robots=respect_robots,
+                    robots=robots,
+                    timeout=timeout,
+                )
+                detail_urls = [MunicipalDiscoveredPage(url=item, page_type=None) for item in collected_urls]
 
         if not detail_urls:
             logger.info(
@@ -456,8 +604,8 @@ async def fetch_http_pages(
             return 0
 
         if dry_run:
-            for url in detail_urls:
-                print(url)
+            for page in detail_urls:
+                print(page.url)
             logger.info("Dry-run listed %s detail URLs for %s/%s", len(detail_urls), pref, city)
             return 0
 
@@ -466,8 +614,12 @@ async def fetch_http_pages(
             success = 0
             not_modified = 0
             failures = 0
-            for index, url in enumerate(detail_urls):
-                _ensure_allowed_domain(url, config.allowed_hosts)
+            for index, page in enumerate(detail_urls):
+                url = page.url
+                allowed_hosts = (
+                    (urlparse(municipal_source.base_url).netloc,) if municipal_source else config.allowed_hosts
+                )
+                _ensure_allowed_domain(url, allowed_hosts)
                 headers = {"User-Agent": user_agent}
                 existing_result = await session.execute(
                     select(ScrapedPage).where(
@@ -492,12 +644,17 @@ async def fetch_http_pages(
                     failures += 1
                     continue
 
+                extra_meta = {}
+                if page.page_type:
+                    extra_meta[MUNICIPAL_PAGE_TYPE_META_KEY] = page.page_type
+
                 ok, cached = await _upsert_detail_page(
                     session,
                     source_id=source_obj.id,
                     url=url,
                     response=response,
                     existing=existing_page,
+                    extra_meta=extra_meta or None,
                 )
                 if ok:
                     success += 1
@@ -512,7 +669,7 @@ async def fetch_http_pages(
 
             await session.commit()
 
-        sample = ", ".join(detail_urls[:2])
+        sample = ", ".join(page.url for page in detail_urls[:2])
         logger.info(
             "Fetch summary for %s/%s: success=%s, not_modified=%s, failures=%s",
             pref,

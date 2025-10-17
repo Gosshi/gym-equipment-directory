@@ -56,13 +56,17 @@ pre-commit-run:
 	pre-commit run --all-files
 
 .PHONY: up down logs bash db-bash migrate rev freshness test seed-equip \
-	pre-commit-install pre-commit-run curl-admin-candidates \
-	ingest-fetch ingest-parse ingest-normalize ingest-approve \
-	ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
-	ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
-	ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
-	ingest-fetch-municipal-koto ingest-parse-municipal-koto \
-	ingest-normalize-municipal-koto
+        pre-commit-install pre-commit-run curl-admin-candidates \
+        ingest-fetch ingest-parse ingest-normalize ingest-approve \
+        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
+        ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
+        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
+        ingest-fetch-ward ingest-parse-ward ingest-normalize-ward \
+        ingest-fetch-municipal-koto ingest-parse-municipal-koto \
+        ingest-normalize-municipal-koto ingest-fetch-municipal-edogawa \
+        ingest-parse-municipal-edogawa ingest-normalize-municipal-edogawa \
+        ingest-fetch-municipal-sumida ingest-parse-municipal-sumida \
+        ingest-normalize-municipal-sumida
 ingest-fetch:
 	python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
@@ -99,18 +103,45 @@ ingest-normalize-site-a:
 ingest-normalize-site-a-funabashi:
 	python -m scripts.ingest normalize --source site_a --limit 10
 
-ingest-fetch-municipal-koto:
-	python -m scripts.ingest fetch-http \
-                --source municipal_koto \
+ingest-fetch-ward:
+        python -m scripts.ingest fetch-http \
+                --source $(S) \
                 --pref tokyo \
-                --city koto \
-                --limit 6
+                --city $(C) \
+                --limit $(L)
+
+ingest-parse-ward:
+        python -m scripts.ingest parse --source $(S) --limit $(L)
+
+ingest-normalize-ward:
+        python -m scripts.ingest normalize --source $(S) --limit $(L)
+
+ingest-fetch-municipal-koto:
+        $(MAKE) ingest-fetch-ward S=municipal_koto C=koto L=100
 
 ingest-parse-municipal-koto:
-	python -m scripts.ingest parse --source municipal_koto --limit 6
+        $(MAKE) ingest-parse-ward S=municipal_koto L=200
 
 ingest-normalize-municipal-koto:
-	python -m scripts.ingest normalize --source municipal_koto --limit 6
+        $(MAKE) ingest-normalize-ward S=municipal_koto L=200
+
+ingest-fetch-municipal-edogawa:
+        $(MAKE) ingest-fetch-ward S=municipal_edogawa C=edogawa L=100
+
+ingest-parse-municipal-edogawa:
+        $(MAKE) ingest-parse-ward S=municipal_edogawa L=200
+
+ingest-normalize-municipal-edogawa:
+        $(MAKE) ingest-normalize-ward S=municipal_edogawa L=200
+
+ingest-fetch-municipal-sumida:
+        $(MAKE) ingest-fetch-ward S=municipal_sumida C=sumida L=100
+
+ingest-parse-municipal-sumida:
+        $(MAKE) ingest-parse-ward S=municipal_sumida L=200
+
+ingest-normalize-municipal-sumida:
+        $(MAKE) ingest-normalize-ward S=municipal_sumida L=200
 
 curl-admin-candidates:
 	@echo "# 一覧"

@@ -14,8 +14,11 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
+from .parse_municipal_edogawa import parse_municipal_edogawa_page
 from .parse_municipal_koto import parse_municipal_koto_page
-from .sites import municipal_edogawa, municipal_koto, municipal_sumida, site_a
+from .parse_municipal_sumida import parse_municipal_sumida_page
+from .sites import site_a
+from .sources_registry import SOURCES
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -66,39 +69,46 @@ def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
     return parsed.name_raw, parsed.address_raw, parsed_json
 
 
-def _build_municipal_koto_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
-    parsed = parse_municipal_koto_page(page.raw_html or "", page.url)
-    name = parsed.name.strip()
+def _get_page_type(page: ScrapedPage) -> str | None:
+    meta = page.response_meta or {}
+    if isinstance(meta, dict):
+        value = meta.get("municipal_page_type")
+        if isinstance(value, str):
+            return value
+    return None
+
+
+def _build_municipal_payload(
+    page: ScrapedPage,
+    *,
+    source_id: str,
+) -> tuple[str, str | None, dict[str, Any]]:
+    if source_id == "municipal_koto":
+        parser = parse_municipal_koto_page
+    elif source_id == "municipal_edogawa":
+        parser = parse_municipal_edogawa_page
+    elif source_id == "municipal_sumida":
+        parser = parse_municipal_sumida_page
+    else:
+        msg = f"Unsupported municipal parser for source '{source_id}'"
+        raise ValueError(msg)
+
+    page_type = _get_page_type(page)
+    parsed = parser(page.raw_html or "", page.url, page_type=page_type)
+
+    name = parsed.facility_name.strip()
     if not name:
-        name = _extract_dummy_name(page.raw_html, page.url)
+        name = parsed.page_title.strip() or _extract_dummy_name(page.raw_html, page.url)
     address = parsed.address.strip() if isinstance(parsed.address, str) and parsed.address else None
-    parsed_json: dict[str, Any] = {"site": municipal_koto.SITE_ID}
-    parsed_json.update(parsed.to_payload())
-    return name, address, parsed_json
 
-
-def _build_municipal_sumida_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
-    detail = municipal_sumida.parse(page.raw_html or "", url=page.url)
-    name = detail.name.strip() or _extract_dummy_name(page.raw_html, page.url)
-    address = detail.address.strip() if detail.address else None
     parsed_json: dict[str, Any] = {
-        "site": municipal_sumida.SITE_ID,
-        "detail_url": detail.detail_url or page.url,
-        "official_url": detail.official_url,
-        "notes": detail.notes,
-    }
-    return name, address, parsed_json
-
-
-def _build_municipal_edogawa_payload(page: ScrapedPage) -> tuple[str, str | None, dict[str, Any]]:
-    detail = municipal_edogawa.parse(page.raw_html or "", url=page.url)
-    name = detail.name.strip() or _extract_dummy_name(page.raw_html, page.url)
-    address = detail.address.strip() if detail.address else None
-    parsed_json: dict[str, Any] = {
-        "site": municipal_edogawa.SITE_ID,
-        "detail_url": detail.detail_url or page.url,
-        "postal_code": detail.postal_code,
-        "tel": detail.tel,
+        "facility_name": parsed.facility_name,
+        "address": parsed.address,
+        "equipments_raw": parsed.equipments_raw,
+        "center_no": parsed.center_no,
+        "page_type": parsed.page_type,
+        "page_title": parsed.page_title,
+        "page_url": page.url,
     }
     return name, address, parsed_json
 
@@ -146,12 +156,10 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 )
             elif source == site_a.SITE_ID:
                 name_raw, address_raw, parsed_json = _build_site_a_payload(page)
-            elif source == municipal_koto.SITE_ID:
-                name_raw, address_raw, parsed_json = _build_municipal_koto_payload(page)
-            elif source == municipal_sumida.SITE_ID:
-                name_raw, address_raw, parsed_json = _build_municipal_sumida_payload(page)
-            elif source == municipal_edogawa.SITE_ID:
-                name_raw, address_raw, parsed_json = _build_municipal_edogawa_payload(page)
+            elif source in SOURCES:
+                name_raw, address_raw, parsed_json = _build_municipal_payload(
+                    page, source_id=source
+                )
             else:
                 msg = f"Unsupported source: {source}"
                 raise ValueError(msg)
