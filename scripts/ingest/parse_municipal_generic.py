@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
-from .sources_registry import MunicipalSource
 from .sites._municipal_base import extract_address
+from .sources_registry import MunicipalSource
 
 _DEFAULT_MAIN_SELECTORS: tuple[str, ...] = (
     "main",

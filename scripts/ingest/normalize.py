@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from sqlalchemy import select
 
@@ -156,7 +156,11 @@ async def normalize_candidates(
                     changed = True
 
                 current_json = parsed_json or {}
-                equipments = current_json.get("equipments", []) if isinstance(current_json, dict) else []
+                equipments = (
+                    current_json.get("equipments", [])
+                    if isinstance(current_json, dict)
+                    else []
+                )
                 filtered = _filter_equipments(equipment_slugs, equipments)
                 if filtered != equipments:
                     new_payload = dict(current_json)

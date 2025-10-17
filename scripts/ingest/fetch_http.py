@@ -6,12 +6,12 @@ import asyncio
 import logging
 import os
 import random
+import re
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
-import re
 from typing import Any, NamedTuple
 from urllib.parse import urljoin, urlparse
 
@@ -23,7 +23,7 @@ from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
 
 from .sites import site_a
-from .sources_registry import MunicipalSource, SOURCES
+from .sources_registry import SOURCES, MunicipalSource
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,10 @@ async def _discover_municipal_pages(
     allowed_host = parsed_base.netloc
     intro_patterns = source.compile_intro_patterns()
     article_patterns = source.compile_article_patterns()
-    intro_seed_paths = {_normalize_path(_resolve_absolute_url(seed, source.base_url)) for seed in source.list_seeds}
+    intro_seed_paths = {
+        _normalize_path(_resolve_absolute_url(seed, source.base_url))
+        for seed in source.list_seeds
+    }
     queue: deque[tuple[str, int]] = deque()
     seen: set[str] = set()
     results: list[MunicipalDiscoveredPage] = []
@@ -486,7 +489,10 @@ async def _upsert_detail_page(
     return False, False
 
 
-def _merge_extra_meta(meta: dict[str, Any] | None, extra: dict[str, Any] | None) -> dict[str, Any] | None:
+def _merge_extra_meta(
+    meta: dict[str, Any] | None,
+    extra: dict[str, Any] | None,
+) -> dict[str, Any] | None:
     if not extra:
         return meta
     merged = dict(meta or {})
@@ -580,7 +586,10 @@ async def fetch_http_pages(
                     robots_allows=robots.allows if (respect_robots and robots) else None,
                     timeout=timeout,
                 )
-                detail_urls = [MunicipalDiscoveredPage(url=item, page_type=None) for item in collected]
+                detail_urls = [
+                    MunicipalDiscoveredPage(url=item, page_type=None)
+                    for item in collected
+                ]
             else:
                 collected_urls = await _collect_detail_urls(
                     client,
@@ -592,7 +601,10 @@ async def fetch_http_pages(
                     robots=robots,
                     timeout=timeout,
                 )
-                detail_urls = [MunicipalDiscoveredPage(url=item, page_type=None) for item in collected_urls]
+                detail_urls = [
+                    MunicipalDiscoveredPage(url=item, page_type=None)
+                    for item in collected_urls
+                ]
 
         if not detail_urls:
             logger.info(
@@ -617,7 +629,9 @@ async def fetch_http_pages(
             for index, page in enumerate(detail_urls):
                 url = page.url
                 allowed_hosts = (
-                    (urlparse(municipal_source.base_url).netloc,) if municipal_source else config.allowed_hosts
+                    (urlparse(municipal_source.base_url).netloc,)
+                    if municipal_source
+                    else config.allowed_hosts
                 )
                 _ensure_allowed_domain(url, allowed_hosts)
                 headers = {"User-Agent": user_agent}
