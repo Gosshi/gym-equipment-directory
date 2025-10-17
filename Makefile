@@ -104,17 +104,17 @@ ingest-normalize-site-a-funabashi:
 	python -m scripts.ingest normalize --source site_a --limit 10
 
 ingest-fetch-ward:
-	python -m scripts.ingest fetch-http \
-	        --source $(S) \
-	        --pref tokyo \
-	        --city $(C) \
-	        --limit $(L)
+	docker compose --env-file $(ENV_FILE) exec api \
+	  python -m scripts.ingest fetch-http \
+	    --source $(S) --pref tokyo --city $(C) --limit $(L)
 
 ingest-parse-ward:
-	python -m scripts.ingest parse --source $(S) --limit $(L)
+	docker compose --env-file $(ENV_FILE) exec api \
+	  python -m scripts.ingest parse --source $(S) --limit $(L)
 
 ingest-normalize-ward:
-	python -m scripts.ingest normalize --source $(S) --limit $(L)
+	docker compose --env-file $(ENV_FILE) exec api \
+	  python -m scripts.ingest normalize --source $(S) --limit $(L)
 
 ingest-fetch-municipal-koto:
 	$(MAKE) ingest-fetch-ward S=municipal_koto C=koto L=100
