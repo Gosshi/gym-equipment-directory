@@ -1,13 +1,21 @@
 from __future__ import annotations
 
-from scripts.ingest.normalize_municipal_koto import normalize_payload
+from scripts.ingest.normalize_municipal_koto import normalize_municipal_koto_payload
 from scripts.ingest.parse_municipal_koto import parse_municipal_koto_page
 
 
-def _parse_and_normalize(html: str, url: str):
-    parsed = parse_municipal_koto_page(html, url)
-    payload = normalize_payload(parsed.to_payload())
-    return parsed, payload
+def _normalize(parsed, url: str):
+    parsed_json = {
+        "facility_name": parsed.facility_name,
+        "address": parsed.address,
+        "equipments_raw": parsed.equipments_raw,
+        "equipments": parsed.equipments,
+        "center_no": parsed.center_no,
+        "page_type": parsed.page_type,
+        "page_title": parsed.page_title,
+        "meta": parsed.meta,
+    }
+    return normalize_municipal_koto_payload(parsed_json, page_url=url)
 
 
 def test_parse_trainingmachine_template_extracts_counts() -> None:
@@ -31,17 +39,18 @@ def test_parse_trainingmachine_template_extracts_counts() -> None:
     </html>
     """.strip()
 
-    result, payload = _parse_and_normalize(
+    result = parse_municipal_koto_page(
         html,
         "https://www.koto-hsc.or.jp/sports_center3/introduction/trainingmachine.html",
     )
+    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center3/introduction/trainingmachine.html")
 
-    assert result.name == "亀戸スポーツセンター"
+    assert result.facility_name == "亀戸スポーツセンター"
     assert result.center_no == "3"
     assert len(result.equipments_raw) >= 5
-    assert any(entry.count is not None for entry in result.equipments_parsed)
-    assert len(payload["equipments_slugs"]) >= 5
-    assert any(slot["count"] >= 2 for slot in payload["equipments_slotted"])
+    assert any(entry["count"] >= 2 for entry in result.equipments)
+    assert len(normalized.parsed_json["equipments_slugs"]) >= 5
+    assert any(slot["count"] >= 2 for slot in normalized.parsed_json["equipments_slotted"])
 
 
 def test_parse_tr_detail_template_handles_lists() -> None:
@@ -65,17 +74,18 @@ def test_parse_tr_detail_template_handles_lists() -> None:
     </html>
     """.strip()
 
-    result, payload = _parse_and_normalize(
+    result = parse_municipal_koto_page(
         html,
         "https://www.koto-hsc.or.jp/sports_center4/introduction/tr_detail.html",
     )
+    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center4/introduction/tr_detail.html")
 
-    assert result.name == "有明スポーツセンター"
+    assert result.facility_name == "有明スポーツセンター"
     assert result.center_no == "4"
     assert len(result.equipments_raw) >= 5
-    assert any(entry.count is not None for entry in result.equipments_parsed)
-    assert len(payload["equipments_slugs"]) >= 5
-    assert any(slot["slug"] == "leg-press" for slot in payload["equipments_slotted"])
+    assert any(entry["count"] >= 1 for entry in result.equipments)
+    assert len(normalized.parsed_json["equipments_slugs"]) >= 5
+    assert any(slot["slug"] == "leg-press" for slot in normalized.parsed_json["equipments_slotted"])
 
 
 def test_parse_post_template_extracts_from_paragraphs() -> None:
@@ -91,16 +101,17 @@ def test_parse_post_template_extracts_from_paragraphs() -> None:
     </html>
     """.strip()
 
-    result, payload = _parse_and_normalize(
+    result = parse_municipal_koto_page(
         html,
         "https://www.koto-hsc.or.jp/sports_center2/introduction/post_18.html",
     )
+    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center2/introduction/post_18.html")
 
-    assert result.name == "深川北スポーツセンター"
+    assert result.facility_name == "深川北スポーツセンター"
     assert result.center_no == "2"
     assert len(result.equipments_raw) >= 5
-    assert len(payload["equipments_slugs"]) >= 5
-    assert {slot["slug"] for slot in payload["equipments_slotted"]} & {
+    assert len(normalized.parsed_json["equipments_slugs"]) >= 5
+    assert {slot["slug"] for slot in normalized.parsed_json["equipments_slotted"]} & {
         "torso-rotation",
         "shoulder-press",
     }

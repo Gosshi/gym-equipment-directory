@@ -105,10 +105,12 @@ def _build_municipal_payload(
         "facility_name": parsed.facility_name,
         "address": parsed.address,
         "equipments_raw": parsed.equipments_raw,
+        "equipments": parsed.equipments,
         "center_no": parsed.center_no,
         "page_type": parsed.page_type,
         "page_title": parsed.page_title,
         "page_url": page.url,
+        "meta": parsed.meta,
     }
     return name, address, parsed_json
 

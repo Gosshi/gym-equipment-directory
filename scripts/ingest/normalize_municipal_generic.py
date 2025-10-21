@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -78,6 +79,46 @@ def _build_equipment_slots(items: list[str]) -> tuple[list[str], list[dict[str, 
     return slugs, slotted
 
 
+def _build_structured_equipment_slots(
+    items: Iterable[dict[str, Any]] | None,
+) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
+    if items is None:
+        return [], [], []
+    ordered_slugs: list[str] = []
+    counts: dict[str, int] = {}
+    structured: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        slug = _sanitize_text(item.get("slug"))
+        if not slug:
+            continue
+        if slug not in ordered_slugs:
+            ordered_slugs.append(slug)
+        count_value = item.get("count")
+        parsed_count: int | None = None
+        if isinstance(count_value, int):
+            parsed_count = max(count_value, 0)
+        elif count_value is not None:
+            parsed_count = _parse_count(str(count_value))
+        if parsed_count is not None:
+            counts[slug] = max(counts.get(slug, 0), parsed_count)
+        raw_items = _sanitize_list(item.get("raw")) if isinstance(item.get("raw"), list) else []
+        structured.append(
+            {
+                "slug": slug,
+                "count": parsed_count if parsed_count is not None else counts.get(slug, 0),
+                "raw": raw_items,
+            }
+        )
+    slotted = [
+        {"slug": slug, "count": counts[slug]}
+        for slug in ordered_slugs
+        if counts.get(slug, 0) > 0
+    ]
+    return ordered_slugs, slotted, structured
+
+
 @dataclass(slots=True)
 class MunicipalNormalizationResult:
     name_raw: str
@@ -97,10 +138,13 @@ def normalize_municipal_payload(
     facility_name = _sanitize_text(data.get("facility_name"))
     address = _sanitize_text(data.get("address")) or None
     equipments_raw = _sanitize_list(data.get("equipments_raw"))
+    structured_items = data.get("equipments") if isinstance(data.get("equipments"), list) else None
+    slugs, slotted, structured_clean = _build_structured_equipment_slots(structured_items)
+    if not slugs:
+        slugs, slotted = _build_equipment_slots(equipments_raw)
+        structured_clean = []
     center_no = _sanitize_text(data.get("center_no")) or None
     page_type = _sanitize_text(data.get("page_type")) or None
-
-    slugs, slotted = _build_equipment_slots(equipments_raw)
 
     payload: dict[str, Any] = {
         "facility_name": facility_name,
@@ -109,6 +153,7 @@ def normalize_municipal_payload(
         "equipments_slugs": slugs,
         "equipments_slotted": slotted,
         "equipments": list(slugs),
+        "equipments_structured": structured_clean,
         "center_no": center_no,
         "page_type": page_type,
         "page_url": page_url,
@@ -116,12 +161,15 @@ def normalize_municipal_payload(
 
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
     meta = dict(meta)
-    should_create = True
-    if page_type == "article" and not address:
-        title = facility_name or _sanitize_text(data.get("page_title"))
-        if title in _GENERIC_TITLES:
-            should_create = False
-    meta["create_gym"] = should_create
+    if "create_gym" in meta:
+        should_create = bool(meta["create_gym"])
+    else:
+        should_create = True
+        if page_type == "article" and not address:
+            title = facility_name or _sanitize_text(data.get("page_title"))
+            if title in _GENERIC_TITLES:
+                should_create = False
+        meta["create_gym"] = should_create
     payload["meta"] = meta
 
     return MunicipalNormalizationResult(
