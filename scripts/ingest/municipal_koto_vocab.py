@@ -1,10 +1,11 @@
 """Vocabulary helpers shared across Koto municipal ingest steps."""
-
 from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
 from typing import Final
+
+from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
 
 
 def _nkfc(value: str | None) -> str:
@@ -19,27 +20,8 @@ class EquipmentDefinition:
     labels: tuple[str, ...]
 
 
-_RAW_VOCABULARY: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
-    ("treadmill", ("トレッドミル", "ランニングマシン")),
-    ("upright-bike", ("アップライトバイク",)),
-    ("recumbent-bike", ("リカンベントバイク",)),
-    ("arc-trainer", ("アークトレーナー",)),
-    ("lat-pulldown", ("ラットプル", "ラットプルダウン")),
-    ("seated-row", ("ロウ", "シーティッドロー")),
-    ("pec-deck-rear-delt", ("ペックデック", "フライ・リアデルト")),
-    ("leg-press", ("レッグプレス",)),
-    ("leg-curl", ("レッグカール",)),
-    ("leg-extension", ("レッグエクステンション",)),
-    ("glute", ("グルート",)),
-    ("chest-press", ("チェストプレス",)),
-    ("shoulder-press", ("ショルダープレス",)),
-    ("torso-rotation", ("トーソローテーション",)),
-    ("ab-back-combo", ("アブドミナル・バックエクステンション",)),
-    ("crunch-machine", ("クランチャー",)),
-    ("back-extension", ("バックエクステンション",)),
-    ("dumbbell-1-10kg", ("ダンベル",)),
-    ("smith-machine", ("スミスマシン", "スミス")),
-    ("bench-press", ("ベンチプレス",)),
+_RAW_VOCABULARY: Final[tuple[tuple[str, tuple[str, ...]], ...]] = tuple(
+    (slug, tuple(labels)) for slug, labels in sorted(EQUIPMENT_ALIASES.items())
 )
 
 
