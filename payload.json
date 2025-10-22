@@ -1,0 +1,29 @@
+{
+  "override": {
+    "address": "東京都江東区有明2-3-5"
+  },
+  "equipments": [
+    {"slug": "treadmill", "count": 8},
+    {"slug": "arc-trainer", "count": 3},
+    {"slug": "stepper", "count": 1},
+    {"slug": "upright-bike", "count": 3},
+    {"slug": "recumbent-bike", "count": 2},
+    {"slug": "chest-press", "count": 1},
+    {"slug": "lat-pulldown", "count": 1},
+    {"slug": "pec-deck-rear-delt", "count": 1},
+    {"slug": "seated-row", "count": 1},
+    {"slug": "abdominal", "count": 1},
+    {"slug": "arm-curl", "count": 1},
+    {"slug": "back-extension", "count": 1},
+    {"slug": "hip-adduction-abduction", "count": 1},
+    {"slug": "leg-extension", "count": 1},
+    {"slug": "leg-curl", "count": 1},
+    {"slug": "leg-press", "count": 1},
+    {"slug": "glute", "count": 1},
+    {"slug": "torso-rotation", "count": 1},
+    {"slug": "functional-trainer", "count": 1},
+    {"slug": "smith-machine", "count": 1},
+    {"slug": "adjustable-bench", "count": 3},
+    {"slug": "dumbbell", "count": 1}
+  ]
+}
