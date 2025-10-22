@@ -16,6 +16,36 @@ async def test_cors_allowed_origin(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cors_default_allows_local(monkeypatch):
+    monkeypatch.delenv("ALLOW_ORIGINS", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/health", headers={"Origin": "http://localhost:3000"})
+        assert r.status_code == 200
+        assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+        r_local_ip = await ac.get("/health", headers={"Origin": "http://127.0.0.1:3000"})
+        assert r_local_ip.status_code == 200
+        assert r_local_ip.headers.get("access-control-allow-origin") == "http://127.0.0.1:3000"
+
+
+@pytest.mark.asyncio
+async def test_cors_default_prod_only_localhost(monkeypatch):
+    monkeypatch.delenv("ALLOW_ORIGINS", raising=False)
+    monkeypatch.setenv("APP_ENV", "prod")
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/health", headers={"Origin": "http://localhost:3000"})
+        assert r.status_code == 200
+        assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+        r_local_ip = await ac.get("/health", headers={"Origin": "http://127.0.0.1:3000"})
+        assert r_local_ip.status_code == 200
+        assert r_local_ip.headers.get("access-control-allow-origin") is None
+
+
+@pytest.mark.asyncio
 async def test_cors_disallowed_origin(monkeypatch):
     monkeypatch.setenv("ALLOW_ORIGINS", "https://example.com")
     app = create_app()

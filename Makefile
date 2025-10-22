@@ -19,28 +19,28 @@ PG_DSN ?= $(or $(TEST_DATABASE_URL),$(DATABASE_URL),postgresql+asyncpg://postgre
 
 
 up:
-	docker compose up -d
+	docker compose --env-file $(ENV_FILE) up -d
 
 down:
-	docker compose down
+	docker compose --env-file $(ENV_FILE) down
 
 logs:
-	docker compose logs -f api
+	docker compose --env-file $(ENV_FILE) logs -f api
 
 bash:
-	docker compose exec api bash
+	docker compose --env-file $(ENV_FILE) exec api bash
 
 db-bash:
-	docker compose exec db sh
+	docker compose --env-file $(ENV_FILE) exec db sh
 
 migrate:
-	docker compose exec api alembic upgrade head
+	docker compose --env-file $(ENV_FILE) exec api alembic upgrade head
 
 rev:
-	docker compose exec api alembic revision --autogenerate -m "$(m)"
+	docker compose --env-file $(ENV_FILE) exec api alembic revision --autogenerate -m "$(m)"
 
 freshness:
-	docker compose exec api python -m scripts.update_freshness
+	docker compose --env-file $(ENV_FILE) exec api python -m scripts.update_freshness
 
 test:
 	@TEST_DATABASE_URL=$(PG_DSN) pytest -q
