@@ -18,6 +18,7 @@ from app.api.routers.me_favorites import router as me_favorites_router
 from app.api.routers.meta import router as meta_router
 from app.api.routers.readyz import router as readyz_router
 from app.api.routers.suggest import router as suggest_router
+from app.core.startup import run_database_migrations
 from app.logging import setup_logging
 from app.middleware.rate_limit import rate_limit_middleware
 from app.middleware.request_id import request_id_middleware
@@ -28,6 +29,7 @@ from app.services.scoring import validate_weights
 def create_app() -> FastAPI:
     # Initialize structured logging first
     setup_logging()
+    run_database_migrations()
 
     # Initialize Sentry (no-op if DSN is missing)
     dsn = os.getenv("SENTRY_DSN")
