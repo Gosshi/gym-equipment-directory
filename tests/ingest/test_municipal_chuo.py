@@ -10,6 +10,7 @@ from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 from scripts.ingest import fetch_http, normalize, parse
+from scripts.ingest.sources_registry import SOURCES
 
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "municipal_chuo"
 
@@ -104,12 +105,19 @@ async def test_municipal_chuo_pipeline(
     category_url = "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/menu/training.html"
     facility_url = "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/trainingroom.html"
 
-    responses = {
-        robots_url: [httpx.Response(404)],
-        index_url: [httpx.Response(200, text=_read_fixture("index.html"))],
-        category_url: [httpx.Response(200, text=_read_fixture("category.html"))],
-        facility_url: [httpx.Response(200, text=_read_fixture("facility.html"))],
-    }
+    source_config = SOURCES["municipal_chuo"]
+    responses: dict[str, list[httpx.Response]] = {robots_url: [httpx.Response(404)]}
+    for url in source_config.start_urls:
+        if url == index_url:
+            responses[url] = [httpx.Response(200, text=_read_fixture("index.html"))]
+        elif url == category_url:
+            responses[url] = [httpx.Response(200, text=_read_fixture("category.html"))]
+        elif url == facility_url:
+            responses[url] = [httpx.Response(200, text=_read_fixture("facility.html"))]
+        else:
+            responses[url] = [httpx.Response(404)]
+    responses.setdefault(category_url, [httpx.Response(200, text=_read_fixture("category.html"))])
+    responses.setdefault(facility_url, [httpx.Response(200, text=_read_fixture("facility.html"))])
     request_log: list[tuple[str, dict[str, str]]] = []
     _install_http_stub(monkeypatch, responses, request_log)
 

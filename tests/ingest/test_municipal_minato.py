@@ -10,6 +10,7 @@ from app.models.equipment import Equipment
 from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 from scripts.ingest import fetch_http, normalize, parse
+from scripts.ingest.sources_registry import SOURCES
 
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "municipal_minato"
 
@@ -114,19 +115,25 @@ async def test_municipal_minato_pipeline(
     notice_url = "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/notice.html"
     pdf_url = "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/training.pdf"
 
-    responses = {
-        robots_url: [httpx.Response(404)],
-        index_url: [httpx.Response(200, text=_read_fixture("index.html"))],
-        facility_url: [httpx.Response(200, text=_read_fixture("facility.html"))],
-        notice_url: [httpx.Response(200, text=_read_fixture("notice.html"))],
-        pdf_url: [
-            httpx.Response(
-                200,
-                content=_read_bytes("training.pdf"),
-                headers={"Content-Type": "application/pdf"},
-            )
-        ],
-    }
+    source_config = SOURCES["municipal_minato"]
+    responses: dict[str, list[httpx.Response]] = {robots_url: [httpx.Response(404)]}
+    for url in source_config.start_urls:
+        if url == index_url:
+            responses[url] = [httpx.Response(200, text=_read_fixture("index.html"))]
+        elif url == facility_url:
+            responses[url] = [httpx.Response(200, text=_read_fixture("facility.html"))]
+        else:
+            responses[url] = [httpx.Response(404)]
+    responses.setdefault(index_url, [httpx.Response(200, text=_read_fixture("index.html"))])
+    responses.setdefault(facility_url, [httpx.Response(200, text=_read_fixture("facility.html"))])
+    responses[notice_url] = [httpx.Response(200, text=_read_fixture("notice.html"))]
+    responses[pdf_url] = [
+        httpx.Response(
+            200,
+            content=_read_bytes("training.pdf"),
+            headers={"Content-Type": "application/pdf"},
+        )
+    ]
     request_log: list[tuple[str, dict[str, str]]] = []
     _install_http_stub(monkeypatch, responses, request_log)
 
