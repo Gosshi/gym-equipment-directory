@@ -1,4 +1,5 @@
 """Vocabulary helpers shared across Koto municipal ingest steps."""
+
 from __future__ import annotations
 
 import unicodedata

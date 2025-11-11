@@ -21,6 +21,7 @@ class CandidateStatus(str, Enum):
     reviewing = "reviewing"
     approved = "approved"
     rejected = "rejected"
+    ignored = "ignored"
 
 
 class GymCandidate(Base):

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_async_session
 from app.models.gym_candidate import CandidateStatus
 from app.schemas.admin_candidates import (
+    AdminApproveResponse,
     AdminCandidateCreate,
     AdminCandidateDetail,
     AdminCandidateItem,
@@ -21,6 +22,13 @@ from app.schemas.admin_candidates import (
     SimilarGymInfo,
 )
 from app.services import candidates as candidate_service
+from app.services.approve_service import (
+    ApprovalError,
+    ApproveService,
+    CandidateNotFoundError,
+    CandidateStatusConflictError,
+    InvalidCandidatePayloadError,
+)
 from app.services.candidates import CandidateDetailRow, CandidateRow, CandidateServiceError
 
 router = APIRouter(prefix="/admin/candidates", tags=["admin"])
@@ -162,6 +170,26 @@ async def approve_candidate(
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="gym slug conflict") from exc
     return result
+
+
+@router.post("/{candidate_id}/approve-auto", response_model=AdminApproveResponse)
+async def approve_candidate_auto(
+    candidate_id: int,
+    dry_run: bool = Query(False),
+    session: AsyncSession = Depends(get_async_session),
+):
+    service = ApproveService(session)
+    try:
+        result = await service.approve(candidate_id, dry_run=dry_run)
+    except CandidateNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="candidate not found") from exc
+    except CandidateStatusConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except InvalidCandidatePayloadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ApprovalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.to_dict()
 
 
 @router.post("/{candidate_id}/reject", response_model=AdminCandidateItem)

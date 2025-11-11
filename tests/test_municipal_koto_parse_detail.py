@@ -43,7 +43,9 @@ def test_parse_trainingmachine_template_extracts_counts() -> None:
         html,
         "https://www.koto-hsc.or.jp/sports_center3/introduction/trainingmachine.html",
     )
-    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center3/introduction/trainingmachine.html")
+    normalized = _normalize(
+        result, "https://www.koto-hsc.or.jp/sports_center3/introduction/trainingmachine.html"
+    )
 
     assert result.facility_name == "亀戸スポーツセンター"
     assert result.center_no == "3"
@@ -78,7 +80,9 @@ def test_parse_tr_detail_template_handles_lists() -> None:
         html,
         "https://www.koto-hsc.or.jp/sports_center4/introduction/tr_detail.html",
     )
-    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center4/introduction/tr_detail.html")
+    normalized = _normalize(
+        result, "https://www.koto-hsc.or.jp/sports_center4/introduction/tr_detail.html"
+    )
 
     assert result.facility_name == "有明スポーツセンター"
     assert result.center_no == "4"
@@ -105,7 +109,9 @@ def test_parse_post_template_extracts_from_paragraphs() -> None:
         html,
         "https://www.koto-hsc.or.jp/sports_center2/introduction/post_18.html",
     )
-    normalized = _normalize(result, "https://www.koto-hsc.or.jp/sports_center2/introduction/post_18.html")
+    normalized = _normalize(
+        result, "https://www.koto-hsc.or.jp/sports_center2/introduction/post_18.html"
+    )
 
     assert result.facility_name == "深川北スポーツセンター"
     assert result.center_no == "2"

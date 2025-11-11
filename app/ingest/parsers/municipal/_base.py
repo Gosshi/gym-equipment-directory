@@ -15,18 +15,20 @@ _CONTROL_RE = re.compile(
     r"[\x00-\x1F\x7F]|\u200B|\u200C|\u200D|\uFEFF",
 )
 _WHITESPACE_RE = re.compile(r"\s+")
-_JP_DIGIT_TRANSLATION = str.maketrans({
-    "０": "0",
-    "１": "1",
-    "２": "2",
-    "３": "3",
-    "４": "4",
-    "５": "5",
-    "６": "6",
-    "７": "7",
-    "８": "8",
-    "９": "9",
-})
+_JP_DIGIT_TRANSLATION = str.maketrans(
+    {
+        "０": "0",
+        "１": "1",
+        "２": "2",
+        "３": "3",
+        "４": "4",
+        "５": "5",
+        "６": "6",
+        "７": "7",
+        "８": "8",
+        "９": "9",
+    }
+)
 _JP_NUMERAL_MAP: dict[str, int] = {
     "零": 0,
     "〇": 0,
@@ -322,15 +324,9 @@ def detect_create_gym(
         return False
 
     pattern_dict = patterns or {}
-    url_patterns = (
-        pattern_dict.get("url")
-        or pattern_dict.get("url_patterns")
-        or pattern_dict
-    )
+    url_patterns = pattern_dict.get("url") or pattern_dict.get("url_patterns") or pattern_dict
     skip_patterns = (
-        list(_ensure_iterable(url_patterns.get("skip")))
-        if isinstance(url_patterns, dict)
-        else []
+        list(_ensure_iterable(url_patterns.get("skip"))) if isinstance(url_patterns, dict) else []
     )
 
     for pattern in skip_patterns:

@@ -129,3 +129,42 @@ class AdminCandidateListResponse(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str
+
+
+class ApprovalFieldChange(BaseModel):
+    field: str
+    before: Any | None = None
+    after: Any | None = None
+
+
+class AdminApproveGym(BaseModel):
+    action: Literal["create", "update", "reuse", "skip"]
+    gym_id: int | None = None
+    slug: str | None = None
+    canonical_id: str | None = None
+    changes: list[ApprovalFieldChange] = Field(default_factory=list)
+    after: dict[str, Any] | None = None
+
+
+class AdminApproveEquipment(BaseModel):
+    slug: str
+    equipment_id: int | None = None
+    action: Literal["insert", "merge", "skip"]
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+    warnings: list[str] = Field(default_factory=list)
+    last_verified_at: str | None = None
+
+
+class AdminApproveCandidateInfo(BaseModel):
+    status: CandidateStatus
+    approved_gym_slug: str | None = None
+
+
+class AdminApproveResponse(BaseModel):
+    candidate_id: int
+    dry_run: bool
+    gym: AdminApproveGym
+    equipments: list[AdminApproveEquipment]
+    candidate: AdminApproveCandidateInfo
+    error: str | None = None
