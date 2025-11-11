@@ -20,3 +20,4 @@ slowapi>=0.1.9
 sentry-sdk[fastapi]>=2.7.0
 eval_type_backport>=0.2
 beautifulsoup4>=4.12,<5
+pypdf>=3.17.4

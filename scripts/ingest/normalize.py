@@ -14,8 +14,10 @@ from app.models.gym_candidate import GymCandidate
 from app.models.scraped_page import ScrapedPage
 from app.services.geocode import geocode
 
+from .normalize_municipal_chuo import normalize_municipal_chuo_payload
 from .normalize_municipal_edogawa import normalize_municipal_edogawa_payload
 from .normalize_municipal_koto import normalize_municipal_koto_payload
+from .normalize_municipal_minato import normalize_municipal_minato_payload
 from .normalize_municipal_sumida import normalize_municipal_sumida_payload
 from .sites import site_a
 from .utils import get_or_create_source
@@ -63,6 +65,8 @@ _MUNICIPAL_NORMALIZERS = {
     "municipal_koto": normalize_municipal_koto_payload,
     "municipal_edogawa": normalize_municipal_edogawa_payload,
     "municipal_sumida": normalize_municipal_sumida_payload,
+    "municipal_chuo": normalize_municipal_chuo_payload,
+    "municipal_minato": normalize_municipal_minato_payload,
 }
 
 

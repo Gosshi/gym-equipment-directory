@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import os
 import random
@@ -17,6 +18,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from pypdf import PdfReader
 from sqlalchemy import select
 
 from app.db import SessionLocal
@@ -36,6 +38,7 @@ PROD_MAX_LIMIT = 120
 DEFAULT_MIN_DELAY = 2.0
 DEFAULT_MAX_DELAY = 5.0
 RETRY_ATTEMPTS = 3
+PDF_TEXT_MAX_LENGTH = 20000
 
 
 @dataclass(frozen=True)
@@ -107,16 +110,57 @@ def _resolve_limit(raw_limit: int | None, app_env: str) -> int:
     return raw_limit
 
 
-def _ensure_allowed_domain(url: str, allowed_hosts: Iterable[str]) -> str:
+def _host_matches(host: str, allowed_hosts: Iterable[str]) -> bool:
+    host_lower = host.lower()
+    for candidate in allowed_hosts:
+        candidate_lower = candidate.lower()
+        if host_lower == candidate_lower:
+            return True
+        if host_lower.endswith(f".{candidate_lower}"):
+            return True
+    return False
+
+
+def _ensure_allowed_domain(
+    url: str, allowed_hosts: Iterable[str], *, allow_subdomains: bool = False
+) -> str:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         msg = f"Unsupported URL scheme for '{url}'"
         raise ValueError(msg)
     hosts = set(allowed_hosts)
-    if parsed.netloc not in hosts:
+    if allow_subdomains:
+        if not _host_matches(parsed.netloc, hosts):
+            msg = f"URL '{url}' is not part of the allowed domains"
+            raise ValueError(msg)
+    elif parsed.netloc not in hosts:
         msg = f"URL '{url}' is not part of the allowed domains"
         raise ValueError(msg)
     return url
+
+
+def _normalize_discovered_url(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/") + "/"
+    normalized = parsed._replace(path=path, fragment="", params="")
+    return normalized.geturl()
+
+
+def _path_allowed(
+    path: str,
+    *,
+    allow_patterns: Iterable[re.Pattern[str]],
+    deny_patterns: Iterable[re.Pattern[str]],
+) -> bool:
+    for pattern in deny_patterns:
+        if pattern.search(path):
+            return False
+    allow_patterns = tuple(allow_patterns)
+    if not allow_patterns:
+        return True
+    return any(pattern.search(path) for pattern in allow_patterns)
 
 
 def _resolve_absolute_url(url_or_path: str, base_url: str) -> str:
@@ -136,21 +180,21 @@ def _normalize_path(url: str) -> str:
     return path
 
 
-def _classify_municipal_url(
-    url: str,
+def _classify_page_type(
+    path: str,
     *,
-    source: MunicipalSource,
-    intro_patterns: list[re.Pattern[str]],
-    article_patterns: list[re.Pattern[str]],
-    intro_seed_paths: set[str],
+    compiled_patterns: dict[str, list[re.Pattern[str]]],
+    fallback_intro: list[re.Pattern[str]],
+    fallback_article: list[re.Pattern[str]],
 ) -> str | None:
-    path = _normalize_path(url)
-    if path in intro_seed_paths:
-        return "intro"
-    for pattern in intro_patterns:
+    for page_type, patterns in compiled_patterns.items():
+        for pattern in patterns:
+            if pattern.search(path):
+                return page_type
+    for pattern in fallback_intro:
         if pattern.search(path):
-            return "intro"
-    for pattern in article_patterns:
+            return "facility"
+    for pattern in fallback_article:
         if pattern.search(path):
             return "article"
     return None
@@ -174,27 +218,36 @@ async def _discover_municipal_pages(
     robots: RobotsRules | None,
     timeout: float,
 ) -> list[MunicipalDiscoveredPage]:
-    parsed_base = urlparse(source.base_url)
-    allowed_host = parsed_base.netloc
+    base_url = source.primary_base_url
+    allowed_hosts = source.iter_allowed_domains()
     intro_patterns = source.compile_intro_patterns()
     article_patterns = source.compile_article_patterns()
-    intro_seed_paths = {
-        _normalize_path(_resolve_absolute_url(seed, source.base_url)) for seed in source.list_seeds
-    }
+    compiled_page_types = source.compile_page_type_patterns()
+    allow_patterns = source.compile_path_allowlist()
+    deny_patterns = source.compile_path_denylist()
     queue: deque[tuple[str, int]] = deque()
     seen: set[str] = set()
     results: list[MunicipalDiscoveredPage] = []
 
-    for seed in source.list_seeds:
-        absolute = _resolve_absolute_url(seed, source.base_url)
-        queue.append((absolute, 0))
+    start_url_types = source.start_url_page_types or {}
+    start_type_map: dict[str, str | None] = {}
+    for seed in source.iter_start_urls():
+        absolute = _resolve_absolute_url(seed, base_url)
+        normalized = _normalize_discovered_url(absolute)
+        queue.append((normalized, 0))
+        start_type = start_url_types.get(seed) or start_url_types.get(normalized)
+        start_type_map[normalized] = start_type
 
     while queue and len(results) < limit:
         current_url, depth = queue.popleft()
         parsed = urlparse(current_url)
         if parsed.scheme not in {"http", "https"}:
             continue
-        if parsed.netloc != allowed_host:
+        if not _host_matches(parsed.netloc, allowed_hosts):
+            continue
+        if not _path_allowed(
+            parsed.path or "/", allow_patterns=allow_patterns, deny_patterns=deny_patterns
+        ):
             continue
         if current_url in seen:
             continue
@@ -211,14 +264,20 @@ async def _discover_municipal_pages(
             logger.debug("Crawl for %s returned status %s", current_url, response.status_code)
             continue
 
-        classification = _classify_municipal_url(
-            current_url,
-            source=source,
-            intro_patterns=intro_patterns,
-            article_patterns=article_patterns,
-            intro_seed_paths=intro_seed_paths,
-        )
-        if classification or current_url in intro_seed_paths:
+        path = _normalize_path(current_url)
+        classification = start_type_map.get(current_url)
+        if classification is None:
+            classification = _classify_page_type(
+                path,
+                compiled_patterns=compiled_page_types,
+                fallback_intro=intro_patterns,
+                fallback_article=article_patterns,
+            )
+        if classification == "intro":
+            classification = "facility"
+        if classification is None and parsed.path.lower().endswith(".pdf"):
+            classification = "article"
+        if classification or current_url in start_type_map:
             results.append(MunicipalDiscoveredPage(url=current_url, page_type=classification))
             if len(results) >= limit:
                 break
@@ -228,14 +287,21 @@ async def _discover_municipal_pages(
 
         for href in _iter_links(response.text or ""):
             resolved = _resolve_absolute_url(href, current_url)
-            parsed_resolved = urlparse(resolved)
-            if parsed_resolved.netloc != allowed_host:
+            normalized = _normalize_discovered_url(resolved)
+            parsed_resolved = urlparse(normalized)
+            if not _host_matches(parsed_resolved.netloc, allowed_hosts):
+                continue
+            if not _path_allowed(
+                parsed_resolved.path or "/",
+                allow_patterns=allow_patterns,
+                deny_patterns=deny_patterns,
+            ):
                 continue
             if respect_robots and robots and not robots.allows(parsed_resolved.path):
                 continue
-            if resolved in seen:
+            if normalized in seen:
                 continue
-            queue.append((resolved, depth + 1))
+            queue.append((normalized, depth + 1))
 
     return results
 
@@ -439,6 +505,44 @@ def _merge_meta(existing: dict[str, Any] | None, new_meta: dict[str, str]) -> di
     return merged
 
 
+def _extract_pdf_text(content: bytes) -> str:
+    if not content:
+        return ""
+    buffer = io.BytesIO(content)
+    try:
+        reader = PdfReader(buffer)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Failed to read PDF content: %s", exc)
+        return ""
+    collected: list[str] = []
+    total = 0
+    for page in reader.pages:
+        try:
+            text = page.extract_text() or ""
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to extract text from PDF page: %s", exc)
+            continue
+        cleaned = text.strip()
+        if not cleaned:
+            continue
+        collected.append(cleaned)
+        total += len(cleaned)
+        if total >= PDF_TEXT_MAX_LENGTH:
+            break
+    combined = " ".join(collected)
+    if len(combined) > PDF_TEXT_MAX_LENGTH:
+        return combined[:PDF_TEXT_MAX_LENGTH]
+    return combined
+
+
+def _is_pdf_response(response: httpx.Response, url: str) -> bool:
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "application/pdf" in content_type:
+        return True
+    parsed = urlparse(url)
+    return parsed.path.lower().endswith(".pdf")
+
+
 async def _upsert_detail_page(
     session,
     *,
@@ -452,7 +556,10 @@ async def _upsert_detail_page(
     status = response.status_code
     meta = _extract_response_meta(response)
     if status == 200:
-        html = response.text
+        if _is_pdf_response(response, url):
+            html = _extract_pdf_text(response.content)
+        else:
+            html = response.text
         content_hash = sha256(html.encode("utf-8")).hexdigest()
         merged_meta = _merge_meta(existing.response_meta if existing else None, meta)
         merged_meta = _merge_extra_meta(merged_meta, extra_meta)
@@ -626,11 +733,15 @@ async def fetch_http_pages(
             for index, page in enumerate(detail_urls):
                 url = page.url
                 allowed_hosts = (
-                    (urlparse(municipal_source.base_url).netloc,)
+                    municipal_source.iter_allowed_domains()
                     if municipal_source
                     else config.allowed_hosts
                 )
-                _ensure_allowed_domain(url, allowed_hosts)
+                _ensure_allowed_domain(
+                    url,
+                    allowed_hosts,
+                    allow_subdomains=municipal_source is not None,
+                )
                 headers = {"User-Agent": user_agent}
                 existing_result = await session.execute(
                     select(ScrapedPage).where(

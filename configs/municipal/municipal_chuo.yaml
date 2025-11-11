@@ -1,0 +1,33 @@
+start_urls:
+  - "https://www.city.chuo.lg.jp/sports/index.html"
+  - "https://www.city.chuo.lg.jp/sports/center/index.html"
+url_patterns:
+  facility: "/sports/(center|training)/"
+  skip:
+    - "/oshirase/"
+    - "/event"
+selectors:
+  title:
+    - "main h1"
+    - "h1"
+  body:
+    - "main"
+    - "body"
+  address_hint:
+    - ".facility-info"
+    - "table"
+    - "dl"
+  equipment_blocks:
+    - "section"
+    - "ul"
+    - "table"
+address_patterns:
+  - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
+  - "東京都中央区[^\\n<]+"
+keywords:
+  training:
+    - "トレーニング"
+    - "トレーニングルーム"
+  facility:
+    - "スポーツセンター"
+    - "区民センター"
