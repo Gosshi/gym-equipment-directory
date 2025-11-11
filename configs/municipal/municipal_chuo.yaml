@@ -1,8 +1,9 @@
 start_urls:
-  - "https://www.city.chuo.lg.jp/sports/index.html"
-  - "https://www.city.chuo.lg.jp/sports/center/index.html"
+  - "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html"
+  - "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/index.html"
+  - "https://www.city.chuo.lg.jp/shisetsu/sports/sogosportscenter/index.html"
 url_patterns:
-  facility: "/sports/(center|training)/"
+  facility: "/(kurashi|shisetsu|a[0-9]+)/.*/sports/.*/"
   skip:
     - "/oshirase/"
     - "/event"

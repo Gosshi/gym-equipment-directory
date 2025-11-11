@@ -196,69 +196,103 @@ SOURCES: dict[str, MunicipalSource] = {
     "municipal_chuo": MunicipalSource(
         title="municipal_chuo",
         base_url="https://www.city.chuo.lg.jp/",
-        intro_patterns=[r"/sports/.+/index\.html$"],
+        intro_patterns=[r"/(kurashi|shisetsu|a[0-9]+)/.*/sports/.+\.html$"],
         article_patterns=ARTICLE_PAT_DEFAULT,
         list_seeds=[
-            "/sports/index.html",
-            "/sports/center/index.html",
+            "/kurashi/kyoiku/sports/index.html",
+            "/kurashi/kyoiku/sports/shisetsu/index.html",
+            "/shisetsu/sports/",
         ],
         pref_slug="tokyo",
         city_slug="chuo",
         parse_hints=None,
         base_urls=("https://www.city.chuo.lg.jp/",),
         start_urls=(
-            "https://www.city.chuo.lg.jp/sports/index.html",
-            "https://www.city.chuo.lg.jp/sports/center/index.html",
+            "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html",
+            "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/index.html",
+            "https://www.city.chuo.lg.jp/shisetsu/sports/sogosportscenter/index.html",
         ),
         domain_allowlist=("www.city.chuo.lg.jp", "city.chuo.lg.jp"),
-        path_allowlist=(r"^/sports/", r"^/a[0-9]+/sports/"),
+        path_allowlist=(
+            r"^/kurashi/.*/sports/",
+            r"^/shisetsu/sports/",
+            r"^/a[0-9]+/sports/",
+        ),
         path_denylist=(r"/event", r"/reservation", r"/pdf/", r"/oshirase/"),
         page_type_patterns={
-            "index": (r"/sports/index\.html$",),
-            "category": (r"/sports/category/.*\.html$",),
+            "index": (
+                r"/kurashi/.*/sports/(index|ichiran)\.html$",
+                r"/shisetsu/sports/index\.html$",
+            ),
+            "category": (
+                r"/kurashi/.*/sports/(category|menu)/.*\.html$",
+                r"/shisetsu/sports/.*/category/.*\.html$",
+            ),
             "facility": (
-                r"/sports/center/(index\.html|[^/]+\.html)$",
-                r"/sports/.*/training.*\.html$",
+                r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
+                r"/shisetsu/sports/.+/(index|detail|training).*\.html$",
+                r"/a[0-9]+/sports/.+/(index|detail).*\.html$",
             ),
             "article": tuple(ARTICLE_PAT_DEFAULT),
         },
         start_url_page_types={
-            "https://www.city.chuo.lg.jp/sports/index.html": "index",
-            "https://www.city.chuo.lg.jp/sports/center/index.html": "facility",
+            "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html": "index",
+            (
+                "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/"
+                "sogosportscenter/index.html"
+            ): "facility",
+            "https://www.city.chuo.lg.jp/shisetsu/sports/sogosportscenter/index.html": "facility",
         },
     ),
     "municipal_minato": MunicipalSource(
         title="municipal_minato",
         base_url="https://www.city.minato.tokyo.jp/",
-        intro_patterns=[r"/sports/.+/(index\.html|[^/]+\.html)$"],
+        intro_patterns=[r"/(shisetsu|kurashi|a[0-9]+)/.*/sports/.+\.html$"],
         article_patterns=ARTICLE_PAT_DEFAULT,
         list_seeds=[
-            "/sports/index.html",
-            "/sports/training/index.html",
+            "/shisetsu/sports/",
+            "/kurashi/kyoiku/sports/index.html",
         ],
         pref_slug="tokyo",
         city_slug="minato",
         parse_hints=None,
         base_urls=("https://www.city.minato.tokyo.jp/",),
         start_urls=(
-            "https://www.city.minato.tokyo.jp/sports/index.html",
-            "https://www.city.minato.tokyo.jp/sports/training/index.html",
+            "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter.html",
+            "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/trainingroom.html",
+            "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html",
         ),
         domain_allowlist=("www.city.minato.tokyo.jp", "city.minato.tokyo.jp"),
-        path_allowlist=(r"^/sports/", r"^/a[0-9]+/sports/"),
+        path_allowlist=(
+            r"^/shisetsu/sports/",
+            r"^/kurashi/.*/sports/",
+            r"^/a[0-9]+/sports/",
+        ),
         path_denylist=(r"/event", r"/news", r"/reservation", r"/oshirase"),
         page_type_patterns={
-            "index": (r"/sports/index\.html$",),
-            "category": (r"/sports/training/index\.html$",),
-            "facility": (
-                r"/sports/.*/training[^/]*\.html$",
-                r"/sports/.*/shisetsu/[^/]+\.html$",
+            "index": (
+                r"/shisetsu/sports/index\.html$",
+                r"/kurashi/.*/sports/(index|ichiran)\.html$",
             ),
-            "article": tuple(ARTICLE_PAT_DEFAULT) + (r"/sports/.*/(news|oshirase)/.*\.html$",),
+            "category": (
+                r"/shisetsu/sports/.*/category/.*\.html$",
+                r"/kurashi/.*/sports/.*/category/.*\.html$",
+            ),
+            "facility": (
+                r"/shisetsu/sports/.+/(index|detail|training).*\.html$",
+                r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
+                r"/a[0-9]+/sports/.+/(index|detail).*\.html$",
+            ),
+            "article": tuple(ARTICLE_PAT_DEFAULT)
+            + (r"/(shisetsu|kurashi)/.*/sports/.*/(news|oshirase)/.*\.html$",),
         },
         start_url_page_types={
-            "https://www.city.minato.tokyo.jp/sports/index.html": "index",
-            "https://www.city.minato.tokyo.jp/sports/training/index.html": "category",
+            "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter.html": "facility",
+            (
+                "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/"
+                "trainingroom.html"
+            ): "facility",
+            "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html": "index",
         },
     ),
 }

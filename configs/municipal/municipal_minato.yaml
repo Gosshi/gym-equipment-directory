@@ -1,8 +1,9 @@
 start_urls:
-  - "https://www.city.minato.tokyo.jp/sports/index.html"
-  - "https://www.city.minato.tokyo.jp/sports/training/index.html"
+  - "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter.html"
+  - "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/trainingroom.html"
+  - "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html"
 url_patterns:
-  facility: "/sports/.*/(training|center|shisetsu)/"
+  facility: "/(shisetsu|kurashi|a[0-9]+)/.*/sports/.*/"
   skip:
     - "/oshirase/"
     - "/news/"

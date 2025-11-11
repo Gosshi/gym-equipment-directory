@@ -107,10 +107,12 @@ async def test_municipal_minato_pipeline(
     monkeypatch.setenv("APP_ENV", "dev")
 
     robots_url = "https://www.city.minato.tokyo.jp/robots.txt"
-    index_url = "https://www.city.minato.tokyo.jp/sports/index.html"
-    facility_url = "https://www.city.minato.tokyo.jp/sports/training/takanawa.html"
-    notice_url = "https://www.city.minato.tokyo.jp/sports/training/notice.html"
-    pdf_url = "https://www.city.minato.tokyo.jp/sports/training/akabanebashi.pdf"
+    index_url = "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html"
+    facility_url = (
+        "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/trainingroom.html"
+    )
+    notice_url = "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/notice.html"
+    pdf_url = "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/training.pdf"
 
     responses = {
         robots_url: [httpx.Response(404)],

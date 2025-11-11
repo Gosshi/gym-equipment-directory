@@ -100,9 +100,9 @@ async def test_municipal_chuo_pipeline(
     monkeypatch.setenv("APP_ENV", "dev")
 
     robots_url = "https://www.city.chuo.lg.jp/robots.txt"
-    index_url = "https://www.city.chuo.lg.jp/sports/index.html"
-    category_url = "https://www.city.chuo.lg.jp/sports/category/training.html"
-    facility_url = "https://www.city.chuo.lg.jp/sports/center/facility.html"
+    index_url = "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html"
+    category_url = "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/menu/training.html"
+    facility_url = "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/trainingroom.html"
 
     responses = {
         robots_url: [httpx.Response(404)],
