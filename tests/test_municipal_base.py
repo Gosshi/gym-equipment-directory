@@ -8,7 +8,7 @@ from app.ingest.parsers.municipal._base import (
 
 
 def test_sanitize_text_removes_control_characters() -> None:
-    raw = "\x00\u200B\u3000トレーニング ルーム\n"
+    raw = "\x00\u200b\u3000トレーニング ルーム\n"
     assert sanitize_text(raw) == "トレーニング ルーム"
 
 
@@ -73,32 +73,41 @@ def test_detect_create_gym_requires_address_and_keywords() -> None:
     }
     keywords = {"training": ["トレーニングルーム"], "facility": ["スポーツセンター"]}
 
-    assert detect_create_gym(
-        "https://example.com/sports_center1/introduction/",
-        title="江東区スポーツセンター トレーニングルーム",
-        body="パンくず＞トレーニングルーム",
-        patterns=patterns,
-        keywords=keywords,
-        eq_count=5,
-        address="東京都江東区亀戸2-1-1",
-    ) is True
+    assert (
+        detect_create_gym(
+            "https://example.com/sports_center1/introduction/",
+            title="江東区スポーツセンター トレーニングルーム",
+            body="パンくず＞トレーニングルーム",
+            patterns=patterns,
+            keywords=keywords,
+            eq_count=5,
+            address="東京都江東区亀戸2-1-1",
+        )
+        is True
+    )
 
-    assert detect_create_gym(
-        "https://example.com/sports_center1/news/notice.html",
-        title="江東区スポーツセンター トレーニングルーム",
-        body="パンくず＞トレーニングルーム",
-        patterns=patterns,
-        keywords=keywords,
-        eq_count=5,
-        address="東京都江東区亀戸2-1-1",
-    ) is False
+    assert (
+        detect_create_gym(
+            "https://example.com/sports_center1/news/notice.html",
+            title="江東区スポーツセンター トレーニングルーム",
+            body="パンくず＞トレーニングルーム",
+            patterns=patterns,
+            keywords=keywords,
+            eq_count=5,
+            address="東京都江東区亀戸2-1-1",
+        )
+        is False
+    )
 
-    assert detect_create_gym(
-        "https://example.com/sports_center1/introduction/",
-        title="江東区スポーツセンター",
-        body="施設案内",
-        patterns=patterns,
-        keywords=keywords,
-        eq_count=2,
-        address="東京都江東区亀戸2-1-1",
-    ) is False
+    assert (
+        detect_create_gym(
+            "https://example.com/sports_center1/introduction/",
+            title="江東区スポーツセンター",
+            body="施設案内",
+            patterns=patterns,
+            keywords=keywords,
+            eq_count=2,
+            address="東京都江東区亀戸2-1-1",
+        )
+        is False
+    )

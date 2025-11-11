@@ -164,9 +164,7 @@ async def _run_pipeline(areas: Sequence[str], limit: int | None) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Run municipal ingest pipeline end-to-end"
-    )
+    parser = argparse.ArgumentParser(description="Run municipal ingest pipeline end-to-end")
     parser.add_argument(
         "--areas",
         nargs="+",

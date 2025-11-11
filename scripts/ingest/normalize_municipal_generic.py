@@ -112,9 +112,7 @@ def _build_structured_equipment_slots(
             }
         )
     slotted = [
-        {"slug": slug, "count": counts[slug]}
-        for slug in ordered_slugs
-        if counts.get(slug, 0) > 0
+        {"slug": slug, "count": counts[slug]} for slug in ordered_slugs if counts.get(slug, 0) > 0
     ]
     return ordered_slugs, slotted, structured
 
