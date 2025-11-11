@@ -55,7 +55,7 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
-.PHONY: up down logs bash db-bash migrate rev freshness test seed-equip \
+.PHONY: up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
 	pre-commit-install pre-commit-run curl-admin-candidates \
 	ingest-fetch ingest-parse ingest-normalize ingest-approve \
 	ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
@@ -151,3 +151,7 @@ curl-admin-candidates:
 		"http://localhost:8000/admin/candidates/1/approve" \
 		-H "Content-Type: application/json" \
 		-d '{"dry_run":true}' | jq
+
+sync-all:
+	docker compose --env-file $(ENV_FILE) exec api \
+	  python -m scripts.ops.sync_municipal --areas $(AREAS) $(if $(LIMIT),--limit $(LIMIT))
