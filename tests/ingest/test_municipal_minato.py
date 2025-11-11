@@ -130,8 +130,8 @@ async def test_municipal_minato_pipeline(
 
     await fetch_http.fetch_http_pages(
         "municipal_minato",
-        pref="tokyo",
-        city="minato",
+        pref=None,
+        city=None,
         limit=8,
         min_delay=0.1,
         max_delay=0.2,

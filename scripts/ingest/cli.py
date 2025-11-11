@@ -58,8 +58,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fetch pages for a source using HTTP",
     )
     fetch_http_parser.add_argument("--source", required=True, help="Source identifier")
-    fetch_http_parser.add_argument("--pref", required=True, help="Prefecture slug")
-    fetch_http_parser.add_argument("--city", required=True, help="City slug")
+    fetch_http_parser.add_argument(
+        "--pref",
+        default=None,
+        help="Prefecture slug (municipal sources infer this when omitted)",
+    )
+    fetch_http_parser.add_argument(
+        "--city",
+        default=None,
+        help="City slug (municipal sources infer this when omitted)",
+    )
     fetch_http_parser.add_argument(
         "--limit",
         type=int,

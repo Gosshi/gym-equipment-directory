@@ -609,8 +609,8 @@ def _merge_extra_meta(
 async def fetch_http_pages(
     source: str,
     *,
-    pref: str,
-    city: str,
+    pref: str | None,
+    city: str | None,
     limit: int | None,
     min_delay: float,
     max_delay: float,
@@ -627,15 +627,29 @@ async def fetch_http_pages(
         msg = f"Unsupported source for HTTP fetch: {source}"
         raise ValueError(msg)
 
-    pref = pref.strip().lower()
-    city = city.strip().lower()
+    normalized_pref = pref.strip().lower() if isinstance(pref, str) else None
+    normalized_city = city.strip().lower() if isinstance(city, str) else None
+
     if municipal_source is not None:
-        if pref != municipal_source.pref_slug or city != municipal_source.city_slug:
-            msg = f"Unsupported area combination: pref={pref}, city={city}"
+        if normalized_pref is None and normalized_city is None:
+            normalized_pref, normalized_city = municipal_source.area
+        elif normalized_pref is None or normalized_city is None:
+            msg = "Both pref and city must be provided together for municipal sources"
             raise ValueError(msg)
-    elif config is not None and (pref, city) not in config.supported_areas:
-        msg = f"Unsupported area combination: pref={pref}, city={city}"
-        raise ValueError(msg)
+        elif (normalized_pref, normalized_city) != municipal_source.area:
+            msg = f"Unsupported area combination: pref={normalized_pref}, city={normalized_city}"
+            raise ValueError(msg)
+    elif config is not None:
+        if normalized_pref is None or normalized_city is None:
+            msg = f"pref and city must be provided for HTTP fetch of '{source}'"
+            raise ValueError(msg)
+        if (normalized_pref, normalized_city) not in config.supported_areas:
+            msg = f"Unsupported area combination: pref={normalized_pref}, city={normalized_city}"
+            raise ValueError(msg)
+
+    assert normalized_pref is not None and normalized_city is not None
+    pref = normalized_pref
+    city = normalized_city
 
     if min_delay <= 0 or max_delay <= 0:
         msg = "Delays must be positive values"

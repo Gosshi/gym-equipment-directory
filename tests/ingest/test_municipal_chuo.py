@@ -115,8 +115,8 @@ async def test_municipal_chuo_pipeline(
 
     await fetch_http.fetch_http_pages(
         "municipal_chuo",
-        pref="tokyo",
-        city="chuo",
+        pref=None,
+        city=None,
         limit=5,
         min_delay=0.1,
         max_delay=0.2,
