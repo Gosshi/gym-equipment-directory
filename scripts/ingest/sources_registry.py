@@ -196,36 +196,32 @@ SOURCES: dict[str, MunicipalSource] = {
     "municipal_chuo": MunicipalSource(
         title="municipal_chuo",
         base_url="https://www.city.chuo.lg.jp/",
-        intro_patterns=[r"/(kurashi|kurasi|shisetsu|a[0-9]+)/.*/sports/.+\.html$"],
+        intro_patterns=[
+            r"/(kurashi|kurasi|a[0-9]+)/.*/sports/.+\.html$",
+            r"/shisetsu/(?:genre/)?sports/.+\.html$",
+        ],
         article_patterns=ARTICLE_PAT_DEFAULT,
         list_seeds=[
+            "/shisetsu/genre/sports/index.html",
+            "/shisetsu/sports/index.html",
             "/kurashi/kyoiku/sports/index.html",
-            "/kurashi/kyoiku/sports/shisetsu/index.html",
             "/kurasi/kyoiku/sports/index.html",
-            "/kurasi/kyoiku/sports/shisetsu/index.html",
-            "/shisetsu/sports/",
         ],
         pref_slug="tokyo",
         city_slug="chuo",
         parse_hints=None,
         base_urls=("https://www.city.chuo.lg.jp/",),
         start_urls=(
+            "https://www.city.chuo.lg.jp/shisetsu/genre/sports/index.html",
+            "https://www.city.chuo.lg.jp/shisetsu/sports/index.html",
             "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html",
-            "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/"
-            "sogosportscenter/index.html",
-            "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/"
-            "sogosportscenter/trainingroom.html",
             "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/index.html",
-            "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/sogosportscenter/index.html",
-            "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/"
-            "sogosportscenter/trainingroom.html",
-            "https://www.city.chuo.lg.jp/a005/sports/sogosportscenter/index.html",
         ),
         domain_allowlist=("www.city.chuo.lg.jp", "city.chuo.lg.jp"),
         path_allowlist=(
+            r"^/shisetsu/(?:genre/)?sports/",
             r"^/kurashi/.*/sports/",
             r"^/kurasi/.*/sports/",
-            r"^/shisetsu/sports/",
             r"^/a[0-9]+/sports/",
         ),
         path_denylist=(r"/event", r"/reservation", r"/pdf/", r"/oshirase/"),
@@ -233,50 +229,38 @@ SOURCES: dict[str, MunicipalSource] = {
             "index": (
                 r"/kurashi/.*/sports/(index|ichiran)\.html$",
                 r"/kurasi/.*/sports/(index|ichiran)\.html$",
-                r"/shisetsu/sports/index\.html$",
+                r"/shisetsu/(?:genre/)?sports/(index|ichiran)\.html$",
             ),
             "category": (
                 r"/kurashi/.*/sports/(category|menu)/.*\.html$",
                 r"/kurasi/.*/sports/(category|menu)/.*\.html$",
-                r"/shisetsu/sports/.*/category/.*\.html$",
+                r"/shisetsu/(?:genre/)?sports/.*/(category|menu)/.*\.html$",
             ),
             "facility": (
                 r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
                 r"/kurasi/.*/sports/.*/(index|detail|shisetsu)\.html$",
-                r"/shisetsu/sports/.+/(index|detail|training).*\.html$",
+                r"/shisetsu/(?:genre/)?sports/.+/(index|detail|training).*\.html$",
                 r"/a[0-9]+/sports/.+/(index|detail).*\.html$",
             ),
             "article": tuple(ARTICLE_PAT_DEFAULT),
         },
         start_url_page_types={
+            "https://www.city.chuo.lg.jp/shisetsu/genre/sports/index.html": "index",
+            "https://www.city.chuo.lg.jp/shisetsu/sports/index.html": "index",
             "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html": "index",
-            (
-                "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/"
-                "sogosportscenter/index.html"
-            ): "facility",
-            (
-                "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/"
-                "sogosportscenter/trainingroom.html"
-            ): "facility",
             "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/index.html": "index",
-            (
-                "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/"
-                "sogosportscenter/index.html"
-            ): "facility",
-            (
-                "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/"
-                "sogosportscenter/trainingroom.html"
-            ): "facility",
-            "https://www.city.chuo.lg.jp/shisetsu/sports/sogosportscenter/index.html": "facility",
-            "https://www.city.chuo.lg.jp/a005/sports/sogosportscenter/index.html": "facility",
         },
     ),
     "municipal_minato": MunicipalSource(
         title="municipal_minato",
         base_url="https://www.city.minato.tokyo.jp/",
-        intro_patterns=[r"/(shisetsu|kurashi|kurasi|a[0-9]+)/.*/sports/.+\.html$"],
+        intro_patterns=[
+            r"/(kurashi|kurasi|a[0-9]+)/.*/sports/.+\.html$",
+            r"/shisetsu/(?:genre/)?sports/.+\.html$",
+        ],
         article_patterns=ARTICLE_PAT_DEFAULT,
         list_seeds=[
+            "/shisetsu/genre/sports/index.html",
             "/shisetsu/sports/",
             "/kurashi/kyoiku/sports/index.html",
             "/kurasi/kyoiku/sports/index.html",
@@ -294,7 +278,7 @@ SOURCES: dict[str, MunicipalSource] = {
         ),
         domain_allowlist=("www.city.minato.tokyo.jp", "city.minato.tokyo.jp"),
         path_allowlist=(
-            r"^/shisetsu/sports/",
+            r"^/shisetsu/(?:genre/)?sports/",
             r"^/kurashi/.*/sports/",
             r"^/kurasi/.*/sports/",
             r"^/a[0-9]+/sports/",
@@ -302,17 +286,17 @@ SOURCES: dict[str, MunicipalSource] = {
         path_denylist=(r"/event", r"/news", r"/reservation", r"/oshirase"),
         page_type_patterns={
             "index": (
-                r"/shisetsu/sports/index\.html$",
+                r"/shisetsu/(?:genre/)?sports/index\.html$",
                 r"/kurashi/.*/sports/(index|ichiran)\.html$",
                 r"/kurasi/.*/sports/(index|ichiran)\.html$",
             ),
             "category": (
-                r"/shisetsu/sports/.*/category/.*\.html$",
+                r"/shisetsu/(?:genre/)?sports/.*/category/.*\.html$",
                 r"/kurashi/.*/sports/.*/category/.*\.html$",
                 r"/kurasi/.*/sports/.*/category/.*\.html$",
             ),
             "facility": (
-                r"/shisetsu/sports/.+/(index|detail|training).*\.html$",
+                r"/shisetsu/(?:genre/)?sports/.+/(index|detail|training).*\.html$",
                 r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
                 r"/kurasi/.*/sports/.*/(index|detail|shisetsu)\.html$",
                 r"/a[0-9]+/sports/.+/(index|detail).*\.html$",

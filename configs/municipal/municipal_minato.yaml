@@ -5,7 +5,7 @@ start_urls:
   - "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html"
   - "https://www.city.minato.tokyo.jp/kurasi/kyoiku/sports/index.html"
 url_patterns:
-  facility: "/(shisetsu|kurashi|a[0-9]+)/.*/sports/.*/"
+  facility: "/(shisetsu/(genre/)?|kurashi|kurasi|a[0-9]+)/.*/sports/.*/"
   skip:
     - "/oshirase/"
     - "/news/"

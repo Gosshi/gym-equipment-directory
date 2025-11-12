@@ -1,13 +1,10 @@
 start_urls:
+  - "https://www.city.chuo.lg.jp/shisetsu/genre/sports/index.html"
+  - "https://www.city.chuo.lg.jp/shisetsu/sports/index.html"
   - "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/index.html"
-  - "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/index.html"
-  - "https://www.city.chuo.lg.jp/kurashi/kyoiku/sports/shisetsu/sogosportscenter/trainingroom.html"
   - "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/index.html"
-  - "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/sogosportscenter/index.html"
-  - "https://www.city.chuo.lg.jp/kurasi/kyoiku/sports/shisetsu/sogosportscenter/trainingroom.html"
-  - "https://www.city.chuo.lg.jp/a005/sports/sogosportscenter/index.html"
 url_patterns:
-  facility: "/(kurashi|shisetsu|a[0-9]+)/.*/sports/.*/"
+  facility: "/(shisetsu/(genre/)?|kurashi|kurasi|a[0-9]+)/.*/sports/.*/"
   skip:
     - "/oshirase/"
     - "/event"
