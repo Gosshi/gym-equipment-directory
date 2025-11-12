@@ -14,8 +14,10 @@ from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
+from .parse_municipal_chuo import parse_municipal_chuo_page
 from .parse_municipal_edogawa import parse_municipal_edogawa_page
 from .parse_municipal_koto import parse_municipal_koto_page
+from .parse_municipal_minato import parse_municipal_minato_page
 from .parse_municipal_sumida import parse_municipal_sumida_page
 from .sites import site_a
 from .sources_registry import SOURCES
@@ -78,18 +80,22 @@ def _get_page_type(page: ScrapedPage) -> str | None:
     return None
 
 
+_MUNICIPAL_PARSERS = {
+    "municipal_koto": parse_municipal_koto_page,
+    "municipal_edogawa": parse_municipal_edogawa_page,
+    "municipal_sumida": parse_municipal_sumida_page,
+    "municipal_chuo": parse_municipal_chuo_page,
+    "municipal_minato": parse_municipal_minato_page,
+}
+
+
 def _build_municipal_payload(
     page: ScrapedPage,
     *,
     source_id: str,
 ) -> tuple[str, str | None, dict[str, Any]]:
-    if source_id == "municipal_koto":
-        parser = parse_municipal_koto_page
-    elif source_id == "municipal_edogawa":
-        parser = parse_municipal_edogawa_page
-    elif source_id == "municipal_sumida":
-        parser = parse_municipal_sumida_page
-    else:
+    parser = _MUNICIPAL_PARSERS.get(source_id)
+    if parser is None:
         msg = f"Unsupported municipal parser for source '{source_id}'"
         raise ValueError(msg)
 

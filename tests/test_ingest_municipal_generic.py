@@ -146,7 +146,7 @@ async def test_municipal_pipeline_end_to_end(
     pages = (await session.execute(select(ScrapedPage))).scalars().all()
     assert {page.url for page in pages} == {intro_url, article_url}
     meta_map = {page.url: page.response_meta or {} for page in pages}
-    assert meta_map[intro_url]["municipal_page_type"] == "intro"
+    assert meta_map[intro_url]["municipal_page_type"] == "facility"
     assert meta_map[article_url]["municipal_page_type"] == "article"
 
     await parse.parse_pages("municipal_koto", limit=10)

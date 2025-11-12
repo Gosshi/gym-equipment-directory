@@ -62,11 +62,14 @@ pre-commit-run:
 	ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
 	ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
 	ingest-fetch-ward ingest-parse-ward ingest-normalize-ward \
-	ingest-fetch-municipal-koto ingest-parse-municipal-koto \
-	ingest-normalize-municipal-koto ingest-fetch-municipal-edogawa \
-	ingest-parse-municipal-edogawa ingest-normalize-municipal-edogawa \
-	ingest-fetch-municipal-sumida ingest-parse-municipal-sumida \
-	ingest-normalize-municipal-sumida
+        ingest-fetch-municipal-koto ingest-parse-municipal-koto \
+        ingest-normalize-municipal-koto ingest-fetch-municipal-edogawa \
+        ingest-parse-municipal-edogawa ingest-normalize-municipal-edogawa \
+        ingest-fetch-municipal-sumida ingest-parse-municipal-sumida \
+        ingest-normalize-municipal-sumida ingest-fetch-municipal-chuo \
+        ingest-parse-municipal-chuo ingest-normalize-municipal-chuo \
+        ingest-fetch-municipal-minato ingest-parse-municipal-minato \
+        ingest-normalize-municipal-minato
 ingest-fetch:
 	python -m scripts.ingest fetch --source dummy --limit 10
 ingest-parse:
@@ -141,7 +144,25 @@ ingest-parse-municipal-sumida:
 	$(MAKE) ingest-parse-ward S=municipal_sumida L=200
 
 ingest-normalize-municipal-sumida:
-	$(MAKE) ingest-normalize-ward S=municipal_sumida L=200
+        $(MAKE) ingest-normalize-ward S=municipal_sumida L=200
+
+ingest-fetch-municipal-chuo:
+        $(MAKE) ingest-fetch-ward S=municipal_chuo C=chuo L=100
+
+ingest-parse-municipal-chuo:
+        $(MAKE) ingest-parse-ward S=municipal_chuo L=200
+
+ingest-normalize-municipal-chuo:
+        $(MAKE) ingest-normalize-ward S=municipal_chuo L=200
+
+ingest-fetch-municipal-minato:
+        $(MAKE) ingest-fetch-ward S=municipal_minato C=minato L=100
+
+ingest-parse-municipal-minato:
+        $(MAKE) ingest-parse-ward S=municipal_minato L=200
+
+ingest-normalize-municipal-minato:
+        $(MAKE) ingest-normalize-ward S=municipal_minato L=200
 
 curl-admin-candidates:
 	@echo "# 一覧"

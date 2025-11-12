@@ -1,0 +1,36 @@
+start_urls:
+  - "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter.html"
+  - "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/index.html"
+  - "https://www.city.minato.tokyo.jp/shisetsu/sports/minatosportscenter/trainingroom.html"
+  - "https://www.city.minato.tokyo.jp/kurashi/kyoiku/sports/index.html"
+  - "https://www.city.minato.tokyo.jp/kurasi/kyoiku/sports/index.html"
+url_patterns:
+  facility: "/(shisetsu/(genre/)?|kurashi|kurasi|a[0-9]+)/.*/sports/.*/"
+  skip:
+    - "/oshirase/"
+    - "/news/"
+selectors:
+  title:
+    - "main h1"
+    - "h1"
+  body:
+    - "main"
+    - "body"
+  address_hint:
+    - "dl"
+    - "table"
+    - ".summary"
+  equipment_blocks:
+    - "table"
+    - "section"
+    - "ul"
+address_patterns:
+  - "東京都港区[^\\n<]+"
+  - "〒\\s*\\d{3}-\\d{4}[^\\n<]*"
+keywords:
+  training:
+    - "トレーニングルーム"
+    - "設置マシン"
+  facility:
+    - "区民センター"
+    - "スポーツセンター"
