@@ -1,74 +1,23 @@
-from datetime import UTC, datetime
-
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     CandidateStatus,
-    Equipment,
     Gym,
     GymCandidate,
     GymEquipment,
-    ScrapedPage,
-    Source,
-    SourceType,
 )
 from app.services.approve_service import ApproveService
-
-
-async def _create_source(session: AsyncSession, title: str) -> Source:
-    source = Source(source_type=SourceType.official_site, title=title, url="https://example.com")
-    session.add(source)
-    await session.flush()
-    return source
-
-
-async def _create_page(session: AsyncSession, source_id: int, slug: str) -> ScrapedPage:
-    page = ScrapedPage(
-        source_id=source_id,
-        url=f"https://example.com/{slug}",
-        fetched_at=datetime.now(UTC),
-        http_status=200,
-    )
-    session.add(page)
-    await session.flush()
-    return page
-
-
-async def _create_candidate(
-    session: AsyncSession,
-    *,
-    name: str,
-    page: ScrapedPage,
-    parsed_json: dict,
-    status: CandidateStatus = CandidateStatus.new,
-) -> GymCandidate:
-    candidate = GymCandidate(
-        source_page_id=page.id,
-        name_raw=name,
-        address_raw=parsed_json.get("address", "東京都江東区東砂4-24-1"),
-        pref_slug="tokyo",
-        city_slug="koto",
-        latitude=35.6,
-        longitude=139.8,
-        parsed_json=parsed_json,
-        status=status,
-    )
-    session.add(candidate)
-    await session.flush()
-    await session.commit()
-    return candidate
+from tests.factories import create_candidate, create_equipment, create_page, create_source
 
 
 @pytest.mark.asyncio
 async def test_approve_creates_new_gym(session: AsyncSession) -> None:
-    equipment = Equipment(slug="auto-machine", name="Auto Machine", category="machine")
-    session.add(equipment)
-    await session.flush()
+    await create_equipment(session, slug="auto-machine", name="Auto Machine")
 
-    source = await _create_source(session, "create-source")
-    page = await _create_page(session, source.id, "create")
+    source = await create_source(session, "create-source")
+    page = await create_page(session, source.id, "create")
     parsed = {
         "meta": {"create_gym": True},
         "facility_name": "オートジム",
@@ -81,7 +30,7 @@ async def test_approve_creates_new_gym(session: AsyncSession) -> None:
             }
         ],
     }
-    candidate = await _create_candidate(session, name="オートジム", page=page, parsed_json=parsed)
+    candidate = await create_candidate(session, name="オートジム", page=page, parsed_json=parsed)
 
     service = ApproveService(session)
     result = await service.approve(candidate.id, dry_run=False)
@@ -106,12 +55,10 @@ async def test_approve_creates_new_gym(session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_dry_run_does_not_persist(session: AsyncSession) -> None:
-    equipment = Equipment(slug="dry-run-machine", name="Dry Machine", category="machine")
-    session.add(equipment)
-    await session.flush()
+    await create_equipment(session, slug="dry-run-machine", name="Dry Machine")
 
-    source = await _create_source(session, "dry-run-source")
-    page = await _create_page(session, source.id, "dry-run")
+    source = await create_source(session, "dry-run-source")
+    page = await create_page(session, source.id, "dry-run")
     parsed = {
         "meta": {"create_gym": True},
         "facility_name": "ドライランジム",
@@ -124,7 +71,7 @@ async def test_dry_run_does_not_persist(session: AsyncSession) -> None:
             }
         ],
     }
-    candidate = await _create_candidate(
+    candidate = await create_candidate(
         session,
         name="ドライランジム",
         page=page,
@@ -150,9 +97,9 @@ async def test_dry_run_does_not_persist(session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_ignore_when_create_gym_false(session: AsyncSession) -> None:
-    source = await _create_source(session, "ignore-source")
-    page = await _create_page(session, source.id, "ignore")
-    candidate = await _create_candidate(
+    source = await create_source(session, "ignore-source")
+    page = await create_page(session, source.id, "ignore")
+    candidate = await create_candidate(
         session,
         name="無視候補",
         page=page,
@@ -181,8 +128,8 @@ async def test_merge_into_target_gym(session: AsyncSession) -> None:
     session.add(existing_gym)
     await session.flush()
 
-    source = await _create_source(session, "merge-source")
-    page = await _create_page(session, source.id, "sports_center4/introduction/tr_detail.html")
+    source = await create_source(session, "merge-source")
+    page = await create_page(session, source.id, "sports_center4/introduction/tr_detail.html")
     parsed = {
         "meta": {"create_gym": True, "target_gym_slug": "existing-gym"},
         "facility_name": "トレーニングルーム",
@@ -191,7 +138,7 @@ async def test_merge_into_target_gym(session: AsyncSession) -> None:
         "center_no": "4",
         "equipments_slotted": [{"slug": "seed-bench-press", "count": 2}],
     }
-    candidate = await _create_candidate(session, name="既存ジム", page=page, parsed_json=parsed)
+    candidate = await create_candidate(session, name="既存ジム", page=page, parsed_json=parsed)
 
     service = ApproveService(session)
     result = await service.approve(candidate.id, dry_run=False)
@@ -222,9 +169,7 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
     session.add(gym)
     await session.flush()
 
-    equipment = Equipment(slug="merge-machine", name="マージマシン", category="machine")
-    session.add(equipment)
-    await session.flush()
+    equipment = await create_equipment(session, slug="merge-machine", name="マージマシン")
 
     existing = GymEquipment(
         gym_id=gym.id,
@@ -235,8 +180,8 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
     await session.flush()
     await session.commit()
 
-    source = await _create_source(session, "merge-count")
-    page1 = await _create_page(session, source.id, "first")
+    source = await create_source(session, "merge-count")
+    page1 = await create_page(session, source.id, "first")
     parsed1 = {
         "meta": {"create_gym": True, "target_gym_slug": "merge-gym"},
         "facility_name": "マージジム",
@@ -244,7 +189,7 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
         "page_url": page1.url,
         "equipments_slotted": [{"slug": "merge-machine", "count": 3}],
     }
-    candidate1 = await _create_candidate(
+    candidate1 = await create_candidate(
         session,
         name="マージジム1",
         page=page1,
@@ -258,7 +203,7 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
     assert refreshed is not None
     assert refreshed.count == 3
 
-    page2 = await _create_page(session, source.id, "second")
+    page2 = await create_page(session, source.id, "second")
     parsed2 = {
         "meta": {"create_gym": True, "target_gym_slug": "merge-gym"},
         "facility_name": "マージジム",
@@ -266,7 +211,7 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
         "page_url": page2.url,
         "equipments_slotted": [{"slug": "merge-machine", "count": 5}],
     }
-    candidate2 = await _create_candidate(
+    candidate2 = await create_candidate(
         session,
         name="マージジム2",
         page=page2,
@@ -280,8 +225,8 @@ async def test_equipment_count_merges(session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_duplicate_candidates_do_not_duplicate_equipment(session: AsyncSession) -> None:
-    source = await _create_source(session, "dup-source")
-    page1 = await _create_page(session, source.id, "create-new")
+    source = await create_source(session, "dup-source")
+    page1 = await create_page(session, source.id, "create-new")
     parsed1 = {
         "meta": {"create_gym": True},
         "facility_name": "新規ジム",
@@ -289,7 +234,7 @@ async def test_duplicate_candidates_do_not_duplicate_equipment(session: AsyncSes
         "page_url": page1.url,
         "equipments_slotted": [{"slug": "seed-lat-pulldown", "count": 1}],
     }
-    candidate1 = await _create_candidate(session, name="新規ジム", page=page1, parsed_json=parsed1)
+    candidate1 = await create_candidate(session, name="新規ジム", page=page1, parsed_json=parsed1)
 
     service = ApproveService(session)
     await service.approve(candidate1.id, dry_run=False)
@@ -298,7 +243,7 @@ async def test_duplicate_candidates_do_not_duplicate_equipment(session: AsyncSes
     gym_obj = (await session.execute(gym_stmt)).scalars().first()
     assert gym_obj is not None
 
-    page2 = await _create_page(session, source.id, "reuse")
+    page2 = await create_page(session, source.id, "reuse")
     parsed2 = {
         "meta": {"create_gym": True, "target_gym_slug": gym_obj.slug},
         "facility_name": "新規ジム",
@@ -306,7 +251,7 @@ async def test_duplicate_candidates_do_not_duplicate_equipment(session: AsyncSes
         "page_url": page2.url,
         "equipments_slotted": [{"slug": "seed-lat-pulldown", "count": 1}],
     }
-    candidate2 = await _create_candidate(session, name="新規ジム2", page=page2, parsed_json=parsed2)
+    candidate2 = await create_candidate(session, name="新規ジム2", page=page2, parsed_json=parsed2)
 
     await service.approve(candidate2.id, dry_run=False)
 
