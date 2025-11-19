@@ -40,7 +40,24 @@ rev:
 	docker compose --env-file $(ENV_FILE) exec api alembic revision --autogenerate -m "$(m)"
 
 freshness:
-	docker compose --env-file $(ENV_FILE) exec api python -m scripts.update_freshness
+	docker compose --env-file $(ENV_FILE) exec api \
+		python -m scripts.update_freshness
+
+geocode-gyms:
+	docker compose --env-file $(ENV_FILE) exec api \
+		python -m scripts.tools.geocode_missing \
+			--target gyms \
+			--origin scraped
+
+geocode-candidates:
+	docker compose --env-file $(ENV_FILE) exec api \
+		python -m scripts.tools.geocode_missing \
+			--target candidates \
+			--origin all
+
+geocode-and-freshness:
+	$(MAKE) geocode-gyms ENV_FILE=$(ENV_FILE)
+	$(MAKE) freshness ENV_FILE=$(ENV_FILE)
 
 test:
 	@TEST_DATABASE_URL=$(PG_DSN) pytest -q
@@ -56,7 +73,8 @@ pre-commit-run:
 	pre-commit run --all-files
 
 .PHONY: up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
-	pre-commit-install pre-commit-run curl-admin-candidates \
+geocode-gyms geocode-candidates geocode-and-freshness \
+pre-commit-install pre-commit-run curl-admin-candidates \
 	ingest-fetch ingest-parse ingest-normalize ingest-approve \
 	ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
 	ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
