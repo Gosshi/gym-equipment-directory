@@ -239,6 +239,7 @@ SOURCES: dict[str, MunicipalSource] = {
             "facility": (
                 r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
                 r"/kurasi/.*/sports/.*/(index|detail|shisetsu)\.html$",
+                r"/shisetsu/(?:genre/)?sports/(?!.*(index|ichiran)\.html$)[^?#]+\.html$",
                 r"/shisetsu/(?:genre/)?sports/.+/(index|detail|training).*\.html$",
                 r"/a[0-9]+/sports/.+/(index|detail).*\.html$",
             ),
@@ -296,6 +297,7 @@ SOURCES: dict[str, MunicipalSource] = {
                 r"/kurasi/.*/sports/.*/category/.*\.html$",
             ),
             "facility": (
+                r"/shisetsu/(?:genre/)?sports/(?!.*(index|ichiran)\.html$)[^?#]+\.html$",
                 r"/shisetsu/(?:genre/)?sports/.+/(index|detail|training).*\.html$",
                 r"/kurashi/.*/sports/.*/(index|detail|shisetsu)\.html$",
                 r"/kurasi/.*/sports/.*/(index|detail|shisetsu)\.html$",
