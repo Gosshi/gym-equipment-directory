@@ -1,5 +1,5 @@
-# Render Blueprint for deploying the FastAPI backend with Docker.
-# See docs/ops.md for the manual docker compose workflow that mirrors this config.
+# FastAPI バックエンドを Docker で Render にデプロイするための Blueprint。
+# 手動手順は docs/ops.md に記載された docker compose フローを参照。
 services:
   - type: web
     name: gym-equipment-api
@@ -17,7 +17,7 @@ services:
       - key: APP_PORT
         value: 8000
       - key: DATABASE_URL
-        sync: false # Provide the managed PostgreSQL DSN (see .env.prod.example).
+        sync: false # Render 管理の PostgreSQL DSN を入力（.env.prod.example を参照）。
       - key: OPENCAGE_API_KEY
         sync: false
       - key: ADMIN_UI_TOKEN

@@ -1,76 +1,67 @@
-# Operations & Deployment Runbook
+# 運用・デプロイ手順書
 
-This document summarizes how to prepare environment variables, boot a production-like stack
-with Docker Compose, and run geocoding / freshness maintenance jobs.
+本ドキュメントでは、env ファイルの準備から Docker Compose による本番相当環境の立ち上げ、Render へのデプロイ、および保守用スクリプトの実行手順をまとめます。
 
-## 1. Prepare environment files
-1. Copy the templates and edit the secrets:
+## 1. env ファイルの準備
+1. テンプレートをコピーする
    ```bash
    cp .env.example .env
    cp .env.prod.example .env.prod
    ```
-2. Update both files with the correct PostgreSQL credentials, `DATABASE_URL`, external
-   service API keys, and tokens such as `ADMIN_UI_TOKEN`.
-3. Keep `COMPOSE_ENV_FILE=.env` (for local) or `COMPOSE_ENV_FILE=.env.prod` (for production)
-   so that `docker-compose.yml` knows which file to mount inside the containers.
+2. `.env`（ローカル開発）と `.env.prod`（本番 / Render）に対して、PostgreSQL の接続情報や `DATABASE_URL`、`ADMIN_UI_TOKEN`、`OPENCAGE_API_KEY` などのシークレットを入力する。
+3. Docker Compose が利用するファイルを `COMPOSE_ENV_FILE=.env`（開発）または `COMPOSE_ENV_FILE=.env.prod`（本番）に設定しておく。
 
-## 2. Boot a production-like stack locally
-1. Start the stack with the production env file:
+## 2. 本番相当スタックの起動
+1. `.env.prod` を読み込んでコンテナを立ち上げる
    ```bash
    docker compose --env-file .env.prod up -d
    ```
-2. Run database migrations if needed:
+2. 必要に応じて DB マイグレーションを実行する
    ```bash
    docker compose --env-file .env.prod exec api alembic upgrade head
    ```
-3. Validate the API health endpoint:
+3. API のヘルスチェック
    ```bash
    curl http://localhost:${APP_PORT:-8080}/healthz
    ```
-4. Tail the FastAPI logs for additional verification:
+4. ログ確認（任意）
    ```bash
    docker compose --env-file .env.prod logs -f api
    ```
 
-## 3. Operational jobs (geocoding & freshness)
-Execute the CLI utilities inside the API container after the stack is online.
+## 3. ジオコーディング / 鮮度更新ジョブ
+スタックが立ち上がったら、以下の CLI を API コンテナ内で実行する。
 
 ```bash
-# Geocode gyms missing latitude/longitude from scraped sources.
+# 緯度経度が欠損しているジムをスクレイプ結果から補完
 docker compose --env-file .env.prod exec api \
   python -m scripts.tools.geocode_missing \
     --target gyms \
     --origin scraped
 
-# Update cached freshness timestamps used by search scoring.
+# 検索スコアに利用する鮮度キャッシュを更新
 docker compose --env-file .env.prod exec api \
   python -m scripts.update_freshness
 ```
 
-The same commands work for `.env` by replacing `.env.prod` and ensuring the corresponding env
-file contains `DATABASE_URL` and `OPENCAGE_API_KEY`.
+`.env` を使うローカル開発時も、`--env-file .env` に差し替えれば同じコマンドで実行できる。
 
-## 4. Render deployment blueprint
-Render-specific configuration lives in [`infra/render.yaml`](../infra/render.yaml).
-To launch a new service:
+## 4. Render デプロイ手順
+Render 向けの Blueprint は [`infra/render.yaml`](../infra/render.yaml) に格納されている。新規 Web Service を作成する際は以下を参照。
 
-1. Visit [https://dashboard.render.com/](https://dashboard.render.com/) and create a new Web
-   Service from the GitHub repository.
-2. When prompted for configuration, choose "Use existing render.yaml" and point to
-   `infra/render.yaml`.
-3. Fill in each secret listed in the `envVars` section (e.g. `DATABASE_URL`,
-   `OPENCAGE_API_KEY`, `ADMIN_UI_TOKEN`).
-4. Render uses `/healthz` for health checks, so confirm the endpoint returns HTTP 200 locally
-   before enabling automatic deploys.
+1. [Render ダッシュボード](https://dashboard.render.com/)で Web Service を作成し、GitHub の本リポジトリを選択する。
+2. 設定画面で "Use existing render.yaml" を選び、`infra/render.yaml` を参照させる。
+3. `envVars` に記載されている `DATABASE_URL`、`OPENCAGE_API_KEY`、`ADMIN_UI_TOKEN` などのシークレットを Render 側のダッシュボードで入力する。
+4. Render のヘルスチェックは `/healthz` を参照するため、ローカルでも同エンドポイントが 200 を返すことを確認してからデプロイを進める。
 
-## 5. Quick reference commands
+## 5. よく使うコマンド
 - `docker compose --env-file .env.prod up -d`
 - `docker compose --env-file .env.prod exec api python -m scripts.tools.geocode_missing --target gyms --origin scraped`
 - `docker compose --env-file .env.prod exec api python -m scripts.update_freshness`
 - `curl http://localhost:${APP_PORT:-8080}/healthz`
 
-## 6. Shutdown & cleanup
+## 6. シャットダウンと後片付け
 ```bash
 docker compose --env-file .env.prod down
 ```
-This stops the containers while leaving persistent PostgreSQL volumes intact.
+永続化ボリュームは残したまま、コンテナだけを停止する。
