@@ -62,6 +62,93 @@ async def _create_candidate(
 
 
 @pytest.mark.asyncio
+async def test_approve_creates_new_gym(session: AsyncSession) -> None:
+    equipment = Equipment(slug="auto-machine", name="Auto Machine", category="machine")
+    session.add(equipment)
+    await session.flush()
+
+    source = await _create_source(session, "create-source")
+    page = await _create_page(session, source.id, "create")
+    parsed = {
+        "meta": {"create_gym": True},
+        "facility_name": "オートジム",
+        "address": "東京都江東区南砂1-1",
+        "page_url": page.url,
+        "equipments_slotted": [
+            {
+                "slug": "auto-machine",
+                "count": 4,
+            }
+        ],
+    }
+    candidate = await _create_candidate(session, name="オートジム", page=page, parsed_json=parsed)
+
+    service = ApproveService(session)
+    result = await service.approve(candidate.id, dry_run=False)
+
+    assert result.candidate_status is CandidateStatus.approved
+    assert result.gym.action == "create"
+    assert result.approved_gym_slug == result.gym.slug
+
+    gym_stmt = select(Gym).where(Gym.slug == result.gym.slug)
+    gym_obj = (await session.execute(gym_stmt)).scalar_one()
+    assert gym_obj.address == "東京都江東区南砂1-1"
+
+    refreshed_candidate = await session.get(GymCandidate, candidate.id)
+    assert refreshed_candidate is not None
+    assert refreshed_candidate.status is CandidateStatus.approved
+
+    equip_stmt = select(GymEquipment).where(GymEquipment.gym_id == gym_obj.id)
+    equipments = (await session.execute(equip_stmt)).scalars().all()
+    assert len(equipments) == 1
+    assert equipments[0].count == 4
+
+
+@pytest.mark.asyncio
+async def test_dry_run_does_not_persist(session: AsyncSession) -> None:
+    equipment = Equipment(slug="dry-run-machine", name="Dry Machine", category="machine")
+    session.add(equipment)
+    await session.flush()
+
+    source = await _create_source(session, "dry-run-source")
+    page = await _create_page(session, source.id, "dry-run")
+    parsed = {
+        "meta": {"create_gym": True},
+        "facility_name": "ドライランジム",
+        "address": "東京都江東区北砂2-2",
+        "page_url": page.url,
+        "equipments_slotted": [
+            {
+                "slug": "dry-run-machine",
+                "count": 2,
+            }
+        ],
+    }
+    candidate = await _create_candidate(
+        session,
+        name="ドライランジム",
+        page=page,
+        parsed_json=parsed,
+    )
+
+    service = ApproveService(session)
+    result = await service.approve(candidate.id, dry_run=True)
+
+    assert result.dry_run is True
+    assert result.gym.action == "create"
+    assert result.approved_gym_slug == result.gym.slug
+    assert all(plan.action == "insert" for plan in result.equipments)
+
+    gym_stmt = select(Gym).where(Gym.slug == result.gym.slug)
+    persisted = (await session.execute(gym_stmt)).scalar_one_or_none()
+    assert persisted is None
+
+    refreshed_candidate = await session.get(GymCandidate, candidate.id)
+    assert refreshed_candidate is not None
+    assert refreshed_candidate.status is CandidateStatus.new
+
+
+@pytest.mark.asyncio
 async def test_ignore_when_create_gym_false(session: AsyncSession) -> None:
     source = await _create_source(session, "ignore-source")
     page = await _create_page(session, source.id, "ignore")

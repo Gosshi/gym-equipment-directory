@@ -331,9 +331,13 @@ class ApproveService:
         candidate = await self._load_candidate(candidate_id)
         if candidate is None:
             await txn.rollback()
+            logger.warning("Candidate %s not found", candidate_id)
             raise CandidateNotFoundError(f"candidate {candidate_id} not found")
         if candidate.status is not CandidateStatus.new:
             await txn.rollback()
+            logger.warning(
+                "Candidate %s status conflict: %s", candidate_id, candidate.status
+            )
             raise CandidateStatusConflictError(
                 f"candidate {candidate_id} status is {candidate.status}"
             )
@@ -341,6 +345,9 @@ class ApproveService:
             plan = await self._build_plan(candidate)
         except ApprovalError as exc:
             await txn.rollback()
+            logger.warning(
+                "Failed to build approval plan for candidate %s: %s", candidate_id, exc
+            )
             if dry_run:
                 response = ApproveResponse(
                     candidate_id=int(candidate.id),
@@ -355,6 +362,12 @@ class ApproveService:
             raise
         if dry_run:
             await txn.rollback()
+            logger.info(
+                "Approval dry-run candidate=%s action=%s target_slug=%s",
+                candidate_id,
+                plan.gym_plan.action,
+                plan.gym_plan.slug,
+            )
             return ApproveResponse(
                 candidate_id=int(candidate.id),
                 dry_run=True,
@@ -372,7 +385,15 @@ class ApproveService:
             await txn.commit()
         except Exception:
             await txn.rollback()
+            logger.exception("Approval failed for candidate %s", candidate_id)
             raise
+        gym_id = int(gym.id) if gym and gym.id is not None else None
+        logger.info(
+            "Approval succeeded candidate=%s gym_id=%s action=%s",
+            candidate_id,
+            gym_id,
+            plan.gym_plan.action,
+        )
         return ApproveResponse(
             candidate_id=int(candidate.id),
             dry_run=False,
@@ -425,6 +446,7 @@ class ApproveService:
             if official:
                 target_gym = await self._find_gym_by_official_url(official)
 
+        canonical_id = make_canonical_id(pref, city, name)
         official_url = _normalize_official_url(page_url)
         gym_plan = await self._build_gym_plan(
             candidate,
@@ -433,6 +455,7 @@ class ApproveService:
             pref=pref,
             city=city,
             address=address or None,
+            canonical_id=canonical_id,
             official_url=official_url,
         )
 
@@ -459,10 +482,14 @@ class ApproveService:
         pref: str,
         city: str,
         address: str | None,
+        canonical_id: str,
         official_url: str | None,
     ) -> GymPlan:
         if not pref or not city:
             raise InvalidCandidatePayloadError("pref_slug and city_slug are required")
+        existing = await self._find_gym_by_canonical_id(canonical_id)
+        if target_gym is None and existing is not None:
+            target_gym = existing
         if target_gym:
             updates: dict[str, Any] = {}
             changes: list[FieldChange] = []
@@ -493,7 +520,6 @@ class ApproveService:
 
         slug_base = _build_slug(name, address, city, pref)
         slug = await self._generate_unique_slug(slug_base)
-        canonical_id = make_canonical_id(pref, city, name)
         create_kwargs: dict[str, Any] = {
             "slug": slug,
             "canonical_id": canonical_id,
@@ -637,6 +663,11 @@ class ApproveService:
 
     async def _find_gym_by_official_url(self, url: str) -> Gym | None:
         stmt = select(Gym).where(Gym.official_url == url)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _find_gym_by_canonical_id(self, canonical_id: str) -> Gym | None:
+        stmt = select(Gym).where(Gym.canonical_id == canonical_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
