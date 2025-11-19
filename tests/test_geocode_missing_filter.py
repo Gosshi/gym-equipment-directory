@@ -29,7 +29,10 @@ async def test_geocode_missing_excludes_manual_origin(session, monkeypatch):
         "gyms", origin="scraped", session=session
     )
 
-    assert summary == {"tried": 0, "updated": 0, "skipped": 0}
+    assert summary["tried"] == 0
+    assert summary["updated"] == 0
+    assert summary["skipped"] == 0
+    assert summary["reasons"] == {}
 
 
 @pytest.mark.asyncio
@@ -54,6 +57,9 @@ async def test_geocode_missing_includes_manual_origin_when_all(session, monkeypa
 
     await session.refresh(gym)
 
-    assert summary == {"tried": 1, "updated": 1, "skipped": 0}
+    assert summary["tried"] == 1
+    assert summary["updated"] == 1
+    assert summary["skipped"] == 0
+    assert summary["reasons"] == {}
     assert gym.latitude == pytest.approx(35.1234)
     assert gym.longitude == pytest.approx(139.9876)

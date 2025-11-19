@@ -56,6 +56,9 @@ async def test_geocode_missing_updates_records(session, monkeypatch):
 
     await session.refresh(gym)
 
-    assert summary == {"tried": 1, "updated": 1, "skipped": 0}
+    assert summary["tried"] == 1
+    assert summary["updated"] == 1
+    assert summary["skipped"] == 0
+    assert summary["reasons"] == {}
     assert gym.latitude == pytest.approx(34.1234)
     assert gym.longitude == pytest.approx(135.5678)

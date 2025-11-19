@@ -1,4 +1,10 @@
-"""CLI utilities for geocoding missing coordinates."""
+"""Operations tooling to backfill missing latitude/longitude values.
+
+The script is invoked from `make geocode-*` targets and complements the
+documentation in ``docs/ops_geocode_and_freshness.md``.  It accepts
+``--target``/``--origin`` filters, supports dry-run mode, and returns a summary
+dictionary so operational scripts and tests can assert on the outcome.
+"""
 
 from __future__ import annotations
 
@@ -335,7 +341,12 @@ async def geocode_missing_records(
     dump_failures_path: str | None = None,
     session: AsyncSession | None = None,
 ) -> dict[str, int | dict[str, int]]:
-    """Geocode missing coordinates for gyms or candidates."""
+    """Geocode missing coordinates for gyms or candidates.
+
+    The returned dictionary always contains ``tried``, ``updated``, ``skipped``
+    and ``reasons`` keys so that CLI callers and tests can rely on a stable
+    interface when summarizing batch results.
+    """
 
     if target not in _TARGET_CHOICES:
         msg = f"Invalid target: {target}"
