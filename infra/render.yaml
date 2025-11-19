@@ -1,0 +1,54 @@
+# Render Blueprint for deploying the FastAPI backend with Docker.
+# See docs/ops.md for the manual docker compose workflow that mirrors this config.
+services:
+  - type: web
+    name: gym-equipment-api
+    env: docker
+    plan: starter
+    autoDeploy: true
+    region: singapore
+    branch: main
+    rootDir: .
+    dockerfilePath: Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: APP_PORT
+        value: 8000
+      - key: DATABASE_URL
+        sync: false # Provide the managed PostgreSQL DSN (see .env.prod.example).
+      - key: OPENCAGE_API_KEY
+        sync: false
+      - key: ADMIN_UI_TOKEN
+        sync: false
+      - key: ALLOW_ORIGINS
+        value: https://your-frontend.example.com
+      - key: RATE_LIMIT_ENABLED
+        value: "1"
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_RATE
+        value: "0.1"
+      - key: RELEASE
+        value: render-${RENDER_GIT_COMMIT}
+      - key: SCORE_W_FRESH
+        value: "0.6"
+      - key: SCORE_W_RICH
+        value: "0.4"
+      - key: FRESHNESS_WINDOW_DAYS
+        value: "365"
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://api.your-frontend.example.com
+    disk:
+      name: api-shared-cache
+      mountPath: /tmp
+      sizeGB: 1
+
+databases:
+  - name: gym-equipment-postgres
+    plan: standard
+    region: singapore
+    databaseName: gym_directory
+    user: appuser
+    ipAllowList: []
