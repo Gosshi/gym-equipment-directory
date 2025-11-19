@@ -8,7 +8,7 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 
-from .approve import approve_candidate
+from .approve import approve_candidates
 from .fetch import fetch_pages
 from .fetch_http import (
     DEFAULT_LIMIT,
@@ -132,13 +132,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     approve_parser = subparsers.add_parser(
-        "approve", help="Approve a gym candidate (dummy implementation)"
+        "approve", help="Approve one or more gym candidates"
     )
     approve_parser.add_argument(
         "--candidate-id",
+        dest="candidate_ids",
+        action="append",
         required=True,
         type=int,
-        help="Candidate identifier to approve",
+        help="Candidate identifier to approve (repeatable)",
     )
     approve_parser.add_argument(
         "--dry-run",
@@ -186,7 +188,9 @@ def _dispatch(args: argparse.Namespace) -> int:
             )
         )
     if command == "approve":
-        return asyncio.run(_run_async_command(approve_candidate, args.candidate_id, args.dry_run))
+        return asyncio.run(
+            _run_async_command(approve_candidates, args.candidate_ids, args.dry_run)
+        )
     msg = f"Unknown command: {command}"
     raise ValueError(msg)
 
