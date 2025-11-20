@@ -146,6 +146,65 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run approval without mutating the database",
     )
 
+    batch_parser = subparsers.add_parser(
+        "batch",
+        help="Run full batch pipeline: fetch-http -> parse -> normalize -> diff -> approve",
+    )
+    batch_parser.add_argument("--source", required=True, help="Source identifier")
+    batch_parser.add_argument("--pref", required=True, help="Prefecture slug")
+    batch_parser.add_argument("--city", required=True, help="City slug")
+    batch_parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="Max number of detail pages to fetch (passes to fetch-http)",
+    )
+    batch_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Execute pipeline without mutating database (approve phase skipped)",
+    )
+    batch_parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=None,
+        help="Override retry attempts for network phases",
+    )
+    batch_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help="Timeout per HTTP request (fetch-http)",
+    )
+    batch_parser.add_argument(
+        "--min-delay",
+        type=float,
+        default=DEFAULT_MIN_DELAY,
+        help="Minimum delay between HTTP requests",
+    )
+    batch_parser.add_argument(
+        "--max-delay",
+        type=float,
+        default=DEFAULT_MAX_DELAY,
+        help="Maximum delay between HTTP requests",
+    )
+    batch_parser.add_argument(
+        "--respect-robots",
+        type=_str_to_bool,
+        default=True,
+        help="Whether to respect robots.txt (fetch-http)",
+    )
+    batch_parser.add_argument(
+        "--user-agent",
+        default=DEFAULT_USER_AGENT,
+        help="User-Agent header to use (fetch-http)",
+    )
+    batch_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-fetch ignoring conditional headers",
+    )
+
     return parser
 
 
@@ -187,6 +246,29 @@ def _dispatch(args: argparse.Namespace) -> int:
         )
     if command == "approve":
         return asyncio.run(_run_async_command(approve_candidates, args.candidate_ids, args.dry_run))
+    if command == "batch":
+        # Lazy import to keep CLI lightweight for other commands.
+        from .pipeline import (
+            run_batch,  # noqa: WPS433 (local import for optional dependency handling)
+        )
+
+        return asyncio.run(
+            _run_async_command(
+                run_batch,
+                source=args.source,
+                pref=args.pref,
+                city=args.city,
+                limit=args.limit,
+                dry_run=args.dry_run,
+                max_retries=args.max_retries,
+                timeout=args.timeout,
+                min_delay=args.min_delay,
+                max_delay=args.max_delay,
+                respect_robots=args.respect_robots,
+                user_agent=args.user_agent,
+                force=args.force,
+            )
+        )
     msg = f"Unknown command: {command}"
     raise ValueError(msg)
 
