@@ -1,7 +1,7 @@
 """add audit_logs table
 
 Revision ID: aa11bb22cc33
-Revises: f1a2b3c4d5e6
+Revises: 4965b1c2c229
 Create Date: 2025-11-20 00:00:00.000000
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "aa11bb22cc33"
-down_revision: str | None = "f1a2b3c4d5e6"
+down_revision: str | None = "4965b1c2c229"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
