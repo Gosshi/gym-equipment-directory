@@ -83,6 +83,7 @@ class FakeGymRepository:
             GymImageRow(
                 gym_id=gym_id,
                 url="https://example.com/rack.jpg",
+                alt="Power rack photo",
                 source="user",
                 verified=True,
                 created_at=datetime(2024, 1, 2),

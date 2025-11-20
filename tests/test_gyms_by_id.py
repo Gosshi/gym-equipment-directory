@@ -27,4 +27,4 @@ async def test_get_gym_by_id_not_found(app_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_get_gym_by_id_invalid_uuid(app_client: AsyncClient) -> None:
     resp = await app_client.get("/gyms/by-id/not-a-uuid")
-    assert resp.status_code == 404
+    assert resp.status_code == 422

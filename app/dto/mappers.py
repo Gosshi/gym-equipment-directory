@@ -68,8 +68,8 @@ def map_equipment_summary(row: Mapping[str, Any]) -> GymEquipmentSummaryDTO:
         category=row.get("category"),
         count=row.get("count"),
         max_weight_kg=row.get("max_weight_kg"),
-        availability=str(row.get("availability")),
-        verification_status=str(row.get("verification_status")),
+        availability=row.get("availability"),
+        verification_status=row.get("verification_status"),
         last_verified_at=row.get("last_verified_at"),
         source=row.get("source"),
     )
@@ -78,6 +78,8 @@ def map_equipment_summary(row: Mapping[str, Any]) -> GymEquipmentSummaryDTO:
 def map_gym_image(row: Mapping[str, Any]) -> GymImageDTO:
     return GymImageDTO(
         url=str(row.get("url")),
+        alt=row.get("alt"),
+        sort_order=row.get("sort_order"),
         source=row.get("source"),
         verified=bool(row.get("verified", False)),
         created_at=row.get("created_at"),
@@ -131,6 +133,8 @@ def map_equipment_master(row: Mapping[str, Any] | Equipment) -> EquipmentMasterD
 def map_gym_image_model(image: GymImage) -> GymImageDTO:
     return GymImageDTO(
         url=str(getattr(image, "url", "")),
+        alt=getattr(image, "alt", None),
+        sort_order=getattr(image, "sort_order", None),
         source=getattr(image, "source", None),
         verified=bool(getattr(image, "verified", False)),
         created_at=getattr(image, "created_at", None),

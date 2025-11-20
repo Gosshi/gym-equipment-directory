@@ -38,6 +38,7 @@ class GymEquipmentSummaryRow:
 class GymImageRow:
     gym_id: int
     url: str
+    alt: str | None
     source: str | None
     verified: bool
     created_at: datetime | None
