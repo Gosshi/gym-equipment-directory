@@ -28,11 +28,13 @@ def resolve_sort_key(s: str | None) -> SortKey:
     if k in {"richness", "rank"}:
         return "richness"
     if k in {"score"}:
-        return "score"
+        # 後方互換: 現在は richness と同義。将来実装で分離予定。
+        return "richness"
     if k in {"gym_name", "name", "alpha"}:
         return "gym_name"
     if k in {"created_at", "created"}:
         return "created_at"
     if k in {"distance", "nearby"}:
-        return "distance"
+        # 距離ソート未実装のため freshness にフォールバック。
+        return "freshness"
     return "freshness"

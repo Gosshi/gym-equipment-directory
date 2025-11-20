@@ -53,5 +53,8 @@ def build_next_offset_token(
     next_offset = offset + per_page
     if next_offset >= total_len:
         return None
-    h = (sort_key or "")[:8]
+    if not sort_key:
+        # 後方互換: sort_key 未指定時は純整数形式
+        return str(next_offset)
+    h = sort_key[:8]
     return f"{next_offset}:{h}"
