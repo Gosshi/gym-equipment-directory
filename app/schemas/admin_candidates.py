@@ -168,3 +168,47 @@ class AdminApproveResponse(BaseModel):
     equipments: list[AdminApproveEquipment]
     candidate: AdminApproveCandidateInfo
     error: str | None = None
+
+
+# ---- Bulk operations ----
+
+
+class BulkApproveRequest(BaseModel):
+    candidate_ids: list[int] = Field(min_length=1)
+    dry_run: bool = False
+
+
+class BulkRejectRequest(BaseModel):
+    candidate_ids: list[int] = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    dry_run: bool = False
+
+
+class BulkApproveItem(BaseModel):
+    candidate_id: int
+    ok: bool
+    error: str | None = None
+    payload: AdminApproveResponse | None = None
+
+
+class BulkRejectItem(BaseModel):
+    candidate_id: int
+    ok: bool
+    error: str | None = None
+    status: CandidateStatus | None = None
+
+
+class BulkApproveResult(BaseModel):
+    items: list[BulkApproveItem]
+    success_count: int
+    failure_count: int
+    dry_run: bool
+    audit_log_id: int | None = None
+
+
+class BulkRejectResult(BaseModel):
+    items: list[BulkRejectItem]
+    success_count: int
+    failure_count: int
+    dry_run: bool
+    audit_log_id: int | None = None
