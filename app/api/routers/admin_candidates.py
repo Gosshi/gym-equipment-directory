@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_async_session
+from app.models.audit_log import AuditLog
 from app.models.gym_candidate import CandidateStatus
 from app.schemas.admin_candidates import (
     AdminApproveResponse,
@@ -17,6 +18,12 @@ from app.schemas.admin_candidates import (
     ApprovePreview,
     ApproveRequest,
     ApproveResult,
+    BulkApproveItem,
+    BulkApproveRequest,
+    BulkApproveResult,
+    BulkRejectItem,
+    BulkRejectRequest,
+    BulkRejectResult,
     RejectRequest,
     ScrapedPageInfo,
     SimilarGymInfo,
@@ -205,3 +212,123 @@ async def reject_candidate(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="candidate not found") from exc
     return _to_item(updated)
+
+
+@router.post("/approve-bulk", response_model=BulkApproveResult)
+async def bulk_approve_candidates(
+    payload: BulkApproveRequest,
+    operator: str | None = Query(None, description="Admin operator identifier"),
+    session: AsyncSession = Depends(get_async_session),
+):
+    if not payload.candidate_ids:
+        raise HTTPException(status_code=400, detail="candidate_ids required")
+    items: list[BulkApproveItem] = []
+    success_ids: list[int] = []
+    failure_ids: list[int] = []
+    service = ApproveService(session)
+    for cid in payload.candidate_ids:
+        try:
+            resp = await service.approve(cid, dry_run=payload.dry_run)
+        except CandidateNotFoundError:
+            items.append(BulkApproveItem(candidate_id=cid, ok=False, error="not_found"))
+            failure_ids.append(cid)
+            continue
+        except CandidateStatusConflictError:
+            items.append(BulkApproveItem(candidate_id=cid, ok=False, error="status_conflict"))
+            failure_ids.append(cid)
+            continue
+        except InvalidCandidatePayloadError:
+            items.append(BulkApproveItem(candidate_id=cid, ok=False, error="invalid_payload"))
+            failure_ids.append(cid)
+            continue
+        except ApprovalError as exc:
+            items.append(BulkApproveItem(candidate_id=cid, ok=False, error=str(exc)))
+            failure_ids.append(cid)
+            continue
+        items.append(BulkApproveItem(candidate_id=cid, ok=True, payload=resp.to_dict()))
+        success_ids.append(cid)
+
+    audit_id: int | None = None
+    if not payload.dry_run:
+        log = AuditLog(
+            action="bulk_approve",
+            operator=operator,
+            candidate_ids=payload.candidate_ids,
+            success_ids=success_ids,
+            failure_ids=failure_ids,
+            dry_run=False,
+        )
+        session.add(log)
+        await session.flush()
+        audit_id = int(log.id)
+        await session.commit()
+    else:
+        await session.rollback()  # 明示的に念のため
+
+    return BulkApproveResult(
+        items=items,
+        success_count=len(success_ids),
+        failure_count=len(failure_ids),
+        dry_run=payload.dry_run,
+        audit_log_id=audit_id,
+    )
+
+
+@router.post("/reject-bulk", response_model=BulkRejectResult)
+async def bulk_reject_candidates(
+    payload: BulkRejectRequest,
+    operator: str | None = Query(None, description="Admin operator identifier"),
+    session: AsyncSession = Depends(get_async_session),
+):
+    if not payload.candidate_ids:
+        raise HTTPException(status_code=400, detail="candidate_ids required")
+    if not payload.reason:
+        raise HTTPException(status_code=400, detail="reason required")
+    items: list[BulkRejectItem] = []
+    success_ids: list[int] = []
+    failure_ids: list[int] = []
+    for cid in payload.candidate_ids:
+        if payload.dry_run:
+            # Dry-run: 候補存在確認のみ
+            candidate = await session.get(candidate_service.GymCandidate, cid)  # type: ignore[attr-defined]
+            if not candidate:
+                items.append(BulkRejectItem(candidate_id=cid, ok=False, error="not_found"))
+                failure_ids.append(cid)
+                continue
+            items.append(BulkRejectItem(candidate_id=cid, ok=True, status=CandidateStatus.rejected))
+            success_ids.append(cid)
+            continue
+        try:
+            row = await candidate_service.reject_candidate(session, cid, payload.reason)
+        except LookupError:
+            items.append(BulkRejectItem(candidate_id=cid, ok=False, error="not_found"))
+            failure_ids.append(cid)
+            continue
+        items.append(BulkRejectItem(candidate_id=cid, ok=True, status=row.candidate.status))
+        success_ids.append(cid)
+
+    audit_id: int | None = None
+    if not payload.dry_run:
+        log = AuditLog(
+            action="bulk_reject",
+            operator=operator,
+            candidate_ids=payload.candidate_ids,
+            success_ids=success_ids,
+            failure_ids=failure_ids,
+            reason=payload.reason,
+            dry_run=False,
+        )
+        session.add(log)
+        await session.flush()
+        audit_id = int(log.id)
+        await session.commit()
+    else:
+        await session.rollback()
+
+    return BulkRejectResult(
+        items=items,
+        success_count=len(success_ids),
+        failure_count=len(failure_ids),
+        dry_run=payload.dry_run,
+        audit_log_id=audit_id,
+    )
