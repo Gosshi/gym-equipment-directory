@@ -115,7 +115,6 @@ class GymSearchQuery(BaseModel):
             return None
         s = v.strip()
         if not s:
-            # 400で返したいのでHTTPExceptionを直接投げる
             raise HTTPException(status_code=400, detail="empty string is not allowed")
         # 許容されるスラッグ: 英小/数値/ハイフン
         for ch in s:
@@ -218,5 +217,4 @@ class GymSearchQuery(BaseModel):
                 payload["page_size"] = resolved_page_size
             return cls.model_validate(payload)
         except ValidationError as e:  # noqa: F841 - 具体内容は隠蔽
-            # 仕様として 400 を返す
-            raise HTTPException(status_code=400, detail="invalid parameter")
+            raise HTTPException(status_code=400, detail="invalid query parameter")

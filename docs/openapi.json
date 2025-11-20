@@ -8,9 +8,12 @@
   "paths": {
     "/gyms/search": {
       "get": {
-        "tags": ["gyms", "gyms"],
-        "summary": "ジム検索（設備フィルタ  ページング）",
-        "description": "都道府県/市区町村スラッグ、設備スラッグ（CSV）でフィルタします。\n- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n- sort=richness: GymEquipment をスコア合算し降順（1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します",
+        "tags": [
+          "gyms",
+          "gyms"
+        ],
+        "summary": "ジム検索（設備フィルタ + Keysetページング）",
+        "description": "都道府県/市区町村スラッグ、設備スラッグ（CSV）、緯度経度+半径でフィルタします。\n- sort=freshness: gyms.last_verified_at_cached DESC, id ASC\n- sort=richness: GymEquipment をスコア合算し降順\n （1.0 + min(count,5)*0.1 + min(max_weight_kg/60,1.0)*0.1）\n - sort=score: freshness(0.6)とrichness(0.4)を合算した最終スコア降順\n- equipment_match=all の場合、指定スラッグを**すべて**含むジムのみ返します\n- sort=gym_name: name ASC, id ASC（Keyset）\n- sort=created_at: created_at DESC, id ASC（Keyset）\n- sort=distance: 指定座標からのHaversine距離 ASC, id ASC（lat/lng 必須）",
         "operationId": "search_gyms_gyms_search_get",
         "parameters": [
           {
@@ -18,9 +21,15 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "都道府県スラッグ（lower）例: chiba",
-              "examples": { "ex": { "value": "chiba" } },
               "title": "Pref"
             },
             "description": "都道府県スラッグ（lower）例: chiba"
@@ -30,43 +39,107 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "市区町村スラッグ（lower）例: funabashi",
-              "examples": { "ex": { "value": "funabashi" } },
               "title": "City"
             },
             "description": "市区町村スラッグ（lower）例: funabashi"
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "検索基準点の緯度（度）",
+              "title": "Lat"
+            },
+            "description": "検索基準点の緯度（度）"
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "検索基準点の経度（度）",
+              "title": "Lng"
+            },
+            "description": "検索基準点の経度（度）"
+          },
+          {
+            "name": "radius_km",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "検索半径（km）",
+              "title": "Radius Km"
+            },
+            "description": "検索半径（km）"
           },
           {
             "name": "equipments",
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [{ "type": "string" }, { "type": "null" }],
-              "description": "設備スラッグCSV。例: `squat-rack,dumbbell`",
-              "examples": {
-                "any-two": {
-                  "value": "squat-rack,dumbbell",
-                  "summary": "2種指定"
+              "anyOf": [
+                {
+                  "type": "string"
                 },
-                "single": { "value": "smith-machine" }
-              },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "設備スラッグCSV（例: squat-rack,dumbbell）",
               "title": "Equipments"
             },
-            "description": "設備スラッグCSV。例: `squat-rack,dumbbell`"
+            "description": "設備スラッグCSV（例: squat-rack,dumbbell）"
           },
           {
             "name": "equipment_match",
             "in": "query",
             "required": false,
             "schema": {
-              "enum": ["all", "any"],
+              "enum": [
+                "all",
+                "any"
+              ],
               "type": "string",
               "description": "equipments の一致条件",
-              "examples": {
-                "all": { "value": "all" },
-                "any": { "value": "any" }
-              },
               "default": "all",
               "title": "Equipment Match"
             },
@@ -77,43 +150,114 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": ["freshness", "richness"],
+              "enum": [
+                "freshness",
+                "richness",
+                "gym_name",
+                "created_at",
+                "score",
+                "distance"
+              ],
               "type": "string",
-              "description": "並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。",
-              "examples": {
-                "freshness": { "value": "freshness" },
-                "richness": { "value": "richness" }
-              },
-              "default": "freshness",
+              "description": "並び順",
+              "default": "score",
               "title": "Sort"
             },
-            "description": "並び替え。freshness は last_verified_at_cached DESC, id ASC。richness は設備スコア降順。"
+            "description": "並び順"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "ページ番号（1始まり）",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "ページ番号（1始まり）"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1ページ件数（1..100）",
+              "examples": [
+                10
+              ],
+              "title": "Page Size"
+            },
+            "description": "1ページ件数（1..100）"
           },
           {
             "name": "per_page",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "description": "1ページ件数（≤50）",
-              "examples": { "ten": { "value": 10 } },
-              "default": 20,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1ページ件数（互換用, 1..100）",
               "title": "Per Page"
             },
-            "description": "1ページ件数（≤50）"
+            "description": "1ページ件数（互換用, 1..100）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "limit（互換用, 1..100）",
+              "title": "Limit"
+            },
+            "description": "limit（互換用, 1..100）"
           },
           {
             "name": "page_token",
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [{ "type": "string" }, { "type": "null" }],
-              "description": "前回レスポンスの page_token",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keyset 継続トークン（互換用）",
               "title": "Page Token"
             },
-            "description": "前回レスポンスの page_token"
+            "description": "Keyset 継続トークン（互換用）"
           }
         ],
         "responses": {
@@ -121,23 +265,180 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/GymSearchResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/GymSearchPageDTO"
+                }
               }
             }
           },
-          "400": {
-            "description": "不正なクエリ（例: invalid page, equipment_match）",
+          "422": {
+            "description": "validation error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "404": {
-            "description": "見つからない場合（将来の拡張で使用）",
+            "description": "Not Found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gyms/nearby": {
+      "get": {
+        "tags": [
+          "gyms",
+          "gyms"
+        ],
+        "summary": "ジム近傍検索（Haversine + Keyset）",
+        "description": "指定した座標から半径 `radius_km` 以内のジムを、\nHaversine距離の昇順・id昇順で返します。ページングは距離+idのKeysetです。",
+        "operationId": "gyms_nearby_gyms_nearby_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "description": "緯度",
+              "title": "Lat"
+            },
+            "description": "緯度"
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "description": "経度",
+              "title": "Lng"
+            },
+            "description": "経度"
+          },
+          {
+            "name": "radius_km",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0.0,
+              "description": "検索半径（km）",
+              "default": 5.0,
+              "title": "Radius Km"
+            },
+            "description": "検索半径（km）"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "ページ番号（1始まり）",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "ページ番号（1始まり）"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1ページ件数（1..100）",
+              "title": "Page Size"
+            },
+            "description": "1ページ件数（1..100）"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1ページ件数（互換用, 1..100）",
+              "title": "Per Page"
+            },
+            "description": "1ページ件数（互換用, 1..100）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "limit（互換用, 1..100）",
+              "title": "Limit"
+            },
+            "description": "limit（互換用, 1..100）"
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keyset継続トークン（互換用）",
+              "title": "Page Token"
+            },
+            "description": "Keyset継続トークン（互換用）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GymNearbyResponse"
+                }
               }
             }
           },
@@ -145,7 +446,9 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -154,16 +457,40 @@
     },
     "/gyms/{slug}": {
       "get": {
-        "tags": ["gyms", "gyms"],
+        "tags": [
+          "gyms",
+          "gyms"
+        ],
         "summary": "ジム詳細を取得",
-        "description": "ジムスラッグで詳細情報（設備一覧・最新更新時刻）を返します。",
+        "description": "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。",
         "operationId": "get_gym_detail_gyms__slug__get",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "title": "Slug" }
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "例: include=score",
+              "title": "Include"
+            },
+            "description": "例: include=score"
           }
         ],
         "responses": {
@@ -171,7 +498,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/GymDetailResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/GymDetailDTO"
+                }
               }
             }
           },
@@ -179,15 +508,19 @@
             "description": "ジムが見つかりません",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -196,9 +529,12 @@
     },
     "/gyms/by-id/{canonical_id}": {
       "get": {
-        "tags": ["gyms", "gyms"],
+        "tags": [
+          "gyms",
+          "gyms"
+        ],
         "summary": "ジム詳細を canonical_id で取得",
-        "description": "canonical UUID でジム詳細（設備一覧・最新更新時刻）を返します。",
+        "description": "canonical UUID を用いてジムの詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。",
         "operationId": "get_gym_detail_by_id_gyms_by_id__canonical_id__get",
         "parameters": [
           {
@@ -207,9 +543,26 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
               "title": "Canonical Id"
             }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "例: include=score",
+              "title": "Include"
+            },
+            "description": "例: include=score"
           }
         ],
         "responses": {
@@ -217,7 +570,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/GymDetailResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/GymDetailDTO"
+                }
               }
             }
           },
@@ -225,7 +580,60 @@
             "description": "ジムが見つかりません",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gyms/{slug}/report": {
+      "post": {
+        "tags": [
+          "gyms",
+          "gyms"
+        ],
+        "summary": "誤り報告を送信",
+        "operationId": "report_gym_gyms__slug__report_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -233,7 +641,9 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -242,7 +652,10 @@
     },
     "/equipments": {
       "get": {
-        "tags": ["equipments", "equipments"],
+        "tags": [
+          "equipments",
+          "equipments"
+        ],
         "summary": "設備マスタ検索（補完用）",
         "description": "設備マスタを name/slug の部分一致で検索します（最大20件）。",
         "operationId": "list_equipments_equipments_get",
@@ -252,7 +665,14 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "部分一致（ILIKE風）",
               "title": "Q"
             },
@@ -278,7 +698,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/EquipmentMaster" },
+                  "items": {
+                    "$ref": "#/components/schemas/EquipmentMasterDTO"
+                  },
                   "title": "Response List Equipments Equipments Get"
                 }
               }
@@ -287,7 +709,9 @@
           "404": {
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             },
             "description": "Not Found"
@@ -296,7 +720,9 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -305,22 +731,72 @@
     },
     "/healthz": {
       "get": {
-        "tags": ["health", "health"],
-        "summary": "Health check",
-        "description": "DBにSELECT 1を投げる軽量ヘルスチェック",
+        "tags": [
+          "health",
+          "health"
+        ],
+        "summary": "Liveness probe",
+        "description": "単純に200(OK)を返すだけのエンドポイント（DBアクセスなし）",
         "operationId": "healthz_healthz_get",
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/prefectures": {
+      "get": {
+        "tags": [
+          "meta",
+          "meta"
+        ],
+        "summary": "都道府県一覧（distinct）",
+        "description": "登録されているジムの都道府県スラッグを重複なしで返します。空/NULLは除外。",
+        "operationId": "list_prefectures_meta_prefectures_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrefOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Prefectures Meta Prefectures Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/meta/prefs": {
       "get": {
-        "tags": ["meta", "meta"],
-        "summary": "都道府県の一覧（件数付き）",
+        "tags": [
+          "meta",
+          "meta"
+        ],
+        "summary": "都道府県候補を取得（件数付き）",
+        "description": "登録されているジムの都道府県スラッグと件数を返します。空/NULLは除外。",
         "operationId": "list_prefs_meta_prefs_get",
         "responses": {
           "200": {
@@ -328,9 +804,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": { "type": "object" },
+                  "items": {
+                    "$ref": "#/components/schemas/PrefOption"
+                  },
                   "type": "array",
                   "title": "Response List Prefs Meta Prefs Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -340,8 +828,12 @@
     },
     "/meta/cities": {
       "get": {
-        "tags": ["meta", "meta"],
-        "summary": "市区町村の一覧（件数付き）",
+        "tags": [
+          "meta",
+          "meta"
+        ],
+        "summary": "市区町村候補を取得（件数付き）",
+        "description": "指定した都道府県スラッグに属する市区町村スラッグと件数を返します。空/NULLは除外。",
         "operationId": "list_cities_meta_cities_get",
         "parameters": [
           {
@@ -350,10 +842,15 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "都道府県スラッグ",
+              "minLength": 1,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "都道府県スラッグ（lower）例: chiba",
+              "examples": [
+                "chiba"
+              ],
               "title": "Pref"
             },
-            "description": "都道府県スラッグ"
+            "description": "都道府県スラッグ（lower）例: chiba"
           }
         ],
         "responses": {
@@ -363,8 +860,176 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "type": "object" },
+                  "items": {
+                    "$ref": "#/components/schemas/CityOption"
+                  },
                   "title": "Response List Cities Meta Cities Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "pref not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/equipment-categories": {
+      "get": {
+        "tags": [
+          "meta",
+          "meta"
+        ],
+        "summary": "設備カテゴリ一覧（distinct）",
+        "description": "登録されている設備カテゴリ名を重複なしで返します。空/NULLは除外。",
+        "operationId": "list_equipment_categories_meta_equipment_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Equipment Categories Meta Equipment Categories Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/equipments": {
+      "get": {
+        "tags": [
+          "meta",
+          "meta"
+        ],
+        "summary": "設備スラッグ一覧（distinct）",
+        "description": "登録されている設備スラッグと名称・カテゴリを重複なしで返します。空/NULLは除外。",
+        "operationId": "list_equipments_meta_meta_equipments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EquipmentOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Equipments Meta Meta Equipments Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/suggest/equipments": {
+      "get": {
+        "tags": [
+          "suggest",
+          "suggest"
+        ],
+        "summary": "設備名サジェスト（部分一致）",
+        "description": "equipments.name を ILIKE 部分一致で検索し、名前配列を返します。",
+        "operationId": "suggest_equipments_suggest_equipments_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "部分一致（ILIKE）",
+              "title": "Q"
+            },
+            "description": "部分一致（ILIKE）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Suggest Equipments Suggest Equipments Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -373,7 +1038,790 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/suggest/gyms": {
+      "get": {
+        "tags": [
+          "suggest",
+          "suggest"
+        ],
+        "summary": "ジム名/地名サジェスト（部分一致）",
+        "description": "gyms.name と gyms.city を ILIKE 部分一致で検索し、{slug,name,pref,city} の配列を返します。",
+        "operationId": "suggest_gyms_suggest_gyms_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "部分一致（ILIKE）",
+              "title": "Q"
+            },
+            "description": "部分一致（ILIKE）"
+          },
+          {
+            "name": "pref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "都道府県スラッグ（任意）",
+              "title": "Pref"
+            },
+            "description": "都道府県スラッグ（任意）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GymSuggestItem"
+                  },
+                  "title": "Response Suggest Gyms Suggest Gyms Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reports": {
+      "get": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "報告一覧（Keyset）",
+        "operationId": "list_reports_admin_reports_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "open",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportAdminListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reports/{report_id}:resolve": {
+      "patch": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "報告を解決済みにする",
+        "operationId": "resolve_report_admin_reports__report_id__resolve_patch",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/candidates": {
+      "post": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Create Candidate",
+        "operationId": "create_candidate_admin_candidates_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCandidateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCandidateItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "List Candidates",
+        "operationId": "list_candidates_admin_candidates_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "pref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pref"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "City"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCandidateListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/candidates/{candidate_id}": {
+      "get": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Get Candidate Detail",
+        "operationId": "get_candidate_detail_admin_candidates__candidate_id__get",
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCandidateDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Patch Candidate",
+        "operationId": "patch_candidate_admin_candidates__candidate_id__patch",
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCandidatePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCandidateItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/candidates/{candidate_id}/approve": {
+      "post": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Approve Candidate",
+        "operationId": "approve_candidate_admin_candidates__candidate_id__approve_post",
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ApprovePreview"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApproveResult"
+                    }
+                  ],
+                  "title": "Response Approve Candidate Admin Candidates  Candidate Id  Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/candidates/{candidate_id}/approve-auto": {
+      "post": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Approve Candidate Auto",
+        "operationId": "approve_candidate_auto_admin_candidates__candidate_id__approve_auto_post",
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dry Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApproveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/candidates/{candidate_id}/reject": {
+      "post": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Reject Candidate",
+        "operationId": "reject_candidate_admin_candidates__candidate_id__reject_post",
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCandidateItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/favorites": {
+      "post": {
+        "tags": [
+          "me",
+          "me"
+        ],
+        "summary": "お気に入りを追加（冪等）",
+        "operationId": "add_favorite_me_favorites_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "me",
+          "me"
+        ],
+        "summary": "お気に入り一覧（デバイスID）",
+        "operationId": "list_favorites_me_favorites_get",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "description": "匿名デバイスID",
+              "title": "Device Id"
+            },
+            "description": "匿名デバイスID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteItem"
+                  },
+                  "title": "Response List Favorites Me Favorites Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/favorites/{gym_id}": {
+      "delete": {
+        "tags": [
+          "me",
+          "me"
+        ],
+        "summary": "お気に入りを削除（冪等）",
+        "operationId": "delete_favorite_me_favorites__gym_id__delete",
+        "parameters": [
+          {
+            "name": "gym_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gym Id"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "description": "匿名デバイスID",
+              "title": "Device Id"
+            },
+            "description": "匿名デバイスID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -383,9 +1831,1035 @@
   },
   "components": {
     "schemas": {
-      "EquipmentMaster": {
+      "AdminApproveCandidateInfo": {
         "properties": {
-          "id": { "type": "integer", "title": "Id", "description": "設備ID" },
+          "status": {
+            "$ref": "#/components/schemas/CandidateStatus"
+          },
+          "approved_gym_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Gym Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AdminApproveCandidateInfo"
+      },
+      "AdminApproveEquipment": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "merge",
+              "skip"
+            ],
+            "title": "Action"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "last_verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "action"
+        ],
+        "title": "AdminApproveEquipment"
+      },
+      "AdminApproveGym": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "reuse",
+              "skip"
+            ],
+            "title": "Action"
+          },
+          "gym_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gym Id"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "canonical_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Id"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalFieldChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "AdminApproveGym"
+      },
+      "AdminApproveResponse": {
+        "properties": {
+          "candidate_id": {
+            "type": "integer",
+            "title": "Candidate Id"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "gym": {
+            "$ref": "#/components/schemas/AdminApproveGym"
+          },
+          "equipments": {
+            "items": {
+              "$ref": "#/components/schemas/AdminApproveEquipment"
+            },
+            "type": "array",
+            "title": "Equipments"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/AdminApproveCandidateInfo"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "dry_run",
+          "gym",
+          "equipments",
+          "candidate"
+        ],
+        "title": "AdminApproveResponse"
+      },
+      "AdminCandidateCreate": {
+        "properties": {
+          "name_raw": {
+            "type": "string",
+            "title": "Name Raw"
+          },
+          "address_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Raw"
+          },
+          "pref_slug": {
+            "type": "string",
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "type": "string",
+            "title": "City Slug"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "parsed_json": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parsed Json"
+          },
+          "official_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Url"
+          },
+          "equipments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EquipmentAssign"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name_raw",
+          "pref_slug",
+          "city_slug"
+        ],
+        "title": "AdminCandidateCreate"
+      },
+      "AdminCandidateDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CandidateStatus"
+          },
+          "name_raw": {
+            "type": "string",
+            "title": "Name Raw"
+          },
+          "address_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Raw"
+          },
+          "pref_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Slug"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "parsed_json": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parsed Json"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AdminSourceRef"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "scraped_page": {
+            "$ref": "#/components/schemas/ScrapedPageInfo"
+          },
+          "similar": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SimilarGymInfo"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "name_raw",
+          "source",
+          "created_at",
+          "updated_at",
+          "scraped_page"
+        ],
+        "title": "AdminCandidateDetail"
+      },
+      "AdminCandidateItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CandidateStatus"
+          },
+          "name_raw": {
+            "type": "string",
+            "title": "Name Raw"
+          },
+          "address_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Raw"
+          },
+          "pref_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Slug"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "parsed_json": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parsed Json"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AdminSourceRef"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "name_raw",
+          "source",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdminCandidateItem"
+      },
+      "AdminCandidateListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCandidateItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "title": "AdminCandidateListResponse"
+      },
+      "AdminCandidatePatch": {
+        "properties": {
+          "name_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Raw"
+          },
+          "address_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Raw"
+          },
+          "pref_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Slug"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "parsed_json": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parsed Json"
+          }
+        },
+        "type": "object",
+        "title": "AdminCandidatePatch"
+      },
+      "AdminSourceRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "AdminSourceRef"
+      },
+      "ApprovalFieldChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "before": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "ApprovalFieldChange"
+      },
+      "ApproveOverride": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "pref_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Slug"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "title": "ApproveOverride"
+      },
+      "ApprovePreview": {
+        "properties": {
+          "preview": {
+            "$ref": "#/components/schemas/ApproveSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preview"
+        ],
+        "title": "ApprovePreview"
+      },
+      "ApproveRequest": {
+        "properties": {
+          "override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApproveOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EquipmentAssign"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipments"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ApproveRequest"
+      },
+      "ApproveResult": {
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/ApproveSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result"
+        ],
+        "title": "ApproveResult"
+      },
+      "ApproveSummary": {
+        "properties": {
+          "gym": {
+            "$ref": "#/components/schemas/GymUpsertPreview"
+          },
+          "equipments": {
+            "$ref": "#/components/schemas/EquipmentUpsertSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gym",
+          "equipments"
+        ],
+        "title": "ApproveSummary"
+      },
+      "CandidateStatus": {
+        "type": "string",
+        "enum": [
+          "new",
+          "reviewing",
+          "approved",
+          "rejected",
+          "ignored"
+        ],
+        "title": "CandidateStatus"
+      },
+      "CategoryOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "安定キー",
+            "example": "chiba"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "表示ラベル",
+            "example": "千葉"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count",
+            "description": "関連件数（pref/city のみ）",
+            "example": 128
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "旧互換の category キーを残す。",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "category"
+        ],
+        "title": "CategoryOption"
+      },
+      "CityOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "安定キー",
+            "example": "chiba"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "表示ラベル",
+            "example": "千葉"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count",
+            "description": "関連件数（pref/city のみ）",
+            "example": 128
+          },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "description": "旧互換の city キーを残す。",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "city"
+        ],
+        "title": "CityOption"
+      },
+      "EquipmentAssign": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "unknown"
+            ],
+            "title": "Availability",
+            "default": "present"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "max_weight_kg": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Weight Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug"
+        ],
+        "title": "EquipmentAssign"
+      },
+      "EquipmentMasterDTO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "設備ID"
+          },
           "slug": {
             "type": "string",
             "title": "Slug",
@@ -397,20 +2871,103 @@
             "description": "表示名"
           },
           "category": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Category",
             "description": "カテゴリ（任意）"
           }
         },
         "type": "object",
-        "required": ["id", "slug", "name"],
-        "title": "EquipmentMaster",
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "EquipmentMasterDTO",
         "example": {
           "category": "free-weights",
           "id": 12,
           "name": "スクワットラック",
           "slug": "squat-rack"
         }
+      },
+      "EquipmentOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "設備スラッグ",
+            "example": "smith-machine"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "表示名",
+            "example": "スミスマシン"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "設備カテゴリ",
+            "example": "strength"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "旧互換 slug を返す。",
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "旧互換 name を返す。",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "slug",
+          "name"
+        ],
+        "title": "EquipmentOption"
+      },
+      "EquipmentUpsertSummary": {
+        "properties": {
+          "inserted": {
+            "type": "integer",
+            "title": "Inserted"
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inserted",
+          "updated",
+          "total"
+        ],
+        "title": "EquipmentUpsertSummary"
       },
       "ErrorResponse": {
         "properties": {
@@ -421,13 +2978,102 @@
           }
         },
         "type": "object",
-        "required": ["detail"],
+        "required": [
+          "detail"
+        ],
         "title": "ErrorResponse",
-        "example": { "detail": "Not Found" }
+        "examples": [
+          {
+            "detail": "Not Found"
+          }
+        ]
       },
-      "GymDetailResponse": {
+      "FavoriteCreateRequest": {
         "properties": {
-          "id": { "type": "integer", "title": "Id", "description": "ジムID" },
+          "device_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Device Id",
+            "description": "匿名デバイスID"
+          },
+          "gym_id": {
+            "type": "integer",
+            "title": "Gym Id",
+            "description": "ジムID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_id",
+          "gym_id"
+        ],
+        "title": "FavoriteCreateRequest"
+      },
+      "FavoriteItem": {
+        "properties": {
+          "gym_id": {
+            "type": "integer",
+            "title": "Gym Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "pref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "last_verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gym_id",
+          "slug",
+          "name"
+        ],
+        "title": "FavoriteItem"
+      },
+      "GymDetailDTO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ジムID"
+          },
           "slug": {
             "type": "string",
             "title": "Slug",
@@ -438,7 +3084,11 @@
             "title": "Canonical Id",
             "description": "ジムの canonical UUID"
           },
-          "name": { "type": "string", "title": "Name", "description": "名称" },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "名称"
+          },
           "city": {
             "type": "string",
             "title": "City",
@@ -449,46 +3099,232 @@
             "title": "Pref",
             "description": "都道府県スラッグ"
           },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "住所（任意）"
+          },
+          "official_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Url",
+            "description": "公式サイトURL（任意）"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude",
+            "description": "緯度（任意）"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude",
+            "description": "経度（任意）"
+          },
+          "last_verified_at_cached": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At Cached",
+            "description": "最終確認日時（UTC, nullable）"
+          },
           "equipments": {
-            "items": { "$ref": "#/components/schemas/GymEquipmentLine" },
+            "items": {
+              "$ref": "#/components/schemas/GymEquipmentLineDTO"
+            },
             "type": "array",
             "title": "Equipments",
             "description": "設備一覧（JOIN済み）"
           },
+          "gym_equipments": {
+            "items": {
+              "$ref": "#/components/schemas/GymEquipmentSummaryDTO"
+            },
+            "type": "array",
+            "title": "Gym Equipments",
+            "description": "設備ごとの在/無・検証状況などの詳細サマリ"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/GymImageDTO"
+            },
+            "type": "array",
+            "title": "Images",
+            "description": "関連画像の一覧"
+          },
           "updated_at": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Updated At",
             "description": "設備情報の最終更新（= last_verified_at の最大）"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "0..1"
+          },
+          "richness": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Richness",
+            "description": "0..1"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "0..1"
+          },
+          "equipment_details": {
+            "items": {
+              "$ref": "#/components/schemas/GymEquipmentLineDTO"
+            },
+            "type": "array",
+            "title": "Equipment Details",
+            "description": "旧API互換のため equipment_details を提供する。",
+            "readOnly": true
+          },
+          "last_verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At",
+            "description": "旧フィールド名の互換用。",
+            "readOnly": true
           }
         },
         "type": "object",
-        "required": ["id", "slug", "canonical_id", "name", "city", "pref", "equipments"],
-        "title": "GymDetailResponse",
-        "example": {
-          "city": "funabashi",
-          "equipments": [
-            {
-              "count": 2,
-              "equipment_name": "スクワットラック",
-              "equipment_slug": "squat-rack",
-              "max_weight_kg": 180
-            },
-            {
-              "count": 1,
-              "equipment_name": "ダンベル",
-              "equipment_slug": "dumbbell",
-              "max_weight_kg": 50
-            }
-          ],
-          "id": 1,
-          "canonical_id": "11111111-2222-3333-4444-555555555555",
-          "name": "Awesome Gym",
-          "pref": "chiba",
-          "slug": "awesome-gym",
-          "updated_at": "2025-09-01T12:34:56Z"
-        }
+        "required": [
+          "id",
+          "slug",
+          "canonical_id",
+          "name",
+          "city",
+          "pref",
+          "equipments",
+          "equipment_details",
+          "last_verified_at"
+        ],
+        "title": "GymDetailDTO",
+        "description": "Full detail payload for a gym.",
+        "examples": [
+          {
+            "address": "千葉県船橋市本町1-2-3",
+            "canonical_id": "11111111-2222-3333-4444-555555555555",
+            "city": "funabashi",
+            "equipments": [
+              {
+                "category": "strength",
+                "count": 2,
+                "equipment_name": "スクワットラック",
+                "equipment_slug": "squat-rack",
+                "max_weight_kg": 180
+              }
+            ],
+            "freshness": 0.9,
+            "gym_equipments": [
+              {
+                "availability": "present",
+                "category": "strength",
+                "count": 2,
+                "last_verified_at": "2025-09-01T12:34:56Z",
+                "max_weight_kg": 180,
+                "name": "スクワットラック",
+                "slug": "squat-rack",
+                "source": "https://example.com/source",
+                "verification_status": "verified"
+              }
+            ],
+            "id": 1,
+            "images": [
+              {
+                "created_at": "2025-09-01T12:34:56Z",
+                "source": "instagram",
+                "url": "https://example.com/image.jpg",
+                "verified": false
+              }
+            ],
+            "last_verified_at_cached": "2025-09-01T12:34:56Z",
+            "latitude": 35.7001,
+            "longitude": 139.9823,
+            "name": "Awesome Gym",
+            "official_url": "https://awesome-gym.example.com",
+            "pref": "chiba",
+            "richness": 0.7,
+            "score": 0.82,
+            "slug": "awesome-gym",
+            "updated_at": "2025-09-01T12:34:56Z"
+          }
+        ]
       },
-      "GymEquipmentLine": {
+      "GymEquipmentLineDTO": {
         "properties": {
           "equipment_slug": {
             "type": "string",
@@ -500,67 +3336,223 @@
             "title": "Equipment Name",
             "description": "設備名"
           },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "設備カテゴリ（任意）"
+          },
           "count": {
-            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Count",
             "description": "台数（任意）"
           },
           "max_weight_kg": {
-            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Max Weight Kg",
             "description": "最大重量（任意）"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "旧API互換用の name フィールド。",
+            "readOnly": true
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "旧API互換用の slug フィールド。",
+            "readOnly": true
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "台数や最大重量をまとめた説明文を生成する。",
+            "readOnly": true
           }
         },
         "type": "object",
-        "required": ["equipment_slug", "equipment_name"],
-        "title": "GymEquipmentLine"
+        "required": [
+          "equipment_slug",
+          "equipment_name",
+          "name",
+          "slug",
+          "description"
+        ],
+        "title": "GymEquipmentLineDTO"
       },
-      "GymSearchResponse": {
+      "GymEquipmentSummaryDTO": {
         "properties": {
-          "items": {
-            "items": { "$ref": "#/components/schemas/GymSummary" },
-            "type": "array",
-            "title": "Items",
-            "description": "検索結果"
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "設備スラッグ"
           },
-          "total": {
-            "type": "integer",
-            "title": "Total",
-            "description": "総件数"
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "設備名"
           },
-          "has_next": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "設備カテゴリ（任意）"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count",
+            "description": "台数（任意）"
+          },
+          "max_weight_kg": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Weight Kg",
+            "description": "最大重量（任意）"
+          },
+          "availability": {
+            "type": "string",
+            "title": "Availability",
+            "description": "present/absent/unknown"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status",
+            "description": "検証状況"
+          },
+          "last_verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At",
+            "description": "最終確認時刻"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "情報ソース（URL 等）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "availability",
+          "verification_status"
+        ],
+        "title": "GymEquipmentSummaryDTO"
+      },
+      "GymImageDTO": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "画像URL"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "出典（任意）"
+          },
+          "verified": {
             "type": "boolean",
-            "title": "Has Next",
-            "description": "次ページ有無"
+            "title": "Verified",
+            "description": "検証済みか",
+            "default": false
           },
-          "page_token": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Page Token"
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At",
+            "description": "登録日時"
           }
         },
         "type": "object",
-        "required": ["items", "total", "has_next"],
-        "title": "GymSearchResponse",
-        "example": {
-          "has_next": true,
-          "items": [
-            {
-              "city": "funabashi",
-              "id": 1,
-              "last_verified_at": "2025-09-01T12:34:56Z",
-              "name": "Awesome Gym",
-              "pref": "chiba",
-              "slug": "awesome-gym",
-              "canonical_id": "11111111-2222-3333-4444-555555555555"
-            }
-          ],
-          "page_token": "abc123",
-          "total": 12
-        }
+        "required": [
+          "url"
+        ],
+        "title": "GymImageDTO"
       },
-      "GymSummary": {
+      "GymNearbyItem": {
         "properties": {
-          "id": { "type": "integer", "title": "Id", "description": "ジムID" },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ジムID"
+          },
           "slug": {
             "type": "string",
             "title": "Slug",
@@ -571,32 +3563,451 @@
             "title": "Canonical Id",
             "description": "ジムの canonical UUID"
           },
-          "name": { "type": "string", "title": "Name", "description": "名称" },
-          "city": {
+          "name": {
             "type": "string",
-            "title": "City",
-            "description": "市区町村スラッグ"
+            "title": "Name",
+            "description": "名称"
           },
           "pref": {
             "type": "string",
             "title": "Pref",
             "description": "都道府県スラッグ"
           },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "description": "市区町村スラッグ"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude",
+            "description": "ジムの緯度"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude",
+            "description": "ジムの経度"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km",
+            "description": "指定座標からの距離（km）"
+          },
           "last_verified_at": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Last Verified At",
-            "description": "最終検証日時（UTC, nullable）"
+            "description": "最終検証日時（ISO8601, nullable）"
           }
         },
         "type": "object",
-        "required": ["id", "slug", "canonical_id", "name", "city", "pref"],
-        "title": "GymSummary",
-        "description": "検索結果のジム要約。\nlast_verified_at_cached は ISO8601 文字列（例: \"2025-09-05T12:34:5600:00\"）"
+        "required": [
+          "id",
+          "slug",
+          "canonical_id",
+          "name",
+          "pref",
+          "city",
+          "latitude",
+          "longitude",
+          "distance_km"
+        ],
+        "title": "GymNearbyItem"
+      },
+      "GymNearbyResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GymNearbyItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "検索結果"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "総件数",
+            "default": 0
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "現在のページ（1始まり）",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "1ページ件数",
+            "default": 20
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "次ページが存在するか",
+            "default": false
+          },
+          "has_prev": {
+            "type": "boolean",
+            "title": "Has Prev",
+            "description": "前ページが存在するか",
+            "default": false
+          },
+          "page_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Token",
+            "description": "継続トークン（Keyset互換用、未使用時はnull）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "GymNearbyResponse"
+      },
+      "GymSearchPageDTO": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GymSummaryDTO"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "検索結果"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "総件数",
+            "default": 0
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "現在のページ（1始まり）",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "1ページ件数",
+            "default": 20
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "次ページが存在するか",
+            "default": false
+          },
+          "has_prev": {
+            "type": "boolean",
+            "title": "Has Prev",
+            "description": "前ページが存在するか",
+            "default": false
+          },
+          "page_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Token",
+            "description": "継続トークン（Keyset互換用、未使用時はnull）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "GymSearchPageDTO",
+        "description": "Search result page for gyms including pagination metadata.",
+        "examples": [
+          {
+            "has_more": true,
+            "has_prev": false,
+            "items": [
+              {
+                "canonical_id": "11111111-2222-3333-4444-555555555555",
+                "city": "funabashi",
+                "freshness_score": 0.93,
+                "id": 1,
+                "last_verified_at": "2025-09-01T12:34:56Z",
+                "name": "Dummy Gym",
+                "official_url": "https://dummy-gym.example.com",
+                "pref": "chiba",
+                "richness_score": 0.68,
+                "score": 0.84,
+                "slug": "dummy-gym"
+              }
+            ],
+            "page": 1,
+            "page_size": 20,
+            "total": 10
+          }
+        ]
+      },
+      "GymSuggestItem": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "ジムスラッグ"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "ジム名"
+          },
+          "pref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref",
+            "description": "都道府県スラッグ（nullable）"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City",
+            "description": "市区町村スラッグ（nullable）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "GymSuggestItem"
+      },
+      "GymSummaryDTO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ジムID"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "ジムスラッグ"
+          },
+          "canonical_id": {
+            "type": "string",
+            "title": "Canonical Id",
+            "description": "ジムの canonical UUID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "名称"
+          },
+          "pref": {
+            "type": "string",
+            "title": "Pref",
+            "description": "都道府県スラッグ"
+          },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "description": "市区町村スラッグ"
+          },
+          "official_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Url",
+            "description": "公式サイトURL（任意）"
+          },
+          "last_verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verified At",
+            "description": "最終検証日時（ISO8601, nullable）"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "複合スコア（nullable）"
+          },
+          "freshness_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness Score",
+            "description": "鮮度スコア（nullable）"
+          },
+          "richness_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Richness Score",
+            "description": "充実度スコア（nullable）"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km",
+            "description": "検索基準点からの距離（km）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "canonical_id",
+          "name",
+          "pref",
+          "city"
+        ],
+        "title": "GymSummaryDTO",
+        "description": "Public summary representation of a gym returned by search endpoints."
+      },
+      "GymUpsertPreview": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "canonical_id": {
+            "type": "string",
+            "title": "Canonical Id"
+          },
+          "pref_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pref Slug"
+          },
+          "city_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Slug"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "canonical_id"
+        ],
+        "title": "GymUpsertPreview"
       },
       "HTTPValidationError": {
         "properties": {
           "detail": {
-            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
             "type": "array",
             "title": "Detail"
           }
@@ -604,21 +4015,325 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "OkResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "description": "成功可否（true 固定）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "OkResponse",
+        "examples": [
+          {
+            "ok": true
+          }
+        ]
+      },
+      "PrefOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "安定キー",
+            "example": "chiba"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "表示ラベル",
+            "example": "千葉"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count",
+            "description": "関連件数（pref/city のみ）",
+            "example": 128
+          },
+          "pref": {
+            "type": "string",
+            "title": "Pref",
+            "description": "旧互換の pref キーを残す。",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "pref"
+        ],
+        "title": "PrefOption"
+      },
+      "RejectRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RejectRequest"
+      },
+      "ReportAdminItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "gym_id": {
+            "type": "integer",
+            "title": "Gym Id"
+          },
+          "gym_slug": {
+            "type": "string",
+            "title": "Gym Slug"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ReportType"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "gym_id",
+          "gym_slug",
+          "type",
+          "message",
+          "email",
+          "source_url",
+          "status",
+          "created_at"
+        ],
+        "title": "ReportAdminItem"
+      },
+      "ReportAdminListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportAdminItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ReportAdminListResponse"
+      },
+      "ReportCreateRequest": {
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportType"
+              }
+            ],
+            "description": "報告種別"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 5,
+            "title": "Message",
+            "description": "詳細メッセージ（5文字以上）"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "連絡先メール（任意）"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url",
+            "description": "参考URL（任意）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "message"
+        ],
+        "title": "ReportCreateRequest"
+      },
+      "ReportType": {
+        "type": "string",
+        "enum": [
+          "wrong_info",
+          "closed",
+          "duplicate",
+          "abuse",
+          "other"
+        ],
+        "title": "ReportType"
+      },
+      "ScrapedPageInfo": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fetched At"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "fetched_at"
+        ],
+        "title": "ScrapedPageInfo"
+      },
+      "SimilarGymInfo": {
+        "properties": {
+          "gym_id": {
+            "type": "integer",
+            "title": "Gym Id"
+          },
+          "gym_slug": {
+            "type": "string",
+            "title": "Gym Slug"
+          },
+          "gym_name": {
+            "type": "string",
+            "title": "Gym Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gym_id",
+          "gym_slug",
+          "gym_name"
+        ],
+        "title": "SimilarGymInfo"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
-            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
             "type": "array",
             "title": "Location"
           },
-          "msg": { "type": "string", "title": "Message" },
-          "type": { "type": "string", "title": "Error Type" }
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
         },
         "type": "object",
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError"
       }
     }
   },
-  "servers": [{ "url": "http://localhost:8000", "description": "Local" }]
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local"
+    }
+  ]
 }

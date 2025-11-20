@@ -46,10 +46,8 @@ _DESC = (
     summary="ジム検索（設備フィルタ + Keysetページング）",
     description=_DESC,
     responses={
-        400: {
-            "description": "Invalid page_token",
-            "content": {"application/json": {"example": {"detail": "invalid page_token"}}},
-        }
+        422: {"model": ErrorResponse, "description": "validation error"},
+        404: {"model": ErrorResponse, "description": "Not Found"},
     },
 )
 async def search_gyms(
@@ -78,7 +76,7 @@ async def search_gyms(
             page_token=q.page_token,
         )
     except ValueError:
-        raise HTTPException(status_code=400, detail="invalid page_token")
+        raise HTTPException(status_code=422, detail="invalid page_token")
 
 
 @router.get(
@@ -125,13 +123,19 @@ async def gyms_nearby(
     description=(
         "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
     ),
-    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
+    responses={
+        404: {"model": ErrorResponse, "description": "ジムが見つかりません"},
+        422: {"model": ErrorResponse, "description": "validation error"},
+    },
 )
 async def get_gym_detail(
     slug: str,
     include: str | None = Query(default=None, description="例: include=score"),
     svc: GymDetailService = Depends(get_gym_detail_api_service),
 ):
+    if include not in (None, "score"):
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     # サービスに委譲。見つからない場合は router 側で 404 を返す。
     detail = await svc.get_opt(slug, include)
     if detail is None:
@@ -147,17 +151,23 @@ async def get_gym_detail(
         "canonical UUID を用いてジムの詳細を返却します。"
         "`include=score` を指定すると freshness/richness/score を同梱します。"
     ),
-    responses={404: {"model": ErrorResponse, "description": "ジムが見つかりません"}},
+    responses={
+        404: {"model": ErrorResponse, "description": "ジムが見つかりません"},
+        422: {"model": ErrorResponse, "description": "validation error"},
+    },
 )
 async def get_gym_detail_by_id(
     canonical_id: str,
     include: str | None = Query(default=None, description="例: include=score"),
     svc: GymDetailService = Depends(get_gym_detail_api_service),
 ):
+    if include not in (None, "score"):
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     try:
         canonical_uuid = UUID(canonical_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="gym not found")
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
 
     detail = await svc.get_by_canonical_id_opt(str(canonical_uuid), include)
     if detail is None:

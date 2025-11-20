@@ -79,7 +79,7 @@ async def test_freshness_paging_has_next_and_end(session):
 
 
 @pytest.mark.asyncio
-async def test_token_sort_mismatch_400(session):
+async def test_token_sort_mismatch_422(session):
     g = Gym(
         slug="g3",
         name="G3",
@@ -106,7 +106,7 @@ async def test_token_sort_mismatch_400(session):
                 "page_token": bogus_fresh_token,
             },
         )
-        assert r.status_code == 400
+        assert r.status_code == 422
         assert r.json()["detail"] == "invalid page_token"
 
 
