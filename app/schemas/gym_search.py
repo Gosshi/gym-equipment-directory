@@ -4,7 +4,14 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 __all__ = ["GymSummary", "GymSearchResponse", "GymSearchQuery"]
 
@@ -93,6 +100,7 @@ class GymSearchQuery(BaseModel):
     radius_km: float | None = Field(
         default=None,
         ge=0.0,
+        le=50.0,
         description="検索半径（km）",
     )
     equipments: str | None = Field(
@@ -107,6 +115,14 @@ class GymSearchQuery(BaseModel):
     page: int = Field(default=1, description="ページ番号（1始まり）")
     page_size: int = Field(default=20, description="1ページ件数（1..100）")
     page_token: str | None = Field(default=None, description="Keyset 継続トークン（互換用）")
+
+    @model_validator(mode="after")
+    def _require_coordinates_for_distance(self) -> GymSearchQuery:
+        if self.sort == "distance" and (self.lat is None or self.lng is None):
+            raise HTTPException(
+                status_code=422, detail="lat and lng are required for distance sort"
+            )
+        return self
 
     @field_validator("pref", "city")
     @classmethod
@@ -164,7 +180,7 @@ class GymSearchQuery(BaseModel):
         ] = None,
         radius_km: Annotated[
             float | None,
-            Query(description="検索半径（km）", ge=0.0),
+            Query(description="検索半径（km）", ge=0.0, le=50.0),
         ] = None,
         equipments: Annotated[
             str | None,

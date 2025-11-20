@@ -131,9 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also geocode candidates lacking coordinates",
     )
 
-    approve_parser = subparsers.add_parser(
-        "approve", help="Approve one or more gym candidates"
-    )
+    approve_parser = subparsers.add_parser("approve", help="Approve one or more gym candidates")
     approve_parser.add_argument(
         "--candidate-id",
         dest="candidate_ids",
@@ -188,9 +186,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             )
         )
     if command == "approve":
-        return asyncio.run(
-            _run_async_command(approve_candidates, args.candidate_ids, args.dry_run)
-        )
+        return asyncio.run(_run_async_command(approve_candidates, args.candidate_ids, args.dry_run))
     msg = f"Unknown command: {command}"
     raise ValueError(msg)
 
