@@ -55,14 +55,18 @@ class GymEquipmentSummaryDTO(BaseModel):
     category: str | None = Field(default=None, description="設備カテゴリ（任意）")
     count: int | None = Field(default=None, description="台数（任意）")
     max_weight_kg: int | None = Field(default=None, description="最大重量（任意）")
-    availability: str = Field(description="present/absent/unknown")
-    verification_status: str = Field(description="検証状況")
+    availability: str | None = Field(default=None, description="present/absent/unknown または null")
+    verification_status: str | None = Field(default=None, description="検証状況")
     last_verified_at: datetime | None = Field(default=None, description="最終確認時刻")
     source: str | None = Field(default=None, description="情報ソース（URL 等）")
 
 
 class GymImageDTO(BaseModel):
     url: str = Field(description="画像URL")
+    alt: str | None = Field(default=None, description="代替テキスト（任意）")
+    sort_order: int | None = Field(
+        default=None, description="並び順（同一ジム内で1始まりのシーケンス）"
+    )
     source: str | None = Field(default=None, description="出典（任意）")
     verified: bool = Field(default=False, description="検証済みか")
     created_at: datetime | None = Field(default=None, description="登録日時")
@@ -70,8 +74,6 @@ class GymImageDTO(BaseModel):
 
 class GymDetailDTO(BaseModel):
     """Full detail payload for a gym."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
@@ -99,6 +101,7 @@ class GymDetailDTO(BaseModel):
     score: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "examples": [
                 {
@@ -120,6 +123,8 @@ class GymDetailDTO(BaseModel):
                             "category": "strength",
                             "count": 2,
                             "max_weight_kg": 180,
+                            "availability": "present",
+                            "verification_status": "verified",
                         }
                     ],
                     "gym_equipments": [
@@ -138,6 +143,8 @@ class GymDetailDTO(BaseModel):
                     "images": [
                         {
                             "url": "https://example.com/image.jpg",
+                            "alt": "店舗外観",
+                            "sort_order": 1,
                             "source": "instagram",
                             "verified": False,
                             "created_at": "2025-09-01T12:34:56Z",
@@ -149,7 +156,7 @@ class GymDetailDTO(BaseModel):
                     "score": 0.82,
                 }
             ]
-        }
+        },
     )
 
     @computed_field(return_type=list[GymEquipmentLineDTO])

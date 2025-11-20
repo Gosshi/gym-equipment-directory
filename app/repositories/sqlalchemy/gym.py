@@ -57,7 +57,12 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
             )
             .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
             .where(GymEquipment.gym_id == gym_id)
-            .order_by(Equipment.name)
+            .order_by(
+                Equipment.category.is_(None),
+                Equipment.category,
+                Equipment.name,
+                Equipment.slug,
+            )
         )
         rows = await self._session.execute(stmt)
         return [
@@ -88,7 +93,12 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
             .join(GymEquipment, GymEquipment.equipment_id == Equipment.id)
             .join(Source, Source.id == GymEquipment.source_id, isouter=True)
             .where(GymEquipment.gym_id == gym_id)
-            .order_by(Equipment.name)
+            .order_by(
+                Equipment.category.is_(None),
+                Equipment.category,
+                Equipment.name,
+                Equipment.slug,
+            )
         )
         rows = await self._session.execute(stmt)
         return [
@@ -132,6 +142,13 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
             .join(Equipment, Equipment.id == GymEquipment.equipment_id)
             .join(Source, Source.id == GymEquipment.source_id, isouter=True)
             .where(GymEquipment.gym_id.in_(gym_ids))
+            .order_by(
+                GymEquipment.gym_id,
+                Equipment.category.is_(None),
+                Equipment.category,
+                Equipment.name,
+                Equipment.slug,
+            )
         )
         if equipment_slugs:
             stmt = stmt.where(Equipment.slug.in_(equipment_slugs))
@@ -169,6 +186,7 @@ class SqlAlchemyGymReadRepository(GymReadRepository):
             GymImageRow(
                 gym_id=gym_id,
                 url=row.url,
+                alt=None,
                 source=row.source,
                 verified=bool(row.verified),
                 created_at=row.created_at,

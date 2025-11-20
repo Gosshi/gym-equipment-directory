@@ -46,6 +46,9 @@ async def test_gym_detail_includes_gym_equipments(app_client, session):
     for k in [
         "slug",
         "name",
+        "category",
+        "count",
+        "max_weight_kg",
         "availability",
         "verification_status",
         "last_verified_at",

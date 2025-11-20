@@ -1,15 +1,13 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Gym Equipment Directory API",
-    "description": "ジムと設備の検索API（MVP）。\n- アプリは postgresql+asyncpg（非同期）\n- Alembic は postgresql+psycopg2（同期）\n- `gyms.last_verified_at_cached` はトリガーで自動更新\n",
+    "title": "Gym Equipment Directory",
     "version": "0.1.0"
   },
   "paths": {
     "/gyms/search": {
       "get": {
         "tags": [
-          "gyms",
           "gyms"
         ],
         "summary": "ジム検索（設備フィルタ + Keysetページング）",
@@ -100,6 +98,7 @@
               "anyOf": [
                 {
                   "type": "number",
+                  "maximum": 50.0,
                   "minimum": 0.0
                 },
                 {
@@ -297,7 +296,6 @@
     "/gyms/nearby": {
       "get": {
         "tags": [
-          "gyms",
           "gyms"
         ],
         "summary": "ジム近傍検索（Haversine + Keyset）",
@@ -332,6 +330,7 @@
             "required": false,
             "schema": {
               "type": "number",
+              "maximum": 50.0,
               "minimum": 0.0,
               "description": "検索半径（km）",
               "default": 5.0,
@@ -458,7 +457,6 @@
     "/gyms/{slug}": {
       "get": {
         "tags": [
-          "gyms",
           "gyms"
         ],
         "summary": "ジム詳細を取得",
@@ -530,7 +528,6 @@
     "/gyms/by-id/{canonical_id}": {
       "get": {
         "tags": [
-          "gyms",
           "gyms"
         ],
         "summary": "ジム詳細を canonical_id で取得",
@@ -602,7 +599,6 @@
     "/gyms/{slug}/report": {
       "post": {
         "tags": [
-          "gyms",
           "gyms"
         ],
         "summary": "誤り報告を送信",
@@ -650,10 +646,227 @@
         }
       }
     },
+    "/meta/prefectures": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "都道府県一覧（distinct）",
+        "description": "登録されているジムの都道府県スラッグを重複なしで返します。空/NULLは除外。",
+        "operationId": "list_prefectures_meta_prefectures_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrefOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Prefectures Meta Prefectures Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/prefs": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "都道府県候補を取得（件数付き）",
+        "description": "登録されているジムの都道府県スラッグと件数を返します。空/NULLは除外。",
+        "operationId": "list_prefs_meta_prefs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrefOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Prefs Meta Prefs Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/cities": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "市区町村候補を取得（件数付き）",
+        "description": "指定した都道府県スラッグに属する市区町村スラッグと件数を返します。空/NULLは除外。",
+        "operationId": "list_cities_meta_cities_get",
+        "parameters": [
+          {
+            "name": "pref",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "都道府県スラッグ（lower）例: chiba",
+              "examples": [
+                "chiba"
+              ],
+              "title": "Pref"
+            },
+            "description": "都道府県スラッグ（lower）例: chiba"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CityOption"
+                  },
+                  "title": "Response List Cities Meta Cities Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "pref not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/equipment-categories": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "設備カテゴリ一覧（distinct）",
+        "description": "登録されている設備カテゴリ名を重複なしで返します。空/NULLは除外。",
+        "operationId": "list_equipment_categories_meta_equipment_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Equipment Categories Meta Equipment Categories Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/equipments": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "設備スラッグ一覧（distinct）",
+        "description": "登録されている設備スラッグと名称・カテゴリを重複なしで返します。空/NULLは除外。",
+        "operationId": "list_equipments_meta_meta_equipments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EquipmentOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Equipments Meta Meta Equipments Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/equipments": {
       "get": {
         "tags": [
-          "equipments",
           "equipments"
         ],
         "summary": "設備マスタ検索（補完用）",
@@ -729,256 +942,9 @@
         }
       }
     },
-    "/healthz": {
-      "get": {
-        "tags": [
-          "health",
-          "health"
-        ],
-        "summary": "Liveness probe",
-        "description": "単純に200(OK)を返すだけのエンドポイント（DBアクセスなし）",
-        "operationId": "healthz_healthz_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/meta/prefectures": {
-      "get": {
-        "tags": [
-          "meta",
-          "meta"
-        ],
-        "summary": "都道府県一覧（distinct）",
-        "description": "登録されているジムの都道府県スラッグを重複なしで返します。空/NULLは除外。",
-        "operationId": "list_prefectures_meta_prefectures_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PrefOption"
-                  },
-                  "type": "array",
-                  "title": "Response List Prefectures Meta Prefectures Get"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "database unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/meta/prefs": {
-      "get": {
-        "tags": [
-          "meta",
-          "meta"
-        ],
-        "summary": "都道府県候補を取得（件数付き）",
-        "description": "登録されているジムの都道府県スラッグと件数を返します。空/NULLは除外。",
-        "operationId": "list_prefs_meta_prefs_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PrefOption"
-                  },
-                  "type": "array",
-                  "title": "Response List Prefs Meta Prefs Get"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "database unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/meta/cities": {
-      "get": {
-        "tags": [
-          "meta",
-          "meta"
-        ],
-        "summary": "市区町村候補を取得（件数付き）",
-        "description": "指定した都道府県スラッグに属する市区町村スラッグと件数を返します。空/NULLは除外。",
-        "operationId": "list_cities_meta_cities_get",
-        "parameters": [
-          {
-            "name": "pref",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^[a-z0-9-]+$",
-              "description": "都道府県スラッグ（lower）例: chiba",
-              "examples": [
-                "chiba"
-              ],
-              "title": "Pref"
-            },
-            "description": "都道府県スラッグ（lower）例: chiba"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CityOption"
-                  },
-                  "title": "Response List Cities Meta Cities Get"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "pref not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "database unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/meta/equipment-categories": {
-      "get": {
-        "tags": [
-          "meta",
-          "meta"
-        ],
-        "summary": "設備カテゴリ一覧（distinct）",
-        "description": "登録されている設備カテゴリ名を重複なしで返します。空/NULLは除外。",
-        "operationId": "list_equipment_categories_meta_equipment_categories_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CategoryOption"
-                  },
-                  "type": "array",
-                  "title": "Response List Equipment Categories Meta Equipment Categories Get"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "database unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/meta/equipments": {
-      "get": {
-        "tags": [
-          "meta",
-          "meta"
-        ],
-        "summary": "設備スラッグ一覧（distinct）",
-        "description": "登録されている設備スラッグと名称・カテゴリを重複なしで返します。空/NULLは除外。",
-        "operationId": "list_equipments_meta_meta_equipments_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EquipmentOption"
-                  },
-                  "type": "array",
-                  "title": "Response List Equipments Meta Meta Equipments Get"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "database unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/suggest/equipments": {
       "get": {
         "tags": [
-          "suggest",
           "suggest"
         ],
         "summary": "設備名サジェスト（部分一致）",
@@ -1050,7 +1016,6 @@
     "/suggest/gyms": {
       "get": {
         "tags": [
-          "suggest",
           "suggest"
         ],
         "summary": "ジム名/地名サジェスト（部分一致）",
@@ -1137,10 +1102,53 @@
         }
       }
     },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness probe",
+        "description": "単純に200(OK)を返すだけのエンドポイント（DBアクセスなし）",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness probe",
+        "description": "DB に SELECT 1 を投げて疎通を確認（マイグレーション前は503）",
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/reports": {
       "get": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "報告一覧（Keyset）",
@@ -1212,7 +1220,6 @@
     "/admin/reports/{report_id}:resolve": {
       "patch": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "報告を解決済みにする",
@@ -1253,7 +1260,6 @@
     "/admin/candidates": {
       "post": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Create Candidate",
@@ -1293,7 +1299,6 @@
       },
       "get": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "List Candidates",
@@ -1435,7 +1440,6 @@
     "/admin/candidates/{candidate_id}": {
       "get": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Get Candidate Detail",
@@ -1476,7 +1480,6 @@
       },
       "patch": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Patch Candidate",
@@ -1529,7 +1532,6 @@
     "/admin/candidates/{candidate_id}/approve": {
       "post": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Approve Candidate",
@@ -1590,7 +1592,6 @@
     "/admin/candidates/{candidate_id}/approve-auto": {
       "post": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Approve Candidate Auto",
@@ -1643,7 +1644,6 @@
     "/admin/candidates/{candidate_id}/reject": {
       "post": {
         "tags": [
-          "admin",
           "admin"
         ],
         "summary": "Reject Candidate",
@@ -1696,7 +1696,6 @@
     "/me/favorites": {
       "post": {
         "tags": [
-          "me",
           "me"
         ],
         "summary": "お気に入りを追加（冪等）",
@@ -1729,7 +1728,6 @@
       },
       "get": {
         "tags": [
-          "me",
           "me"
         ],
         "summary": "お気に入り一覧（デバイスID）",
@@ -1781,7 +1779,6 @@
     "/me/favorites/{gym_id}": {
       "delete": {
         "tags": [
-          "me",
           "me"
         ],
         "summary": "お気に入りを削除（冪等）",
@@ -1822,6 +1819,38 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/debug/error": {
+      "get": {
+        "summary": "Debug Error",
+        "operationId": "debug_error_debug_error_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -3281,11 +3310,13 @@
             "city": "funabashi",
             "equipments": [
               {
+                "availability": "present",
                 "category": "strength",
                 "count": 2,
                 "equipment_name": "スクワットラック",
                 "equipment_slug": "squat-rack",
-                "max_weight_kg": 180
+                "max_weight_kg": 180,
+                "verification_status": "verified"
               }
             ],
             "freshness": 0.9,
@@ -3305,7 +3336,9 @@
             "id": 1,
             "images": [
               {
+                "alt": "店舗外観",
                 "created_at": "2025-09-01T12:34:56Z",
+                "sort_order": 1,
                 "source": "instagram",
                 "url": "https://example.com/image.jpg",
                 "verified": false
@@ -3457,12 +3490,26 @@
             "description": "最大重量（任意）"
           },
           "availability": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Availability",
-            "description": "present/absent/unknown"
+            "description": "present/absent/unknown または null"
           },
           "verification_status": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Verification Status",
             "description": "検証状況"
           },
@@ -3495,9 +3542,7 @@
         "type": "object",
         "required": [
           "slug",
-          "name",
-          "availability",
-          "verification_status"
+          "name"
         ],
         "title": "GymEquipmentSummaryDTO"
       },
@@ -3507,6 +3552,30 @@
             "type": "string",
             "title": "Url",
             "description": "画像URL"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt",
+            "description": "代替テキスト（任意）"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order",
+            "description": "並び順（同一ジム内で1始まりのシーケンス）"
           },
           "source": {
             "anyOf": [
@@ -4329,11 +4398,5 @@
         "title": "ValidationError"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8000",
-      "description": "Local"
-    }
-  ]
+  }
 }

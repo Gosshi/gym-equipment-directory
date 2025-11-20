@@ -79,9 +79,15 @@ async def _build_gym_detail(uow: UnitOfWork, gym: Gym, include: str | None) -> G
     equipment_summaries = await uow.gyms.fetch_equipment_summaries(gym_id)
     images = await uow.gyms.fetch_images(gym_id)
 
-    equipments_list = [_equipment_basic_to_dict(row) for row in equipments_basic]
-    gym_equipments_list = [_equipment_summary_to_dict(row) for row in equipment_summaries]
-    images_list = [_image_row_to_dict(row) for row in images]
+    equipments_list = _sort_equipments(
+        [_equipment_basic_to_dict(row) for row in equipments_basic],
+    )
+    gym_equipments_list = _sort_equipment_summaries(
+        [_equipment_summary_to_dict(row) for row in equipment_summaries],
+    )
+    images_list = [
+        _image_row_to_dict(row, index + 1) for index, row in enumerate(images)
+    ]
 
     freshness = richness = score = None
     if include == "score":
@@ -174,17 +180,48 @@ def _equipment_summary_to_dict(row: GymEquipmentSummaryRow) -> dict[str, object 
     return {
         "slug": row.slug,
         "name": row.name,
-        "availability": str(row.availability or ""),
-        "verification_status": str(row.verification_status or ""),
+        "category": row.category,
+        "count": row.count,
+        "max_weight_kg": row.max_weight_kg,
+        "availability": row.availability,
+        "verification_status": row.verification_status,
         "last_verified_at": row.last_verified_at,
         "source": row.source,
     }
 
 
-def _image_row_to_dict(row: GymImageRow) -> dict[str, object | None]:
+def _image_row_to_dict(row: GymImageRow, sort_order: int) -> dict[str, object | None]:
     return {
         "url": row.url,
+        "alt": row.alt,
+        "sort_order": sort_order,
         "source": row.source,
         "verified": row.verified,
         "created_at": row.created_at,
     }
+
+
+def _sort_equipments(rows: list[dict[str, object | None]]) -> list[dict[str, object | None]]:
+    return sorted(
+        rows,
+        key=lambda row: (
+            row.get("category") is None,
+            str(row.get("category") or ""),
+            str(row.get("equipment_name") or ""),
+            str(row.get("equipment_slug") or ""),
+        ),
+    )
+
+
+def _sort_equipment_summaries(
+    rows: list[dict[str, object | None]],
+) -> list[dict[str, object | None]]:
+    return sorted(
+        rows,
+        key=lambda row: (
+            row.get("category") is None,
+            str(row.get("category") or ""),
+            str(row.get("name") or ""),
+            str(row.get("slug") or ""),
+        ),
+    )
