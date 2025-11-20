@@ -2,20 +2,32 @@ services:
   api:
     build: .
     container_name: gym_directory_api
-    env_file: .env.prod
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env}
     ports:
-      - "${APP_PORT}:8000"
+      - "${APP_PORT:-8000}:8000"
     depends_on:
       - db
     volumes:
       - .:/app
     command: >
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   db:
     image: postgres:16-alpine
     container_name: gym_directory_db
-    env_file: .env.prod
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env}
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -29,6 +41,8 @@ services:
     image: adminer:4
     container_name: gym_directory_adminer
     restart: always
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env}
     ports:
       - "8080:8080"
     depends_on:
@@ -37,15 +51,20 @@ services:
   pg:
     image: postgres:16
     container_name: gymdir-pg
-    env_file: .env.prod
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env}
     ports:
-      - "5433:5432" # ← ホスト : コンテナ
+      - "5433:5432" # host : container
     environment:
       POSTGRES_DB: ${TEST_POSTGRES_DB}
       POSTGRES_USER: ${TEST_POSTGRES_USER}
       POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gym_test"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${TEST_POSTGRES_USER:-postgres} -d ${TEST_POSTGRES_DB:-gym_test}",
+        ]
       interval: 2s
       timeout: 2s
       retries: 20
