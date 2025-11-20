@@ -85,9 +85,7 @@ async def _build_gym_detail(uow: UnitOfWork, gym: Gym, include: str | None) -> G
     gym_equipments_list = _sort_equipment_summaries(
         [_equipment_summary_to_dict(row) for row in equipment_summaries],
     )
-    images_list = [
-        _image_row_to_dict(row, index + 1) for index, row in enumerate(images)
-    ]
+    images_list = [_image_row_to_dict(row, index + 1) for index, row in enumerate(images)]
 
     freshness = richness = score = None
     if include == "score":
