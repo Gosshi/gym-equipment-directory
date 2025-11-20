@@ -36,12 +36,13 @@ async def test_meta_prefs_and_cities(session):
         r = await ac.get("/meta/prefs")
         assert r.status_code == 200
         prefs = r.json()
-        assert any(p["pref"] == "chiba" for p in prefs)
+        assert any(p["key"] == "chiba" and p["label"] == "chiba" for p in prefs)
+        assert all("count" in p for p in prefs)
 
         r2 = await ac.get("/meta/cities", params={"pref": "chiba"})
         assert r2.status_code == 200
         cities = r2.json()
-        assert any(c["city"] == "funabashi" for c in cities)
+        assert any(c["key"] == "funabashi" and c["label"] == "funabashi" for c in cities)
 
 
 @pytest.mark.asyncio
@@ -56,8 +57,23 @@ async def test_meta_equipments(session):
         r = await ac.get("/meta/equipments")
         assert r.status_code == 200
         equipments = r.json()
-        slugs = {item["slug"] for item in equipments}
+        slugs = {item["key"] for item in equipments}
         assert "smith-machine" in slugs
+
+
+@pytest.mark.asyncio
+async def test_meta_categories(session):
+    e1 = Equipment(slug="smith-machine", name="Smith Machine", category="strength")
+    session.add(e1)
+    await session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        r = await ac.get("/meta/equipment-categories")
+        assert r.status_code == 200
+        categories = r.json()
+        assert any(c["key"] == "strength" and c["label"] == "strength" for c in categories)
+        assert all("count" in c for c in categories)
 
 
 @pytest.mark.asyncio
@@ -113,3 +129,26 @@ async def test_search_richness_any_equipment(session):
         assert r.status_code == 200
         items = r.json()["items"]
         assert any(it["slug"] == "rich-any-2" for it in items)
+
+
+@pytest.mark.asyncio
+async def test_meta_cities_handles_not_found_and_validation(session):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        r = await ac.get("/meta/cities", params={"pref": "unknown-pref"})
+        assert r.status_code == 404
+        assert r.json()["detail"] == "pref not found"
+
+        invalid = await ac.get("/meta/cities", params={"pref": "Invalid"})
+        assert invalid.status_code == 422
+        assert invalid.json()["detail"] == "Unprocessable Entity"
+
+
+@pytest.mark.asyncio
+async def test_search_validation_error_returns_422(app_client):
+    r = await app_client.get(
+        "/gyms/search",
+        params={"pref": "chiba", "city": "funabashi", "page_size": 1000},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "Unprocessable Entity"

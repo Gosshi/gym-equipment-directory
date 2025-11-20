@@ -83,6 +83,9 @@ class GymDetailDTO(BaseModel):
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
     latitude: float | None = Field(default=None, description="緯度（任意）")
     longitude: float | None = Field(default=None, description="経度（任意）")
+    last_verified_at_cached: str | None = Field(
+        default=None, description="最終確認日時（UTC, nullable）"
+    )
     equipments: list[GymEquipmentLineDTO] = Field(description="設備一覧（JOIN済み）")
     gym_equipments: list[GymEquipmentSummaryDTO] = Field(
         default_factory=list, description="設備ごとの在/無・検証状況などの詳細サマリ"
@@ -109,6 +112,7 @@ class GymDetailDTO(BaseModel):
                     "official_url": "https://awesome-gym.example.com",
                     "latitude": 35.7001,
                     "longitude": 139.9823,
+                    "last_verified_at_cached": "2025-09-01T12:34:56Z",
                     "equipments": [
                         {
                             "equipment_slug": "squat-rack",
@@ -153,3 +157,9 @@ class GymDetailDTO(BaseModel):
         """旧API互換のため equipment_details を提供する。"""
 
         return self.equipments
+
+    @computed_field(return_type=str | None)
+    def last_verified_at(self) -> str | None:
+        """旧フィールド名の互換用。"""
+
+        return self.last_verified_at_cached

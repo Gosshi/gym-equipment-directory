@@ -106,6 +106,7 @@ def assemble_gym_detail(
         official_url=getattr(gym, "official_url", None),
         latitude=getattr(gym, "latitude", None),
         longitude=getattr(gym, "longitude", None),
+        last_verified_at_cached=_iso(getattr(gym, "last_verified_at_cached", None)),
         equipments=[map_equipment_row(r) for r in equipments],
         gym_equipments=[map_equipment_summary(r) for r in equipment_summaries],
         images=[map_gym_image(r) for r in images],

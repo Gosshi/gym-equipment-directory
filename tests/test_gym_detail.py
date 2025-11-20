@@ -34,6 +34,8 @@ async def test_gym_detail_fields(session):
         assert body["pref"] == "tokyo"
         assert body["city"] == "chiyoda"
         assert body["canonical_id"] == g.canonical_id
+        assert body["last_verified_at_cached"].startswith("2024-08-01T10:00:00")
+        assert body["last_verified_at"] == body["last_verified_at_cached"]
         eq = body["equipments"][0]
         assert eq["equipment_slug"] == "smith-machine"
         assert eq["slug"] == "smith-machine"
@@ -43,3 +45,10 @@ async def test_gym_detail_fields(session):
         assert "count" in eq and "max_weight_kg" in eq
         detail_eq = body["equipment_details"][0]
         assert detail_eq["name"] == "Smith Machine"
+
+
+@pytest.mark.asyncio
+async def test_gym_detail_invalid_include_returns_422(app_client):
+    r = await app_client.get("/gyms/dummy-funabashi-east", params={"include": "score,all"})
+    assert r.status_code == 422
+    assert r.json()["detail"] == "Unprocessable Entity"

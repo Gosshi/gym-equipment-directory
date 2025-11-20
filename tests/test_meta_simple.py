@@ -25,16 +25,18 @@ async def test_meta_prefectures_and_categories(session):
         assert r1.status_code == 200
         prefs = r1.json()
         assert isinstance(prefs, list)
-        assert "chiba" in prefs
-        assert "tokyo" in prefs
+        keys = {p["key"] for p in prefs}
+        assert "chiba" in keys
+        assert "tokyo" in keys
 
         r2 = await ac.get("/meta/equipment-categories")
         assert r2.status_code == 200
         cats = r2.json()
         assert isinstance(cats, list)
         # seeded categories from tests/conftest.py
-        assert "free_weight" in cats
-        assert "machine" in cats
+        cat_keys = {c["key"] for c in cats}
+        assert "free_weight" in cat_keys
+        assert "machine" in cat_keys
 
 
 @pytest.mark.asyncio
