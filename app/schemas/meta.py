@@ -35,7 +35,9 @@ class CategoryOption(MetaOption):
 
 
 class EquipmentOption(BaseModel):
-    key: str = Field(..., description="設備スラッグ", json_schema_extra={"example": "smith-machine"})
+    key: str = Field(
+        ..., description="設備スラッグ", json_schema_extra={"example": "smith-machine"}
+    )
     label: str = Field(..., description="表示名", json_schema_extra={"example": "スミスマシン"})
     category: str | None = Field(
         default=None, description="設備カテゴリ", json_schema_extra={"example": "strength"}
