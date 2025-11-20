@@ -9,10 +9,16 @@ SortKey = Literal["freshness", "richness", "score", "gym_name", "created_at", "d
 
 
 def resolve_sort_key(s: str | None) -> SortKey:
-    """Normalize a user-provided sort key.
+    """ユーザー入力のソートキー文字列を内部的な正規化キーへ変換する。
 
-    Unknown / None fall back to ``freshness``. Preserve ``score`` distinctly so
-    later we can implement weighted freshness/richness without ambiguity.
+    振る舞い:
+    - 未指定 / 空文字 / 未知値 → `freshness` にフォールバック。
+    - `richness` と `score` を区別（score は将来: freshness/richness の重み付き合算に使用）。
+    - 距離ソート: `distance` / `nearby` → `distance` に正規化（未実装時は fallback か 422）。
+
+    将来拡張:
+    - `score` 実装時に重み（例: freshness=0.6, richness=0.4）を service 層へ追加。
+    - `distance` Keyset ページング対応時は複合キー（distance,id）を token 化。
     """
     if not s:
         return "freshness"

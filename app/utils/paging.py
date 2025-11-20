@@ -8,13 +8,18 @@ __all__ = [
 
 
 def parse_offset_token(token: str | None, *, page: int, per_page: int) -> int:
-    """Decode a paging token into an integer offset.
+    """page_token をオフセット整数に復号する。
 
-    Accepts two formats:
-    1. Legacy: plain integer string (e.g. "40")
-    2. Extended: "<offset>:<h>" where <h> is a short hash / sort discriminator
+    サポート形式:
+    1. レガシー: 純整数文字列 (例: "40")
+     2. 拡張形式: "<offset>:<h>"
+         - <h>: ソートキー等の短縮ハッシュ（後方整合性確保のため解析時は未使用）
 
-    Unknown / malformed tokens raise ValueError (caller converts to HTTP 400/422).
+    注意:
+    - token が None の場合は `(page-1)*per_page` を採用。
+    - 空文字や不正フォーマットは ValueError を送出し、呼び出し側で 400/422 に変換する想定。
+    セキュリティ:
+    - int() 変換時に過大値（極端に大きいオフセット）が来る可能性: 呼び出し側で最大ページ防御を推奨。
     """
     if token is None:
         return (page - 1) * per_page
@@ -34,13 +39,16 @@ def build_next_offset_token(
     *,
     sort_key: str | None = None,
 ) -> str | None:
-    """Generate a forward paging token if more items remain.
+    """次ページが存在する場合に前進用の page_token を生成する。
 
-    The token encodes the *next* offset plus an optional sort discriminator to
-    reduce accidental reuse after a client changes its sort key.
-
-    Format: "<next_offset>:<hash>" (hash truncated to 8 chars). If no more
-    results remain, returns ``None``.
+    仕様:
+    - 返却形式: "<next_offset>:<hash>"（<hash> は sort_key の先頭 8 文字。将来ハッシュ化差し替え可）
+    - 次ページが存在しない場合は None を返す。
+    目的:
+    - sort_key 埋め込み: ソート変更後の旧トークン誤用検出を容易化（厳密検証は呼び出し側拡張）。
+    拡張余地:
+    - ハッシュ衝突耐性を高めるため SHA1/XXHash などへ置換。
+    - Keyset 移行時: オフセットではなく境界キー（例: timestamp,id）を token に含める形へ拡張予定。
     """
     next_offset = offset + per_page
     if next_offset >= total_len:
