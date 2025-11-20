@@ -117,9 +117,11 @@ class GymSearchQuery(BaseModel):
     page_token: str | None = Field(default=None, description="Keyset 継続トークン（互換用）")
 
     @model_validator(mode="after")
-    def _require_coordinates_for_distance(self) -> "GymSearchQuery":
+    def _require_coordinates_for_distance(self) -> GymSearchQuery:
         if self.sort == "distance" and (self.lat is None or self.lng is None):
-            raise HTTPException(status_code=422, detail="lat and lng are required for distance sort")
+            raise HTTPException(
+                status_code=422, detail="lat and lng are required for distance sort"
+            )
         return self
 
     @field_validator("pref", "city")
