@@ -167,6 +167,9 @@ class GymSearchQuery(BaseModel):
     def as_query(
         cls,
         pref: Annotated[str | None, Query(description="都道府県スラッグ（lower）例: chiba")] = None,
+        prefecture: Annotated[
+            str | None, Query(description="互換用: 都道府県スラッグ（lower）pref と同義")
+        ] = None,
         city: Annotated[
             str | None, Query(description="市区町村スラッグ（lower）例: funabashi")
         ] = None,
@@ -216,8 +219,10 @@ class GymSearchQuery(BaseModel):
                 if value is not None:
                     resolved_page_size = int(value)
                     break
+            # 後方互換: prefecture -> pref に正規化
+            resolved_pref = pref or prefecture
             payload = {
-                "pref": pref,
+                "pref": resolved_pref,
                 "city": city,
                 "lat": lat,
                 "lng": lng,

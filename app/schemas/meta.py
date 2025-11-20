@@ -3,6 +3,15 @@ from pydantic import BaseModel, Field, computed_field
 
 
 class MetaOption(BaseModel):
+    """共通メタオプション。
+
+    後方互換ポリシー:
+    - 旧フロントは `pref` / `city` / `category` / `slug` / `name` などのフィールド名を参照していた。
+    - 新スキーマでは `key` / `label` を正規化し、computed_field で旧名称をミラーリング。
+    - API レスポンスで余分なフィールドを残すコストは軽微（文字列複製のみ）かつ移行容易性を優先。
+    - 完全移行後（十分な周知後）に computed_field の削除を検討できるようコメントを残す。
+    """
+
     key: str = Field(..., description="安定キー", json_schema_extra={"example": "chiba"})
     label: str = Field(..., description="表示ラベル", json_schema_extra={"example": "千葉"})
     count: int | None = Field(
@@ -35,6 +44,14 @@ class CategoryOption(MetaOption):
 
 
 class EquipmentOption(BaseModel):
+    """設備オプション。
+
+    後方互換:
+    - 旧: slug/name
+    - 新: key/label
+    - 利用側が段階的に切り替え可能なよう両方 exposed。
+    """
+
     key: str = Field(
         ..., description="設備スラッグ", json_schema_extra={"example": "smith-machine"}
     )

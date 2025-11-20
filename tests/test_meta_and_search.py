@@ -44,6 +44,12 @@ async def test_meta_prefs_and_cities(session):
         cities = r2.json()
         assert any(c["key"] == "funabashi" and c["label"] == "funabashi" for c in cities)
 
+        # 互換: prefecture パラメータでも取得可能
+        r3 = await ac.get("/meta/cities", params={"prefecture": "chiba"})
+        assert r3.status_code == 200
+        cities2 = r3.json()
+        assert any(c["key"] == "urayasu" for c in cities2)
+
 
 @pytest.mark.asyncio
 async def test_meta_equipments(session):
@@ -96,6 +102,13 @@ async def test_search_minimal(session):
         assert r.status_code == 200
         assert r.json()["total"] >= 1
 
+        # 互換: prefecture パラメータ
+        r2 = await ac.get(
+            "/gyms/search", params={"prefecture": "chiba", "city": "funabashi", "page_size": 10}
+        )
+        assert r2.status_code == 200
+        assert r2.json()["total"] >= 1
+
 
 @pytest.mark.asyncio
 async def test_search_richness_any_equipment(session):
@@ -142,6 +155,34 @@ async def test_meta_cities_handles_not_found_and_validation(session):
         invalid = await ac.get("/meta/cities", params={"pref": "Invalid"})
         assert invalid.status_code == 422
         assert invalid.json()["detail"] == "Unprocessable Entity"
+
+        invalid2 = await ac.get("/meta/cities", params={"prefecture": "Invalid"})
+        assert invalid2.status_code == 422
+        assert invalid2.json()["detail"] == "Unprocessable Entity"
+
+
+@pytest.mark.asyncio
+async def test_meta_categories_new(session):
+    # categories エンドポイント互換確認
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        r = await ac.get("/meta/categories")
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_meta_cache_population(session):
+    # キャッシュ: prefectures を複数回叩いて同一結果を期待
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        r1 = await ac.get("/meta/prefectures")
+        assert r1.status_code == 200
+        data1 = r1.json()
+        r2 = await ac.get("/meta/prefectures")
+        assert r2.status_code == 200
+        data2 = r2.json()
+        assert data1 == data2
 
 
 @pytest.mark.asyncio
