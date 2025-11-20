@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AdminCandidateItem, AdminCandidateListParams } from "@/lib/adminApi";
-import { AdminApiError, listCandidates } from "@/lib/adminApi";
+import type { AdminCandidateListParams } from "@/lib/adminApi";
 import { toast } from "@/components/ui/use-toast";
+import {
+  useAdminCandidates,
+  useBulkApproveCandidates,
+  useBulkRejectCandidates,
+  type NormalizedError,
+} from "@/hooks/useAdminCandidates";
 
 type Filters = AdminCandidateListParams & { q: string };
 
 const DEFAULT_FILTERS: Filters = {
-  status: "",
+  status: undefined,
   source: "",
   q: "",
   pref: "",
@@ -31,76 +36,138 @@ const formatDateTime = (value: string | null | undefined) => {
 export default function AdminCandidatesPage() {
   const router = useRouter();
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
-  const [items, setItems] = useState<AdminCandidateItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDryRun, setBulkDryRun] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
 
-  const buildParams = useCallback(
-    (cursor?: string | null): AdminCandidateListParams => {
-      const rawStatus = filters.status?.trim();
-      const statusValue = rawStatus
-        ? (rawStatus as Exclude<AdminCandidateListParams["status"], "" | null | undefined>)
-        : undefined;
-
-      return {
-        status: statusValue,
-        source: filters.source?.trim() || undefined,
-        q: filters.q?.trim() || undefined,
-        pref: filters.pref?.trim() || undefined,
-        city: filters.city?.trim() || undefined,
-        cursor: cursor || undefined,
-      };
-    },
-    [filters],
-  );
-
-  const fetchCandidates = useCallback(
-    async (cursor?: string | null) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await listCandidates(buildParams(cursor));
-        setItems(response.items);
-        setNextCursor(response.next_cursor ?? null);
-        setTotalCount(typeof response.count === "number" ? response.count : response.items.length);
-      } catch (err) {
-        if (err instanceof AdminApiError) {
-          setError(err.message);
-        } else {
-          setError("ネットワークエラーが発生しました");
+  const params = useMemo<AdminCandidateListParams>(
+    () => ({
+      status: ((): AdminCandidateListParams["status"] => {
+        const raw = filters.status?.trim();
+        if (!raw) return undefined;
+        if (raw === "new" || raw === "reviewing" || raw === "approved" || raw === "rejected") {
+          return raw;
         }
-        setTotalCount(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [buildParams],
+        return undefined;
+      })(),
+      source: filters.source?.trim() || undefined,
+      q: filters.q?.trim() || undefined,
+      pref: filters.pref?.trim() || undefined,
+      city: filters.city?.trim() || undefined,
+      cursor,
+    }),
+    [filters, cursor],
   );
 
-  useEffect(() => {
-    void fetchCandidates();
-  }, [fetchCandidates]);
+  const {
+    items,
+    nextCursor,
+    count: totalCount,
+    isLoading: loading,
+    isInitialLoading,
+    error: queryError,
+    refetch,
+  } = useAdminCandidates({ params });
+
+  const {
+    bulkApprove,
+    isLoading: approvingBulk,
+    error: approveBulkError,
+    data: approveBulkData,
+  } = useBulkApproveCandidates();
+  const {
+    bulkReject,
+    isLoading: rejectingBulk,
+    error: rejectBulkError,
+    data: rejectBulkData,
+  } = useBulkRejectCandidates();
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      void fetchCandidates();
+      setCursor(undefined); // reset pagination
+      void refetch();
     },
-    [fetchCandidates],
+    [refetch],
   );
 
   const handleNext = () => {
-    if (!nextCursor) {
-      return;
-    }
-    void fetchCandidates(nextCursor);
+    if (!nextCursor) return;
+    setCursor(nextCursor);
   };
 
   const handleRowClick = (candidateId: number) => {
     router.push(`/admin/candidates/${candidateId}`);
   };
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (items.length === 0) return prev;
+      const allSelected = items.every(i => prev.has(i.id));
+      if (allSelected) return new Set();
+      return new Set(items.map(i => i.id));
+    });
+  }, [items]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const performBulkApprove = useCallback(async () => {
+    if (selectedIds.size === 0) {
+      toast({ title: "候補が選択されていません", variant: "destructive" });
+      return;
+    }
+    try {
+      const ids = Array.from(selectedIds);
+      const data = await bulkApprove({ ids, dry_run: bulkDryRun });
+      toast({
+        title: bulkDryRun ? "Dry-run 承認結果" : "バルク承認完了",
+        description: `成功: ${data.success_ids.length} / 失敗: ${data.failure_items.length}`,
+      });
+      if (!bulkDryRun) clearSelection();
+    } catch (err) {
+      const e = err as NormalizedError;
+      toast({ title: "バルク承認失敗", description: e.message, variant: "destructive" });
+    }
+  }, [bulkApprove, bulkDryRun, clearSelection, selectedIds]);
+
+  const performBulkReject = useCallback(async () => {
+    if (selectedIds.size === 0) {
+      toast({ title: "候補が選択されていません", variant: "destructive" });
+      return;
+    }
+    const reason = bulkRejectReason.trim();
+    if (!reason) {
+      toast({ title: "却下理由を入力してください", variant: "destructive" });
+      return;
+    }
+    try {
+      const ids = Array.from(selectedIds);
+      const data = await bulkReject({ ids, reason, dry_run: bulkDryRun });
+      toast({
+        title: bulkDryRun ? "Dry-run 却下結果" : "バルク却下完了",
+        description: `成功: ${data.success_ids.length} / 失敗: ${data.failure_items.length}`,
+      });
+      if (!bulkDryRun) clearSelection();
+    } catch (err) {
+      const e = err as NormalizedError;
+      toast({ title: "バルク却下失敗", description: e.message, variant: "destructive" });
+    }
+  }, [bulkReject, bulkDryRun, bulkRejectReason, clearSelection, selectedIds]);
+
+  const anyBulkLoading = approvingBulk || rejectingBulk;
 
   const filterControls = useMemo(
     () => (
@@ -174,7 +241,7 @@ export default function AdminCandidatesPage() {
             onChange={event => setFilters(prev => ({ ...prev, city: event.target.value }))}
           />
         </div>
-        <div className="md:col-span-5">
+        <div className="md:col-span-5 flex flex-wrap gap-4 items-center">
           <button
             type="submit"
             className="rounded bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
@@ -182,35 +249,118 @@ export default function AdminCandidatesPage() {
           >
             {loading ? "検索中..." : "フィルター適用"}
           </button>
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <input
+              id="bulk-dry-run"
+              type="checkbox"
+              checked={bulkDryRun}
+              onChange={e => setBulkDryRun(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="bulk-dry-run" className="cursor-pointer select-none">
+              Dry-run
+            </label>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <input
+              className="rounded border border-gray-300 px-2 py-1"
+              placeholder="バルク却下理由"
+              value={bulkRejectReason}
+              onChange={e => setBulkRejectReason(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={performBulkApprove}
+              disabled={anyBulkLoading || selectedIds.size === 0}
+              className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              {approvingBulk ? "承認中..." : `バルク承認 (${selectedIds.size})`}
+            </button>
+            <button
+              type="button"
+              onClick={performBulkReject}
+              disabled={anyBulkLoading || selectedIds.size === 0}
+              className="rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {rejectingBulk ? "却下中..." : `バルク却下 (${selectedIds.size})`}
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              disabled={selectedIds.size === 0 || anyBulkLoading}
+              className="rounded border border-gray-300 px-3 py-2 text-xs hover:bg-gray-50 disabled:opacity-50"
+            >
+              選択解除
+            </button>
+          </div>
         </div>
       </form>
     ),
-    [filters.city, filters.pref, filters.q, filters.source, filters.status, loading, handleSubmit],
+    [
+      bulkDryRun,
+      bulkRejectReason,
+      clearSelection,
+      filters.city,
+      filters.pref,
+      filters.q,
+      filters.source,
+      filters.status,
+      handleSubmit,
+      performBulkApprove,
+      performBulkReject,
+      approvingBulk,
+      rejectingBulk,
+      selectedIds.size,
+      loading,
+      anyBulkLoading,
+    ],
   );
 
   useEffect(() => {
-    if (error) {
+    if (queryError) {
       toast({
         title: "候補の取得に失敗しました",
-        description: error,
+        description: queryError.message,
         variant: "destructive",
       });
     }
-  }, [error]);
+  }, [queryError]);
+
+  useEffect(() => {
+    if (approveBulkError) {
+      toast({
+        title: "バルク承認エラー",
+        description: approveBulkError.message,
+        variant: "destructive",
+      });
+    }
+  }, [approveBulkError]);
+
+  useEffect(() => {
+    if (rejectBulkError) {
+      toast({
+        title: "バルク却下エラー",
+        description: rejectBulkError.message,
+        variant: "destructive",
+      });
+    }
+  }, [rejectBulkError]);
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Gym Candidates</h1>
       {filterControls}
-      {loading ? (
+      {loading && isInitialLoading ? (
         <p className="text-sm text-gray-600">読み込み中...</p>
-      ) : error ? (
+      ) : queryError ? (
         <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p>{error}</p>
+          <p>{queryError.message}</p>
           <button
             type="button"
             className="mt-2 rounded border border-red-400 px-3 py-1 text-xs"
-            onClick={() => fetchCandidates()}
+            onClick={() => void refetch()}
           >
             再試行
           </button>
@@ -220,6 +370,15 @@ export default function AdminCandidatesPage() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="全選択"
+                    onChange={toggleSelectAll}
+                    checked={items.length > 0 && items.every(i => selectedIds.has(i.id))}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">ID</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Status</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Name</th>
@@ -242,6 +401,15 @@ export default function AdminCandidatesPage() {
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => handleRowClick(item.id)}
                   >
+                    <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`候補 ${item.id} を選択`}
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                    </td>
                     <td className="px-3 py-2">{item.id}</td>
                     <td className="px-3 py-2">{item.status}</td>
                     <td className="px-3 py-2">{item.name_raw}</td>
@@ -263,7 +431,7 @@ export default function AdminCandidatesPage() {
           type="button"
           className="rounded border border-gray-300 px-4 py-2 text-sm"
           onClick={handleNext}
-          disabled={!nextCursor || loading}
+          disabled={!nextCursor || loading || anyBulkLoading}
         >
           次へ
         </button>
