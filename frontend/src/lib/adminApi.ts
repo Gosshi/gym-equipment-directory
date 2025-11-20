@@ -30,6 +30,7 @@ export interface AdminCandidateItem {
   fetched_at?: string | null;
   updated_at?: string | null;
   source?: AdminCandidateSource | null;
+  official_url?: string | null; // 手動入稿時などに付与される公式URL
 }
 
 export interface AdminCandidateDetail extends AdminCandidateItem {
@@ -168,17 +169,32 @@ export async function getCandidate(id: number): Promise<AdminCandidateDetail> {
   throw new AdminApiError("Failed to get candidate: unreachable state");
 }
 
+// Payload types -------------------------------------------------
+export interface AdminCandidateCreatePayload {
+  name_raw: string;
+  address_raw?: string | null;
+  pref_slug: string;
+  city_slug: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  parsed_json?: Record<string, unknown> | null;
+  official_url?: string | null; // 任意: 公式サイト URL
+}
+
+export interface AdminCandidatePatchPayload {
+  name_raw?: string | null;
+  address_raw?: string | null;
+  pref_slug?: string | null;
+  city_slug?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  parsed_json?: Record<string, unknown> | null;
+  official_url?: string | null;
+}
+
 export async function patchCandidate(
   id: number,
-  payload: Partial<{
-    name_raw: string;
-    address_raw: string | null;
-    pref_slug: string | null;
-    city_slug: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    parsed_json: Record<string, unknown> | null;
-  }>,
+  payload: AdminCandidatePatchPayload,
 ): Promise<AdminCandidateItem> {
   try {
     return await apiRequest<AdminCandidateItem>(`/admin/candidates/${id}`, {
@@ -191,15 +207,9 @@ export async function patchCandidate(
   throw new AdminApiError("Failed to patch candidate: unreachable state");
 }
 
-export async function createCandidate(payload: {
-  name_raw: string;
-  address_raw?: string | null;
-  pref_slug?: string | null;
-  city_slug?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  parsed_json?: Record<string, unknown> | null;
-}): Promise<AdminCandidateItem> {
+export async function createCandidate(
+  payload: AdminCandidateCreatePayload,
+): Promise<AdminCandidateItem> {
   try {
     return await apiRequest<AdminCandidateItem>(`/admin/candidates`, {
       method: "POST",
