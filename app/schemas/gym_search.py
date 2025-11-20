@@ -71,9 +71,9 @@ class GymSearchResponse(BaseModel):
 class GymSearchQuery(BaseModel):
     """/gyms/search のクエリDTO（厳格バリデーション）。
 
-    - 空文字は 422 扱い（HTTPException を発生）
-    - 範囲外（page / page_size など）は 422 扱い
-    - 許容値外（sort/equipment_match など）も 422 扱い
+    - 空文字は 400 扱い（HTTPException を発生）
+    - 範囲外（page / page_size など）は 400 扱い
+    - 許容値外（sort/equipment_match など）も 400 扱い
     """
 
     pref: str | None = Field(default=None, description="都道府県スラッグ（lower）")
@@ -115,11 +115,11 @@ class GymSearchQuery(BaseModel):
             return None
         s = v.strip()
         if not s:
-            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+            raise HTTPException(status_code=400, detail="empty string is not allowed")
         # 許容されるスラッグ: 英小/数値/ハイフン
         for ch in s:
             if not (ch.islower() or ch.isdigit() or ch == "-"):
-                raise HTTPException(status_code=422, detail="Unprocessable Entity")
+                raise HTTPException(status_code=400, detail="invalid slug")
         return s
 
     @field_validator("equipments")
@@ -128,21 +128,21 @@ class GymSearchQuery(BaseModel):
         if v is None:
             return None
         if not v.strip():
-            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+            raise HTTPException(status_code=400, detail="equipments must not be empty")
         return v
 
     @field_validator("page")
     @classmethod
     def _check_page(cls, v: int) -> int:
         if int(v) <= 0:
-            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+            raise HTTPException(status_code=400, detail="page must be >= 1")
         return int(v)
 
     @field_validator("page_size")
     @classmethod
     def _check_page_size(cls, v: int) -> int:
         if not (1 <= int(v) <= 100):
-            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+            raise HTTPException(status_code=400, detail="page_size must be between 1 and 100")
         return int(v)
 
     # FastAPI で BaseModel をそのまま Query から受け取ると 422 になるため、
@@ -217,4 +217,4 @@ class GymSearchQuery(BaseModel):
                 payload["page_size"] = resolved_page_size
             return cls.model_validate(payload)
         except ValidationError as e:  # noqa: F841 - 具体内容は隠蔽
-            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+            raise HTTPException(status_code=400, detail="invalid query parameter")
