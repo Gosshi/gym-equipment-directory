@@ -179,7 +179,9 @@ async def search_gyms(
     slice_ = pagable[offset : offset + per_page_safe]
     if was_clamped and page_token is None and slice_ and len(slice_) < per_page_safe:
         slice_ = pagable[: len(slice_)]
-    next_token = build_next_offset_token(offset, per_page_safe, total_pagable)
+    next_token = build_next_offset_token(
+        offset, per_page_safe, total_pagable, sort_key=str(sort_key)
+    )
 
     dto_items = [
         map_gym_to_summary(
