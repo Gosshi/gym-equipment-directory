@@ -93,7 +93,7 @@ async def search_gyms(
 async def gyms_nearby(
     lat: float = Query(..., description="緯度"),
     lng: float = Query(..., description="経度"),
-    radius_km: float = Query(5.0, ge=0.0, description="検索半径（km）"),
+    radius_km: float = Query(5.0, ge=0.0, le=50.0, description="検索半径（km）"),
     page: int = Query(1, ge=1, description="ページ番号（1始まり）"),
     page_size: int | None = Query(None, ge=1, le=100, description="1ページ件数（1..100）"),
     per_page: int | None = Query(None, ge=1, le=100, description="1ページ件数（互換用, 1..100）"),

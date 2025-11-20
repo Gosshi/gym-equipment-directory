@@ -133,3 +133,13 @@ async def test_nearby_without_page_token_starts_from_top(
     assert len(j["items"]) >= 2
     # First should be the closest (distance then id)
     assert j["items"][0]["slug"] == g_close.slug
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("radius_km", [-1, 120])
+async def test_nearby_radius_bounds(app_client: AsyncClient, radius_km: float):
+    r = await app_client.get(
+        "/gyms/nearby",
+        params={"lat": 35.0, "lng": 139.0, "radius_km": radius_km, "page_size": 1},
+    )
+    assert r.status_code == 422

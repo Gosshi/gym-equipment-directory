@@ -123,3 +123,19 @@ async def test_search_distance_filters_and_sort(app_client):
     narrowed = resp_narrow.json()["items"]
     assert [it["slug"] for it in narrowed] == ["dummy-funabashi-east"]
     assert all(it["distance_km"] is not None and it["distance_km"] <= 1 for it in narrowed)
+
+
+@pytest.mark.anyio
+async def test_search_distance_requires_coordinates(app_client):
+    resp = await app_client.get(
+        "/gyms/search",
+        params={
+            "pref": "chiba",
+            "city": "funabashi",
+            "sort": "distance",
+            "page_size": 5,
+        },
+    )
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["detail"] == "lat and lng are required for distance sort"
