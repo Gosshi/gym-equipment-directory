@@ -33,6 +33,24 @@
             "description": "都道府県スラッグ（lower）例: chiba"
           },
           {
+            "name": "prefecture",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "互換用: 都道府県スラッグ（lower）pref と同義",
+              "title": "Prefecture"
+            },
+            "description": "互換用: 都道府県スラッグ（lower）pref と同義"
+          },
+          {
             "name": "city",
             "in": "query",
             "required": false,
@@ -742,6 +760,22 @@
               "title": "Pref"
             },
             "description": "都道府県スラッグ（lower）例: chiba"
+          },
+          {
+            "name": "prefecture",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "互換用: 都道府県スラッグ（lower）pref と同義",
+              "examples": [
+                "chiba"
+              ],
+              "title": "Prefecture"
+            },
+            "description": "互換用: 都道府県スラッグ（lower）pref と同義"
           }
         ],
         "responses": {
@@ -811,6 +845,42 @@
                   },
                   "type": "array",
                   "title": "Response List Equipment Categories Meta Equipment Categories Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/categories": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "設備カテゴリ一覧（distinct）",
+        "description": "登録されている設備カテゴリ名を重複なしで返します。空/NULLは除外。",
+        "operationId": "list_categories_meta_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOption"
+                  },
+                  "type": "array",
+                  "title": "Response List Categories Meta Categories Get"
                 }
               }
             }

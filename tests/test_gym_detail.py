@@ -109,8 +109,7 @@ async def test_gym_detail_sorts_equipments(app_client, session):
 
     equipments = payload["equipments"]
     assert [
-        (item["category"], item["equipment_name"], item["equipment_slug"])
-        for item in equipments
+        (item["category"], item["equipment_name"], item["equipment_slug"]) for item in equipments
     ] == [
         ("free_weight", "A Free", "a-free"),
         ("machine", "B Machine", "b-machine"),
@@ -118,10 +117,7 @@ async def test_gym_detail_sorts_equipments(app_client, session):
     ]
 
     gym_equipments = payload["gym_equipments"]
-    assert [
-        (item.get("category"), item["name"], item["slug"])
-        for item in gym_equipments
-    ] == [
+    assert [(item.get("category"), item["name"], item["slug"]) for item in gym_equipments] == [
         ("free_weight", "A Free", "a-free"),
         ("machine", "B Machine", "b-machine"),
         (None, "C Unknown", "c-unknown"),

@@ -38,9 +38,7 @@ async def test_gym_detail_includes_images_field(app_client, session):
     assert isinstance(imgs, list) and len(imgs) == 2
     # Ensure minimal fields
     for it in imgs:
-        assert {"url", "alt", "sort_order", "source", "verified", "created_at"} <= set(
-            it.keys()
-        )
+        assert {"url", "alt", "sort_order", "source", "verified", "created_at"} <= set(it.keys())
         assert it["alt"] is None
 
     assert [img["sort_order"] for img in imgs] == [1, 2]
