@@ -87,6 +87,9 @@ async def search_gyms(
         "指定した座標から半径 `radius_km` 以内のジムを、\n"
         "Haversine距離の昇順・id昇順で返します。ページングは距離+idのKeysetです。"
     ),
+    responses={
+        422: {"model": ErrorResponse, "description": "validation error"},
+    },
 )
 async def gyms_nearby(
     lat: float = Query(..., ge=-90.0, le=90.0, description="緯度（-90〜90）"),
@@ -113,7 +116,7 @@ async def gyms_nearby(
             page_token=page_token,
         )
     except ValueError:
-        raise HTTPException(status_code=400, detail="invalid page_token")
+        raise HTTPException(status_code=422, detail="invalid page_token")
 
 
 @router.get(

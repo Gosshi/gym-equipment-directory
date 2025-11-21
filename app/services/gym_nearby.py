@@ -67,7 +67,10 @@ async def search_nearby(
     if current_page <= 0:
         current_page = 1
     offset = (current_page - 1) * per_page
-    use_keyset = bool(page_token)
+    use_keyset = page_token is not None
+    token_cursor: tuple[float, int] | None = None
+    if use_keyset:
+        token_cursor = _validate_and_decode_page_token(page_token)
 
     # Precompute radians of input
     lat0 = float(lat)
@@ -110,8 +113,8 @@ async def search_nearby(
 
     stmt = base_stmt
 
-    if use_keyset and page_token:
-        lk_dist, lk_id = _validate_and_decode_page_token(page_token)
+    if use_keyset and token_cursor:
+        lk_dist, lk_id = token_cursor
         stmt = stmt.where(tuple_(dist_num, Gym.id) > tuple_(literal(lk_dist), literal(int(lk_id))))
 
     stmt = stmt.order_by(dist_num.asc(), Gym.id.asc())
@@ -145,7 +148,7 @@ async def search_nearby(
     next_token = None
     if use_keyset:
         has_more = len(rows) > per_page
-        has_prev = current_page > 1 or bool(page_token)
+        has_prev = current_page > 1 or use_keyset
         if has_more:
             last_row = rows[per_page - 1]
             g_last, dist_last = last_row
