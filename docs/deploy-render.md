@@ -13,7 +13,7 @@
 ## 3. Render PostgreSQL の作成手順
 1. Render ダッシュボードで **New -> PostgreSQL** を選択します。
 2. **Name** に `gym-postgres` を入力し、**Plan** は `starter` など必要なプランを選択します。
-3. 作成後に表示される接続情報から `Internal Database URL` を控えておき、`DATABASE_URL` として backend の環境変数に設定します。
+3. 作成後に表示される接続情報から `Internal Database URL` を控えておき、接頭辞 `postgres://` を `postgresql+asyncpg://` に置き換えた値を `DATABASE_URL` として backend の環境変数に設定します。
 
 ## 4. render.yaml を使った Blueprint デプロイ手順
 1. Render ダッシュボードで **Blueprints** を開き、`New Blueprint Instance` を作成します。
@@ -31,7 +31,7 @@ Render ダッシュボードで以下を設定してください（空欄は適�
 | --- | --- | --- |
 | BACKEND_URL | 公開 API URL | `https://api-xxx.onrender.com` |
 | FRONTEND_URL | 公開フロント URL | `https://app-xxx.onrender.com` |
-| DATABASE_URL | Render PostgreSQL の接続文字列 | Render の **Internal Database URL** |
+| DATABASE_URL | Render PostgreSQL の接続文字列 | Render の **Internal Database URL** を `postgresql+asyncpg://...` 形式に書き換えた値 |
 | SECRET_KEY | アプリのシークレット | `generate` で自動生成 or 手動設定 |
 | ADMIN_UI_TOKEN | `/admin` 用アクセストークン | 強固なランダム文字列 |
 | OPENCAGE_API_KEY | ジオコーディング API キー | 取得した API キー |
