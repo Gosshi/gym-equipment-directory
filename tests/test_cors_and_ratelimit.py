@@ -57,6 +57,21 @@ async def test_cors_disallowed_origin(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cors_dev_appends_local_hosts(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.setenv("ALLOW_ORIGINS", "https://example.com")
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r_local = await ac.get("/health", headers={"Origin": "http://localhost:3000"})
+        assert r_local.status_code == 200
+        assert r_local.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+        r_prod = await ac.get("/health", headers={"Origin": "https://example.com"})
+        assert r_prod.status_code == 200
+        assert r_prod.headers.get("access-control-allow-origin") == "https://example.com"
+
+
+@pytest.mark.asyncio
 async def test_rate_limit_get_exceeded(monkeypatch):
     # Ensure limiter is enabled during tests
     monkeypatch.setenv("RATE_LIMIT_ENABLED", "1")

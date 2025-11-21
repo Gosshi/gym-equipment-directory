@@ -249,7 +249,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if command == "batch":
         # Lazy import to keep CLI lightweight for other commands.
         from .pipeline import (
-            run_batch,  # noqa: WPS433 (local import for optional dependency handling)
+            run_batch,  # noqa: PLC0415 (local import for optional dependency handling)
         )
 
         return asyncio.run(

@@ -15,6 +15,7 @@ from app.api.routers.equipments import router as equipments_router
 from app.api.routers.gyms import router as gyms_router
 from app.api.routers.healthz import router as healthz_router
 from app.api.routers.me_favorites import router as me_favorites_router
+from app.api.routers.me_history import router as me_history_router
 from app.api.routers.meta import router as meta_router
 from app.api.routers.readyz import router as readyz_router
 from app.api.routers.suggest import router as suggest_router
@@ -68,6 +69,11 @@ def create_app() -> FastAPI:
         allow_origins = ["http://localhost:3000"]
         if env != "prod":
             allow_origins.append("http://127.0.0.1:3000")
+    elif env != "prod":
+        # Keep explicit origins but always allow local dev servers in non-prod
+        for local_origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+            if local_origin not in allow_origins:
+                allow_origins.append(local_origin)
 
     if allow_origins:
         app.add_middleware(
@@ -86,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_reports_router)
     app.include_router(admin_candidates_router)
     app.include_router(me_favorites_router)
+    app.include_router(me_history_router)
     api_errors.install(app)
 
     # Simple health for tests and uptime checks

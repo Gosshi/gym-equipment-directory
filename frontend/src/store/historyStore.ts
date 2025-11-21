@@ -229,7 +229,8 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
       }
 
       const finalResponse = await apiGetHistory();
-      const finalItems = dedupeSummaries(finalResponse.items ?? []);
+      const fallbackItems = toAdd.length > 0 && serverItems.length === 0 ? localItems : [];
+      const finalItems = dedupeSummaries(finalResponse.items ?? fallbackItems);
 
       set({
         items: finalItems,
