@@ -15,6 +15,7 @@ from app.models.gym_candidate import CandidateStatus, GymCandidate
 from app.models.scraped_page import ScrapedPage
 
 from .parse_municipal_edogawa import parse_municipal_edogawa_page
+from .parse_municipal_generic import parse_municipal_page
 from .parse_municipal_koto import parse_municipal_koto_page
 from .parse_municipal_sumida import parse_municipal_sumida_page
 from .sites import site_a
@@ -83,12 +84,20 @@ def _build_municipal_payload(
     *,
     source_id: str,
 ) -> tuple[str, str | None, dict[str, Any]]:
+    source = SOURCES.get(source_id)
     if source_id == "municipal_koto":
         parser = parse_municipal_koto_page
     elif source_id == "municipal_edogawa":
         parser = parse_municipal_edogawa_page
     elif source_id == "municipal_sumida":
         parser = parse_municipal_sumida_page
+    elif source is not None:
+        parser = lambda html, url, page_type=None: parse_municipal_page(  # noqa: E731
+            html,
+            url,
+            source=source,
+            page_type=page_type,
+        )
     else:
         msg = f"Unsupported municipal parser for source '{source_id}'"
         raise ValueError(msg)

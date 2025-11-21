@@ -1,0 +1,6 @@
+# Tokyo Metropolitan Government official site placeholder configuration
+# Selectors can be expanded once structured facility pages are identified.
+selectors:
+  title: []
+  body: []
+  address: []

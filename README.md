@@ -139,15 +139,16 @@ python -m scripts.ingest fetch --source site_a --limit 5
 ### Municipal ソースの登録
 
 東京23区向けの municipal_* ソースを利用する前に、`sources` テーブルへ公式サイトの
-URL を登録しておきます。既存のエントリがある場合は `ON CONFLICT` で更新されるため、
-再実行しても安全です。
+URL を登録しておきます。既存のエントリがある場合は `ON CONFLICT (title)` で更新される
+ため、再実行しても安全です。
 
 ```sql
 INSERT INTO sources (source_type, title, url)
 VALUES
- ('official_site','municipal_koto','https://www.koto-hsc.or.jp/'),
- ('official_site','municipal_edogawa','https://www.city.edogawa.tokyo.jp/'),
- ('official_site','municipal_sumida','https://www.city.sumida.lg.jp/')
+('official_site','municipal_koto','https://www.koto-hsc.or.jp/'),
+('official_site','municipal_edogawa','https://www.city.edogawa.tokyo.jp/'),
+('official_site','municipal_sumida','https://www.city.sumida.lg.jp/'),
+('official_site','municipal_tokyo_metropolitan','https://www.metro.tokyo.lg.jp/')
 ON CONFLICT (title) DO UPDATE SET url=EXCLUDED.url;
 ```
 

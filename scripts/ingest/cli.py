@@ -27,6 +27,8 @@ from .fetch_http import (
 )
 from .normalize import normalize_candidates
 from .parse import parse_pages
+from .sites import site_a
+from .sources_registry import SOURCES
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,13 @@ def _env_path(key: str) -> Path | None:
     if value is None:
         return None
     return Path(value)
+
+
+def _source_choices(include_dummy: bool = True) -> list[str]:
+    choices = {site_a.SITE_ID, *SOURCES.keys()}
+    if include_dummy:
+        choices.add("dummy")
+    return sorted(choices)
 
 
 def _resolve_log_file(args: argparse.Namespace) -> Path | None:
@@ -123,7 +132,12 @@ def build_parser() -> argparse.ArgumentParser:
         "fetch-http",
         help="Fetch pages for a source using HTTP",
     )
-    fetch_http_parser.add_argument("--source", required=True, help="Source identifier")
+    fetch_http_parser.add_argument(
+        "--source",
+        required=True,
+        choices=_source_choices(include_dummy=False),
+        help="Source identifier",
+    )
     fetch_http_parser.add_argument("--pref", required=True, help="Prefecture slug")
     fetch_http_parser.add_argument("--city", required=True, help="City slug")
     fetch_http_parser.add_argument(
@@ -173,7 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parse_parser = subparsers.add_parser("parse", help="Parse scraped pages into candidates")
-    parse_parser.add_argument("--source", required=True, help="Source identifier")
+    parse_parser.add_argument(
+        "--source",
+        required=True,
+        choices=_source_choices(),
+        help="Source identifier",
+    )
     parse_parser.add_argument(
         "--limit",
         type=int,
@@ -195,7 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_parser = subparsers.add_parser(
         "normalize", help="Normalize parsed gym candidate records"
     )
-    normalize_parser.add_argument("--source", required=True, help="Source identifier")
+    normalize_parser.add_argument(
+        "--source",
+        required=True,
+        choices=_source_choices(),
+        help="Source identifier",
+    )
     normalize_parser.add_argument(
         "--limit",
         type=int,
@@ -238,7 +262,12 @@ def build_parser() -> argparse.ArgumentParser:
         "batch",
         help="Run full batch pipeline: fetch-http -> parse -> normalize -> diff -> approve",
     )
-    batch_parser.add_argument("--source", required=True, help="Source identifier")
+    batch_parser.add_argument(
+        "--source",
+        required=True,
+        choices=_source_choices(include_dummy=False),
+        help="Source identifier",
+    )
     batch_parser.add_argument("--pref", required=True, help="Prefecture slug")
     batch_parser.add_argument("--city", required=True, help="City slug")
     batch_parser.add_argument(
