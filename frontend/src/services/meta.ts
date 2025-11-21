@@ -25,10 +25,7 @@ export async function getPrefectures(): Promise<PrefectureOption[]> {
       value: typeof slug === "string" ? slug.trim() : "",
       label: formatSlugLabel(slug),
     }))
-    .filter(
-      (item): item is PrefectureOption =>
-        Boolean(item.value) && item.label !== null,
-    );
+    .filter((item): item is PrefectureOption => Boolean(item.value) && item.label !== null);
 }
 
 type EquipmentMetaResponse = {
@@ -47,10 +44,7 @@ export async function getEquipmentOptions(): Promise<EquipmentOption[]> {
       name: item.name ?? item.slug,
       category: item.category ?? null,
     }))
-    .filter(
-      (item): item is EquipmentOption =>
-        Boolean(item.slug) && Boolean(item.value),
-    );
+    .filter((item): item is EquipmentOption => Boolean(item.slug) && Boolean(item.value));
 }
 
 type CityResponse = {
