@@ -68,6 +68,11 @@ def create_app() -> FastAPI:
         allow_origins = ["http://localhost:3000"]
         if env != "prod":
             allow_origins.append("http://127.0.0.1:3000")
+    elif env != "prod":
+        # Keep explicit origins but always allow local dev servers in non-prod
+        for local_origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+            if local_origin not in allow_origins:
+                allow_origins.append(local_origin)
 
     if allow_origins:
         app.add_middleware(
