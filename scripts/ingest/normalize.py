@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from functools import partial
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,9 +17,14 @@ from app.models.scraped_page import ScrapedPage
 from app.services.geocode import geocode
 
 from .normalize_municipal_edogawa import normalize_municipal_edogawa_payload
+from .normalize_municipal_generic import (
+    MunicipalNormalizationResult,
+    normalize_municipal_payload,
+)
 from .normalize_municipal_koto import normalize_municipal_koto_payload
 from .normalize_municipal_sumida import normalize_municipal_sumida_payload
 from .sites import site_a
+from .sources_registry import SOURCES
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -59,11 +66,25 @@ _CITY_MAPS = {
     site_a.SITE_ID: _SITE_A_CITY_MAP,
 }
 
-_MUNICIPAL_NORMALIZERS = {
-    "municipal_koto": normalize_municipal_koto_payload,
-    "municipal_edogawa": normalize_municipal_edogawa_payload,
-    "municipal_sumida": normalize_municipal_sumida_payload,
-}
+
+def _build_municipal_normalizers() -> dict[
+    str, Callable[[dict[str, Any], str], MunicipalNormalizationResult]
+]:
+    registry: dict[str, Callable[[dict[str, Any], str], MunicipalNormalizationResult]] = {
+        "municipal_koto": normalize_municipal_koto_payload,
+        "municipal_edogawa": normalize_municipal_edogawa_payload,
+        "municipal_sumida": normalize_municipal_sumida_payload,
+    }
+
+    for source_id, source in SOURCES.items():
+        if source_id in registry:
+            continue
+        registry[source_id] = partial(normalize_municipal_payload, source=source)
+
+    return registry
+
+
+_MUNICIPAL_NORMALIZERS = _build_municipal_normalizers()
 
 
 def _find_slug(address: str | None, mapping: dict[str, str]) -> str | None:

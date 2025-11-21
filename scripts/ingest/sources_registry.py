@@ -93,6 +93,15 @@ SOURCES: dict[str, MunicipalSource] = {
         pref_slug="tokyo",
         city_slug="sumida",
     ),
+    "municipal_tokyo_metropolitan": MunicipalSource(
+        title="municipal_tokyo_metropolitan",
+        base_url="https://www.metro.tokyo.lg.jp/",
+        intro_patterns=[],
+        article_patterns=ARTICLE_PAT_DEFAULT,
+        list_seeds=[],
+        pref_slug="tokyo",
+        city_slug="tokyo-metropolitan",
+    ),
     # --- Additional wards will be registered here ---
     # "municipal_chuo": MunicipalSource(...),
     # "municipal_minato": MunicipalSource(...),
