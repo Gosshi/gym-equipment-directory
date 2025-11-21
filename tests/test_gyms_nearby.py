@@ -143,3 +143,20 @@ async def test_nearby_radius_bounds(app_client: AsyncClient, radius_km: float):
         params={"lat": 35.0, "lng": 139.0, "radius_km": radius_km, "page_size": 1},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "lat,lng",
+    [
+        (91.0, 139.0),
+        (-91.0, 139.0),
+        (35.0, 181.0),
+        (35.0, -181.0),
+    ],
+)
+async def test_nearby_lat_lng_bounds(app_client: AsyncClient, lat: float, lng: float):
+    r = await app_client.get(
+        "/gyms/nearby", params={"lat": lat, "lng": lng, "radius_km": 5, "page_size": 1}
+    )
+    assert r.status_code == 422
