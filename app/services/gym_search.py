@@ -128,7 +128,7 @@ async def search_gyms(
 
     if sort_key == "freshness":
         filtered.sort(
-            key=lambda i: (i.get("last_verified_at") is None, i.get("last_verified_at")),
+            key=lambda i: i.get("last_verified_at") or datetime.min,
             reverse=True,
         )
     elif sort_key in {"richness", "score"}:
@@ -139,11 +139,7 @@ async def search_gyms(
         created_map = await uow.gyms.created_at_map(gym_ids_all)
         filtered.sort(key=lambda i: created_map.get(int(getattr(i["gym"], "id", 0))) or 0)
 
-    pagable = (
-        [item for item in filtered if item.get("last_verified_at") is not None]
-        if sort_key == "freshness"
-        else filtered
-    )
+    pagable = filtered
 
     total_all = len(filtered)
     if total_all == 0:
@@ -167,7 +163,12 @@ async def search_gyms(
         was_clamped = resolved_page != page
         offset = (resolved_page - 1) * per_page_safe
     else:
-        offset = parse_offset_token(page_token, page=page, per_page=per_page_safe)
+        offset = parse_offset_token(
+            page_token,
+            page=page,
+            per_page=per_page_safe,
+            expected_sort_key=str(sort_key),
+        )
         if offset >= total_pagable and total_pagable > 0:
             offset = (max_page - 1) * per_page_safe
             resolved_page = max(1, min(max_page, offset // per_page_safe + 1))

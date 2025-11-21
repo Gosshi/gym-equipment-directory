@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_meta_service
 from app.schemas.common import ErrorResponse
@@ -84,7 +84,7 @@ async def list_cities(
     resolved_pref = pref or prefecture
     if resolved_pref is None:
         # Validation error (pref required)
-        raise ValueError("pref required")  # FastAPI が 422 に変換
+        raise HTTPException(status_code=422, detail="pref is required")
     return await svc.list_city_options(resolved_pref)
 
 
