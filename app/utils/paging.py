@@ -7,29 +7,51 @@ __all__ = [
 ]
 
 
-def parse_offset_token(token: str | None, *, page: int, per_page: int) -> int:
+def parse_offset_token(
+    token: str | None,
+    *,
+    page: int,
+    per_page: int,
+    expected_sort_key: str | None = None,
+) -> int:
     """page_token をオフセット整数に復号する。
 
     サポート形式:
     1. レガシー: 純整数文字列 (例: "40")
-     2. 拡張形式: "<offset>:<h>"
-         - <h>: ソートキー等の短縮ハッシュ（後方整合性確保のため解析時は未使用）
+    2. 拡張形式: "<offset>:<h>"
+        - <h>: ソートキー等の短縮ハッシュ
 
     注意:
     - token が None の場合は `(page-1)*per_page` を採用。
-    - 空文字や不正フォーマットは ValueError を送出し、呼び出し側で 400/422 に変換する想定。
+    - 空文字や不正フォーマット、ソートキー不一致は ValueError を送出し、呼び出し
+      側で 400/422 に変換する想定。
     セキュリティ:
     - int() 変換時に過大値（極端に大きいオフセット）が来る可能性: 呼び出し側で最大ページ防御を推奨。
     """
     if token is None:
         return (page - 1) * per_page
+
     token = token.strip()
     if not token:
         raise ValueError("empty page_token")
+
+    raw = token
+    hash_part: str | None = None
     if ":" in token:
-        raw, _hash = token.split(":", 1)
-        return int(raw)
-    return int(token)
+        raw, hash_part = token.split(":", 1)
+        if not raw:
+            raise ValueError("empty page_token")
+
+    offset = int(raw)
+    if offset < 0:
+        raise ValueError("invalid page_token")
+
+    if expected_sort_key and hash_part:
+        expected_hash = expected_sort_key[:8]
+        if hash_part != expected_hash:
+            raise ValueError("invalid page_token")
+
+    return offset
 
 
 def build_next_offset_token(
