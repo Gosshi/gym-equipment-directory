@@ -223,7 +223,20 @@ INSERT 文を増やしてください。
    - スラッグは `bulk-` プレフィックスで一意化しており、再実行しても既存レコードと衝突しません。
    - 装置マスタのみ投入したい場合は `make seed-equip` を利用できます。
 
-5. スキーマ確認（任意）
+5. **最小データセット投入（ローカル / Render 共通）**
+
+   ```bash
+   # ローカル開発例
+   # DATABASE_URL=postgresql://appuser:apppass@localhost:5432/gym_directory
+   # Render例（値は Render のダッシュボードに合わせて置換）
+   # DATABASE_URL=postgresql://render_user:render_pass@oregon-postgresql.render.com:5432/gym_directory
+   make seed-minimal
+   ```
+
+   - `scripts/data/seed_minimal_gyms.json` に東京・神奈川・埼玉・千葉の gyms/equipments/sources を収録。
+   - `--payload` オプションで別 JSON を指定して差し替え可能です。
+
+6. スキーマ確認（任意）
 
    ```bash
    docker compose exec db psql -U appuser -d gym_directory -c "\dt"

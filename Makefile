@@ -67,6 +67,9 @@ test:
 seed-equip:
 	python -m scripts.seed --equip-only
 
+seed-minimal:
+	python scripts/seed_minimal_gyms.py --dsn ${DATABASE_URL}
+
 # --- Dev tooling ---
 pre-commit-install:
 	pre-commit install
@@ -75,6 +78,7 @@ pre-commit-run:
         pre-commit run --all-files
 
 .PHONY: up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
+seed-minimal \
 geocode-gyms geocode-candidates geocode-and-freshness \
 pre-commit-install pre-commit-run curl-admin-candidates \
         ingest-fetch ingest-parse ingest-normalize ingest-approve \
