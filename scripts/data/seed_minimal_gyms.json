@@ -1,0 +1,747 @@
+{
+  "sources": [
+    {
+      "key": "metro_official",
+      "source_type": "official_site",
+      "title": "Metro Fit 公式サイト",
+      "url": "https://example.com/metro-fit",
+      "captured_at": "2024-12-01T00:00:00Z"
+    },
+    {
+      "key": "canal_media",
+      "source_type": "media",
+      "title": "Canal Strength 特集記事",
+      "url": "https://example.com/canal-strength",
+      "captured_at": "2024-11-20T00:00:00Z"
+    },
+    {
+      "key": "urban_report",
+      "source_type": "user_submission",
+      "title": "首都圏ユーザー投稿",
+      "url": null,
+      "captured_at": "2024-12-05T00:00:00Z"
+    }
+  ],
+  "equipments": [
+    {
+      "slug": "power-rack",
+      "name": "パワーラック",
+      "category": "free_weight",
+      "description": "フリーウェイトの基幹ラック"
+    },
+    {
+      "slug": "squat-rack",
+      "name": "スクワットラック",
+      "category": "free_weight",
+      "description": "スクワット専用ラック"
+    },
+    {
+      "slug": "smith-machine",
+      "name": "スミスマシン",
+      "category": "free_weight",
+      "description": "ガイド付きバーベル"
+    },
+    {
+      "slug": "bench-press",
+      "name": "ベンチプレス台",
+      "category": "free_weight",
+      "description": "フラットベンチ"
+    },
+    {
+      "slug": "adjustable-bench",
+      "name": "アジャスタブルベンチ",
+      "category": "free_weight",
+      "description": "角度調整可能なベンチ"
+    },
+    {
+      "slug": "dumbbell",
+      "name": "ダンベルセット",
+      "category": "free_weight",
+      "description": "最大50kgの可変ダンベル"
+    },
+    {
+      "slug": "leg-press",
+      "name": "レッグプレス",
+      "category": "machine",
+      "description": "下半身プレスマシン"
+    },
+    {
+      "slug": "cable-machine",
+      "name": "ケーブルマシン",
+      "category": "machine",
+      "description": "2スタックケーブル"
+    },
+    {
+      "slug": "lat-pulldown",
+      "name": "ラットプルダウン",
+      "category": "machine",
+      "description": "上背部向けマシン"
+    },
+    {
+      "slug": "treadmill",
+      "name": "トレッドミル",
+      "category": "cardio",
+      "description": "傾斜対応ランニングマシン"
+    },
+    {
+      "slug": "exercise-bike",
+      "name": "エアロバイク",
+      "category": "cardio",
+      "description": "負荷調整付きバイク"
+    },
+    {
+      "slug": "rowing-machine",
+      "name": "ローイングマシン",
+      "category": "cardio",
+      "description": "空気抵抗ローアー"
+    },
+    {
+      "slug": "stair-climber",
+      "name": "ステアクライマー",
+      "category": "cardio",
+      "description": "階段昇降マシン"
+    }
+  ],
+  "gyms": [
+    {
+      "slug": "shibuya-station-fit",
+      "canonical_id": "6b812b5d-0463-4922-9d1d-5f5b0e0561ef",
+      "name": "渋谷ステーションフィット",
+      "chain_name": "Metro Fit",
+      "address": "東京都渋谷区渋谷2-24-12",
+      "pref": "tokyo",
+      "city": "shibuya",
+      "official_url": "https://example.com/metro-fit/shibuya",
+      "latitude": 35.6595,
+      "longitude": 139.7005,
+      "equipments": [
+        {
+          "slug": "power-rack",
+          "availability": "present",
+          "count": 3,
+          "max_weight_kg": 200,
+          "notes": "週末は混雑",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "treadmill",
+          "availability": "present",
+          "count": 10,
+          "max_weight_kg": null,
+          "notes": "24時間利用可",
+          "verification_status": "user_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "ebisu-garden-fit",
+      "canonical_id": "b6da2cfc-21d0-497c-a9d0-907b2c76dd8e",
+      "name": "恵比寿ガーデンフィット",
+      "chain_name": "Metro Fit",
+      "address": "東京都渋谷区恵比寿4-20-7",
+      "pref": "tokyo",
+      "city": "shibuya",
+      "official_url": "https://example.com/metro-fit/ebisu",
+      "latitude": 35.6416,
+      "longitude": 139.7136,
+      "equipments": [
+        {
+          "slug": "smith-machine",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 120,
+          "notes": "初心者向け説明あり",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "exercise-bike",
+          "availability": "present",
+          "count": 6,
+          "max_weight_kg": null,
+          "notes": null,
+          "verification_status": "unverified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "shinjuku-midtown-strength",
+      "canonical_id": "2c2813ac-704b-42b0-821d-3ee91d253498",
+      "name": "新宿ミッドタウンストレングス",
+      "chain_name": "Urban Strength",
+      "address": "東京都新宿区西新宿1-18-3",
+      "pref": "tokyo",
+      "city": "shinjuku",
+      "official_url": "https://example.com/urban-strength/shinjuku",
+      "latitude": 35.6938,
+      "longitude": 139.7034,
+      "equipments": [
+        {
+          "slug": "squat-rack",
+          "availability": "present",
+          "count": 3,
+          "max_weight_kg": 180,
+          "notes": "チェーンベルト貸出可",
+          "verification_status": "admin_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "cable-machine",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": null,
+          "notes": "モーター式",
+          "verification_status": "admin_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "ikebukuro-park-conditioning",
+      "canonical_id": "25ed8aa3-568e-40e5-8d92-2ecfc3d25434",
+      "name": "池袋パークコンディショニング",
+      "chain_name": "Urban Strength",
+      "address": "東京都豊島区南池袋1-28-2",
+      "pref": "tokyo",
+      "city": "toshima",
+      "official_url": "https://example.com/urban-strength/ikebukuro",
+      "latitude": 35.7289,
+      "longitude": 139.7111,
+      "equipments": [
+        {
+          "slug": "bench-press",
+          "availability": "present",
+          "count": 4,
+          "max_weight_kg": 180,
+          "notes": "競技用バー併設",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "rowing-machine",
+          "availability": "present",
+          "count": 4,
+          "max_weight_kg": null,
+          "notes": "水冷式ローアー",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "kichijoji-loop-gym",
+      "canonical_id": "1d441ac4-7b4a-4173-80a1-2d95f37b556d",
+      "name": "吉祥寺ループジム",
+      "chain_name": "Metro Fit",
+      "address": "東京都武蔵野市吉祥寺本町1-8-5",
+      "pref": "tokyo",
+      "city": "musashino",
+      "official_url": "https://example.com/metro-fit/kichijoji",
+      "latitude": 35.7033,
+      "longitude": 139.5795,
+      "equipments": [
+        {
+          "slug": "dumbbell",
+          "availability": "present",
+          "count": null,
+          "max_weight_kg": 50,
+          "notes": "5kg刻みで常備",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "leg-press",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": 200,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        }
+      ]
+    },
+    {
+      "slug": "nakameguro-river-works",
+      "canonical_id": "f1479154-8299-473a-994a-65a1e110bc6f",
+      "name": "中目黒リバーワークス",
+      "chain_name": "Canal Strength",
+      "address": "東京都目黒区上目黒1-22-10",
+      "pref": "tokyo",
+      "city": "meguro",
+      "official_url": "https://example.com/canal-strength/nakameguro",
+      "latitude": 35.6413,
+      "longitude": 139.6989,
+      "equipments": [
+        {
+          "slug": "power-rack",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 200,
+          "notes": "吊り輪併設",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "treadmill",
+          "availability": "present",
+          "count": 6,
+          "max_weight_kg": null,
+          "notes": "川沿いビュー",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    },
+    {
+      "slug": "meguro-hill-training",
+      "canonical_id": "49012c6f-a490-4506-92e1-e1b8943b27bf",
+      "name": "目黒ヒルトレーニング",
+      "chain_name": "Canal Strength",
+      "address": "東京都目黒区目黒2-11-3",
+      "pref": "tokyo",
+      "city": "meguro",
+      "official_url": "https://example.com/canal-strength/meguro",
+      "latitude": 35.6333,
+      "longitude": 139.7082,
+      "equipments": [
+        {
+          "slug": "cable-machine",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": null,
+          "notes": "デュアル可動",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "stair-climber",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": null,
+          "notes": "高層階ビュー",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    },
+    {
+      "slug": "yoyogi-coast-active",
+      "canonical_id": "152e7710-7989-470b-b751-d27602fc5d15",
+      "name": "代々木コーストアクティブ",
+      "chain_name": "Metro Fit",
+      "address": "東京都渋谷区代々木1-32-6",
+      "pref": "tokyo",
+      "city": "shibuya",
+      "official_url": "https://example.com/metro-fit/yoyogi",
+      "latitude": 35.6831,
+      "longitude": 139.7021,
+      "equipments": [
+        {
+          "slug": "lat-pulldown",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 120,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "exercise-bike",
+          "availability": "present",
+          "count": 8,
+          "max_weight_kg": null,
+          "notes": "サーキット対応",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        }
+      ]
+    },
+    {
+      "slug": "akihabara-tech-fit",
+      "canonical_id": "e3934b93-fb5b-4fce-8afd-87cf309810b3",
+      "name": "秋葉原テックフィット",
+      "chain_name": "Urban Strength",
+      "address": "東京都千代田区外神田4-14-1",
+      "pref": "tokyo",
+      "city": "chiyoda",
+      "official_url": "https://example.com/urban-strength/akihabara",
+      "latitude": 35.7021,
+      "longitude": 139.7742,
+      "equipments": [
+        {
+          "slug": "smith-machine",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 140,
+          "notes": "フォーム指導付き",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "rowing-machine",
+          "availability": "present",
+          "count": 3,
+          "max_weight_kg": null,
+          "notes": "ウッド仕上げ",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "kanda-station-conditioning",
+      "canonical_id": "5578cf15-86ff-49bf-a647-fd7e5d70891f",
+      "name": "神田ステーションコンディショニング",
+      "chain_name": "Urban Strength",
+      "address": "東京都千代田区鍛冶町2-7-3",
+      "pref": "tokyo",
+      "city": "chiyoda",
+      "official_url": "https://example.com/urban-strength/kanda",
+      "latitude": 35.6915,
+      "longitude": 139.7708,
+      "equipments": [
+        {
+          "slug": "bench-press",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 160,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "stair-climber",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": null,
+          "notes": "HIIT対応",
+          "verification_status": "user_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "yokohama-bay-front",
+      "canonical_id": "3d46e10d-4a91-4011-a729-17cb51d78f3c",
+      "name": "横浜ベイフロントジム",
+      "chain_name": "Canal Strength",
+      "address": "神奈川県横浜市西区みなとみらい2-3-5",
+      "pref": "kanagawa",
+      "city": "yokohama",
+      "official_url": "https://example.com/canal-strength/yokohama",
+      "latitude": 35.4574,
+      "longitude": 139.6327,
+      "equipments": [
+        {
+          "slug": "power-rack",
+          "availability": "present",
+          "count": 3,
+          "max_weight_kg": 220,
+          "notes": "海側ビュー",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "leg-press",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 220,
+          "notes": null,
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    },
+    {
+      "slug": "kawasaki-river-park",
+      "canonical_id": "99b0673f-7504-46f1-be6c-8fb3194f63b8",
+      "name": "川崎リバーパークジム",
+      "chain_name": "Metro Fit",
+      "address": "神奈川県川崎市川崎区日進町1-11",
+      "pref": "kanagawa",
+      "city": "kawasaki",
+      "official_url": "https://example.com/metro-fit/kawasaki",
+      "latitude": 35.5303,
+      "longitude": 139.7013,
+      "equipments": [
+        {
+          "slug": "treadmill",
+          "availability": "present",
+          "count": 8,
+          "max_weight_kg": null,
+          "notes": "夜景モード",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "lat-pulldown",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 110,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        }
+      ]
+    },
+    {
+      "slug": "sagamihara-green-station",
+      "canonical_id": "7e8b7a67-8ada-4f0e-8b3e-5a45b4bac59f",
+      "name": "相模原グリーンステーション",
+      "chain_name": "Metro Fit",
+      "address": "神奈川県相模原市中央区相模原1-1-19",
+      "pref": "kanagawa",
+      "city": "sagamihara",
+      "official_url": "https://example.com/metro-fit/sagamihara",
+      "latitude": 35.5727,
+      "longitude": 139.3703,
+      "equipments": [
+        {
+          "slug": "dumbbell",
+          "availability": "present",
+          "count": null,
+          "max_weight_kg": 40,
+          "notes": "10kg刻み",
+          "verification_status": "user_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "exercise-bike",
+          "availability": "present",
+          "count": 5,
+          "max_weight_kg": null,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "kamakura-seaside-gym",
+      "canonical_id": "b72e96f7-c9ba-4552-aac3-4d72be8187db",
+      "name": "鎌倉シーサイドジム",
+      "chain_name": "Canal Strength",
+      "address": "神奈川県鎌倉市御成町13-33",
+      "pref": "kanagawa",
+      "city": "kamakura",
+      "official_url": "https://example.com/canal-strength/kamakura",
+      "latitude": 35.3187,
+      "longitude": 139.546,
+      "equipments": [
+        {
+          "slug": "smith-machine",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": 120,
+          "notes": "潮風対応コーティング",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "treadmill",
+          "availability": "present",
+          "count": 4,
+          "max_weight_kg": null,
+          "notes": "窓側ロケーション",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    },
+    {
+      "slug": "oomiya-central-fit",
+      "canonical_id": "c62c064e-4f4c-4948-a64f-84fe137d7a82",
+      "name": "大宮セントラルフィット",
+      "chain_name": "Metro Fit",
+      "address": "埼玉県さいたま市大宮区桜木町2-3",
+      "pref": "saitama",
+      "city": "saitama",
+      "official_url": "https://example.com/metro-fit/omiya",
+      "latitude": 35.9063,
+      "longitude": 139.6239,
+      "equipments": [
+        {
+          "slug": "power-rack",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 200,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "rowing-machine",
+          "availability": "present",
+          "count": 3,
+          "max_weight_kg": null,
+          "notes": "フォーム指導動画あり",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        }
+      ]
+    },
+    {
+      "slug": "kawaguchi-bridge-gym",
+      "canonical_id": "8b54e3ec-faad-4528-a16b-2e04d02eb81e",
+      "name": "川口ブリッジジム",
+      "chain_name": "Urban Strength",
+      "address": "埼玉県川口市本町4-1-8",
+      "pref": "saitama",
+      "city": "kawaguchi",
+      "official_url": "https://example.com/urban-strength/kawaguchi",
+      "latitude": 35.8015,
+      "longitude": 139.7241,
+      "equipments": [
+        {
+          "slug": "leg-press",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": 210,
+          "notes": "プレートローディング",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "cable-machine",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": null,
+          "notes": null,
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "tokorozawa-forest-active",
+      "canonical_id": "e8e01cff-bce7-462b-bb39-fcfa81995fc3",
+      "name": "所沢フォレストアクティブ",
+      "chain_name": "Canal Strength",
+      "address": "埼玉県所沢市日吉町10-19",
+      "pref": "saitama",
+      "city": "tokorozawa",
+      "official_url": "https://example.com/canal-strength/tokorozawa",
+      "latitude": 35.7865,
+      "longitude": 139.4683,
+      "equipments": [
+        {
+          "slug": "squat-rack",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 170,
+          "notes": null,
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "exercise-bike",
+          "availability": "present",
+          "count": 6,
+          "max_weight_kg": null,
+          "notes": "木目調スタジオ",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    },
+    {
+      "slug": "chiba-port-conditioning",
+      "canonical_id": "2bd44b5f-cbef-4916-82e5-687f232ff478",
+      "name": "千葉ポートコンディショニング",
+      "chain_name": "Metro Fit",
+      "address": "千葉県千葉市中央区中央港1-10-1",
+      "pref": "chiba",
+      "city": "chiba",
+      "official_url": "https://example.com/metro-fit/chiba",
+      "latitude": 35.6073,
+      "longitude": 140.1065,
+      "equipments": [
+        {
+          "slug": "bench-press",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 150,
+          "notes": null,
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        },
+        {
+          "slug": "treadmill",
+          "availability": "present",
+          "count": 7,
+          "max_weight_kg": null,
+          "notes": "海風換気",
+          "verification_status": "user_verified",
+          "source_key": "metro_official"
+        }
+      ]
+    },
+    {
+      "slug": "funabashi-station-power",
+      "canonical_id": "9233f64d-b556-439d-8e9b-ac0a1f0dcd94",
+      "name": "船橋ステーションパワー",
+      "chain_name": "Urban Strength",
+      "address": "千葉県船橋市本町7-1-1",
+      "pref": "chiba",
+      "city": "funabashi",
+      "official_url": "https://example.com/urban-strength/funabashi",
+      "latitude": 35.7004,
+      "longitude": 139.9842,
+      "equipments": [
+        {
+          "slug": "power-rack",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": 210,
+          "notes": "リフティングプラットフォーム付き",
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        },
+        {
+          "slug": "cable-machine",
+          "availability": "present",
+          "count": 2,
+          "max_weight_kg": null,
+          "notes": null,
+          "verification_status": "owner_verified",
+          "source_key": "urban_report"
+        }
+      ]
+    },
+    {
+      "slug": "kashiwa-node-training",
+      "canonical_id": "2f8d2e56-323f-4e72-b6d3-b3e402e352fd",
+      "name": "柏ノードトレーニング",
+      "chain_name": "Canal Strength",
+      "address": "千葉県柏市末広町4-16",
+      "pref": "chiba",
+      "city": "kashiwa",
+      "official_url": "https://example.com/canal-strength/kashiwa",
+      "latitude": 35.8622,
+      "longitude": 139.9724,
+      "equipments": [
+        {
+          "slug": "smith-machine",
+          "availability": "present",
+          "count": 1,
+          "max_weight_kg": 130,
+          "notes": null,
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        },
+        {
+          "slug": "exercise-bike",
+          "availability": "present",
+          "count": 5,
+          "max_weight_kg": null,
+          "notes": "グループレッスン対応",
+          "verification_status": "admin_verified",
+          "source_key": "canal_media"
+        }
+      ]
+    }
+  ]
+}
