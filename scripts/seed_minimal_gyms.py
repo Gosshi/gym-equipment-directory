@@ -10,13 +10,14 @@ import argparse
 import json
 import logging
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import psycopg
-from psycopg import Connection, Cursor
+from psycopg import Cursor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
