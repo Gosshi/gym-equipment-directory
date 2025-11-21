@@ -160,3 +160,14 @@ async def test_nearby_lat_lng_bounds(app_client: AsyncClient, lat: float, lng: f
         "/gyms/nearby", params={"lat": lat, "lng": lng, "radius_km": 5, "page_size": 1}
     )
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("page_token", ["", "invalid-token", " "])
+async def test_nearby_invalid_page_token_returns_422(app_client: AsyncClient, page_token: str):
+    r = await app_client.get(
+        "/gyms/nearby",
+        params={"lat": 35.0, "lng": 139.0, "page_token": page_token},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "invalid page_token"
