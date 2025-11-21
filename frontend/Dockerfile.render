@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install dependencies
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+# Build the Next.js app
+COPY frontend .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_BACKEND_URL=""
+
+# Install production dependencies
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --omit=dev
+
+# Copy built assets
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./next.config.mjs
+
+EXPOSE 3000
+CMD ["npm", "run", "start"]
