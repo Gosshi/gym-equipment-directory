@@ -5,8 +5,15 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
+import sys
 from collections.abc import Awaitable, Callable, Sequence
+from datetime import datetime
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+from app.db import configure_engine
 
 from .approve import approve_candidates
 from .fetch import fetch_pages
@@ -34,16 +41,64 @@ def _str_to_bool(value: str) -> bool:
     raise argparse.ArgumentTypeError(msg)
 
 
+def _env_int(key: str) -> int | None:
+    value = os.getenv(key)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        msg = f"{key} must be an integer when set"
+        raise ValueError(msg) from exc
+
+
+def _env_path(key: str) -> Path | None:
+    value = os.getenv(key)
+    if value is None:
+        return None
+    return Path(value)
+
+
+def _resolve_log_file(args: argparse.Namespace) -> Path | None:
+    if getattr(args, "log_file", None):
+        return args.log_file
+    env_log_file = _env_path("INGEST_LOG_FILE")
+    if env_log_file:
+        return env_log_file
+    source = getattr(args, "source", None)
+    if not source:
+        return None
+    today = datetime.now().strftime("%Y%m%d")
+    return Path("logs") / "ingest" / source / f"{today}.log"
+
+
+def _configure_logging(log_file: Path | None) -> None:
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        handlers=handlers,
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Ingest pipeline utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    default_limit = _env_int("INGEST_LIMIT")
+    default_dsn = os.getenv("DATABASE_URL")
+    default_log_file = _env_path("INGEST_LOG_FILE")
 
     fetch_parser = subparsers.add_parser("fetch", help="Fetch pages for a source")
     fetch_parser.add_argument("--source", required=True, help="Source identifier")
     fetch_parser.add_argument(
         "--limit",
         type=int,
-        default=None,
+        default=default_limit,
         help="Number of items to process",
     )
     fetch_parser.add_argument(
@@ -51,6 +106,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Path to a file that contains URLs (one per line)",
+    )
+    fetch_parser.add_argument(
+        "--dsn",
+        default=default_dsn,
+        help="Database DSN to use while running ingest",
+    )
+    fetch_parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=default_log_file,
+        help="Path to store ingest logs",
     )
 
     fetch_http_parser = subparsers.add_parser(
@@ -111,8 +177,19 @@ def build_parser() -> argparse.ArgumentParser:
     parse_parser.add_argument(
         "--limit",
         type=int,
-        default=None,
+        default=default_limit,
         help="Number of items to process",
+    )
+    parse_parser.add_argument(
+        "--dsn",
+        default=default_dsn,
+        help="Database DSN to use while running ingest",
+    )
+    parse_parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=default_log_file,
+        help="Path to store ingest logs",
     )
 
     normalize_parser = subparsers.add_parser(
@@ -122,13 +199,24 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_parser.add_argument(
         "--limit",
         type=int,
-        default=None,
+        default=default_limit,
         help="Number of items to process",
     )
     normalize_parser.add_argument(
         "--geocode-missing",
         action="store_true",
         help="Also geocode candidates lacking coordinates",
+    )
+    normalize_parser.add_argument(
+        "--dsn",
+        default=default_dsn,
+        help="Database DSN to use while running ingest",
+    )
+    normalize_parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=default_log_file,
+        help="Path to store ingest logs",
     )
 
     approve_parser = subparsers.add_parser("approve", help="Approve one or more gym candidates")
@@ -274,9 +362,12 @@ def _dispatch(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO)
+    load_dotenv()
     parser = build_parser()
     args = parser.parse_args(argv)
+    log_file = _resolve_log_file(args)
+    _configure_logging(log_file)
+    configure_engine(getattr(args, "dsn", None))
     try:
         return _dispatch(args)
     except Exception:  # pragma: no cover - CLI entry point safeguard
