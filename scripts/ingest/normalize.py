@@ -30,7 +30,7 @@ from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 50  # メモリ対策: 50件ずつ処理
+BATCH_SIZE = 50
 
 _DUMMY_PREF_MAP = {
     "東京都": "tokyo",
@@ -111,7 +111,6 @@ async def normalize_candidates(
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
 
-        # 総数をカウント
         count_query = (
             select(func.count())
             .select_from(GymCandidate)
@@ -127,7 +126,6 @@ async def normalize_candidates(
         if limit is not None:
             total_candidates = min(total_candidates, limit)
 
-        # 設備マスタはキャッシュしておく
         equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
 
         processed_count = 0
@@ -141,7 +139,6 @@ async def normalize_candidates(
             "Starting normalization for %s candidates (source: %s)", total_candidates, source
         )
 
-        # バッチ処理ループ
         while processed_count < total_candidates:
             current_limit = min(BATCH_SIZE, total_candidates - processed_count)
 
@@ -159,6 +156,14 @@ async def normalize_candidates(
             if not candidates:
                 break
 
+            logger.info(
+                "Processing candidates %s-%s/%s (batch size=%s)",
+                processed_count + 1,
+                processed_count + len(candidates),
+                total_candidates,
+                len(candidates),
+            )
+
             batch_updated = 0
             geocoded_batch = 0
 
@@ -168,7 +173,6 @@ async def normalize_candidates(
                     candidate.parsed_json if isinstance(candidate.parsed_json, dict) else {}
                 )
 
-                # ... (正規化ロジックは変更なし) ...
                 if municipal_normalizer is not None:
                     page_url = candidate.source_page.url if candidate.source_page else ""
                     result = municipal_normalizer(parsed_json, page_url=page_url)
@@ -224,7 +228,6 @@ async def normalize_candidates(
                 if changed:
                     batch_updated += 1
 
-                # Geocoding (バッチ内)
                 if geocode_missing:
                     if candidate.address_raw and (
                         candidate.latitude is None or candidate.longitude is None
@@ -239,10 +242,7 @@ async def normalize_candidates(
                             batch_updated += 1
                             geocoded_batch += 1
 
-            # バッチ終了処理
             await session.commit()
-
-            # メモリ解放 (超重要)
             session.expunge_all()
             del candidates
             gc.collect()
