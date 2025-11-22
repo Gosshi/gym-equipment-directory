@@ -20,7 +20,7 @@ services:
     plan: free
     schedule: "0 19 * * *" # 日本時間 朝4:00
     dockerfilePath: ./backend/Dockerfile.render
-    command: python -m scripts.ingest.run_nightly
+    startCommand: python -m scripts.ingest.run_nightly
     envVars:
       - key: DATABASE_URL
         sync: false
