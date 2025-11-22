@@ -2,7 +2,7 @@ import { authClient } from "@/auth/authClient";
 import type { GymSummary } from "@/types/gym";
 
 const DEFAULT_TIMEOUT_MS = 8000;
-const DEFAULT_BASE_URL = "http://localhost:8000";
+const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
 
 export class ApiError extends Error {
   readonly status?: number;
