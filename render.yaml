@@ -82,4 +82,5 @@ services:
 # Adjust plan/region as needed for your account.
 databases:
   - name: gym-postgres
-    plan: starter
+    plan: free
+    region: singapore
