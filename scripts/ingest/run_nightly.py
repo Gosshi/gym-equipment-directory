@@ -17,10 +17,10 @@ from .pipeline import run_batch
 logger = logging.getLogger(__name__)
 
 TARGETS: tuple[Mapping[str, str], ...] = (
-    {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa-ku"},
-    {"source": "municipal_koto", "pref": "tokyo", "city": "koto-ku"},
-    {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida-ku"},
-    {"source": "municipal_tokyo_metropolitan", "pref": "tokyo", "city": "shinjuku-ku"},
+    {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
+    {"source": "municipal_koto", "pref": "tokyo", "city": "koto"},
+    {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida"},
+    {"source": "municipal_tokyo_metropolitan", "pref": "tokyo", "city": "tokyo-metropolitan"},
 )
 
 
