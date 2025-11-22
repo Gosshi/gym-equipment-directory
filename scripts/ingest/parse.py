@@ -8,7 +8,7 @@ from itertools import cycle
 from typing import Any
 from urllib.parse import urlparse
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db import SessionLocal
 from app.models.gym_candidate import CandidateStatus, GymCandidate
@@ -23,6 +23,7 @@ from .sources_registry import SOURCES
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
+BATCH_SIZE = 50
 
 _TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 _ADDRESS_POOL = (
@@ -130,81 +131,96 @@ async def parse_pages(source: str, limit: int | None) -> int:
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
 
-        query = (
+        base_query = (
             select(ScrapedPage)
             .where(ScrapedPage.source_id == source_obj.id)
             .order_by(ScrapedPage.fetched_at.desc())
         )
-        if limit is not None:
-            query = query.limit(limit)
 
-        pages = (await session.execute(query)).scalars().all()
-        if not pages:
+        count_query = select(func.count()).select_from(
+            select(ScrapedPage.id).where(ScrapedPage.source_id == source_obj.id).subquery()
+        )
+        total_pages = (await session.execute(count_query)).scalar_one()
+        if limit is not None:
+            total_pages = min(total_pages, limit)
+        if total_pages == 0:
             logger.info("No scraped pages available for source '%s'", source)
             return 0
-
-        page_ids = [page.id for page in pages]
-        existing_candidates = {}
-        if page_ids:
-            result = await session.execute(
-                select(GymCandidate).where(GymCandidate.source_page_id.in_(page_ids))
-            )
-            existing_candidates = {
-                candidate.source_page_id: candidate for candidate in result.scalars()
-            }
 
         created = 0
         updated = 0
         sample_names: list[str] = []
         address_iter = cycle(_ADDRESS_POOL) if source == "dummy" else None
         equipment_iter = cycle(_EQUIPMENT_PATTERNS) if source == "dummy" else None
+        processed = 0
+        while processed < total_pages:
+            batch_limit = min(BATCH_SIZE, total_pages - processed)
+            query = base_query.offset(processed).limit(batch_limit)
+            pages = (await session.execute(query)).scalars().all()
+            if not pages:
+                break
 
-        for page in pages:
-            if source == "dummy":
-                assert address_iter is not None and equipment_iter is not None
-                name_raw, address_raw, parsed_json = _build_dummy_payload(
-                    page, address_iter, equipment_iter
+            page_ids = [page.id for page in pages]
+            existing_candidates = {}
+            if page_ids:
+                result = await session.execute(
+                    select(GymCandidate).where(GymCandidate.source_page_id.in_(page_ids))
                 )
-            elif source == site_a.SITE_ID:
-                name_raw, address_raw, parsed_json = _build_site_a_payload(page)
-            elif source in SOURCES:
-                name_raw, address_raw, parsed_json = _build_municipal_payload(
-                    page, source_id=source
-                )
-            else:
-                msg = f"Unsupported source: {source}"
-                raise ValueError(msg)
+                existing_candidates = {
+                    candidate.source_page_id: candidate for candidate in result.scalars()
+                }
 
-            if name_raw and len(sample_names) < 2:
-                sample_names.append(name_raw)
+            for page in pages:
+                if source == "dummy":
+                    assert address_iter is not None and equipment_iter is not None
+                    name_raw, address_raw, parsed_json = _build_dummy_payload(
+                        page, address_iter, equipment_iter
+                    )
+                elif source == site_a.SITE_ID:
+                    name_raw, address_raw, parsed_json = _build_site_a_payload(page)
+                elif source in SOURCES:
+                    name_raw, address_raw, parsed_json = _build_municipal_payload(
+                        page, source_id=source
+                    )
+                else:
+                    msg = f"Unsupported source: {source}"
+                    raise ValueError(msg)
 
-            candidate = existing_candidates.get(page.id)
-            if candidate is None:
-                candidate = GymCandidate(
-                    source_page_id=page.id,
-                    name_raw=name_raw,
-                    address_raw=address_raw,
-                    parsed_json=parsed_json,
-                    status=CandidateStatus.new,
-                )
-                session.add(candidate)
-                created += 1
-                continue
+                if name_raw and len(sample_names) < 2:
+                    sample_names.append(name_raw)
 
-            has_change = False
-            if candidate.name_raw != name_raw:
-                candidate.name_raw = name_raw
-                has_change = True
-            if candidate.address_raw != address_raw:
-                candidate.address_raw = address_raw
-                has_change = True
-            if candidate.parsed_json != parsed_json:
-                candidate.parsed_json = parsed_json
-                has_change = True
-            if has_change:
-                updated += 1
+                candidate = existing_candidates.get(page.id)
+                if candidate is None:
+                    candidate = GymCandidate(
+                        source_page_id=page.id,
+                        name_raw=name_raw,
+                        address_raw=address_raw,
+                        parsed_json=parsed_json,
+                        status=CandidateStatus.new,
+                    )
+                    session.add(candidate)
+                    created += 1
+                    continue
 
-        await session.commit()
+                has_change = False
+                if candidate.name_raw != name_raw:
+                    candidate.name_raw = name_raw
+                    has_change = True
+                if candidate.address_raw != address_raw:
+                    candidate.address_raw = address_raw
+                    has_change = True
+                if candidate.parsed_json != parsed_json:
+                    candidate.parsed_json = parsed_json
+                    has_change = True
+                if has_change:
+                    updated += 1
+
+            processed += len(pages)
+            await session.commit()
+            session.expunge_all()
+            logger.info(
+                "Processed %s/%s scraped pages for source '%s'", processed, total_pages, source
+            )
 
     total = created + updated
     logger.info(
@@ -214,7 +230,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
         updated,
     )
     if sample_names:
-        suffix = "..." if len(pages) > 2 else ""
+        suffix = "..." if total_pages > 2 else ""
         logger.info(
             "Sample candidate names: %s%s",
             ", ".join(sample_names),
