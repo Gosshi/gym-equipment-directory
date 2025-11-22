@@ -15,10 +15,10 @@ services:
     name: gym-ingestion-worker
     runtime: docker
     region: singapore
-    plan: free
+    plan: standard
     schedule: "0 19 * * *"
     dockerfilePath: ./backend/Dockerfile.render
-    command: python -m scripts.ingest.run_nightly
+    dockerCommand: python -m scripts.ingest.run_nightly
     envVars:
       - key: DATABASE_URL
         sync: false
