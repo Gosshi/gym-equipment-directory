@@ -2,18 +2,12 @@
 
 ユーザーが共有した実施ステップ一覧をベースに、現状の整備状況をドキュメント化する。今後の PR では本ファイルを参照し、未着手項目の棚卸しとドキュメント更新を行う。
 
-## インフラ / AWS（PR プレビュー）
+## インフラ / Render
 
-- ✅ **SSO 設定**: AWS IAM Identity Center に `gym-preview` プロファイルを作成し、ブラウザ認可まで動作確認済み。
-- ✅ **SSM トンネル経由のプレビュー**: Public IP は公開せず、`aws ssm start-session ... AWS-StartPortForwardingSession` で `:8000→:8000` のポートフォワードを実施。
-- ✅ **GitHub Actions からの EC2 upsert**: PR ごとにインスタンスを増やさず、シングルトン運用でコンテナを起動。
-- ✅ **Docker 起動**: `run-instances` + `user-data` で Docker / Compose を配備し、API コンテナを起動。
-- ✅ **タグ付与**: EC2 に `Purpose=pr-preview-singleton`, `PR=<番号>` を付与し、運用時の追跡を容易化。
-- ✅ **DB 接続**: Secrets 経由の `DATABASE_URL` で外部 PostgreSQL へ接続し、`/health` で疎通確認済み。
-- ✅ **自動終了**: EventBridge Scheduler で起動から 2–4h 後に `ec2:TerminateInstances` を実行し、`eventbridge-scheduler-ec2-exec` ロールで権限管理。
-- ✅ **SSM からのヘルスチェック**: `AWS-RunShellScript` で `127.0.0.1:8000` への `/readyz`, `/healthz`, `/docs` を確認。
-- ✅ **失敗時の診断収集**: SSM で `docker compose ps/logs`, `cloud-init-output.log`, `/tmp/seed.log` を取得し、障害解析を高速化。
-- ✅ **不要ジョブの停止**: DB シードの自動投入は運用判断で「後日まとめて投入」とし、PR プレビュー中は実施しない。
+- ✅ **Render へ統一**: 本番・プレビューとも Render 管理下に移行し、`render.yaml` でサービス定義を管理。
+- ✅ **プレビュー運用**: PR ごとに Render の Preview Deploy を利用し、API とフロントを同一基盤で確認。
+- ✅ **シークレット管理**: データベース接続や DSN は Render ダッシュボードの環境変数で一元管理。
+- ✅ **AWS 依存排除**: GitHub Actions からの AWS 接続や EC2 upsert は廃止し、Render ワークフローに一本化。
 
 ## CI/CD
 

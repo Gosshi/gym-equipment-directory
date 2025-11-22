@@ -14,8 +14,8 @@
 
 ## 起動方法と API 通信
 
-1. 必要に応じて AWS SSM トンネルを開き、API へアクセスできるようにします。
-2. `NEXT_PUBLIC_API_BASE` にトンネル経由の URL (例: `http://127.0.0.1:8000`) を設定します。
+1. API が到達可能な状態（ローカルの Docker Compose もしくは Render のプレビュー/本番 URL）があることを確認します。
+2. `NEXT_PUBLIC_API_BASE` に利用する API の URL (例: `http://127.0.0.1:8000` や Render のプレビュー URL) を設定します。
 3. `npm run dev` でフロントエンドを起動し、`/gyms/nearby` にアクセスすると地図と一覧が表示されます。
 
 ## 現在地取得と許可ハンドリング
