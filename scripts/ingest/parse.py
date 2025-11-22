@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import logging
 import re
 from itertools import cycle
@@ -219,6 +220,10 @@ async def parse_pages(source: str, limit: int | None) -> int:
             await session.commit()
             # Release loaded ORM objects to avoid retaining large HTML blobs in memory.
             session.expunge_all()
+
+            del pages  # 変数参照を切る
+            gc.collect()
+
             logger.info(
                 "Processed %s/%s scraped pages for source '%s'", processed, total_pages, source
             )
