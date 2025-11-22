@@ -14,9 +14,7 @@ services:
         value: 8000
       - key: DATABASE_URL
         sync: false
-        value: >-
-          postgresql+asyncpg://<RENDER_INTERNAL_DATABASE_URL を `postgresql+asyncpg://`
-          に書き換えた文字列を設定>
+        # Set in Render dashboard with asyncpg-style URL (postgresql+asyncpg://...)
       - key: BACKEND_URL
         value: https://api-xxx.onrender.com
       - key: FRONTEND_URL
