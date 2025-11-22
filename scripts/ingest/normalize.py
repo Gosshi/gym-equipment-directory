@@ -29,6 +29,8 @@ from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
 
+BATCH_SIZE = 200
+
 
 _DUMMY_PREF_MAP = {
     "東京都": "tokyo",
@@ -109,137 +111,167 @@ async def normalize_candidates(
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
 
-        candidate_query = (
+        equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
+
+        base_query = (
             select(GymCandidate)
-            .options(selectinload(GymCandidate.source_page))
+            .options(
+                selectinload(GymCandidate.source_page).load_only(ScrapedPage.id, ScrapedPage.url)
+            )
             .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
             .where(ScrapedPage.source_id == source_obj.id)
             .order_by(GymCandidate.id)
         )
-        if limit is not None:
-            candidate_query = candidate_query.limit(limit)
-
-        candidates = (await session.execute(candidate_query)).scalars().all()
-        if not candidates:
-            logger.info("No gym candidates found for source '%s'", source)
-            return 0
-
-        equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
-
-        updated_ids: set[int] = set()
-        processed_candidates: list[GymCandidate] = []
+        processed = 0
+        updated_count = 0
+        sample_updates: list[str] = []
+        geocoded_total = 0
+        last_id: int | None = None
+        remaining = limit
 
         municipal_normalizer = _MUNICIPAL_NORMALIZERS.get(source)
         pref_map = _PREF_MAPS.get(source)
         city_map = _CITY_MAPS.get(source)
+        while True:
+            batch_limit = BATCH_SIZE if remaining is None else min(BATCH_SIZE, remaining)
 
-        for candidate in candidates:
-            changed = False
-            parsed_json = candidate.parsed_json if isinstance(candidate.parsed_json, dict) else {}
+            query = base_query
+            if last_id is not None:
+                query = query.where(GymCandidate.id > last_id)
 
-            if municipal_normalizer is not None:
-                page_url = candidate.source_page.url if candidate.source_page else ""
-                result = municipal_normalizer(parsed_json, page_url=page_url)
+            candidates = (await session.execute(query.limit(batch_limit))).scalars().all()
+            if not candidates:
+                if processed == 0:
+                    logger.info("No gym candidates found for source '%s'", source)
+                break
 
-                payload = dict(result.parsed_json)
-                equipments = payload.get("equipments", [])
-                filtered = _filter_equipments(equipment_slugs, equipments)
-                if filtered != equipments:
-                    payload["equipments"] = filtered
+            last_id = candidates[-1].id
+            processed += len(candidates)
+            if remaining is not None:
+                remaining -= len(candidates)
+            geocode_targets: list[tuple[GymCandidate, bool]] = []
 
-                if candidate.name_raw != result.name_raw:
-                    candidate.name_raw = result.name_raw
-                    changed = True
-                if candidate.address_raw != result.address_raw:
-                    candidate.address_raw = result.address_raw
-                    changed = True
-                if candidate.pref_slug != result.pref_slug:
-                    candidate.pref_slug = result.pref_slug
-                    changed = True
-                if candidate.city_slug != result.city_slug:
-                    candidate.city_slug = result.city_slug
-                    changed = True
-                if candidate.parsed_json != payload:
-                    candidate.parsed_json = payload
-                    changed = True
-
-            else:
-                if pref_map is None or city_map is None:
-                    msg = f"Unsupported source: {source}"
-                    raise ValueError(msg)
-
-                pref_slug = _find_slug(candidate.address_raw, pref_map)
-                city_slug = _find_slug(candidate.address_raw, city_map)
-
-                if candidate.pref_slug != pref_slug:
-                    candidate.pref_slug = pref_slug
-                    changed = True
-                if candidate.city_slug != city_slug:
-                    candidate.city_slug = city_slug
-                    changed = True
-
-                current_json = parsed_json or {}
-                equipments = (
-                    current_json.get("equipments", []) if isinstance(current_json, dict) else []
+            for candidate in candidates:
+                candidate_changed = False
+                parsed_json = (
+                    candidate.parsed_json if isinstance(candidate.parsed_json, dict) else {}
                 )
-                filtered = _filter_equipments(equipment_slugs, equipments)
-                if filtered != equipments:
-                    new_payload = dict(current_json)
-                    new_payload["equipments"] = filtered
-                    candidate.parsed_json = new_payload
-                    changed = True
 
-            if changed:
-                updated_ids.add(candidate.id)
+                if municipal_normalizer is not None:
+                    page_url = candidate.source_page.url if candidate.source_page else ""
+                    result = municipal_normalizer(parsed_json, page_url=page_url)
 
-            processed_candidates.append(candidate)
+                    payload = dict(result.parsed_json)
+                    equipments = payload.get("equipments", [])
+                    filtered = _filter_equipments(equipment_slugs, equipments)
+                    if filtered != equipments:
+                        payload["equipments"] = filtered
 
-        await session.commit()
+                    if candidate.name_raw != result.name_raw:
+                        candidate.name_raw = result.name_raw
+                        candidate_changed = True
+                    if candidate.address_raw != result.address_raw:
+                        candidate.address_raw = result.address_raw
+                        candidate_changed = True
+                    if candidate.pref_slug != result.pref_slug:
+                        candidate.pref_slug = result.pref_slug
+                        candidate_changed = True
+                    if candidate.city_slug != result.city_slug:
+                        candidate.city_slug = result.city_slug
+                        candidate_changed = True
+                    if candidate.parsed_json != payload:
+                        candidate.parsed_json = payload
+                        candidate_changed = True
 
-        if geocode_missing and processed_candidates:
-            geocoded = 0
-            for candidate in processed_candidates:
-                if not candidate.address_raw:
-                    continue
-                if candidate.latitude is not None and candidate.longitude is not None:
-                    continue
+                else:
+                    if pref_map is None or city_map is None:
+                        msg = f"Unsupported source: {source}"
+                        raise ValueError(msg)
 
-                coords = await geocode(session, candidate.address_raw)
-                if coords is None:
-                    continue
+                    pref_slug = _find_slug(candidate.address_raw, pref_map)
+                    city_slug = _find_slug(candidate.address_raw, city_map)
 
-                latitude, longitude = coords
-                geo_changed = False
-                if candidate.latitude is None and latitude is not None:
-                    candidate.latitude = latitude
-                    geo_changed = True
-                if candidate.longitude is None and longitude is not None:
-                    candidate.longitude = longitude
-                    geo_changed = True
+                    if candidate.pref_slug != pref_slug:
+                        candidate.pref_slug = pref_slug
+                        candidate_changed = True
+                    if candidate.city_slug != city_slug:
+                        candidate.city_slug = city_slug
+                        candidate_changed = True
 
-                if geo_changed:
-                    geocoded += 1
-                    updated_ids.add(candidate.id)
+                    current_json = parsed_json or {}
+                    equipments = (
+                        current_json.get("equipments", []) if isinstance(current_json, dict) else []
+                    )
+                    filtered = _filter_equipments(equipment_slugs, equipments)
+                    if filtered != equipments:
+                        new_payload = dict(current_json)
+                        new_payload["equipments"] = filtered
+                        candidate.parsed_json = new_payload
+                        candidate_changed = True
 
-            if geocoded:
-                await session.flush()
-                await session.commit()
-            logger.info("Geocoded %s candidates", geocoded)
+                if geocode_missing and candidate.address_raw:
+                    needs_geocode = candidate.latitude is None and candidate.longitude is None
+                    if needs_geocode:
+                        geocode_targets.append((candidate, candidate_changed))
 
-    sample_updates = [
-        f"id={candidate.id}: pref={candidate.pref_slug}, city={candidate.city_slug}"
-        for candidate in processed_candidates[:2]
-    ]
+                if candidate_changed:
+                    updated_count += 1
+                    if len(sample_updates) < 2:
+                        sample_updates.append(
+                            f"id={candidate.id}: pref={candidate.pref_slug}, "
+                            f"city={candidate.city_slug}"
+                        )
+
+            if geocode_targets:
+                geocoded = 0
+                for candidate, already_changed in geocode_targets:
+                    coords = await geocode(session, candidate.address_raw)
+                    if coords is None:
+                        continue
+
+                    latitude, longitude = coords
+                    geo_changed = False
+                    if candidate.latitude is None and latitude is not None:
+                        candidate.latitude = latitude
+                        geo_changed = True
+                    if candidate.longitude is None and longitude is not None:
+                        candidate.longitude = longitude
+                        geo_changed = True
+
+                    if geo_changed:
+                        geocoded += 1
+                        geocoded_total += 1
+                        if not already_changed:
+                            updated_count += 1
+                        if len(sample_updates) < 2:
+                            sample_updates.append(
+                                f"id={candidate.id}: pref={candidate.pref_slug}, "
+                                f"city={candidate.city_slug}"
+                            )
+
+                if geocoded:
+                    await session.flush()
+                    logger.info("Geocoded %s candidates in batch", geocoded)
+
+            await session.commit()
+            session.expunge_all()
+
+            logger.info("Processed %s candidates for source '%s' so far", processed, source)
+
+            if remaining is not None and remaining <= 0:
+                break
+
     if sample_updates:
         logger.info(
             "Sample normalized candidates: %s%s",
             "; ".join(sample_updates),
-            "..." if len(processed_candidates) > 2 else "",
+            "..." if processed > len(sample_updates) else "",
         )
     logger.info(
-        "Normalized %s candidates (updated=%s)",
-        len(processed_candidates),
-        len(updated_ids),
+        "Normalized %s candidates (updated=%s, geocoded=%s)",
+        processed,
+        updated_count,
+        geocoded_total,
     )
     return 0
 
