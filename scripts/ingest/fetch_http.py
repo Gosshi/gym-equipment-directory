@@ -35,6 +35,7 @@ MAX_LIMIT = 30
 PROD_MAX_LIMIT = 120
 DEFAULT_MIN_DELAY = 2.0
 DEFAULT_MAX_DELAY = 5.0
+BATCH_SIZE = 20
 RETRY_ATTEMPTS = 3
 
 
@@ -623,6 +624,7 @@ async def fetch_http_pages(
             success = 0
             not_modified = 0
             failures = 0
+            processed_in_batch = 0
             for index, page in enumerate(detail_urls):
                 url = page.url
                 allowed_hosts = (
@@ -674,11 +676,17 @@ async def fetch_http_pages(
                 else:
                     failures += 1
 
+                processed_in_batch += 1
+                if processed_in_batch % BATCH_SIZE == 0:
+                    await session.commit()
+                    session.expunge_all()
+
                 if index < len(detail_urls) - 1:
                     delay = random.uniform(min_delay, max_delay)
                     await asyncio.sleep(delay)
 
             await session.commit()
+            session.expunge_all()
 
         sample = ", ".join(page.url for page in detail_urls[:2])
         logger.info(
