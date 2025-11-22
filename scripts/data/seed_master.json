@@ -1,0 +1,84 @@
+{
+  "sources": [],
+  "equipments": [
+    {
+      "slug": "power-rack",
+      "name": "パワーラック",
+      "category": "free_weight",
+      "description": "フリーウェイトの基幹ラック"
+    },
+    {
+      "slug": "squat-rack",
+      "name": "スクワットラック",
+      "category": "free_weight",
+      "description": "スクワット専用ラック"
+    },
+    {
+      "slug": "smith-machine",
+      "name": "スミスマシン",
+      "category": "free_weight",
+      "description": "ガイド付きバーベル"
+    },
+    {
+      "slug": "bench-press",
+      "name": "ベンチプレス台",
+      "category": "free_weight",
+      "description": "フラットベンチ"
+    },
+    {
+      "slug": "adjustable-bench",
+      "name": "アジャスタブルベンチ",
+      "category": "free_weight",
+      "description": "角度調整可能なベンチ"
+    },
+    {
+      "slug": "dumbbell",
+      "name": "ダンベルセット",
+      "category": "free_weight",
+      "description": "最大50kgの可変ダンベル"
+    },
+    {
+      "slug": "leg-press",
+      "name": "レッグプレス",
+      "category": "machine",
+      "description": "下半身プレスマシン"
+    },
+    {
+      "slug": "cable-machine",
+      "name": "ケーブルマシン",
+      "category": "machine",
+      "description": "2スタックケーブル"
+    },
+    {
+      "slug": "lat-pulldown",
+      "name": "ラットプルダウン",
+      "category": "machine",
+      "description": "上背部向けマシン"
+    },
+    {
+      "slug": "treadmill",
+      "name": "トレッドミル",
+      "category": "cardio",
+      "description": "傾斜対応ランニングマシン"
+    },
+    {
+      "slug": "exercise-bike",
+      "name": "エアロバイク",
+      "category": "cardio",
+      "description": "負荷調整付きバイク"
+    },
+    {
+      "slug": "rowing-machine",
+      "name": "ローイングマシン",
+      "category": "cardio",
+      "description": "空気抵抗ローアー"
+    },
+    {
+      "slug": "stair-climber",
+      "name": "ステアクライマー",
+      "category": "cardio",
+      "description": "階段昇降マシン"
+    }
+  ],
+  "gyms": []
+}
