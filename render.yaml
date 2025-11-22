@@ -1,86 +1,34 @@
 services:
+  # バックエンド API (FastAPI)
   - type: web
     name: gym-backend
-    env: docker
-    plan: starter
-    autoDeploy: true
-    branch: main
-    dockerfilePath: backend/Dockerfile.render
-    healthCheckPath: /health
+    runtime: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./backend/Dockerfile.render
     envVars:
-      - key: APP_ENV
-        value: prod
-      - key: APP_PORT
-        value: 8000
       - key: DATABASE_URL
         sync: false
-        # Set in Render dashboard with asyncpg-style URL (postgresql+asyncpg://...)
-      - key: BACKEND_URL
-        value: https://api-xxx.onrender.com
-      - key: FRONTEND_URL
-        value: https://app-xxx.onrender.com
-      - key: ALLOW_ORIGINS
-        value: https://app-xxx.onrender.com
-      - key: SECRET_KEY
-        generateValue: true
-      - key: ADMIN_UI_TOKEN
-        sync: false
-      - key: OPENCAGE_API_KEY
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
-      - key: SENTRY_TRACES_RATE
-        value: "0.1"
-      - key: RELEASE
-        value: render-${RENDER_GIT_COMMIT}
-      - key: RATE_LIMIT_ENABLED
-        value: "1"
-      - key: SCORE_W_FRESH
-        value: "0.6"
-      - key: SCORE_W_RICH
-        value: "0.4"
-      - key: FRESHNESS_WINDOW_DAYS
-        value: "365"
-      - key: META_CACHE_TTL_SECONDS
-        value: "300"
-      - key: NEXT_PUBLIC_API_BASE
-        value: https://api-xxx.onrender.com
-      - key: NEXT_PUBLIC_API_BASE_URL
-        value: https://api-xxx.onrender.com
-  - type: web
-    name: gym-frontend
-    env: docker
-    plan: starter
-    autoDeploy: true
-    branch: main
-    dockerfilePath: frontend/Dockerfile.render
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: FRONTEND_URL
-        value: https://app-xxx.onrender.com
-      - key: NEXT_PUBLIC_BACKEND_URL
-        value: https://api-xxx.onrender.com
-      - key: NEXT_PUBLIC_API_BASE
-        value: https://api-xxx.onrender.com
-      - key: NEXT_PUBLIC_API_BASE_URL
-        value: https://api-xxx.onrender.com
-      - key: NEXT_PUBLIC_AUTH_MODE
-        value: stub
-      - key: ADMIN_UI_TOKEN
-        sync: false
-      - key: BACKEND_URL
-        value: https://api-xxx.onrender.com
-      - key: SECRET_KEY
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
-      - key: SENTRY_TRACES_RATE
-        value: "0.1"
+      - key: PORT
+        value: "8000"
 
-# Managed PostgreSQL instance
-# Adjust plan/region as needed for your account.
+  # 定期実行ワーカー (Ingestion)
+  - type: cron
+    name: gym-ingestion-worker
+    runtime: docker
+    region: singapore
+    plan: free
+    schedule: "0 19 * * *" # 日本時間 朝4:00
+    dockerfilePath: ./backend/Dockerfile.render
+    command: python -m scripts.ingest.run_nightly
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+
+# データベース (PostgreSQL)
 databases:
   - name: gym-postgres
-    plan: free
+    plan: free        # 無料プラン (30日で期限切れになる制限あり)
     region: singapore
+    databaseName: gym_directory
+    user: appuser
