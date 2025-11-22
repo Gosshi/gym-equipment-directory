@@ -1,13 +1,14 @@
-"""Normalize parsed gym candidates into consistent payloads."""
+"""Normalize parsed gym candidates into consistent payloads using batched processing."""
 
 from __future__ import annotations
 
+import gc
 import logging
 from collections.abc import Callable, Iterable
 from functools import partial
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.db import SessionLocal
@@ -29,8 +30,7 @@ from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 200
-
+BATCH_SIZE = 50  # メモリ対策: 50件ずつ処理
 
 _DUMMY_PREF_MAP = {
     "東京都": "tokyo",
@@ -106,57 +106,69 @@ def _filter_equipments(valid_slugs: Iterable[str], equipments: Iterable[str]) ->
 async def normalize_candidates(
     source: str, limit: int | None, geocode_missing: bool = False
 ) -> int:
-    """Normalize address and parsed payloads for gym candidates."""
+    """Normalize address and parsed payloads for gym candidates using batch processing."""
 
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
 
-        equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
-
-        base_query = (
-            select(GymCandidate)
-            .options(
-                selectinload(GymCandidate.source_page).load_only(ScrapedPage.id, ScrapedPage.url)
-            )
+        # 総数をカウント
+        count_query = (
+            select(func.count())
+            .select_from(GymCandidate)
             .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
             .where(ScrapedPage.source_id == source_obj.id)
-            .order_by(GymCandidate.id)
         )
-        processed = 0
+        total_candidates = (await session.execute(count_query)).scalar() or 0
+
+        if total_candidates == 0:
+            logger.info("No gym candidates found for source '%s'", source)
+            return 0
+
+        if limit is not None:
+            total_candidates = min(total_candidates, limit)
+
+        # 設備マスタはキャッシュしておく
+        equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
+
+        processed_count = 0
         updated_count = 0
-        sample_updates: list[str] = []
-        geocoded_total = 0
-        last_id: int | None = None
-        remaining = limit
 
         municipal_normalizer = _MUNICIPAL_NORMALIZERS.get(source)
         pref_map = _PREF_MAPS.get(source)
         city_map = _CITY_MAPS.get(source)
-        while True:
-            batch_limit = BATCH_SIZE if remaining is None else min(BATCH_SIZE, remaining)
 
-            query = base_query
-            if last_id is not None:
-                query = query.where(GymCandidate.id > last_id)
+        logger.info(
+            "Starting normalization for %s candidates (source: %s)", total_candidates, source
+        )
 
-            candidates = (await session.execute(query.limit(batch_limit))).scalars().all()
+        # バッチ処理ループ
+        while processed_count < total_candidates:
+            current_limit = min(BATCH_SIZE, total_candidates - processed_count)
+
+            candidate_query = (
+                select(GymCandidate)
+                .options(selectinload(GymCandidate.source_page))
+                .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
+                .where(ScrapedPage.source_id == source_obj.id)
+                .order_by(GymCandidate.id)
+                .offset(processed_count)
+                .limit(current_limit)
+            )
+
+            candidates = (await session.execute(candidate_query)).scalars().all()
             if not candidates:
-                if processed == 0:
-                    logger.info("No gym candidates found for source '%s'", source)
                 break
 
-            last_id = candidates[-1].id
-            processed += len(candidates)
-            if remaining is not None:
-                remaining -= len(candidates)
-            geocode_targets: list[tuple[GymCandidate, bool]] = []
+            batch_updated = 0
+            geocoded_batch = 0
 
             for candidate in candidates:
-                candidate_changed = False
+                changed = False
                 parsed_json = (
                     candidate.parsed_json if isinstance(candidate.parsed_json, dict) else {}
                 )
 
+                # ... (正規化ロジックは変更なし) ...
                 if municipal_normalizer is not None:
                     page_url = candidate.source_page.url if candidate.source_page else ""
                     result = municipal_normalizer(parsed_json, page_url=page_url)
@@ -169,19 +181,19 @@ async def normalize_candidates(
 
                     if candidate.name_raw != result.name_raw:
                         candidate.name_raw = result.name_raw
-                        candidate_changed = True
+                        changed = True
                     if candidate.address_raw != result.address_raw:
                         candidate.address_raw = result.address_raw
-                        candidate_changed = True
+                        changed = True
                     if candidate.pref_slug != result.pref_slug:
                         candidate.pref_slug = result.pref_slug
-                        candidate_changed = True
+                        changed = True
                     if candidate.city_slug != result.city_slug:
                         candidate.city_slug = result.city_slug
-                        candidate_changed = True
+                        changed = True
                     if candidate.parsed_json != payload:
                         candidate.parsed_json = payload
-                        candidate_changed = True
+                        changed = True
 
                 else:
                     if pref_map is None or city_map is None:
@@ -193,10 +205,10 @@ async def normalize_candidates(
 
                     if candidate.pref_slug != pref_slug:
                         candidate.pref_slug = pref_slug
-                        candidate_changed = True
+                        changed = True
                     if candidate.city_slug != city_slug:
                         candidate.city_slug = city_slug
-                        candidate_changed = True
+                        changed = True
 
                     current_json = parsed_json or {}
                     equipments = (
@@ -207,71 +219,44 @@ async def normalize_candidates(
                         new_payload = dict(current_json)
                         new_payload["equipments"] = filtered
                         candidate.parsed_json = new_payload
-                        candidate_changed = True
+                        changed = True
 
-                if geocode_missing and candidate.address_raw:
-                    needs_geocode = candidate.latitude is None and candidate.longitude is None
-                    if needs_geocode:
-                        geocode_targets.append((candidate, candidate_changed))
+                if changed:
+                    batch_updated += 1
 
-                if candidate_changed:
-                    updated_count += 1
-                    if len(sample_updates) < 2:
-                        sample_updates.append(
-                            f"id={candidate.id}: pref={candidate.pref_slug}, "
-                            f"city={candidate.city_slug}"
-                        )
+                # Geocoding (バッチ内)
+                if geocode_missing:
+                    if candidate.address_raw and (
+                        candidate.latitude is None or candidate.longitude is None
+                    ):
+                        coords = await geocode(session, candidate.address_raw)
+                        if coords:
+                            lat, lng = coords
+                            if candidate.latitude is None:
+                                candidate.latitude = lat
+                            if candidate.longitude is None:
+                                candidate.longitude = lng
+                            batch_updated += 1
+                            geocoded_batch += 1
 
-            if geocode_targets:
-                geocoded = 0
-                for candidate, already_changed in geocode_targets:
-                    coords = await geocode(session, candidate.address_raw)
-                    if coords is None:
-                        continue
-
-                    latitude, longitude = coords
-                    geo_changed = False
-                    if candidate.latitude is None and latitude is not None:
-                        candidate.latitude = latitude
-                        geo_changed = True
-                    if candidate.longitude is None and longitude is not None:
-                        candidate.longitude = longitude
-                        geo_changed = True
-
-                    if geo_changed:
-                        geocoded += 1
-                        geocoded_total += 1
-                        if not already_changed:
-                            updated_count += 1
-                        if len(sample_updates) < 2:
-                            sample_updates.append(
-                                f"id={candidate.id}: pref={candidate.pref_slug}, "
-                                f"city={candidate.city_slug}"
-                            )
-
-                if geocoded:
-                    await session.flush()
-                    logger.info("Geocoded %s candidates in batch", geocoded)
-
+            # バッチ終了処理
             await session.commit()
+
+            # メモリ解放 (超重要)
             session.expunge_all()
+            del candidates
+            gc.collect()
 
-            logger.info("Processed %s candidates for source '%s' so far", processed, source)
+            updated_count += batch_updated
+            processed_count += current_limit
 
-            if remaining is not None and remaining <= 0:
-                break
+            if geocoded_batch > 0:
+                logger.info("Geocoded %s candidates in batch", geocoded_batch)
 
-    if sample_updates:
-        logger.info(
-            "Sample normalized candidates: %s%s",
-            "; ".join(sample_updates),
-            "..." if processed > len(sample_updates) else "",
-        )
     logger.info(
-        "Normalized %s candidates (updated=%s, geocoded=%s)",
-        processed,
+        "Normalized %s candidates (updated=%s)",
+        processed_count,
         updated_count,
-        geocoded_total,
     )
     return 0
 
