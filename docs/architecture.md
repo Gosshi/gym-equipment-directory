@@ -15,7 +15,7 @@ flowchart LR
         F -->|SQLAlchemy| P[(PostgreSQL)]
     end
     subgraph Preview
-        Dev[開発者] -->|AWS SSM Session Manager トンネル| T[Preview トンネル]
+        Dev[開発者] -->|Render Preview URL| T[Preview 環境]
         T --> N
         T --> F
     end
@@ -51,8 +51,7 @@ flowchart TB
 
 ## PR プレビュー運用メモ
 
-- AWS IAM Identity Center で `gym-preview` プロファイルを作成し、SSO 認証後に SSM ポートフォワーディングでプレビューへ接続する。
-- EC2 インスタンスは GitHub Actions からシングルトン upsert し、`Purpose=pr-preview-singleton` などのタグで追跡する。
-- Docker/Compose を `user-data` で配備し、API・フロントを起動して `/readyz` や `/healthz` を SSM から確認する。
-- EventBridge Scheduler により 2〜4 時間で自動終了するため、長時間のプレビューは再実行が必要。
-- 障害時は `docker compose logs`, `cloud-init-output.log`, `/tmp/seed.log` を SSM で収集し、DB シードは自動投入せず手動で管理する。
+- Render のプレビュー機能を利用し、`render.yaml` に基づくサービス定義で PR ごとに Preview Deploy が生成される。
+- データベースやシークレットは Render のダッシュボード上で管理し、GitHub Actions から AWS へ接続する処理は廃止した。
+- プレビュー URL は Render が払い出すドメインを利用し、API・フロントとも Render 側のヘルスチェックで監視する。
+- インフラ構成や起動パラメータは Render 側に集約しているため、プレビュー運用時は Render ダッシュボードを一次参照とする。
