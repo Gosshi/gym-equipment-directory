@@ -16,6 +16,7 @@ RUN python -m pip install --upgrade pip setuptools wheel \
     && pip install --prefer-binary -r requirements.txt
 
 COPY app ./app
+COPY scripts ./scripts
 COPY alembic.ini ./alembic.ini
 COPY migrations ./migrations
 
