@@ -22,10 +22,3 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-
-databases:
-  - name: gym-postgres
-    plan: free
-    region: singapore
-    databaseName: gym_directory
-    user: appuser
