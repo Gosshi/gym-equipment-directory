@@ -23,6 +23,7 @@ TODO (後続PR):
 
 from __future__ import annotations
 
+import gc
 import logging
 from typing import Any
 
@@ -85,18 +86,21 @@ async def run_batch(
         )
     if code != 0:
         raise RuntimeError(f"fetch_http failed with code={code}")
+    gc.collect()
 
     # 2. parse
     with metrics.time("parse"):
         code = await parse_pages(source, limit=None)
     if code != 0:
         raise RuntimeError(f"parse failed with code={code}")
+    gc.collect()
 
     # 3. normalize
     with metrics.time("normalize"):
         code = await normalize_candidates(source, limit=None, geocode_missing=False)
     if code != 0:
         raise RuntimeError(f"normalize failed with code={code}")
+    gc.collect()
 
     # 4. diff classification
     async with SessionLocal() as session:
