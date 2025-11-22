@@ -23,7 +23,7 @@ from .sources_registry import SOURCES
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
-BATCH_SIZE = 50
+BATCH_SIZE = 5
 
 _TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 _ADDRESS_POOL = (
