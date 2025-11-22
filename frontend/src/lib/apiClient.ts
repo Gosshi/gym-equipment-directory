@@ -2,7 +2,7 @@ import { authClient } from "@/auth/authClient";
 import type { GymSummary } from "@/types/gym";
 
 const DEFAULT_TIMEOUT_MS = 8000;
-const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
+const DEFAULT_BASE_URL = "http://localhost:8000";
 
 export class ApiError extends Error {
   readonly status?: number;
@@ -23,9 +23,13 @@ export interface ApiRequestOptions extends RequestInit {
 
 export const getApiBaseUrl = () => {
   const baseUrl =
-    process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+    process.env.NEXT_PUBLIC_API_URL?.trim() ??
+    process.env.NEXT_PUBLIC_API_BASE?.trim() ??
+    process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (baseUrl && !baseUrl.startsWith("http")) {
-    throw new Error("NEXT_PUBLIC_API_BASE (or _URL) must be an absolute URL, including protocol");
+    throw new Error(
+      "NEXT_PUBLIC_API_URL (or _BASE / _BASE_URL) must be an absolute URL, including protocol",
+    );
   }
   return (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
 };

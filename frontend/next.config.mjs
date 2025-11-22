@@ -8,6 +8,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
 };
 
 export default withBundleAnalyzer(nextConfig);
