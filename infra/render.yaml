@@ -10,6 +10,8 @@ services:
         sync: false
       - key: PORT
         value: "8000"
+      - key: ALLOW_ORIGINS
+        value: https://gym-equipment-directory.vercel.app
 
   - type: cron
     name: gym-ingestion-worker
