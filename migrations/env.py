@@ -17,12 +17,10 @@ def _get_sqlalchemy_url() -> str:
     url = os.getenv("ALEMBIC_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not url:
         return config.get_main_option("sqlalchemy.url")
-    # Alembic requires sync driver; coerce +asyncpg → +psycopg2 for migrations
-    if "+asyncpg" in url:
-        url = url.replace("+asyncpg", "+psycopg2")
-    if "+psycopg" in url and "+psycopg2" not in url:
-        # normalize psycopg3 URL to psycopg2 if needed
-        url = url.replace("+psycopg", "+psycopg2")
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
     return url
 
 

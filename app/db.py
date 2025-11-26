@@ -8,11 +8,21 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://appuser:apppass@localhost:5432/gym_directory"
+DEFAULT_DATABASE_URL = "postgresql+psycopg://appuser:apppass@localhost:5432/gym_directory"
 DATABASE_URL = DEFAULT_DATABASE_URL
 
 engine: AsyncEngine
 SessionLocal: async_sessionmaker[AsyncSession]
+
+
+def _apply_psycopg_scheme(database_url: str) -> str:
+    if database_url.startswith("postgresql+asyncpg://"):
+        return database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    return database_url
 
 
 def _create_engine(database_url: str) -> AsyncEngine:
@@ -29,7 +39,8 @@ def configure_engine(database_url: str | None = None) -> None:
     global engine, SessionLocal, DATABASE_URL
 
     DATABASE_URL = database_url or os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
-    engine = _create_engine(DATABASE_URL)
+    normalized_database_url = _apply_psycopg_scheme(DATABASE_URL)
+    engine = _create_engine(normalized_database_url)
     SessionLocal = async_sessionmaker(
         bind=engine,
         class_=AsyncSession,

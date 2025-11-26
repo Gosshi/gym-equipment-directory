@@ -95,11 +95,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def normalize_dsn(dsn: str) -> str:
-    normalized = dsn.replace("postgres://", "postgresql://", 1)
-    for driver in ("+asyncpg", "+psycopg2", "+psycopg"):
-        if driver in normalized:
-            normalized = normalized.replace(driver, "")
-    return normalized
+    return dsn
 
 
 def parse_timestamp(raw: str | None) -> datetime | None:
