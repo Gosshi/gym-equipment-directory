@@ -18,6 +18,8 @@ SessionLocal: async_sessionmaker[AsyncSession]
 def _apply_psycopg_scheme(database_url: str) -> str:
     if database_url.startswith("postgresql+asyncpg://"):
         return database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgresql+psycopg2://"):
+        return database_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
     if database_url.startswith("postgresql://"):
         return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     if database_url.startswith("postgres://"):

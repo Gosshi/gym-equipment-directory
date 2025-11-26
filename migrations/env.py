@@ -17,11 +17,16 @@ def _get_sqlalchemy_url() -> str:
     url = os.getenv("ALEMBIC_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not url:
         return config.get_main_option("sqlalchemy.url")
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
-    if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+psycopg://", 1)
-    return url
+    normalized = url
+    if normalized.startswith("postgres://"):
+        normalized = normalized.replace("postgres://", "postgresql://", 1)
+    if normalized.startswith("postgresql+asyncpg://"):
+        normalized = normalized.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    elif normalized.startswith("postgresql+psycopg2://"):
+        normalized = normalized.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    elif normalized.startswith("postgresql://"):
+        normalized = normalized.replace("postgresql://", "postgresql+psycopg://", 1)
+    return normalized
 
 
 target_metadata = Base.metadata
