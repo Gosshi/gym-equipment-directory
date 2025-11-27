@@ -15,6 +15,7 @@ COPY requirements.txt ./
 RUN python -m pip install --upgrade pip setuptools wheel \
     && pip install --prefer-binary -r requirements.txt
 
+COPY configs ./configs
 COPY app ./app
 COPY scripts ./scripts
 COPY alembic.ini ./alembic.ini
