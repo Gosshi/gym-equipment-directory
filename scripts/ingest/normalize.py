@@ -152,14 +152,16 @@ async def normalize_candidates(
                 .limit(current_limit)
             )
 
-            candidates = (await session.execute(candidate_query)).scalars().all()
+            result = await session.execute(candidate_query)
+            candidates = result.scalars().fetchmany(current_limit)
             if not candidates:
                 break
 
+            batch_end = processed_count + len(candidates)
             logger.info(
-                "Processing candidates %s-%s/%s (batch size=%s)",
+                "処理中: %s-%s件目 / 全%s件 (batch size=%s)",
                 processed_count + 1,
-                processed_count + len(candidates),
+                batch_end,
                 total_candidates,
                 len(candidates),
             )
@@ -248,7 +250,7 @@ async def normalize_candidates(
             gc.collect()
 
             updated_count += batch_updated
-            processed_count += current_limit
+            processed_count = batch_end
 
             if geocoded_batch > 0:
                 logger.info("Geocoded %s candidates in batch", geocoded_batch)
