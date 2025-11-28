@@ -53,6 +53,7 @@ CREATE TYPE public.candidate_status AS ENUM (
     'new',
     'reviewing',
     'approved',
+    'ignored',
     'rejected'
 );
 

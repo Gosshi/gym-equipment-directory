@@ -131,6 +131,7 @@ async def test_candidate_indexes_and_enum(session: AsyncSession) -> None:
     enum_result = await session.execute(text("SELECT enum_range(NULL::candidate_status)"))
     (enum_values,) = enum_result.one()
     assert "new" in enum_values
+    assert "ignored" in enum_values
 
     index_rows = await session.execute(
         text("SELECT indexname FROM pg_indexes WHERE tablename = 'scraped_pages'")
