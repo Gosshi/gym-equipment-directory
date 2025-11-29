@@ -134,7 +134,7 @@ async def run_batch(
                 metrics.add("approved", 0)
 
     snapshot = metrics.export().to_dict()
-    logger.info("Batch pipeline completed", metrics=snapshot)
+    logger.info("Batch pipeline completed: %s", snapshot)
     if return_metrics:
         return 0, snapshot
     return 0
