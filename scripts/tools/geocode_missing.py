@@ -14,6 +14,8 @@ import csv
 import logging
 import os
 import re
+import time
+import unicodedata
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -33,6 +35,8 @@ _TEL_TRAIL_RE = re.compile(
     r"\s*(?:TEL|ＴＥＬ)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
     flags=re.IGNORECASE,
 )
+_KANJI_NUM_MAP = str.maketrans("一二三四五六七八九〇", "1234567890")
+_SEPARATOR_RE = re.compile(r"[のノ．]")
 
 _TARGET_CHOICES = {"gyms", "candidates"}
 _ORIGIN_CHOICES = {"all", "scraped"}
@@ -82,18 +86,50 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def normalize_address(address: str | None) -> str:
-    """Normalize address strings for geocoding."""
+def normalize_address(address: str | None, remove_building: bool = False) -> str:
+    """Normalize address strings for geocoding.
+
+    Args:
+        address: The raw address string.
+        remove_building: If True, removes the building name (assumed to be after the last space).
+
+    Returns:
+        The normalized address string.
+    """
 
     if not address:
         return ""
 
-    cleaned = _ZERO_WIDTH_RE.sub("", address)
-    cleaned = cleaned.replace("　", " ")
+    # 1. Full-width to Half-width (NFKC normalization)
+    cleaned = unicodedata.normalize("NFKC", address)
+
+    # 2. Remove zero-width characters
+    cleaned = _ZERO_WIDTH_RE.sub("", cleaned)
+
+    # 3. Remove postal code prefix
     cleaned = _POSTAL_PREFIX_RE.sub("", cleaned)
+
+    # 4. Remove telephone number trail
     cleaned = _TEL_TRAIL_RE.sub("", cleaned)
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned.strip()
+
+    # 5. Kanji numerals to Arabic numerals (simple mapping)
+    cleaned = cleaned.translate(_KANJI_NUM_MAP)
+
+    # 6. Unify separators
+    cleaned = _SEPARATOR_RE.sub("-", cleaned)
+
+    # 7. Collapse whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    # 8. Remove building name (optional)
+    if remove_building and " " in cleaned:
+        # Split by space and take everything except the last part if it looks like a building name
+        # Heuristic: If there are multiple spaces, drop the last part.
+        parts = cleaned.split(" ")
+        if len(parts) > 1:
+            cleaned = " ".join(parts[:-1])
+
+    return cleaned
 
 
 def analyze_reasons(raw: str | None, clean: str) -> set[str]:
@@ -173,131 +209,94 @@ async def _process_records(
     for record in records:
         tried += 1
         raw_address = record.address if target == "gyms" else record.address_raw
-        normalized_address = normalize_address(raw_address)
-        reasons = analyze_reasons(raw_address, normalized_address)
 
-        if not normalized_address:
-            skipped += 1
-            for reason in reasons or {"normalized_empty"}:
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            if verbose:
-                logger.info(
-                    "SKIP id=%s normalized_empty raw=%r",
-                    record.id,
-                    raw_address,
-                )
-            fail_rows.append(
-                (
-                    record.id,
-                    getattr(record, "name", ""),
-                    raw_address or "",
-                    normalized_address,
-                    ",".join(sorted(reasons)) or "normalized_empty",
-                )
-            )
-            continue
+        # Retry logic: Original -> Normalized -> Normalized (no building)
+        variations = [
+            ("original", raw_address),
+            ("normalized", normalize_address(raw_address, remove_building=False)),
+            ("no_building", normalize_address(raw_address, remove_building=True)),
+        ]
 
-        if raw_address and raw_address != normalized_address and verbose:
-            logger.info(
-                "Normalized address id=%s: %r -> %r",
-                record.id,
-                raw_address,
-                normalized_address,
-            )
+        # Deduplicate variations while preserving order
+        seen_addrs = set()
+        unique_variations = []
+        for label, addr in variations:
+            if addr and addr not in seen_addrs:
+                unique_variations.append((label, addr))
+                seen_addrs.add(addr)
 
-        try:
-            coords = await geocode(session, normalized_address)
-        except Exception:  # pragma: no cover - external provider failure path
-            skipped += 1
-            reason_counts["exception"] = reason_counts.get("exception", 0) + 1
-            for reason in reasons:
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            if verbose:
-                logger.exception("EXC id=%s addr=%r", record.id, normalized_address)
-            fail_rows.append(
-                (
-                    record.id,
-                    getattr(record, "name", ""),
-                    raw_address or "",
-                    normalized_address,
-                    ",".join(sorted(reasons | {"exception"})),
-                )
-            )
-            continue
+        success_coords = None
+        success_addr = ""
+        success_label = ""
 
-        if coords is None:
-            skipped += 1
-            reason_counts["provider_miss"] = reason_counts.get("provider_miss", 0) + 1
-            for reason in reasons:
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            if verbose:
-                logger.info(
-                    "MISS id=%s addr=%r reasons=%s",
-                    record.id,
-                    normalized_address,
-                    ",".join(sorted(reasons)) or "provider_miss",
-                )
-            fail_rows.append(
-                (
-                    record.id,
-                    getattr(record, "name", ""),
-                    raw_address or "",
-                    normalized_address,
-                    ",".join(sorted(reasons | {"provider_miss"})),
-                )
-            )
-            continue
+        for label, addr in unique_variations:
+            # Rate limiting
+            time.sleep(1.0)
 
-        latitude, longitude = coords
-        latitude_missing = getattr(record, "latitude") is None
-        longitude_missing = getattr(record, "longitude") is None
-        lat_update = latitude_missing and latitude is not None
-        lon_update = longitude_missing and longitude is not None
+            try:
+                coords = await geocode(session, addr)
+                if coords:
+                    success_coords = coords
+                    success_addr = addr
+                    success_label = label
+                    break
+            except Exception:
+                logger.warning("Geocoding exception for %s (label=%s)", addr, label)
+                continue
 
-        if lat_update or lon_update:
+        if success_coords:
+            latitude, longitude = success_coords
             updated += 1
             if dry_run:
                 logger.info(
-                    "DRY-RUN: would update %s id=%s with lat=%s lon=%s",
-                    target[:-1],
-                    record.id,
+                    "DRY-RUN: Success [%s] %r -> (%s, %s)",
+                    success_label,
+                    success_addr,
                     latitude,
                     longitude,
                 )
             else:
-                if lat_update:
-                    record.latitude = latitude
-                if lon_update:
-                    record.longitude = longitude
-                if target == "gyms" and raw_address != normalized_address:
-                    record.address = normalized_address
+                record.latitude = latitude
+                record.longitude = longitude
+                # Only update address if it's the gyms table and we used a normalized version?
+                # The requirement says "update latitude, longitude".
+                # Updating address might be risky if we stripped too much, so let's stick to coords.
+                # But if we fixed the address in gyms table, it might be good.
+                # Update coords safely. Update address only for 'gyms' target.
+                if target == "gyms" and success_label != "original":
+                    record.address = success_addr
+
                 await session.flush()
                 logger.info(
-                    "Updated %s id=%s with lat=%s lon=%s",
-                    target[:-1],
+                    "Success [%s] id=%s %r -> (%s, %s)",
+                    success_label,
                     record.id,
+                    success_addr,
                     latitude,
                     longitude,
                 )
         else:
             skipped += 1
-            reason_counts["unchanged"] = reason_counts.get("unchanged", 0) + 1
+            # Use the most aggressive normalization for failure reporting
+            final_norm = normalize_address(raw_address, remove_building=True)
+            reasons = analyze_reasons(raw_address, final_norm)
+            reason_counts["provider_miss"] = reason_counts.get("provider_miss", 0) + 1
             for reason in reasons:
                 reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            if verbose:
-                logger.info(
-                    "SKIP id=%s unchanged coords lat=%s lon=%s",
-                    record.id,
-                    getattr(record, "latitude"),
-                    getattr(record, "longitude"),
-                )
+
+            logger.info(
+                "Fail id=%s raw=%r (final_norm=%r)",
+                record.id,
+                raw_address,
+                final_norm,
+            )
             fail_rows.append(
                 (
                     record.id,
                     getattr(record, "name", ""),
                     raw_address or "",
-                    normalized_address,
-                    ",".join(sorted(reasons | {"unchanged"})),
+                    final_norm,
+                    ",".join(sorted(reasons | {"provider_miss"})),
                 )
             )
 
