@@ -216,10 +216,16 @@ async def _process_records(
     skipped = 0
     reason_counts: dict[str, int] = {}
     fail_rows: list[tuple[str | int, str, str, str, str]] = []
+    failed_addresses: set[str] = set()
 
     for record in records:
         tried += 1
         raw_address = record.address if target == "gyms" else record.address_raw
+
+        if raw_address in failed_addresses:
+            logger.info("skip: already failed addr=%r", raw_address)
+            skipped += 1
+            continue
 
         # Retry logic: Original -> Hyphenated -> Chome -> No Building -> Fallback (Town)
         # 1. Original
@@ -270,19 +276,23 @@ async def _process_records(
                 continue
 
         if success_coords:
-            latitude, longitude = success_coords
-            updated += 1
-            if dry_run:
-                logger.info(
-                    "DRY-RUN: Success [%s] %r -> (%s, %s)",
-                    success_label,
-                    success_addr,
-                    latitude,
-                    longitude,
-                )
+            lat, lng = success_coords
+            if target == "gyms":
+                record.latitude = lat
+                record.longitude = lng
             else:
-                record.latitude = latitude
-                record.longitude = longitude
+                record.latitude = lat
+                record.longitude = lng
+            updated += 1
+            if verbose:
+                logger.info(
+                    "Updated id=%s addr=%r -> %s (label=%s)",
+                    record.id,
+                    raw_address,
+                    success_addr,
+                    success_label,
+                )
+            if not dry_run:
                 # Only update address if it's the gyms table and we used a normalized version?
                 # The requirement says "update latitude, longitude".
                 # Updating address might be risky if we stripped too much, so let's stick to coords.
@@ -297,8 +307,8 @@ async def _process_records(
                     success_label,
                     record.id,
                     success_addr,
-                    latitude,
-                    longitude,
+                    lat,
+                    lng,
                 )
         else:
             skipped += 1
