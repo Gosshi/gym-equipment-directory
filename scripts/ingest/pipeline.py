@@ -31,6 +31,7 @@ from sqlalchemy import select
 
 from app.db import SessionLocal  # noqa: I001
 from app.models.gym_candidate import CandidateStatus, GymCandidate  # noqa: I001
+from app.models.scraped_page import ScrapedPage  # noqa: I001
 
 from .approve import approve_candidates
 from .diff import classify_candidates
@@ -38,17 +39,24 @@ from .fetch_http import fetch_http_pages
 from .metrics import MetricsCollector
 from .normalize import normalize_candidates
 from .parse import parse_pages
+from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
 
 
 async def _list_candidate_ids(session, source: str) -> list[int]:
-    result = await session.execute(
-        select(GymCandidate.id, GymCandidate.status).order_by(GymCandidate.id.desc())
+    source_obj = await get_or_create_source(session, title=source)
+    stmt = (
+        select(GymCandidate.id)
+        .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
+        .where(
+            ScrapedPage.source_id == source_obj.id,
+            GymCandidate.status == CandidateStatus.new,
+        )
+        .order_by(GymCandidate.id.desc())
     )
-    rows = result.all()
-    # 初期版では status=new のみ承認候補とみなす
-    return [row[0] for row in rows if row[1] == CandidateStatus.new]
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
 
 
 async def run_batch(
