@@ -86,12 +86,15 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def normalize_address(address: str | None, remove_building: bool = False) -> str:
+def normalize_address(
+    address: str | None, remove_building: bool = False, style: str = "hyphen"
+) -> str:
     """Normalize address strings for geocoding.
 
     Args:
         address: The raw address string.
         remove_building: If True, removes the building name (assumed to be after the last space).
+        style: "hyphen" (default) converts 丁目/番/号 to hyphens. "chome" preserves 丁目.
 
     Returns:
         The normalized address string.
@@ -115,8 +118,13 @@ def normalize_address(address: str | None, remove_building: bool = False) -> str
     # 5. Kanji numerals to Arabic numerals (simple mapping)
     cleaned = cleaned.translate(_KANJI_NUM_MAP)
 
-    # 6. Unify separators (including 丁目, 番, 号)
-    cleaned = re.sub(r"(?:丁目|番|号)", "-", cleaned)
+    # 6. Unify separators
+    if style == "hyphen":
+        cleaned = re.sub(r"(?:丁目|番|号)", "-", cleaned)
+    elif style == "chome":
+        # Keep 丁目, replace 番/号 with hyphens
+        cleaned = re.sub(r"(?:番|号)", "-", cleaned)
+
     cleaned = _SEPARATOR_RE.sub("-", cleaned)
 
     # 7. Collapse whitespace and hyphens
@@ -213,12 +221,26 @@ async def _process_records(
         tried += 1
         raw_address = record.address if target == "gyms" else record.address_raw
 
-        # Retry logic: Original -> Normalized -> Normalized (no building)
+        # Retry logic: Original -> Hyphenated -> Chome -> No Building -> Fallback (Town)
+        # 1. Original
+        # 2. Hyphenated: 1-23-20
+        # 3. Chome: 1丁目23-20
+        # 4. No Building (Hyphen): 1-23-20 (if building was removed)
+        # 5. Fallback (Town): 1-23 (strip last segment)
+
         variations = [
             ("original", raw_address),
-            ("normalized", normalize_address(raw_address, remove_building=False)),
-            ("no_building", normalize_address(raw_address, remove_building=True)),
+            ("hyphen", normalize_address(raw_address, style="hyphen")),
+            ("chome", normalize_address(raw_address, style="chome")),
+            ("no_building", normalize_address(raw_address, remove_building=True, style="hyphen")),
         ]
+
+        # Add fallback: strip last number segment from hyphenated style
+        hyphenated = normalize_address(raw_address, remove_building=True, style="hyphen")
+        if "-" in hyphenated:
+            parts = hyphenated.rsplit("-", 1)
+            if len(parts) > 1 and parts[0]:
+                variations.append(("fallback_town", parts[0]))
 
         # Deduplicate variations while preserving order
         seen_addrs = set()
