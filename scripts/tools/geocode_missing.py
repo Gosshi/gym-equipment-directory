@@ -115,10 +115,13 @@ def normalize_address(address: str | None, remove_building: bool = False) -> str
     # 5. Kanji numerals to Arabic numerals (simple mapping)
     cleaned = cleaned.translate(_KANJI_NUM_MAP)
 
-    # 6. Unify separators
+    # 6. Unify separators (including 丁目, 番, 号)
+    cleaned = re.sub(r"(?:丁目|番|号)", "-", cleaned)
     cleaned = _SEPARATOR_RE.sub("-", cleaned)
 
-    # 7. Collapse whitespace
+    # 7. Collapse whitespace and hyphens
+    cleaned = re.sub(r"-+", "-", cleaned)  # Merge multiple hyphens
+    cleaned = re.sub(r"-$", "", cleaned)  # Remove trailing hyphen
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     # 8. Remove building name (optional)
