@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 from collections.abc import Callable, Sequence
@@ -22,6 +23,8 @@ from app.services.approve_service import (
 logger = logging.getLogger(__name__)
 
 SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
+
+BATCH_SIZE = 50
 
 
 @dataclass(slots=True)
@@ -104,10 +107,21 @@ async def run_approval_batch(
 
 async def approve_candidates(candidate_ids: Sequence[int], dry_run: bool) -> int:
     """Approve multiple candidates sequentially."""
+    total = len(candidate_ids)
+    failures = 0
 
-    results = await run_approval_batch(candidate_ids, dry_run=dry_run)
-    failures = [item for item in results if not item.success]
-    return 0 if not failures else 1
+    for i in range(0, total, BATCH_SIZE):
+        batch = candidate_ids[i : i + BATCH_SIZE]
+        results = await run_approval_batch(batch, dry_run=dry_run)
+        failures += sum(1 for item in results if not item.success)
+
+        # Explicitly release memory
+        del results
+        gc.collect()
+
+        logger.info("Approved batch %s-%s / %s", i + 1, min(i + BATCH_SIZE, total), total)
+
+    return 0 if failures == 0 else 1
 
 
 async def approve_candidate(candidate_id: int, dry_run: bool) -> int:
