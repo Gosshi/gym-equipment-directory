@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _ZERO_WIDTH_RE = re.compile(r"[\u200B\u200C\u200D\uFEFF]")
 _POSTAL_PREFIX_RE = re.compile(r"^〒\s*\d{3}-\d{4}\s*")
 _TEL_TRAIL_RE = re.compile(
-    r"\s*(?:TEL|ＴＥＬ)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
+    r"\s*(?:TEL|ＴＥＬ|電話|電話番号)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
     flags=re.IGNORECASE,
 )
 _KANJI_NUM_MAP = str.maketrans("一二三四五六七八九〇", "1234567890")
