@@ -108,52 +108,49 @@ async def normalize_candidates(
 ) -> int:
     """Normalize address and parsed payloads for gym candidates using batch processing."""
 
+    # 1. Count total candidates first
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
-
-        count_query = (
-            select(func.count())
-            .select_from(GymCandidate)
+        count_query = select(func.count()).select_from(
+            select(GymCandidate.id)
             .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
             .where(ScrapedPage.source_id == source_obj.id)
+            .subquery()
         )
-        total_candidates = (await session.execute(count_query)).scalar() or 0
-
-        if total_candidates == 0:
-            logger.info("No gym candidates found for source '%s'", source)
-            return 0
-
-        if limit is not None:
-            total_candidates = min(total_candidates, limit)
+        total_candidates = (await session.execute(count_query)).scalar_one()
+        source_id = source_obj.id
 
         equipment_slugs = set((await session.execute(select(Equipment.slug))).scalars().all())
-
-        processed_count = 0
-        updated_count = 0
 
         municipal_normalizer = _MUNICIPAL_NORMALIZERS.get(source)
         pref_map = _PREF_MAPS.get(source)
         city_map = _CITY_MAPS.get(source)
 
-        logger.info(
-            "Starting normalization for %s candidates (source: %s)", total_candidates, source
-        )
+    if limit is not None:
+        total_candidates = min(total_candidates, limit)
+    if total_candidates == 0:
+        logger.info("No candidates available for normalization (source='%s')", source)
+        return 0
 
-        while processed_count < total_candidates:
-            current_limit = min(BATCH_SIZE, total_candidates - processed_count)
+    processed_count = 0
+    updated_count = 0
 
-            candidate_query = (
+    logger.info("Starting normalization for %s candidates (source: %s)", total_candidates, source)
+
+    while processed_count < total_candidates:
+        batch_limit = min(BATCH_SIZE, total_candidates - processed_count)
+
+        # Open a fresh session for each batch
+        async with SessionLocal() as session:
+            base_query = (
                 select(GymCandidate)
-                .options(selectinload(GymCandidate.source_page))
                 .join(ScrapedPage, GymCandidate.source_page_id == ScrapedPage.id)
-                .where(ScrapedPage.source_id == source_obj.id)
+                .where(ScrapedPage.source_id == source_id)
                 .order_by(GymCandidate.id)
-                .offset(processed_count)
-                .limit(current_limit)
+                .options(selectinload(GymCandidate.source_page))
             )
-
-            result = await session.execute(candidate_query)
-            candidates = result.scalars().fetchmany(current_limit)
+            query = base_query.offset(processed_count).limit(batch_limit)
+            candidates = (await session.execute(query)).scalars().all()
             if not candidates:
                 break
 

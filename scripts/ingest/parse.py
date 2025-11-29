@@ -129,33 +129,38 @@ def _build_municipal_payload(
 async def parse_pages(source: str, limit: int | None) -> int:
     """Create or update ``gym_candidates`` from scraped pages."""
 
+    # 1. Count total pages first
     async with SessionLocal() as session:
         source_obj = await get_or_create_source(session, title=source)
-
-        base_query = (
-            select(ScrapedPage)
-            .where(ScrapedPage.source_id == source_obj.id)
-            .order_by(ScrapedPage.fetched_at.desc())
-        )
-
         count_query = select(func.count()).select_from(
             select(ScrapedPage.id).where(ScrapedPage.source_id == source_obj.id).subquery()
         )
         total_pages = (await session.execute(count_query)).scalar_one()
-        if limit is not None:
-            total_pages = min(total_pages, limit)
-        if total_pages == 0:
-            logger.info("No scraped pages available for source '%s'", source)
-            return 0
+        source_id = source_obj.id  # Keep ID for subsequent queries
 
-        created = 0
-        updated = 0
-        sample_names: list[str] = []
-        address_iter = cycle(_ADDRESS_POOL) if source == "dummy" else None
-        equipment_iter = cycle(_EQUIPMENT_PATTERNS) if source == "dummy" else None
-        processed = 0
-        while processed < total_pages:
-            batch_limit = min(BATCH_SIZE, total_pages - processed)
+    if limit is not None:
+        total_pages = min(total_pages, limit)
+    if total_pages == 0:
+        logger.info("No scraped pages available for source '%s'", source)
+        return 0
+
+    created = 0
+    updated = 0
+    sample_names: list[str] = []
+    address_iter = cycle(_ADDRESS_POOL) if source == "dummy" else None
+    equipment_iter = cycle(_EQUIPMENT_PATTERNS) if source == "dummy" else None
+    processed = 0
+
+    while processed < total_pages:
+        batch_limit = min(BATCH_SIZE, total_pages - processed)
+
+        # Open a fresh session for each batch to ensure memory is released
+        async with SessionLocal() as session:
+            base_query = (
+                select(ScrapedPage)
+                .where(ScrapedPage.source_id == source_id)
+                .order_by(ScrapedPage.fetched_at.desc())
+            )
             query = base_query.offset(processed).limit(batch_limit)
             pages = (await session.execute(query)).scalars().all()
             if not pages:
@@ -216,17 +221,13 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 if has_change:
                     updated += 1
 
-            processed += len(pages)
             await session.commit()
-            # Release loaded ORM objects to avoid retaining large HTML blobs in memory.
-            session.expunge_all()
 
-            del pages  # 変数参照を切る
-            gc.collect()
+        # Session is closed here
+        processed += batch_limit
+        gc.collect()
 
-            logger.info(
-                "Processed %s/%s scraped pages for source '%s'", processed, total_pages, source
-            )
+        logger.info("Processed %s/%s scraped pages for source '%s'", processed, total_pages, source)
 
     total = created + updated
     logger.info(
