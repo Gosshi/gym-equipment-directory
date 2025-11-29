@@ -54,6 +54,10 @@ _DEFAULT_ADDRESS_PATTERNS: tuple[str, ...] = (
 _SEGMENT_RE = re.compile(r"[。．、，,\n\r]+")
 _MULTIPLY_RE = re.compile(r"×\s*([0-9０-９]+)")
 _JP_COUNT_RE = re.compile(r"([零〇一二三四五六七八九十百千]+)\s*(?:台|基)")
+_TEL_TRAIL_RE = re.compile(
+    r"\s*(?:TEL|ＴＥＬ|電話|電話番号)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(slots=True)
@@ -105,6 +109,8 @@ def _iter_text_segments(text: str) -> Iterable[str]:
 
 def _clean_address(candidate: str) -> str:
     cleaned = sanitize_text(candidate)
+    # Remove phone number trail
+    cleaned = _TEL_TRAIL_RE.sub("", cleaned).strip()
     for delimiter in ("、", "，", "・"):
         if delimiter in cleaned:
             cleaned = cleaned.split(delimiter)[0]
