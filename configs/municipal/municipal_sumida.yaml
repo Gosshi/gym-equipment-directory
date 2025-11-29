@@ -21,7 +21,6 @@ selectors:
   address_hint:
     - ".summary"
     - ".info"
-    - "address"
   equipment_blocks:
     - "table"
     - ".entry-content"
