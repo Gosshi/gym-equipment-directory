@@ -19,7 +19,6 @@ selectors:
     - "#main"
     - ".entry-content"
   address_hint:
-    - "address"
     - ".info"
     - ".summary"
   equipment_blocks:
