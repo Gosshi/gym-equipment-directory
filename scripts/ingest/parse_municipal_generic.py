@@ -108,6 +108,11 @@ def parse_municipal_page(
     source: MunicipalSource,
     page_type: str | None = None,
 ) -> MunicipalParseResult:
+    # Normalize URL: remove fragment and query
+    normalized_url = url.split("#")[0].split("?")[0]
+    if normalized_url.endswith("/index.html"):
+        normalized_url = normalized_url[:-11]  # Remove /index.html
+
     clean_html = (html or "").replace("\x00", "")
     soup = BeautifulSoup(clean_html, "html.parser")
     config = load_config(source.title)
@@ -174,7 +179,7 @@ def parse_municipal_page(
         equipment_count = sum(max(int(entry.get("count", 0)), 0) for entry in equipments_structured)
 
         create_gym = detect_create_gym(
-            url,
+            normalized_url,
             title=facility_name or page_title,
             body=body_text,
             patterns={"url": config.get("url_patterns")},
@@ -183,8 +188,8 @@ def parse_municipal_page(
             address=address,
         )
 
-    meta = {"create_gym": create_gym}
-    center_no = _extract_center_no(url, source.parse_hints)
+    meta = {"create_gym": create_gym, "page_url": normalized_url}
+    center_no = _extract_center_no(normalized_url, source.parse_hints)
 
     return MunicipalParseResult(
         facility_name=facility_name,
