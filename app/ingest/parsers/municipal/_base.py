@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+import openai
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 # Regex that removes NULL, zero width and control characters.
@@ -115,6 +117,42 @@ def _iter_text_segments(text: str) -> Iterable[str]:
             yield cleaned
 
 
+def _clean_address_with_llm(candidate: str) -> str:
+    """Clean address using LLM to remove complex noise."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return candidate
+
+    try:
+        client = openai.Client(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant that extracts the postal address "
+                        "from a noisy string. "
+                        "Return ONLY the address part. "
+                        "Do not include any other text, notes, or explanations. "
+                        "If the input contains '移転しました' or similar relocation notes, "
+                        "extract the *new* address if present, "
+                        "otherwise extract the address described as the current location. "
+                        "If no valid address is found, return the input as is."
+                    ),
+                },
+                {"role": "user", "content": candidate},
+            ],
+            temperature=0.0,
+            max_tokens=100,
+        )
+        cleaned = response.choices[0].message.content.strip()
+        return cleaned
+    except Exception:
+        # Fallback to original if LLM fails
+        return candidate
+
+
 def _clean_address(candidate: str) -> str:
     cleaned = sanitize_text(candidate)
     # Remove phone number trail
@@ -129,6 +167,15 @@ def _clean_address(candidate: str) -> str:
     for delimiter in ("、", "，", "・"):
         if delimiter in cleaned:
             cleaned = cleaned.split(delimiter)[0]
+
+    # Use LLM for further cleaning if the address still looks noisy or long
+    # For now, we apply it to all addresses to ensure high quality as requested,
+    # but we could optimize to only apply if len(cleaned) > 20 or contains specific chars.
+    # Given the low cost of gpt-4o-mini, we'll apply it if the length is suspicious (> 15 chars)
+    # or contains "※" which indicates notes.
+    if len(cleaned) > 15 or "※" in cleaned:
+        cleaned = _clean_address_with_llm(cleaned)
+
     return cleaned
 
 
