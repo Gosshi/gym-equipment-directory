@@ -4,6 +4,7 @@ start_urls:
   - "https://www.city.sumida.lg.jp/sisetu_info/sports/sumidasportcenter.html"
   - "https://www.city.sumida.lg.jp/sisetu_info/sports/sougou-undoujou.html"
   - "https://www.city.sumida.lg.jp/sisetu_info/tamokuteki/midori_communityc.html"
+  - "https://www.sumispo.com/facility/training/"
 url_patterns:
   intro_top: "/sisetu_info/.+/(index\\.html|[^/]+\\.html)$"
   detail_article: "/sisetu_info/.+/(post_\\d+\\.html|detail\\.html)$"

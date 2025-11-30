@@ -18,6 +18,7 @@ class MunicipalSource:
     pref_slug: str
     city_slug: str
     parse_hints: dict[str, str] | None = None
+    allowed_hosts: list[str] | None = None
 
     def compile_intro_patterns(self) -> list[re.Pattern[str]]:
         return [re.compile(pattern) for pattern in self.intro_patterns]
@@ -89,9 +90,11 @@ SOURCES: dict[str, MunicipalSource] = {
             "/sisetu_info/sports/sumidasportcenter.html",
             "/sisetu_info/sports/sougou-undoujou.html",
             "/sisetu_info/tamokuteki/midori_communityc.html",
+            "https://www.sumispo.com/facility/training/",
         ],
         pref_slug="tokyo",
         city_slug="sumida",
+        allowed_hosts=["www.city.sumida.lg.jp", "www.sumispo.com"],
     ),
     "municipal_tokyo_metropolitan": MunicipalSource(
         title="municipal_tokyo_metropolitan",
