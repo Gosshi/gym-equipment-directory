@@ -10,6 +10,8 @@ services:
         sync: false
       - key: PORT
         value: "8000"
+      - key: OPENAI_API_KEY
+        sync: false
 
   - type: cron
     name: gym-ingestion-worker
@@ -21,4 +23,6 @@ services:
     dockerCommand: python -m scripts.ingest.run_nightly # 修正 2: command/startCommand ではなく dockerCommand
     envVars:
       - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
         sync: false
