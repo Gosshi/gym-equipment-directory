@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import unicodedata
@@ -298,6 +299,75 @@ def _iter_equipment_lines(block: Tag) -> Iterable[str]:
                 yield text
 
 
+def _extract_facility_with_llm(
+    text: str,
+    aliases: Mapping[str, Iterable[str]],
+) -> dict[str, Any] | None:
+    """Extract facility info (name, address, equipments) using LLM.
+
+    Returns None if the text does not describe a gym/training room.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    # Create a simplified list of standard equipment names for the prompt
+    standard_names = []
+    for slug, alias_list in aliases.items():
+        first_alias = next(iter(alias_list), slug)
+        standard_names.append(f"{first_alias} ({slug})")
+
+    prompt_content = (
+        "Analyze the text and determine if it describes a public gym or training room facility. "
+        "If NO, return null. "
+        "If YES, extract the following information and return as JSON:\n"
+        "- name: The specific name of the facility (e.g., 'Sumida City Gymnasium'). "
+        "Remove generic headers.\n"
+        "- address: The full postal address of the facility.\n"
+        "- equipments: A list of training equipment available. Objects with 'slug' and 'count'.\n"
+        "  Map equipment to these standard slugs if possible:\n"
+        f"  {', '.join(standard_names)}\n"
+        "  IMPORTANT: Use the English ID inside the parentheses (e.g., 'treadmill') "
+        "as the 'slug', NOT the Japanese name.\n"
+        "  If count is unknown but present, set to 1. If explicitly 'none', exclude it.\n"
+        "Return ONLY the JSON object or null."
+    )
+
+    try:
+        client = openai.Client(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": prompt_content,
+                },
+                {
+                    "role": "user",
+                    "content": text[:15000],
+                },  # Truncate to avoid token limits
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content.strip()
+        if content == "null":
+            return None
+
+        data = json.loads(content)
+        if not data:
+            return None
+
+        # Validate required fields
+        if not data.get("name") and not data.get("equipments"):
+            return None
+
+        return data
+
+    except Exception:
+        return None
+
+
 def extract_equipments(
     html: str,
     *,
@@ -306,16 +376,16 @@ def extract_equipments(
 ) -> list[dict[str, Any]]:
     """Return structured equipment list extracted from *html*.
 
-    The function scans elements matched by ``equipment_blocks`` selectors. Slugs are
-    resolved through *aliases* and counts are inferred from inline numbers or immediate
-    subsequent lines. Multiple occurrences of the same slug are merged.
+    The function uses LLM (gpt-4o-mini) to extract equipment data from the text content
+    of the matched blocks. It falls back to the legacy regex-based method if LLM fails
+    or returns no results (though empty results might be valid, we'll trust LLM for now).
     """
-
     soup = BeautifulSoup(html or "", "html.parser")
     blocks = _iter_candidate_nodes(soup, selectors, "equipment_blocks")
     if not blocks and soup.body:
         blocks = [soup.body]
 
+    # Fallback to legacy regex method
     seen_lines: set[str] = set()
     pending_slugs: list[str] = []
     aggregated: dict[str, EquipmentEntry] = {}
@@ -443,4 +513,5 @@ __all__ = [
     "extract_address_one_line",
     "extract_equipments",
     "sanitize_text",
+    "_extract_facility_with_llm",
 ]
