@@ -176,7 +176,7 @@ async def _discover_municipal_pages(
     timeout: float,
 ) -> list[MunicipalDiscoveredPage]:
     parsed_base = urlparse(source.base_url)
-    allowed_host = parsed_base.netloc
+    allowed_hosts = set(source.allowed_hosts) if source.allowed_hosts else {parsed_base.netloc}
     intro_patterns = source.compile_intro_patterns()
     article_patterns = source.compile_article_patterns()
     intro_seed_paths = {
@@ -195,7 +195,7 @@ async def _discover_municipal_pages(
         parsed = urlparse(current_url)
         if parsed.scheme not in {"http", "https"}:
             continue
-        if parsed.netloc != allowed_host:
+        if parsed.netloc not in allowed_hosts:
             continue
         if current_url in seen:
             continue
@@ -230,7 +230,7 @@ async def _discover_municipal_pages(
         for href in _iter_links(response.text or ""):
             resolved = _resolve_absolute_url(href, current_url)
             parsed_resolved = urlparse(resolved)
-            if parsed_resolved.netloc != allowed_host:
+            if parsed_resolved.netloc not in allowed_hosts:
                 continue
             if respect_robots and robots and not robots.allows(parsed_resolved.path):
                 continue
@@ -628,7 +628,9 @@ async def fetch_http_pages(
             for index, page in enumerate(detail_urls):
                 url = page.url
                 allowed_hosts = (
-                    (urlparse(municipal_source.base_url).netloc,)
+                    tuple(municipal_source.allowed_hosts)
+                    if municipal_source and municipal_source.allowed_hosts
+                    else (urlparse(municipal_source.base_url).netloc,)
                     if municipal_source
                     else config.allowed_hosts
                 )
