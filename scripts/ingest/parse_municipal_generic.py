@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup, Tag
 
 from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
 from app.ingest.parsers.municipal._base import (
+    _extract_facility_with_llm,
     detect_create_gym,
     extract_address_one_line,
     extract_equipments,
@@ -116,35 +117,71 @@ def parse_municipal_page(
     page_title = sanitize_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
     facility_name = title_text or page_title
 
+    # 1. Try LLM Facility Extraction
+    # Combine text from body nodes
     nodes = _collect_nodes(soup, selectors.get("body"))
     body_text = " ".join(
         sanitize_text(node.get_text(" ", strip=True)) for node in nodes if node.get_text()
     )
 
-    address = extract_address_one_line(
-        clean_html,
-        selectors=selectors,
-        patterns={"address": config.get("address_patterns")},
-    )
+    # Use full page text (or body text) for LLM
+    # We prefer body_text but if it's empty, try whole soup text
+    llm_text = body_text if len(body_text) > 50 else soup.get_text(" ", strip=True)
 
-    equipments_extracted = extract_equipments(
-        clean_html,
-        selectors=selectors,
-        aliases=EQUIPMENT_ALIASES,
-    )
-    equipments_raw = _aggregate_raw_lines(equipments_extracted)
-    equipments_structured = _strip_internal_fields(equipments_extracted)
-    equipment_count = sum(max(int(entry.get("count", 0)), 0) for entry in equipments_structured)
+    llm_data = _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
 
-    create_gym = detect_create_gym(
-        url,
-        title=facility_name or page_title,
-        body=body_text,
-        patterns={"url": config.get("url_patterns")},
-        keywords=config.get("keywords"),
-        eq_count=equipment_count,
-        address=address,
-    )
+    if llm_data:
+        # LLM found a gym
+        facility_name = llm_data.get("name") or facility_name
+        address = llm_data.get("address")
+
+        # Process equipments from LLM
+        equipments_structured = []
+        raw_eq_items = llm_data.get("equipments", [])
+        if isinstance(raw_eq_items, list):
+            for i, item in enumerate(raw_eq_items):
+                slug = item.get("slug")
+                count = item.get("count")
+                if slug:
+                    equipments_structured.append(
+                        {
+                            "slug": str(slug),
+                            "count": int(count) if count is not None else 1,
+                            "raw": [],
+                            "order": i,
+                            "raw_pairs": [],
+                        }
+                    )
+
+        equipments_raw = [f"{e['slug']} x{e['count']}" for e in equipments_structured]
+        create_gym = True
+
+    else:
+        # 2. Fallback to Legacy Logic
+        address = extract_address_one_line(
+            clean_html,
+            selectors=selectors,
+            patterns={"address": config.get("address_patterns")},
+        )
+
+        equipments_extracted = extract_equipments(
+            clean_html,
+            selectors=selectors,
+            aliases=EQUIPMENT_ALIASES,
+        )
+        equipments_raw = _aggregate_raw_lines(equipments_extracted)
+        equipments_structured = _strip_internal_fields(equipments_extracted)
+        equipment_count = sum(max(int(entry.get("count", 0)), 0) for entry in equipments_structured)
+
+        create_gym = detect_create_gym(
+            url,
+            title=facility_name or page_title,
+            body=body_text,
+            patterns={"url": config.get("url_patterns")},
+            keywords=config.get("keywords"),
+            eq_count=equipment_count,
+            address=address,
+        )
 
     meta = {"create_gym": create_gym}
     center_no = _extract_center_no(url, source.parse_hints)
