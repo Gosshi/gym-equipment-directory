@@ -322,6 +322,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force re-fetch ignoring conditional headers",
     )
 
+    discover_parser = subparsers.add_parser("discover", help="Discover gym URLs using search API")
+    discover_parser.add_argument("--ward", help="Specific ward to search")
+
     return parser
 
 
@@ -386,6 +389,26 @@ def _dispatch(args: argparse.Namespace) -> int:
                 force=args.force,
             )
         )
+    if command == "discover":
+        from .discover import main as discover_main
+
+        # We need to reconstruct argv for discover.py's argparse if we were to call it directly,
+        # but discover.py's main uses argparse which parses sys.argv.
+        # Since we are already inside an argparse dispatch, we can just call the logic directly
+        # or pass the relevant args.
+        # However, discover.py is designed as a standalone script too.
+        # Let's just call its main, but we might need to patch sys.argv or refactor discover.py.
+        # Refactoring discover.py to accept args is better.
+        # For now, let's just call the function logic if we refactor discover.py,
+        # or simply subprocess it? No, let's import.
+        # Actually, discover.py's main parses args. Let's pass a list to it if we modify it.
+        # But wait, discover.py's main() calls parser.parse_args(argv).
+        # So we can pass ["--ward", args.ward] if args.ward else [].
+        argv = []
+        if args.ward:
+            argv.extend(["--ward", args.ward])
+        return discover_main(argv)
+
     msg = f"Unknown command: {command}"
     raise ValueError(msg)
 
