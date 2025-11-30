@@ -133,7 +133,11 @@ def _clean_address_with_llm(candidate: str) -> str:
                     "content": (
                         "You are a helpful assistant that extracts the postal address "
                         "from a noisy string. "
-                        "Return ONLY the address part. "
+                        "Return ONLY the full address part (e.g., '東京都墨田区...'). "
+                        "Ensure the output includes the Prefecture and Municipality "
+                        "if they are present in the text. "
+                        "Do not abbreviate or output partial addresses like '錦糸4-1' "
+                        "if the full version is available. "
                         "Do not include any other text, notes, or explanations. "
                         "If the input contains '移転しました' or similar relocation notes, "
                         "extract the *new* address if present, "
