@@ -58,6 +58,14 @@ _TEL_TRAIL_RE = re.compile(
     r"\s*(?:TEL|ＴＥＬ|電話|電話番号)(?:\s*[:：])?\s*[0-9０-９]{2,4}-[0-9０-９]{2,4}-[0-9０-９]{3,4}.*$",
     flags=re.IGNORECASE,
 )
+_ADDRESS_NOISE_KEYWORDS = (
+    "バリアフリー",
+    "連絡先",
+    "地図",
+    "アクセス",
+    "(外部サイト)",
+    "（外部サイト）",
+)
 
 
 @dataclass(slots=True)
@@ -111,6 +119,13 @@ def _clean_address(candidate: str) -> str:
     cleaned = sanitize_text(candidate)
     # Remove phone number trail
     cleaned = _TEL_TRAIL_RE.sub("", cleaned).strip()
+
+    # Truncate at noise keywords
+    for keyword in _ADDRESS_NOISE_KEYWORDS:
+        index = cleaned.find(keyword)
+        if index != -1:
+            cleaned = cleaned[:index].strip()
+
     for delimiter in ("、", "，", "・"):
         if delimiter in cleaned:
             cleaned = cleaned.split(delimiter)[0]
