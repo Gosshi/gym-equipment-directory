@@ -92,7 +92,9 @@ class GymPlan:
             "gym_id": gym_id,
             "slug": slug,
             "canonical_id": self.canonical_id if self.action == "create" else None,
-            "changes": [change.__dict__ for change in self.changes],
+            "changes": [
+                {"field": c.field, "before": c.before, "after": c.after} for c in self.changes
+            ],
         }
         if self.action == "create":
             data["after"] = self.create_kwargs
