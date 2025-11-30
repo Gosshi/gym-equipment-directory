@@ -17,6 +17,7 @@ import {
   approveCandidate,
   patchCandidate,
   rejectCandidate,
+  geocodeCandidate,
 } from "@/lib/adminApi";
 
 const formatDateTime = (value: string | undefined | null) => {
@@ -794,6 +795,28 @@ export default function AdminCandidateDetailPage() {
                 onChange={event => handleInputChange("longitude", event.target.value)}
               />
             </label>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="rounded border border-blue-600 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50"
+              onClick={async () => {
+                if (!candidate) return;
+                try {
+                  const updated = await geocodeCandidate(candidate.id);
+                  updateCandidateState(updated);
+                  toast({ title: "緯度経度を取得しました" });
+                } catch (err) {
+                  toast({
+                    title: "取得に失敗しました",
+                    description: err instanceof Error ? err.message : "不明なエラー",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              住所から緯度経度を取得
+            </button>
           </div>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">解析済みJSON</span>

@@ -332,3 +332,17 @@ async def bulk_reject_candidates(
         dry_run=payload.dry_run,
         audit_log_id=audit_id,
     )
+
+
+@router.post("/{candidate_id}/geocode", response_model=AdminCandidateItem)
+async def geocode_candidate(
+    candidate_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        updated = await candidate_service.geocode_candidate(session, candidate_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="candidate not found") from exc
+    except CandidateServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_item(updated)

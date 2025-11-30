@@ -192,6 +192,11 @@ export const rejectCandidate = (id: number, reason: string) =>
     body: JSON.stringify({ reason }),
   });
 
+export const geocodeCandidate = (id: number) =>
+  request<AdminCandidateItem>(`/admin/candidates/${id}/geocode`, {
+    method: "POST",
+  });
+
 export type {
   AdminCandidateDetail,
   AdminCandidateItem,

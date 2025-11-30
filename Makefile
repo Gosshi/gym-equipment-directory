@@ -75,17 +75,20 @@ pre-commit-install:
 	pre-commit install
 
 pre-commit-run:
-        pre-commit run --all-files
+	pre-commit run --all-files
+
+lint:
+	pre-commit run --all-files
 
 .PHONY: up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
 seed-minimal \
 geocode-gyms geocode-candidates geocode-and-freshness \
 pre-commit-install pre-commit-run curl-admin-candidates \
-        ingest-fetch ingest-parse ingest-normalize ingest-approve \
-        ingest-run \
-        ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
-        ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
-        ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
+	ingest-fetch ingest-parse ingest-normalize ingest-approve \
+	ingest-run \
+	ingest-fetch-site-a ingest-parse-site-a ingest-normalize-site-a \
+	ingest-fetch-http-site-a-koto ingest-fetch-http-site-a-funabashi \
+	ingest-parse-site-a-funabashi ingest-normalize-site-a-funabashi \
 	ingest-fetch-ward ingest-parse-ward ingest-normalize-ward \
 	ingest-fetch-municipal-koto ingest-parse-municipal-koto \
 	ingest-normalize-municipal-koto ingest-fetch-municipal-edogawa \
@@ -97,18 +100,18 @@ ingest-fetch:
 ingest-parse:
 	python -m scripts.ingest parse --source dummy --limit 10
 ingest-normalize:
-        python -m scripts.ingest normalize --source dummy --limit 10
+	python -m scripts.ingest normalize --source dummy --limit 10
 ingest-approve:
-        python -m scripts.ingest approve --candidate-id 1 --dry-run
+	python -m scripts.ingest approve --candidate-id 1 --dry-run
 
 ingest-run:
-        @if [ -z "$(SOURCE)" ]; then echo "SOURCE is required"; exit 1; fi
-        python -m scripts.ingest fetch --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
-        python -m scripts.ingest parse --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
-        python -m scripts.ingest normalize --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
+	@if [ -z "$(SOURCE)" ]; then echo "SOURCE is required"; exit 1; fi
+	python -m scripts.ingest fetch --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
+	python -m scripts.ingest parse --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
+	python -m scripts.ingest normalize --source $(SOURCE) $(INGEST_LIMIT_ARG) $(INGEST_DSN_ARG)
 
 ingest-fetch-site-a:
-        python -m scripts.ingest fetch --source site_a --limit 10
+	python -m scripts.ingest fetch --source site_a --limit 10
 ingest-fetch-http-site-a-koto:
 	python -m scripts.ingest fetch-http \
 	        --source site_a \

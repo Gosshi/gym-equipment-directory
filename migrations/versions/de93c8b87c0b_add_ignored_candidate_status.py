@@ -22,8 +22,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(
-        "CREATE TYPE candidate_status_old AS ENUM "
-        "('new', 'reviewing', 'approved', 'rejected')"
+        "CREATE TYPE candidate_status_old AS ENUM ('new', 'reviewing', 'approved', 'rejected')"
     )
     op.execute("ALTER TABLE gym_candidates ALTER COLUMN status DROP DEFAULT")
     op.execute("UPDATE gym_candidates SET status = 'rejected' WHERE status = 'ignored'")

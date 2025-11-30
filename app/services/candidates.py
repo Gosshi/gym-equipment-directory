@@ -704,3 +704,25 @@ async def reject_candidate(session: AsyncSession, candidate_id: int, reason: str
     await session.flush()
     await session.commit()
     return await _fetch_candidate_row(session, candidate_id)
+
+
+async def geocode_candidate(session: AsyncSession, candidate_id: int) -> CandidateRow:
+    from app.services.geocode import geocode
+
+    candidate = await session.get(GymCandidate, candidate_id)
+    if not candidate:
+        raise LookupError("candidate not found")
+
+    address = candidate.address_raw
+    if not address:
+        raise CandidateServiceError("candidate has no address")
+
+    result = await geocode(session, address)
+    if result:
+        lat, lon = result
+        candidate.latitude = lat
+        candidate.longitude = lon
+        await session.flush()
+        await session.commit()
+
+    return await _fetch_candidate_row(session, candidate_id)
