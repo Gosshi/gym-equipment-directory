@@ -327,18 +327,6 @@ GYM_EQUIPMENT_SEED: list[tuple[str, str, Availability, int | None, int | None]] 
 # ---------- get-or-create helpers (ALL ASYNC) ----------
 
 
-async def migrate_legacy_equipments(sess: AsyncSession) -> None:
-    """Migrate legacy equipment slugs to new ones."""
-    from sqlalchemy import delete
-
-    # back-extension-machine -> back-extension
-    # Delete the old one so the new one can be created without name conflict.
-    result = await sess.execute(delete(Equipment).where(Equipment.slug == "back-extension-machine"))
-    if result.rowcount > 0:
-        logger.info("Deleted legacy equipment: back-extension-machine")
-        await sess.commit()
-
-
 async def get_or_create_equipment(
     sess: AsyncSession,
     slug: str,
@@ -346,6 +334,7 @@ async def get_or_create_equipment(
     category: str,
     desc: str | None = None,
 ) -> Equipment:
+    # 1. Try to find by slug
     result = await sess.execute(select(Equipment).where(Equipment.slug == slug))
     eq = result.scalar_one_or_none()
     if eq:
@@ -353,6 +342,21 @@ async def get_or_create_equipment(
             eq.description = desc
             await sess.flush()
         return eq
+
+    # 2. Try to find by name (to avoid UniqueViolation)
+    result = await sess.execute(select(Equipment).where(Equipment.name == name))
+    eq = result.scalar_one_or_none()
+    if eq:
+        # Found by name but slug is different -> Migrate slug
+        logger.info(f"Migrating slug for '{name}': {eq.slug} -> {slug}")
+        eq.slug = slug
+        eq.category = category
+        if desc:
+            eq.description = desc
+        await sess.flush()
+        return eq
+
+    # 3. Create new
     eq = Equipment(slug=slug, name=name, category=category, description=desc)
     sess.add(eq)
     await sess.flush()
