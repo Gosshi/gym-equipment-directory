@@ -78,6 +78,96 @@
       "name": "ステアクライマー",
       "category": "cardio",
       "description": "階段昇降マシン"
+    },
+    {
+      "slug": "upright-bike",
+      "name": "アップライトバイク",
+      "category": "cardio",
+      "description": "直立姿勢のエアロバイク"
+    },
+    {
+      "slug": "recumbent-bike",
+      "name": "リカンベントバイク",
+      "category": "cardio",
+      "description": "背もたれ付きエアロバイク"
+    },
+    {
+      "slug": "chest-press",
+      "name": "チェストプレス",
+      "category": "machine",
+      "description": "大胸筋を鍛えるマシン"
+    },
+    {
+      "slug": "overhead-press",
+      "name": "オーバーヘッドプレス",
+      "category": "machine",
+      "description": "肩を鍛えるマシン"
+    },
+    {
+      "slug": "leg-curl",
+      "name": "レッグカール",
+      "category": "machine",
+      "description": "ハムストリングスを鍛えるマシン"
+    },
+    {
+      "slug": "leg-extension",
+      "name": "レッグエクステンション",
+      "category": "machine",
+      "description": "大腿四頭筋を鍛えるマシン"
+    },
+    {
+      "slug": "torso-rotation",
+      "name": "トーソローテーション",
+      "category": "machine",
+      "description": "腹斜筋を鍛えるマシン"
+    },
+    {
+      "slug": "ab-back-combo",
+      "name": "アブ・バックコンボ",
+      "category": "machine",
+      "description": "腹筋と背筋の複合マシン"
+    },
+    {
+      "slug": "back-extension",
+      "name": "バックエクステンション",
+      "category": "machine",
+      "description": "背筋を鍛えるマシン"
+    },
+    {
+      "slug": "seated-row",
+      "name": "シーテッドロー",
+      "category": "machine",
+      "description": "広背筋を鍛えるマシン"
+    },
+    {
+      "slug": "bicep-curl",
+      "name": "バイセップカール",
+      "category": "machine",
+      "description": "上腕二頭筋を鍛えるマシン"
+    },
+    {
+      "slug": "flat-bench",
+      "name": "フラットベンチ",
+      "category": "free_weight",
+      "description": "平らなベンチ"
+    },
+    {
+      "slug": "body-composition-analyzer",
+      "name": "体組成計",
+      "category": "other",
+      "description": "筋肉量や体脂肪率を測定"
+    },
+    {
+      "slug": "weight-scale",
+      "name": "体重計",
+      "category": "other",
+      "description": "体重測定器"
+    },
+    {
+      "slug": "blood-pressure-monitor",
+      "name": "血圧計",
+      "category": "other",
+      "description": "血圧測定器"
     }
   ],
   "gyms": []
