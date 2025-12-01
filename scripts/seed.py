@@ -217,7 +217,6 @@ EQUIPMENT_SEED: list[tuple[str, str, str, str | None]] = [
     ("glute-drive", "グルートドライブ", "machine", "ヒップスラスト補助。"),
     ("hip-abductor", "ヒップアブダクター", "machine", "股関節外転を鍛える。"),
     ("hip-adductor", "ヒップアダクター", "machine", "股関節内転を鍛える。"),
-    ("back-extension-machine", "バックエクステンション", "machine", "下背部を強化。"),
     ("ab-crunch-machine", "アブクランチマシン", "machine", None),
     ("assisted-dip-chin", "アシストディップ＆チン", "machine", "自重補助マシン。"),
     ("functional-trainer", "ファンクショナルトレーナー", "machine", "多関節のケーブル装置。"),
@@ -226,9 +225,19 @@ EQUIPMENT_SEED: list[tuple[str, str, str, str | None]] = [
     ("air-bike", "エアバイク", "cardio", "全身連動のファンバイク。"),
     ("recumbent-bike", "リカンベントバイク", "cardio", "背もたれ付きバイク。"),
     ("elliptical", "クロストレーナー", "cardio", "関節に優しい全身運動。"),
-    ("stair-climber", "ステアクライマー", "cardio", "階段昇降を再現。"),
+    ("stair-climber", "ステアクライマー", "cardio", "階段昇降マシン。"),
+    ("upright-bike", "アップライトバイク", "cardio", "直立姿勢のエアロバイク。"),
     ("rowing", "ローイングマシン", "cardio", "ボート漕ぎ運動。"),
     ("ski-erg", "スキーエルゴ", "cardio", "クロカンスキー動作。"),
+    ("overhead-press", "オーバーヘッドプレス", "machine", "肩を鍛えるマシン。"),
+    ("torso-rotation", "トーソローテーション", "machine", "腹斜筋を鍛えるマシン。"),
+    ("ab-back-combo", "アブ・バックコンボ", "machine", "腹筋と背筋の複合マシン。"),
+    ("back-extension", "バックエクステンション", "machine", "背筋を鍛えるマシン。"),
+    ("bicep-curl", "バイセップカール", "machine", "上腕二頭筋を鍛えるマシン。"),
+    ("flat-bench", "フラットベンチ", "free_weight", "平らなベンチ。"),
+    ("body-composition-analyzer", "体組成計", "other", "筋肉量や体脂肪率を測定。"),
+    ("weight-scale", "体重計", "other", "体重測定器。"),
+    ("blood-pressure-monitor", "血圧計", "other", "血圧測定器。"),
     ("battle-rope", "バトルロープ", "other", "全身を使うロープ運動。"),
     ("plyo-box", "プライオボックス", "other", "ジャンプ系トレーニング用。"),
     ("medicine-ball", "メディシンボール", "other", "投げて鍛えるボール。"),
@@ -325,6 +334,7 @@ async def get_or_create_equipment(
     category: str,
     desc: str | None = None,
 ) -> Equipment:
+    # 1. Try to find by slug
     result = await sess.execute(select(Equipment).where(Equipment.slug == slug))
     eq = result.scalar_one_or_none()
     if eq:
@@ -332,6 +342,21 @@ async def get_or_create_equipment(
             eq.description = desc
             await sess.flush()
         return eq
+
+    # 2. Try to find by name (to avoid UniqueViolation)
+    result = await sess.execute(select(Equipment).where(Equipment.name == name))
+    eq = result.scalar_one_or_none()
+    if eq:
+        # Found by name but slug is different -> Migrate slug
+        logger.info(f"Migrating slug for '{name}': {eq.slug} -> {slug}")
+        eq.slug = slug
+        eq.category = category
+        if desc:
+            eq.description = desc
+        await sess.flush()
+        return eq
+
+    # 3. Create new
     eq = Equipment(slug=slug, name=name, category=category, description=desc)
     sess.add(eq)
     await sess.flush()
