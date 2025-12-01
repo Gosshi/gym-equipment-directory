@@ -316,10 +316,72 @@ def _build_queries(address: str) -> list[str]:
     return _unique(queries)
 
 
+_GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+_GOOGLE_MAPS_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+
+
+def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
+    """Lookup coordinates via the Google Maps Geocoding API."""
+
+    if not _GOOGLE_MAPS_API_KEY:
+        return None
+
+    sanitized = sanitize_address(address)
+    if not sanitized:
+        return None
+
+    payload = _request_json(
+        _GOOGLE_MAPS_URL,
+        {
+            "key": _GOOGLE_MAPS_API_KEY,
+            "address": sanitized,
+            "language": "ja",
+            "region": "jp",
+        },
+        "google_maps",
+    )
+
+    if not payload:
+        return None
+
+    status = payload.get("status")
+    if status != "OK":
+        if status != "ZERO_RESULTS":
+            logger.warning("Google Maps API error: %s", status)
+        return None
+
+    results = payload.get("results", [])
+    if not results:
+        return None
+
+    first = results[0]
+    geometry = first.get("geometry", {})
+    location = geometry.get("location", {})
+    latitude = location.get("lat")
+    longitude = location.get("lng")
+
+    if latitude is None or longitude is None:
+        logger.warning("Invalid Google Maps payload: %s", first)
+        return None
+
+    try:
+        return float(latitude), float(longitude), "google_maps", first
+    except (TypeError, ValueError):
+        logger.warning("Invalid Google Maps coordinates: %s", location)
+        return None
+
+
 def _geocode_with_providers(address: str) -> tuple[float, float, str, Any] | None:
     """Try configured providers sequentially until one succeeds."""
 
     for query in _build_queries(address):
+        # Prioritize Google Maps
+        if _GOOGLE_MAPS_API_KEY:
+            result = google_maps_geocode(query)
+            if result is not None:
+                return result
+            logger.info("miss %s provider=%s addr=%r", "-", "google_maps", query)
+
         if _OPENCAGE_API_KEY:
             result = opencage_geocode(query)
             if result is not None:
