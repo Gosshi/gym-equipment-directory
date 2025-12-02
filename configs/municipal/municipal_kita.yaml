@@ -1,0 +1,17 @@
+name: 北区
+pref: tokyo
+city: kita
+start_urls: []
+url_patterns:
+  intro_top: ""
+  detail_article: ""
+  skip: []
+selectors:
+  title: ["h1"]
+  body: ["main", "body"]
+  address_hint: []
+  equipment_blocks: []
+address_patterns: []
+keywords:
+  training: ["トレーニング"]
+  facility: ["スポーツセンター"]
