@@ -1,0 +1,17 @@
+name: 千代田区
+pref: tokyo
+city: chiyoda
+start_urls: []
+url_patterns:
+  intro_top: ""
+  detail_article: ""
+  skip: []
+selectors:
+  title: ["h1"]
+  body: ["main", "body"]
+  address_hint: []
+  equipment_blocks: []
+address_patterns: []
+keywords:
+  training: ["トレーニング"]
+  facility: ["スポーツセンター"]
