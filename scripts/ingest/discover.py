@@ -89,25 +89,20 @@ def search_gyms(query: str, api_key: str, cx: str, limit: int = 10) -> list[dict
     return results
 
 
-def discover_urls(ward: str, api_key: str, cx: str) -> None:
+def discover_urls_for_ward(
+    ward: str, api_key: str, cx: str, limit: int = 10
+) -> list[dict[str, Any]]:
     """Discover URLs for a specific ward."""
     ward_jp = WARD_JP_NAMES.get(ward, ward)
     query = f"{ward_jp}区 トレーニング室 公営ジム"
     logger.info(f"Searching for: {query}")
-
-    results = search_gyms(query, api_key, cx)
-
-    print(f"\n--- Results for {ward} ({len(results)}) ---")
-    for item in results:
-        print(f"Title: {item['title']}")
-        print(f"URL:   {item['link']}")
-        print(f"Desc:  {item['snippet']}")
-        print("-" * 40)
+    return search_gyms(query, api_key, cx, limit)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Discover gym URLs")
     parser.add_argument("--ward", help="Specific ward to search (optional)")
+    parser.add_argument("--limit", type=int, default=10, help="Max results per ward")
     args = parser.parse_args(argv)
 
     api_key = os.getenv("GOOGLE_SEARCH_API_KEY")
@@ -120,7 +115,13 @@ def main(argv: list[str] | None = None) -> int:
     target_wards = [args.ward] if args.ward else WARDS
 
     for ward in target_wards:
-        discover_urls(ward, api_key, cx)
+        results = discover_urls_for_ward(ward, api_key, cx, args.limit)
+        print(f"\n--- Results for {ward} ({len(results)}) ---")
+        for item in results:
+            print(f"Title: {item['title']}")
+            print(f"URL:   {item['link']}")
+            print(f"Desc:  {item['snippet']}")
+            print("-" * 40)
 
     return 0
 
