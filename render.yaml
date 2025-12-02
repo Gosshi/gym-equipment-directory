@@ -28,3 +28,9 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: GOOGLE_SEARCH_API_KEY
+        sync: false
+      - key: GOOGLE_SEARCH_ENGINE_ID
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
