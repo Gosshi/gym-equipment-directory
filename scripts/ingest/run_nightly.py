@@ -343,6 +343,32 @@ def run_orchestrator(force_day: str | None = None) -> int:
         logger.error("Geocoding for gyms failed")
         had_failures = True
 
+    # Collect summary
+    summary_lines = [f"**Nightly Run Report ({current_day})**"]
+    if had_failures:
+        summary_lines.append("🔴 **Status:** Failed (Check logs)")
+    else:
+        summary_lines.append("🟢 **Status:** Success")
+
+    summary_lines.append(f"\n**Targets:** {len(targets)}")
+
+    # TODO: We should collect actual metrics from workers/discovery,
+    # but for now we just report success/failure of the process.
+    # To do this properly, we might need to parse logs or have workers write to a status file/DB.
+    # For this iteration, simple process status is enough.
+
+    message = "\n".join(summary_lines)
+
+    # Send notification
+    try:
+        import asyncio
+
+        from app.services.notification import send_notification
+
+        asyncio.run(send_notification(message))
+    except Exception as e:
+        logger.error(f"Failed to send notification: {e}")
+
     return 1 if had_failures else 0
 
 
