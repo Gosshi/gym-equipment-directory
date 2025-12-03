@@ -71,7 +71,7 @@ _ADDRESS_NOISE_KEYWORDS = (
 )
 
 
-@dataclass(slots=True)
+@dataclass
 class EquipmentEntry:
     """Structured representation of a detected equipment entry."""
 

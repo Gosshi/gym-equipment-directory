@@ -145,7 +145,7 @@ CITY_ANCHORS: dict[str, list[CityAnchor]] = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class BulkContext:
     source: Source
     slug_to_eq: dict[str, Equipment]
@@ -177,7 +177,7 @@ MAX_WEIGHT_RANGES: dict[str, tuple[int, int]] = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class LinkSummary:
     gym_count: int
     equipment_count: int

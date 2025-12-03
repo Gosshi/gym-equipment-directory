@@ -15,7 +15,7 @@ LISTING_PATH: Final[str] = "/sports/facility/training/index.html"
 LISTING_URL: Final[str] = f"{BASE_URL}{LISTING_PATH}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MunicipalSumidaFacilitySeed:
     """Static seed data representing a Sumida facility detail page."""
 
@@ -26,7 +26,7 @@ class MunicipalSumidaFacilitySeed:
     notes: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MunicipalSumidaParsedFacility:
     """Parsed fields extracted from a Sumida facility detail HTML page."""
 

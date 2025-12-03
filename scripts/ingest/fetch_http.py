@@ -62,7 +62,7 @@ MUNICIPAL_PAGE_TYPE_META_KEY = "municipal_page_type"
 MUNICIPAL_MAX_DEPTH = 2
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)
 class MunicipalDiscoveredPage:
     url: str
     page_type: str | None
@@ -461,7 +461,7 @@ async def _upsert_detail_page(
             page = ScrapedPage(
                 source_id=source_id,
                 url=url,
-                fetched_at=now,
+                fetched_at=datetime.now(UTC),
                 http_status=status,
                 raw_html=html,
                 content_hash=content_hash,

@@ -27,7 +27,7 @@ SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 BATCH_SIZE = 50
 
 
-@dataclass(slots=True)
+@dataclass
 class ApprovalBatchItem:
     candidate_id: int
     dry_run: bool

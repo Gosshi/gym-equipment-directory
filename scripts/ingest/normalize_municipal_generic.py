@@ -117,7 +117,7 @@ def _build_structured_equipment_slots(
     return ordered_slugs, slotted, structured
 
 
-@dataclass(slots=True)
+@dataclass
 class MunicipalNormalizationResult:
     name_raw: str
     address_raw: str | None

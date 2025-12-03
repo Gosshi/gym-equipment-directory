@@ -23,7 +23,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class MetricsSnapshot:
     counters: dict[str, int]
     timings: dict[str, float]

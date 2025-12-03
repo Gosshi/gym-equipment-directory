@@ -10,7 +10,7 @@ from typing import Protocol
 from app.models.gym import Gym
 
 
-@dataclass(slots=True)
+@dataclass
 class GymEquipmentBasicRow:
     gym_id: int
     equipment_slug: str
@@ -20,7 +20,7 @@ class GymEquipmentBasicRow:
     max_weight_kg: float | None
 
 
-@dataclass(slots=True)
+@dataclass
 class GymEquipmentSummaryRow:
     gym_id: int
     slug: str
@@ -34,7 +34,7 @@ class GymEquipmentSummaryRow:
     source: str | None
 
 
-@dataclass(slots=True)
+@dataclass
 class GymImageRow:
     gym_id: int
     url: str
@@ -44,7 +44,7 @@ class GymImageRow:
     created_at: datetime | None
 
 
-@dataclass(slots=True)
+@dataclass
 class EquipmentMasterRow:
     id: int
     slug: str

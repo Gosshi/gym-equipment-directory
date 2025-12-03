@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class SourcePayload:
     key: str
     source_type: str
@@ -32,7 +32,7 @@ class SourcePayload:
     captured_at: str | None
 
 
-@dataclass(slots=True)
+@dataclass
 class EquipmentPayload:
     slug: str
     name: str
@@ -40,7 +40,7 @@ class EquipmentPayload:
     description: str | None
 
 
-@dataclass(slots=True)
+@dataclass
 class GymEquipmentPayload:
     slug: str
     availability: str
@@ -51,7 +51,7 @@ class GymEquipmentPayload:
     source_key: str
 
 
-@dataclass(slots=True)
+@dataclass
 class GymPayload:
     slug: str
     canonical_id: str
@@ -66,7 +66,7 @@ class GymPayload:
     equipments: list[GymEquipmentPayload]
 
 
-@dataclass(slots=True)
+@dataclass
 class MinimalSeedPayload:
     sources: list[SourcePayload]
     equipments: list[EquipmentPayload]
