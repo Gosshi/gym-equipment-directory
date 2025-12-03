@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("トップページにヘルスチェック UI が表示される", async ({ page }) => {
+test("トップページにランディングページが表示される", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1, name: "API ヘルスチェック" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "再チェック" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Find the Perfect Public Gym in Tokyo" }),
+  ).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search by keyword" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "千代田区" })).toBeVisible();
 });
