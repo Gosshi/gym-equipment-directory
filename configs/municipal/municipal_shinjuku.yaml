@@ -1,17 +1,33 @@
 name: 新宿区
 pref: tokyo
 city: shinjuku
-start_urls: []
+start_urls:
+  - "https://www.city.shinjuku.lg.jp/kenkou/index.html"
 url_patterns:
-  intro_top: ""
-  detail_article: ""
+  intro_top: "/kenkou/.*\\.html$|/shisetsu/.*\\.html$"
+  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
   skip: []
 selectors:
-  title: ["h1"]
-  body: ["main", "body"]
-  address_hint: []
-  equipment_blocks: []
-address_patterns: []
+  title:
+    - "h1"
+    - "#main h1"
+  body:
+    - "main"
+    - "#main"
+    - "#contents"
+  address_hint:
+    - ".address"
+    - ".location"
+  equipment_blocks:
+    - "table"
+    - ".entry-content"
+address_patterns:
+  - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
+  - "東京都[^\\n]+区[^\\n]+"
 keywords:
-  training: ["トレーニング"]
-  facility: ["スポーツセンター"]
+  training:
+    - "トレーニング"
+    - "トレーニングルーム"
+  facility:
+    - "スポーツセンター"
+    - "総合体育館"

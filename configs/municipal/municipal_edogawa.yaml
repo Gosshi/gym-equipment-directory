@@ -7,7 +7,6 @@ url_patterns:
   intro_top: "/e028/.+/(index\\.html|trainingmachine\\.html)$"
   detail_article: "/e028/.+/(post_\\d+\\.html|tr_detail\\.html)$"
   skip:
-    - "/e028/.*/(news|oshirase|notice)/"
     - "guide\\.html$"
 selectors:
   title:
