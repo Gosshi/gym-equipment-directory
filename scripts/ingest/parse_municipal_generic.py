@@ -118,6 +118,21 @@ def parse_municipal_page(
     config = load_config(source.title)
     selectors = config.get("selectors", {})
 
+    # Check if URL matches detail_article pattern
+    detail_pattern = config.get("url_patterns", {}).get("detail_article")
+    if detail_pattern and not re.search(detail_pattern, url):
+        # Not a detail page, skip
+        return MunicipalParseResult(
+            facility_name="",
+            address=None,
+            equipments_raw=[],
+            equipments=[],
+            center_no=None,
+            page_type=page_type,
+            page_title="",
+            meta={"create_gym": False, "page_url": normalized_url},
+        )
+
     title_text = _extract_primary_title(soup, selectors.get("title"))
     page_title = sanitize_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
     facility_name = title_text or page_title

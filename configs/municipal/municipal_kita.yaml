@@ -2,10 +2,10 @@ name: 北区
 pref: tokyo
 city: kita
 start_urls:
-  - "https://www.city.kita.tokyo.jp/sports/shisetsu/index.html"
+  - "https://www.city.kita.lg.jp/city-information/facilities/1015927/index.html"
 url_patterns:
-  intro_top: "/sports/shisetsu/.*\\.html$|/shisetsu/.*\\.html$"
-  detail_article: "/sports/shisetsu/.+\\.html$"
+  intro_top: "/city-information/facilities/1015927/.*\\.html$"
+  detail_article: "/culture-tourism-sports/sports/.+\\.html$|/city-information/facilities/.+/1018350/.+\\.html$"
   skip: []
 selectors:
   title:

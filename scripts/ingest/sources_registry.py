@@ -285,42 +285,44 @@ SOURCES["municipal_suginami"] = MunicipalSource(
 
 # Batch 4: North Wards
 SOURCES["municipal_toshima"] = MunicipalSource(
-    title="toshima",
+    title="municipal_toshima",
     base_url="https://www.city.toshima.lg.jp",
     intro_patterns=[
-        r"/bunka/sports/.*\.html$",
-        r"/culture/sports/.*\.html$",
+        r"/501/bunka/sports/sports/003418/.*\.html$",
+        r"/501/bunka/sports/sports/.*\.html$",
     ],
     article_patterns=[
-        r"/bunka/sports/.+\.html$",
-        r"/culture/sports/.+\.html$",
+        r"/501/bunka/sports/sports/003418/.+\.html$",
+        r"/501/bunka/sports/sports/.+\.html$",
+        r"/501/\d+\.html$",  # For Chihaya Sports Field
     ],
     list_seeds=[
-        "https://www.city.toshima.lg.jp/bunka/sports/index.html",
+        "https://www.city.toshima.lg.jp/501/bunka/sports/sports/003418/index.html",
     ],
     pref_slug="tokyo",
     city_slug="toshima",
 )
 
 SOURCES["municipal_kita"] = MunicipalSource(
-    title="kita",
-    base_url="https://www.city.kita.tokyo.jp",
+    title="municipal_kita",
+    base_url="https://www.city.kita.lg.jp",
     intro_patterns=[
-        r"/sports/shisetsu/.*\.html$",
-        r"/shisetsu/.*\.html$",
+        r"/city-information/facilities/1015927/.*\.html$",
+        r"/culture-tourism-sports/sports/.*\.html$",
     ],
     article_patterns=[
-        r"/sports/shisetsu/.+\.html$",
+        r"/culture-tourism-sports/sports/.+\.html$",
+        r"/city-information/facilities/.+/1018350/.+\.html$",
     ],
     list_seeds=[
-        "https://www.city.kita.tokyo.jp/sports/shisetsu/index.html",
+        "https://www.city.kita.lg.jp/city-information/facilities/1015927/index.html",
     ],
     pref_slug="tokyo",
     city_slug="kita",
 )
 
 SOURCES["municipal_itabashi"] = MunicipalSource(
-    title="itabashi",
+    title="municipal_itabashi",
     base_url="https://www.city.itabashi.tokyo.jp",
     intro_patterns=[
         r"/bunka/1005245/.*\.html$",
@@ -338,13 +340,13 @@ SOURCES["municipal_itabashi"] = MunicipalSource(
 )
 
 SOURCES["municipal_nerima"] = MunicipalSource(
-    title="nerima",
+    title="municipal_nerima",
     base_url="https://www.city.nerima.tokyo.jp",
     intro_patterns=[
         r"/shisetsu/koen/.*\.html$",
     ],
     article_patterns=[
-        r"/shisetsu/koen/.+\.html$",
+        r"/shisetsu/koen/.+/.+\.html$",  # Require subdirectory to avoid index.html
     ],
     list_seeds=[
         "https://www.city.nerima.tokyo.jp/shisetsu/koen/index.html",
