@@ -64,20 +64,88 @@ WARDS = [
 SOURCES: dict[str, MunicipalSource] = {}
 
 # 1. Register specific implementations first (overrides)
+# Batch 2: East Wards
+SOURCES["municipal_taito"] = MunicipalSource(
+    title="municipal_taito",
+    base_url="https://www.city.taito.lg.jp/",
+    intro_patterns=[r"/gakushu/sports/sportssisetsuichiran/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.taito.lg.jp/gakushu/sports/sportssisetsuichiran/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="taito",
+)
+
+SOURCES["municipal_sumida"] = MunicipalSource(
+    title="municipal_sumida",
+    base_url="https://www.city.sumida.lg.jp/",
+    intro_patterns=[
+        r"/sisetu_info/sports/.*\.html$",
+    ],
+    article_patterns=ARTICLE_PAT_DEFAULT
+    + [
+        r"/sisetu_info/.*/(oshirase|news)/.*\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.sumida.lg.jp/sisetu_info/setsubi_kinou/okunaisports.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="sumida",
+    allowed_hosts=["www.city.sumida.lg.jp", "www.sumispo.com"],
+)
+
 SOURCES["municipal_koto"] = MunicipalSource(
     title="municipal_koto",
     base_url="https://www.koto-hsc.or.jp/",
     intro_patterns=[r"/sports_center\d+/introduction/?$"],
-    article_patterns=ARTICLE_PAT_DEFAULT,
+    article_patterns=ARTICLE_PAT_DEFAULT + [r"/introduction/detail\.php\?stj_id=\d+"],
     list_seeds=[
-        "/sports_center2/introduction/",
-        "/sports_center3/introduction/",
-        "/sports_center4/introduction/",
-        "/sports_center5/introduction/",
+        "https://www.koto-hsc.or.jp/sports_center2/introduction/",
+        "https://www.koto-hsc.or.jp/sports_center3/introduction/",
+        "https://www.koto-hsc.or.jp/sports_center4/introduction/",
+        "https://www.koto-hsc.or.jp/sports_center5/introduction/",
     ],
     pref_slug="tokyo",
     city_slug="koto",
     parse_hints={"center_no_from_url": r"/sports_center(\d+)/"},
+)
+
+SOURCES["municipal_arakawa"] = MunicipalSource(
+    title="municipal_arakawa",
+    base_url="https://www.city.arakawa.tokyo.jp/",
+    intro_patterns=[r"/a017/sport/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.arakawa.tokyo.jp/shisetsuannai/koukyoushisetsu/index.html",
+        "https://www.city.arakawa.tokyo.jp/a017/sport/shisetsuriyou/s-centerriyou.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="arakawa",
+)
+
+SOURCES["municipal_adachi"] = MunicipalSource(
+    title="municipal_adachi",
+    base_url="https://www.city.adachi.tokyo.jp/",
+    intro_patterns=[r"/sports/shisetsu/koen/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.adachi.tokyo.jp/shisetsu/sports/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="adachi",
+)
+
+SOURCES["municipal_katsushika"] = MunicipalSource(
+    title="municipal_katsushika",
+    base_url="https://spo.katsushika-web.net/",
+    intro_patterns=[r"/facility/[^/]+/$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://spo.katsushika-web.net/facility/",
+    ],
+    pref_slug="tokyo",
+    city_slug="katsushika",
 )
 
 SOURCES["municipal_edogawa"] = MunicipalSource(
@@ -92,37 +160,11 @@ SOURCES["municipal_edogawa"] = MunicipalSource(
         r"/e028/.*/(news|oshirase|notice)/.*\.html$",
     ],
     list_seeds=[
-        "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html",
-        "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/sogo_sports_center/index.html",
-        "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/shinozaki_plaza/index.html",
-        "/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/tobu_health_support/index.html",
+        "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html",
     ],
     pref_slug="tokyo",
     city_slug="edogawa",
     parse_hints=None,
-)
-
-SOURCES["municipal_sumida"] = MunicipalSource(
-    title="municipal_sumida",
-    base_url="https://www.city.sumida.lg.jp/",
-    intro_patterns=[
-        r"/sisetu_info/[^/]+/(index\.html|[^/]+\.html)$",
-    ],
-    article_patterns=ARTICLE_PAT_DEFAULT
-    + [
-        r"/sisetu_info/.*/(oshirase|news)/.*\.html$",
-    ],
-    list_seeds=[
-        "/sisetu_info/setsubi_kinou/okunaisports.html",
-        "/sisetu_info/sports/umewaka.html",
-        "/sisetu_info/sports/sumidasportcenter.html",
-        "/sisetu_info/sports/sougou-undoujou.html",
-        "/sisetu_info/tamokuteki/midori_communityc.html",
-        "https://www.sumispo.com/facility/training/",
-    ],
-    pref_slug="tokyo",
-    city_slug="sumida",
-    allowed_hosts=["www.city.sumida.lg.jp", "www.sumispo.com"],
 )
 
 SOURCES["municipal_tokyo_metropolitan"] = MunicipalSource(
@@ -194,6 +236,24 @@ SOURCES["municipal_bunkyo"] = MunicipalSource(
     ],
     pref_slug="tokyo",
     city_slug="bunkyo",
+)
+
+SOURCES["municipal_taito"] = MunicipalSource(
+    title="municipal_taito",
+    base_url="https://www.city.taito.lg.jp/",
+    intro_patterns=[
+        r"/kusei/shisetsu/sports/.*\.html$",
+        r"/riverside/.*",  # For taitogeibun.net
+    ],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.taitogeibun.net/riverside/",
+        "https://www.city.taito.lg.jp/kusei/shisetsu/sports/shogaigakushu.html",
+        "https://www.city.taito.lg.jp/kusei/shisetsu/sports/kuminkan.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="taito",
+    allowed_hosts=["www.city.taito.lg.jp", "www.taitogeibun.net"],
 )
 
 # 2. Register generic/placeholder implementations for remaining wards
