@@ -35,14 +35,14 @@ class InvalidCandidatePayloadError(ApprovalError):
     """Raised when required fields are missing from the candidate payload."""
 
 
-@dataclass(slots=True)
+@dataclass
 class FieldChange:
     field: str
     before: Any
     after: Any
 
 
-@dataclass(slots=True)
+@dataclass
 class GymPlan:
     action: str
     gym: Gym | None
@@ -103,7 +103,7 @@ class GymPlan:
         return data
 
 
-@dataclass(slots=True)
+@dataclass
 class EquipmentPlan:
     slug: str
     equipment: Equipment | None
@@ -131,7 +131,7 @@ class EquipmentPlan:
                 availability=Availability.present,
                 count=self.count_after,
                 verification_status=VerificationStatus.user_verified,
-                last_verified_at=timestamp,
+                last_verified_at_cached=datetime.now(UTC),
             )
             session.add(link)
             await session.flush()
@@ -177,7 +177,7 @@ class EquipmentPlan:
         return data
 
 
-@dataclass(slots=True)
+@dataclass
 class ApprovalPlan:
     candidate: GymCandidate
     candidate_status: CandidateStatus
@@ -196,7 +196,7 @@ class ApprovalPlan:
         return gym
 
 
-@dataclass(slots=True)
+@dataclass
 class ApproveResponse:
     candidate_id: int
     dry_run: bool

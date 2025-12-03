@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -47,7 +47,7 @@ async def test_freshness_sort_keeps_null_entries_and_total_matches():
             slug="fresh-gym",
             pref="tokyo",
             city="minato",
-            last_verified_at_cached=datetime(2024, 1, 1, tzinfo=datetime.UTC),
+            last_verified_at_cached=datetime(2024, 1, 1, tzinfo=UTC),
         ),
         StubGym(
             2,

@@ -49,20 +49,20 @@ async def _upsert_scraped_pages(source: str, entries: Sequence[tuple[str, str]])
         )
         existing_pages = {page.url: page for page in result.scalars()}
 
-        now = datetime.now(UTC)
+        fetched_at = datetime.now(UTC)
         created = 0
         updated = 0
         for url, raw_html in entries:
             if url in existing_pages:
                 page = existing_pages[url]
-                page.fetched_at = now
+                page.fetched_at = fetched_at
                 updated += 1
                 continue
 
             page = ScrapedPage(
                 source_id=source_obj.id,
                 url=url,
-                fetched_at=now,
+                fetched_at=fetched_at,
                 raw_html=raw_html,
                 http_status=None,
             )

@@ -15,7 +15,7 @@ def _nkfc(value: str | None) -> str:
     return normalized.strip().lower()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class EquipmentDefinition:
     slug: str
     labels: tuple[str, ...]

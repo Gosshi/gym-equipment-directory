@@ -21,7 +21,7 @@ from app.ingest.parsers.municipal.config_loader import load_config
 from .sources_registry import MunicipalSource
 
 
-@dataclass(slots=True)
+@dataclass
 class MunicipalParseResult:
     facility_name: str
     address: str | None

@@ -22,7 +22,7 @@ LISTING_PATH: Final[str] = "/e028/sports/trainingroom/index.html"
 LISTING_URL: Final[str] = f"{BASE_URL}{LISTING_PATH}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MunicipalEdogawaFacilitySeed:
     """Seed data representing a mock Edogawa facility detail page."""
 
@@ -34,7 +34,7 @@ class MunicipalEdogawaFacilitySeed:
     description: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MunicipalEdogawaParsedFacility:
     """Parsed fields extracted from an Edogawa facility detail HTML page."""
 
