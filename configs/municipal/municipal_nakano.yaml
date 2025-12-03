@@ -1,17 +1,33 @@
 name: 中野区
 pref: tokyo
 city: nakano
-start_urls: []
+start_urls:
+  - "https://www.city.tokyo-nakano.lg.jp/shisetsu/bunka/sports/index.html"
 url_patterns:
-  intro_top: ""
-  detail_article: ""
+  intro_top: "/shisetsu/bunka/sports/.*\\.html$"
+  detail_article: "/shisetsu/bunka/sports/.+\\.html$"
   skip: []
 selectors:
-  title: ["h1"]
-  body: ["main", "body"]
-  address_hint: []
-  equipment_blocks: []
-address_patterns: []
+  title:
+    - "h1"
+    - "#main h1"
+  body:
+    - "main"
+    - "#main"
+    - "#contents"
+  address_hint:
+    - ".address"
+    - ".location"
+  equipment_blocks:
+    - "table"
+    - ".entry-content"
+address_patterns:
+  - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
+  - "東京都[^\\n]+区[^\\n]+"
 keywords:
-  training: ["トレーニング"]
-  facility: ["スポーツセンター"]
+  training:
+    - "トレーニング"
+    - "トレーニングルーム"
+  facility:
+    - "スポーツセンター"
+    - "総合体育館"
