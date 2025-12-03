@@ -283,6 +283,76 @@ SOURCES["municipal_suginami"] = MunicipalSource(
     city_slug="suginami",
 )
 
+# Batch 4: North Wards
+SOURCES["municipal_toshima"] = MunicipalSource(
+    title="toshima",
+    base_url="https://www.city.toshima.lg.jp",
+    intro_patterns=[
+        r"/bunka/sports/.*\.html$",
+        r"/culture/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/bunka/sports/.+\.html$",
+        r"/culture/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.toshima.lg.jp/bunka/sports/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="toshima",
+)
+
+SOURCES["municipal_kita"] = MunicipalSource(
+    title="kita",
+    base_url="https://www.city.kita.tokyo.jp",
+    intro_patterns=[
+        r"/sports/shisetsu/.*\.html$",
+        r"/shisetsu/.*\.html$",
+    ],
+    article_patterns=[
+        r"/sports/shisetsu/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.kita.tokyo.jp/sports/shisetsu/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="kita",
+)
+
+SOURCES["municipal_itabashi"] = MunicipalSource(
+    title="itabashi",
+    base_url="https://www.city.itabashi.tokyo.jp",
+    intro_patterns=[
+        r"/bunka/1005245/.*\.html$",
+        r"/shisetsu/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/bunka/1005245/.+\.html$",
+        r"/shisetsu/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.itabashi.tokyo.jp/bunka/1005245/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="itabashi",
+)
+
+SOURCES["municipal_nerima"] = MunicipalSource(
+    title="nerima",
+    base_url="https://www.city.nerima.tokyo.jp",
+    intro_patterns=[
+        r"/shisetsu/koen/.*\.html$",
+    ],
+    article_patterns=[
+        r"/shisetsu/koen/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.nerima.tokyo.jp/shisetsu/koen/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="nerima",
+)
+
 SOURCES["municipal_tokyo_metropolitan"] = MunicipalSource(
     title="municipal_tokyo_metropolitan",
     base_url="https://www.metro.tokyo.lg.jp/",
