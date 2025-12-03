@@ -150,14 +150,13 @@ SOURCES["municipal_katsushika"] = MunicipalSource(
 
 SOURCES["municipal_edogawa"] = MunicipalSource(
     title="municipal_edogawa",
-    base_url="https://www.city.edogawa.tokyo.jp/",
+    base_url="https://www.city.edogawa.tokyo.jp",
     intro_patterns=[
-        r"/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/.+/index\.html$",
-        r"/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/[^/]+\.html$",
+        r"/e028/.+/(index\.html|trainingmachine\.html)$",
     ],
     article_patterns=ARTICLE_PAT_DEFAULT
     + [
-        r"/e028/.*/(news|oshirase|notice)/.*\.html$",
+        r"/e028/.+/(post_\d+\.html|tr_detail\.html)$",
     ],
     list_seeds=[
         "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html",
@@ -165,6 +164,123 @@ SOURCES["municipal_edogawa"] = MunicipalSource(
     pref_slug="tokyo",
     city_slug="edogawa",
     parse_hints=None,
+)
+
+# Batch 3: South/West Wards
+SOURCES["municipal_shinagawa"] = MunicipalSource(
+    title="shinagawa",
+    base_url="https://www.city.shinagawa.tokyo.jp",
+    intro_patterns=[
+        r"/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.*\.html$",
+        r"/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.*/index\.html$",
+    ],
+    article_patterns=[
+        r"/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.+\.html$",
+        r"/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.+/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="shinagawa",
+)
+
+SOURCES["municipal_meguro"] = MunicipalSource(
+    title="meguro",
+    base_url="https://www.city.meguro.tokyo.jp",
+    intro_patterns=[
+        r"/shisetsu/shisetsu/sports_shisetsu/.*\.html$",
+        r"/sports/shisetsu/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/sports/shisetsu/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.meguro.tokyo.jp/shisetsu/shisetsu/sports_shisetsu/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="meguro",
+)
+
+SOURCES["municipal_ota"] = MunicipalSource(
+    title="ota",
+    base_url="https://www.city.ota.tokyo.jp",
+    intro_patterns=[
+        r"/shisetsu/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/shisetsu/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.ota.tokyo.jp/shisetsu/sports/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="ota",
+)
+
+SOURCES["municipal_setagaya"] = MunicipalSource(
+    title="setagaya",
+    base_url="https://www.city.setagaya.lg.jp",
+    intro_patterns=[
+        r"/bunkakankou/.*\.html$",
+        r"/bunkasports/sportsrecreation/.*\.html$",
+    ],
+    article_patterns=[
+        r"/bunkasports/sportsrecreation/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.setagaya.lg.jp/bunkasports/sportsrecreation/category/11820.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="setagaya",
+)
+
+SOURCES["municipal_shibuya"] = MunicipalSource(
+    title="shibuya",
+    base_url="https://www.city.shibuya.tokyo.jp",
+    intro_patterns=[
+        r"/shisetsu/sports-shisetsu/sports-center/.*\.html$",
+    ],
+    article_patterns=[
+        r"/shisetsu/sports-shisetsu/sports-center/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.shibuya.tokyo.jp/shisetsu/sports-shisetsu/sports-center/",
+    ],
+    pref_slug="tokyo",
+    city_slug="shibuya",
+)
+
+SOURCES["municipal_nakano"] = MunicipalSource(
+    title="nakano",
+    base_url="https://www.city.tokyo-nakano.lg.jp",
+    intro_patterns=[
+        r"/shisetsu/bunka/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/shisetsu/bunka/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.tokyo-nakano.lg.jp/shisetsu/bunka/sports/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="nakano",
+)
+
+SOURCES["municipal_suginami"] = MunicipalSource(
+    title="suginami",
+    base_url="https://www.city.suginami.tokyo.jp",
+    intro_patterns=[
+        r"/kusei/gaiyou/shisetsu/genre/sports/.*\.html$",
+    ],
+    article_patterns=[
+        r"/kusei/gaiyou/shisetsu/genre/sports/.+\.html$",
+    ],
+    list_seeds=[
+        "https://www.city.suginami.tokyo.jp/shisetsu/sports/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="suginami",
 )
 
 SOURCES["municipal_tokyo_metropolitan"] = MunicipalSource(
