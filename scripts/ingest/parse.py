@@ -85,7 +85,7 @@ def _build_municipal_payload(
     page: ScrapedPage,
     *,
     source_id: str,
-) -> tuple[str, str | None, dict[str, Any]]:
+) -> tuple[str, str | None, dict[str, Any]] | None:
     source = SOURCES.get(source_id)
     if source_id == "municipal_koto":
         parser = parse_municipal_koto_page
@@ -106,6 +106,9 @@ def _build_municipal_payload(
 
     page_type = _get_page_type(page)
     parsed = parser(page.raw_html or "", page.url, page_type=page_type)
+
+    if not parsed.meta.get("create_gym"):
+        return None
 
     name = parsed.facility_name.strip()
     if not name:
@@ -185,9 +188,10 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 elif source == site_a.SITE_ID:
                     name_raw, address_raw, parsed_json = _build_site_a_payload(page)
                 elif source in SOURCES:
-                    name_raw, address_raw, parsed_json = _build_municipal_payload(
-                        page, source_id=source
-                    )
+                    payload = _build_municipal_payload(page, source_id=source)
+                    if payload is None:
+                        continue
+                    name_raw, address_raw, parsed_json = payload
                 else:
                     msg = f"Unsupported source: {source}"
                     raise ValueError(msg)

@@ -5,7 +5,7 @@ start_urls:
   - "https://www.city.nerima.tokyo.jp/shisetsu/koen/index.html"
 url_patterns:
   intro_top: "/shisetsu/koen/.*\\.html$"
-  detail_article: "/shisetsu/koen/.+\\.html$"
+  detail_article: "/shisetsu/koen/.+/.+\\.html$"
   skip: []
 selectors:
   title:

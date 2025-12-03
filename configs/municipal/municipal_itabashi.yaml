@@ -5,7 +5,7 @@ start_urls:
   - "https://www.city.itabashi.tokyo.jp/bunka/1005245/index.html"
 url_patterns:
   intro_top: "/bunka/1005245/.*\\.html$|/shisetsu/sports/.*\\.html$"
-  detail_article: "/bunka/1005245/.+\\\.html$|/shisetsu/sports/.+\\\.html$"
+  detail_article: "/bunka/1005245/.+\\.html$|/shisetsu/sports/.+\\.html$"
   skip: []
 selectors:
   title:
