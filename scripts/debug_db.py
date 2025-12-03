@@ -17,6 +17,10 @@ async def debug_db():
             "municipal_shibuya",
             "municipal_nakano",
             "municipal_suginami",
+            "municipal_toshima",
+            "municipal_kita",
+            "municipal_itabashi",
+            "municipal_nerima",
         ]
         for title in sources:
             source = await session.scalar(select(Source).where(Source.title == title))
