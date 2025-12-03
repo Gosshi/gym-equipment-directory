@@ -4,8 +4,8 @@ city: taito
 start_urls:
   - "https://www.city.taito.lg.jp/gakushu/sports/sportssisetsuichiran/index.html"
 url_patterns:
-  intro_top: "/gakushu/sports/sportssisetsuichiran/.*\\.html$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  intro_top: "/gakushu/sports/sportssisetsuichiran/.*\\.html$|/riverside/.*"
+  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$|/riverside/overview/.*"
   skip: []
 selectors:
   title:

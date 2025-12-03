@@ -4,8 +4,8 @@ city: shinagawa
 start_urls:
   - "https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/index.html"
 url_patterns:
-  intro_top: "/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.*\\.html$"
-  detail_article: "/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.+\\.html$"
+  intro_top: "/PC/shisetsu/.*\\.html$"
+  detail_article: "/PC/shisetsu/.*\\.html$"
   skip: []
 selectors:
   title:

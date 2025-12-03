@@ -4,8 +4,8 @@ city: suginami
 start_urls:
   - "https://www.city.suginami.tokyo.jp/shisetsu/sports/index.html"
 url_patterns:
-  intro_top: "/shisetsu/sports/.*\\.html$|/kusei/gaiyou/shisetsu/genre/sports/.*\\.html$"
-  detail_article: "/kusei/gaiyou/shisetsu/genre/sports/.+\\.html$"
+  intro_top: "/kusei/gaiyou/shisetsu/genre/sports/.*\\.html$"
+  detail_article: "/kusei/gaiyou/shisetsu/genre/sports/.*\\.html$"
   skip: []
 selectors:
   title:

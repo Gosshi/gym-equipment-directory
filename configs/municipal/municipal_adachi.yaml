@@ -5,7 +5,7 @@ start_urls:
   - "https://www.city.adachi.tokyo.jp/shisetsu/sports/index.html"
 url_patterns:
   intro_top: "/sports/shisetsu/koen/.*\\.html$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  detail_article: "/sports/shisetsu/koen/\\d+\\.html$"
   skip: []
 selectors:
   title:

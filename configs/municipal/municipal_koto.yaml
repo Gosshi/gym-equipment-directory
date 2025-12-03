@@ -5,7 +5,7 @@ start_urls:
   - "https://www.koto-hsc.or.jp/sports_center5/introduction/"
 url_patterns:
   intro_top: "/sports_center[0-9]+/introduction/?$"
-  detail_article: "/introduction/(tr_detail\\.html|post_\\d+\\.html|trainingmachine\\.html|detail\\.php\\?stj_id=\\d+)$"
+  detail_article: ".*/introduction/(tr_detail\\.html|post_\\d+\\.html|trainingmachine\\.html|detail\\.php\\?stj_id=\\d+)$"
   skip:
     - "/introduction/notes\\.html$"
     - "/news/"
