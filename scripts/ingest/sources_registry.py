@@ -135,6 +135,67 @@ SOURCES["municipal_tokyo_metropolitan"] = MunicipalSource(
     city_slug="tokyo-metropolitan",
 )
 
+# Batch 1: Central Wards
+SOURCES["municipal_chiyoda"] = MunicipalSource(
+    title="municipal_chiyoda",
+    base_url="https://www.city.chiyoda.lg.jp/",
+    intro_patterns=[r"/koho/bunka/sports/shisetsu/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.chiyoda.lg.jp/koho/bunka/sports/tairyoku.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="chiyoda",
+)
+
+SOURCES["municipal_chuo"] = MunicipalSource(
+    title="municipal_chuo",
+    base_url="https://www.city.chuo.lg.jp/",
+    intro_patterns=[r"/bunkakankou/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.chuo.lg.jp/bunkakankou/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="chuo",
+)
+
+SOURCES["municipal_minato"] = MunicipalSource(
+    title="municipal_minato",
+    base_url="https://www.city.minato.tokyo.jp/",
+    intro_patterns=[r"/map/.*\.html$", r"/shisetsu/sports/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.minato.tokyo.jp/map/top.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="minato",
+)
+
+SOURCES["municipal_shinjuku"] = MunicipalSource(
+    title="municipal_shinjuku",
+    base_url="https://www.city.shinjuku.lg.jp/",
+    intro_patterns=[r"/kenkou/.*\.html$", r"/shisetsu/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.shinjuku.lg.jp/kenkou/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="shinjuku",
+)
+
+SOURCES["municipal_bunkyo"] = MunicipalSource(
+    title="municipal_bunkyo",
+    base_url="https://www.city.bunkyo.lg.jp/",
+    intro_patterns=[r"/kuseijouhou/shisetsu/.*\.html$"],
+    article_patterns=ARTICLE_PAT_DEFAULT,
+    list_seeds=[
+        "https://www.city.bunkyo.lg.jp/kuseijouhou/shisetsu/index.html",
+    ],
+    pref_slug="tokyo",
+    city_slug="bunkyo",
+)
+
 # 2. Register generic/placeholder implementations for remaining wards
 for slug, base_url in WARDS:
     key = f"municipal_{slug}"
