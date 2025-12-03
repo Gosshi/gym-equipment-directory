@@ -5,7 +5,7 @@ start_urls:
   - "https://spo.katsushika-web.net/facility/"
 url_patterns:
   intro_top: "/facility/[^/]+/$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  detail_article: "/facility/[^/]+/$"
   skip: []
 selectors:
   title:

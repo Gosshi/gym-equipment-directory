@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
 
 from app.db import SessionLocal, configure_engine
 from app.models.gym_candidate import GymCandidate
@@ -29,6 +30,7 @@ async def verify_extraction(source_name: str, limit: int = 5):
             .where(ScrapedPage.source_id == source.id)
             .order_by(GymCandidate.id.desc())
             .limit(limit)
+            .options(joinedload(GymCandidate.source_page))
         )
         result = await session.execute(stmt)
         candidates = result.scalars().all()

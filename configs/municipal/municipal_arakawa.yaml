@@ -6,7 +6,7 @@ start_urls:
   - "https://www.city.arakawa.tokyo.jp/a017/sport/shisetsuriyou/s-centerriyou.html"
 url_patterns:
   intro_top: "/a017/sport/.*\\.html$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  detail_article: "/a017/sport/shisetsuriyou/.*\\.html$"
   skip: []
 selectors:
   title:

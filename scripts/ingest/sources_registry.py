@@ -168,7 +168,7 @@ SOURCES["municipal_edogawa"] = MunicipalSource(
 
 # Batch 3: South/West Wards
 SOURCES["municipal_shinagawa"] = MunicipalSource(
-    title="shinagawa",
+    title="municipal_shinagawa",
     base_url="https://www.city.shinagawa.tokyo.jp",
     intro_patterns=[
         r"/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/.*\.html$",
@@ -186,7 +186,7 @@ SOURCES["municipal_shinagawa"] = MunicipalSource(
 )
 
 SOURCES["municipal_meguro"] = MunicipalSource(
-    title="meguro",
+    title="municipal_meguro",
     base_url="https://www.city.meguro.tokyo.jp",
     intro_patterns=[
         r"/shisetsu/shisetsu/sports_shisetsu/.*\.html$",
@@ -203,7 +203,7 @@ SOURCES["municipal_meguro"] = MunicipalSource(
 )
 
 SOURCES["municipal_ota"] = MunicipalSource(
-    title="ota",
+    title="municipal_ota",
     base_url="https://www.city.ota.tokyo.jp",
     intro_patterns=[
         r"/shisetsu/sports/.*\.html$",
@@ -219,7 +219,7 @@ SOURCES["municipal_ota"] = MunicipalSource(
 )
 
 SOURCES["municipal_setagaya"] = MunicipalSource(
-    title="setagaya",
+    title="municipal_setagaya",
     base_url="https://www.city.setagaya.lg.jp",
     intro_patterns=[
         r"/bunkakankou/.*\.html$",
@@ -236,7 +236,7 @@ SOURCES["municipal_setagaya"] = MunicipalSource(
 )
 
 SOURCES["municipal_shibuya"] = MunicipalSource(
-    title="shibuya",
+    title="municipal_shibuya",
     base_url="https://www.city.shibuya.tokyo.jp",
     intro_patterns=[
         r"/shisetsu/sports-shisetsu/sports-center/.*\.html$",
@@ -252,7 +252,7 @@ SOURCES["municipal_shibuya"] = MunicipalSource(
 )
 
 SOURCES["municipal_nakano"] = MunicipalSource(
-    title="nakano",
+    title="municipal_nakano",
     base_url="https://www.city.tokyo-nakano.lg.jp",
     intro_patterns=[
         r"/shisetsu/bunka/sports/.*\.html$",
@@ -268,7 +268,7 @@ SOURCES["municipal_nakano"] = MunicipalSource(
 )
 
 SOURCES["municipal_suginami"] = MunicipalSource(
-    title="suginami",
+    title="municipal_suginami",
     base_url="https://www.city.suginami.tokyo.jp",
     intro_patterns=[
         r"/kusei/gaiyou/shisetsu/genre/sports/.*\.html$",

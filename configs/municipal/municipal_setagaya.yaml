@@ -4,8 +4,8 @@ city: setagaya
 start_urls:
   - "https://www.city.setagaya.lg.jp/bunkasports/sportsrecreation/category/11820.html"
 url_patterns:
-  intro_top: "/bunkasports/sportsrecreation/.*\\.html$"
-  detail_article: "/bunkasports/sportsrecreation/.+\\.html$"
+  intro_top: "/bunkasports/.*\\.html$"
+  detail_article: "/bunkasports/.*\\.html$"
   skip: []
 selectors:
   title:

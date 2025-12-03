@@ -5,7 +5,7 @@ start_urls:
   - "https://www.city.tokyo-nakano.lg.jp/shisetsu/bunka/sports/index.html"
 url_patterns:
   intro_top: "/shisetsu/bunka/sports/.*\\.html$"
-  detail_article: "/shisetsu/bunka/sports/.+\\.html$"
+  detail_article: "/shisetsu/bunka/sports/.*\\.html$"
   skip: []
 selectors:
   title:
