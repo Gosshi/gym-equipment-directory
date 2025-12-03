@@ -465,37 +465,54 @@ export function SearchFilters({
           </p>
         </div>
 
-        <fieldset className="space-y-3">
+        <fieldset className="space-y-4">
           <legend className="text-sm font-medium">設備</legend>
-          <div className="flex flex-wrap gap-2">
-            {sortedCategories.map(category => {
-              const checked = state.categories.includes(category.value);
-              return (
-                <label
-                  key={category.value}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
-                    "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
-                    checked
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-input bg-background",
-                  )}
-                >
-                  <input
-                    checked={checked}
-                    className="sr-only"
-                    onChange={() => handleCategoryToggle(category.value)}
-                    type="checkbox"
-                    value={category.value}
-                  />
-                  <span>{category.label}</span>
-                </label>
-              );
-            })}
-            {sortedCategories.length === 0 ? (
-              <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
-            ) : null}
-          </div>
+          {Object.entries(
+            sortedCategories.reduce(
+              (acc, category) => {
+                const group = category.category || "その他";
+                if (!acc[group]) {
+                  acc[group] = [];
+                }
+                acc[group].push(category);
+                return acc;
+              },
+              {} as Record<string, typeof sortedCategories>,
+            ),
+          ).map(([groupName, groupCategories]) => (
+            <div key={groupName} className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground">{groupName}</h4>
+              <div className="flex flex-wrap gap-2">
+                {groupCategories.map(category => {
+                  const checked = state.categories.includes(category.value);
+                  return (
+                    <label
+                      key={category.value}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
+                        "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
+                        checked
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-input bg-background",
+                      )}
+                    >
+                      <input
+                        checked={checked}
+                        className="sr-only"
+                        onChange={() => handleCategoryToggle(category.value)}
+                        type="checkbox"
+                        value={category.value}
+                      />
+                      <span>{category.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {sortedCategories.length === 0 ? (
+            <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
+          ) : null}
         </fieldset>
 
         <div className="grid gap-2">
