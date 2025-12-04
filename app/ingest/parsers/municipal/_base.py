@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-import openai
 from bs4 import BeautifulSoup, NavigableString, Tag
+
+from app.utils.openai_client import OpenAIClientWrapper
 
 # Regex that removes NULL, zero width and control characters.
 _CONTROL_RE = re.compile(
@@ -120,13 +120,9 @@ def _iter_text_segments(text: str) -> Iterable[str]:
 
 def _clean_address_with_llm(candidate: str) -> str:
     """Clean address using LLM to remove complex noise."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return candidate
-
     try:
-        client = openai.Client(api_key=api_key)
-        response = client.chat.completions.create(
+        client = OpenAIClientWrapper()
+        response = client.chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {
@@ -323,10 +319,6 @@ def _extract_facility_with_llm(
 
     Returns None if the text does not describe a gym/training room.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
     # Create a simplified list of standard equipment names for the prompt
     standard_names = []
     for slug, alias_list in aliases.items():
@@ -355,8 +347,8 @@ def _extract_facility_with_llm(
     )
 
     try:
-        client = openai.Client(api_key=api_key)
-        response = client.chat.completions.create(
+        client = OpenAIClientWrapper()
+        response = client.chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {
