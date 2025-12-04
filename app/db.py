@@ -1,6 +1,7 @@
 # app/db.py
 import os
 
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -28,10 +29,24 @@ def _apply_asyncpg_scheme(database_url: str) -> str:
 
 
 def _create_engine(database_url: str) -> AsyncEngine:
+    url = make_url(database_url)
+    connect_args = {}
+
+    # Handle sslmode for asyncpg
+    if url.get_backend_name() == "postgresql" and url.get_driver_name() == "asyncpg":
+        query = dict(url.query)
+        if "sslmode" in query:
+            # asyncpg accepts 'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'
+            connect_args["ssl"] = query.pop("sslmode")
+
+            # Reconstruct URL without sslmode
+            url = url._replace(query=query)
+
     return create_async_engine(
-        database_url,
+        url,
         pool_pre_ping=True,
         future=True,
+        connect_args=connect_args,
     )
 
 
