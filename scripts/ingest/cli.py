@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import logging
 import os
-import sys
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
+import sentry_sdk
 from dotenv import load_dotenv
 
 from app.db import configure_engine
+from app.logging import get_logger, setup_logging
 
 from .approve import approve_candidates
 from .fetch import fetch_pages
@@ -30,7 +30,7 @@ from .parse import parse_pages
 from .sites import site_a
 from .sources_registry import SOURCES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _str_to_bool(value: str) -> bool:
@@ -81,16 +81,27 @@ def _resolve_log_file(args: argparse.Namespace) -> Path | None:
     return Path("logs") / "ingest" / source / f"{today}.log"
 
 
-def _configure_logging(log_file: Path | None) -> None:
-    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
-    if log_file:
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+def _setup_sentry() -> None:
+    dsn = os.getenv("SENTRY_DSN")
+    if not dsn:
+        return
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-        handlers=handlers,
+    env = os.getenv("APP_ENV", "dev")
+    release = os.getenv("RELEASE")
+    try:
+        rate_raw = float(os.getenv("SENTRY_TRACES_RATE", "0"))
+    except ValueError:
+        rate_raw = 0.0
+    traces_rate = max(0.0, min(1.0, rate_raw))
+
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=env,
+        release=release,
+        traces_sample_rate=traces_rate,
+        # In scripts, we might want to send default PII or not?
+        # app/main.py says send_default_pii=False. Let's match it.
+        send_default_pii=False,
     )
 
 
@@ -418,7 +429,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     log_file = _resolve_log_file(args)
-    _configure_logging(log_file)
+    setup_logging(log_file)
+    _setup_sentry()
     configure_engine(getattr(args, "dsn", None))
     try:
         return _dispatch(args)
