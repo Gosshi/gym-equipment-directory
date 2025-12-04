@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_USER_AGENT = "GymDirectoryBot/0.1 (+contact-url)"
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_LIMIT = 20
-MAX_LIMIT = 30
+MAX_LIMIT = 100
 PROD_MAX_LIMIT = 120
 DEFAULT_MIN_DELAY = 2.0
 DEFAULT_MAX_DELAY = 5.0
@@ -219,6 +219,7 @@ async def _discover_municipal_pages(
             article_patterns=article_patterns,
             intro_seed_paths=intro_seed_paths,
         )
+        logger.info(f"Visited {current_url} (depth {depth}). Classification: {classification}")
         if classification or current_url in intro_seed_paths:
             results.append(MunicipalDiscoveredPage(url=current_url, page_type=classification))
             if len(results) >= limit:
@@ -236,8 +237,10 @@ async def _discover_municipal_pages(
                 continue
             if resolved in seen:
                 continue
+            # logger.info(f"Found link: {resolved} (depth {depth+1})")
             queue.append((resolved, depth + 1))
 
+    logger.info(f"Discovery complete. Found {len(results)} pages.")
     return results
 
 
@@ -543,7 +546,12 @@ async def fetch_http_pages(
     if app_env == "prod":
         respect_robots = True
 
-    headers = {"User-Agent": user_agent}
+    headers = {
+        "User-Agent": f"{user_agent} (Build {int(asyncio.get_event_loop().time())})",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
 
     async with httpx.AsyncClient(
         headers=headers,
