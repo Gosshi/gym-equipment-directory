@@ -1,63 +1,63 @@
-# Deployment Guide
+# デプロイメントガイド
 
-This document describes the deployment architecture and process for the Gym Equipment Directory application.
+このドキュメントでは、ジム設備ディレクトリ（Gym Equipment Directory）アプリケーションのデプロイ構成と手順について説明します。
 
-## Architecture
+## アーキテクチャ
 
-- **Backend**: Hosted on [Render](https://render.com).
-    - **Service Type**: Web Service (Docker)
-    - **Database**: PostgreSQL (Managed by Render or external provider)
-    - **Cron Jobs**: Background worker for nightly ingestion.
-- **Frontend**: Hosted on [Vercel](https://vercel.com).
-    - **Framework**: Next.js
+- **バックエンド**: [Render](https://render.com) でホストされています。
+    - **サービスタイプ**: Web Service (Docker)
+    - **データベース**: PostgreSQL (Render管理 または 外部プロバイダ)
+    - **Cronジョブ**: 夜間のデータ収集（Ingestion）を行うバックグラウンドワーカー。
+- **フロントエンド**: [Vercel](https://vercel.com) でホストされています。
+    - **フレームワーク**: Next.js
 
-## Backend Deployment (Render)
+## バックエンドのデプロイ (Render)
 
-The backend is containerized using Docker.
+バックエンドはDockerを使用してコンテナ化されています。
 
-### Configuration (`render.yaml`)
-The project includes a `render.yaml` Blueprint specification.
-- **Web Service**: Runs the FastAPI application (`uvicorn`).
-- **Cron Job**: Runs the ingestion script (`scripts.ingest.run_nightly`) daily.
+### 設定 (`render.yaml`)
+プロジェクトには `render.yaml` ブループリント仕様が含まれています。
+- **Web Service**: FastAPIアプリケーション (`uvicorn`) を実行します。
+- **Cron Job**: 毎日、データ収集スクリプト (`scripts.ingest.run_nightly`) を実行します。
 
 ### Dockerfile
-The production Dockerfile is located at `backend/Dockerfile.render`.
-- **Multi-stage build**: Uses `builder` and `runner` stages to minimize image size.
-- **Entrypoint**: `backend/entrypoint.sh` is used to automatically run database migrations (`alembic upgrade head`) before starting the application.
+本番用のDockerfileは `backend/Dockerfile.render` にあります。
+- **マルチステージビルド**: `builder` ステージと `runner` ステージを使用し、イメージサイズを最小化しています。
+- **エントリーポイント**: `backend/entrypoint.sh` を使用して、アプリケーション起動前にデータベースマイグレーション (`alembic upgrade head`) を自動的に実行します。
 
-### Environment Variables
-The following environment variables must be set in Render:
+### 環境変数
+Renderで以下の環境変数を設定する必要があります：
 
-| Variable | Description |
+| 変数名 | 説明 |
 |---|---|
-| `DATABASE_URL` | Connection string for PostgreSQL. |
-| `OPENAI_API_KEY` | API key for OpenAI (used for address cleaning/extraction). |
-| `GOOGLE_MAPS_API_KEY` | API key for Google Maps (Geocoding). |
-| `SENTRY_DSN` | DSN for Sentry error tracking. |
-| `LOG_FORMAT` | Set to `json` for production logging. |
-| `DISCORD_WEBHOOK_URL` | Webhook URL for cost reports and notifications. |
+| `DATABASE_URL` | PostgreSQLへの接続文字列。 |
+| `OPENAI_API_KEY` | OpenAIのAPIキー（住所のクリーニングや抽出に使用）。 |
+| `GOOGLE_MAPS_API_KEY` | Google MapsのAPIキー（ジオコーディングに使用）。 |
+| `SENTRY_DSN` | Sentryのエラー追跡用DSN。 |
+| `LOG_FORMAT` | 本番ログ用に `json` を設定します。 |
+| `DISCORD_WEBHOOK_URL` | コストレポートや通知を送信するためのWebhook URL。 |
 
-## Frontend Deployment (Vercel)
+## フロントエンドのデプロイ (Vercel)
 
-The frontend is a Next.js application located in the `frontend/` directory.
+フロントエンドは `frontend/` ディレクトリにあるNext.jsアプリケーションです。
 
-### Configuration
-- **Framework Preset**: Next.js
-- **Root Directory**: `frontend`
-- **Build Command**: `npm run build` or `next build`
-- **Output Directory**: `.next`
+### 設定
+- **フレームワークプリセット**: Next.js
+- **ルートディレクトリ**: `frontend`
+- **ビルドコマンド**: `npm run build` または `next build`
+- **出力ディレクトリ**: `.next`
 
-### Environment Variables
-| Variable | Description |
+### 環境変数
+| 変数名 | 説明 |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL of the backend API (e.g., `https://gym-backend.onrender.com`). |
+| `NEXT_PUBLIC_API_URL` | バックエンドAPIのURL（例: `https://gym-backend.onrender.com`）。 |
 
 ## CI/CD
 
 ### GitHub Actions
-- **CI (`.github/workflows/ci.yml`)**: Runs on every Push to `main` and Pull Request.
-    - Runs `ruff` (linting/formatting).
-    - Runs `pytest` (unit tests).
-- **Deployment**:
-    - **Render**: Connected to the GitHub repository. Deploys automatically on push to `main`.
-    - **Vercel**: Connected to the GitHub repository. Deploys automatically on push to `main`.
+- **CI (`.github/workflows/ci.yml`)**: `main` へのプッシュおよびプルリクエストごとに実行されます。
+    - `ruff` (リンター/フォーマッター) を実行します。
+    - `pytest` (ユニットテスト) を実行します。
+- **デプロイ**:
+    - **Render**: GitHubリポジトリと連携しており、`main` へのプッシュ時に自動的にデプロイされます。
+    - **Vercel**: GitHubリポジトリと連携しており、`main` へのプッシュ時に自動的にデプロイされます。
