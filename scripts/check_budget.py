@@ -1,9 +1,12 @@
 import argparse
+import asyncio
 import json
 import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+
+from app.services.notification import send_notification
 
 # Pricing (approximate as of late 2024)
 # gpt-4o-mini: $0.15 / 1M input tokens, $0.60 / 1M output tokens
@@ -68,7 +71,7 @@ def parse_logs(log_dir: Path, days: int = 1):
     return total_openai_input, total_openai_output, total_google_maps
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Check API usage and estimated cost")
     parser.add_argument("--days", type=int, default=1, help="Number of days to look back")
     parser.add_argument(
@@ -82,19 +85,32 @@ def main():
     maps_cost = maps_calls * PRICE_GOOGLE_MAPS
     total_cost = openai_cost + maps_cost
 
-    logger.info(f"--- Usage Report (Last {args.days} days) ---")
-    logger.info(f"OpenAI Input Tokens:  {input_tokens:,}")
-    logger.info(f"OpenAI Output Tokens: {output_tokens:,}")
-    logger.info(f"OpenAI Est. Cost:     ${openai_cost:.4f}")
-    logger.info(f"Google Maps Calls:    {maps_calls:,}")
-    logger.info(f"Google Maps Est. Cost:${maps_cost:.4f}")
-    logger.info("-----------------------------------")
-    logger.info(f"Total Est. Cost:      ${total_cost:.4f}")
+    report_lines = [
+        f"--- Usage Report (Last {args.days} days) ---",
+        f"OpenAI Input Tokens:  {input_tokens:,}",
+        f"OpenAI Output Tokens: {output_tokens:,}",
+        f"OpenAI Est. Cost:     ${openai_cost:.4f}",
+        f"Google Maps Calls:    {maps_calls:,}",
+        f"Google Maps Est. Cost:${maps_cost:.4f}",
+        "-----------------------------------",
+        f"Total Est. Cost:      ${total_cost:.4f}",
+    ]
+
+    report_text = "\n".join(report_lines)
+    logger.info(report_text)
 
     # Simple alert threshold (e.g., $5.00)
     if total_cost > 5.00:
         logger.warning("ALERT: Total cost exceeded $5.00 threshold!")
+        report_text += "\n\n⚠️ **ALERT: Total cost exceeded $5.00 threshold!**"
+
+    # Send to Discord
+    if os.getenv("DISCORD_WEBHOOK_URL"):
+        await send_notification(f"```\n{report_text}\n```")
 
 
 if __name__ == "__main__":
-    main()
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    asyncio.run(main())
