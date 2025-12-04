@@ -19,7 +19,7 @@ describe("AppHeader", () => {
       </AuthProvider>,
     );
 
-    const loginButton = await screen.findByRole("button", { name: "ログイン" });
+    const loginButton = await screen.findByRole("button", { name: /login/i });
     expect(loginButton).toBeInTheDocument();
 
     await user.click(loginButton);

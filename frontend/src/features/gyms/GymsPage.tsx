@@ -81,6 +81,16 @@ export function GymsPage() {
     }
   }, [selectedSlug]);
 
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       {/* Background Grid */}
@@ -114,66 +124,65 @@ export function GymsPage() {
         </header>
 
         <div className="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-start">
-          <aside className="sticky top-24 z-20 hidden lg:block">
-            <SearchFilters
-              categories={equipmentOptions}
-              cities={cities}
-              cityError={cityError}
-              isCityLoading={isCityLoading}
-              isMetaLoading={isMetaLoading}
-              metaError={metaError}
-              isSearchLoading={isLoading}
-              onCategoriesChange={updateCategories}
-              onCityChange={updateCity}
-              onClear={clearFilters}
-              onDistanceChange={updateDistance}
-              onKeywordChange={updateKeyword}
-              onPrefectureChange={updatePrefecture}
-              onRequestLocation={requestLocation}
-              onUseFallbackLocation={useFallbackLocation}
-              onClearLocation={clearLocation}
-              onManualLocationChange={setManualLocation}
-              onReloadCities={reloadCities}
-              onReloadMeta={reloadMeta}
-              onSortChange={updateSort}
-              onSubmitSearch={submitSearch}
-              location={location}
-              prefectures={prefectures}
-              state={formState}
-            />
-          </aside>
-
-          {/* Mobile Filter Trigger would go here, assuming SearchFilters handles responsive or we add a Sheet trigger */}
-          <div className="lg:hidden">
-            {/* For now, SearchFilters likely renders fully. We might want to wrap it in a Sheet for mobile in a real refactor, 
-                 but keeping structure similar to original for safety. */}
-            <SearchFilters
-              categories={equipmentOptions}
-              cities={cities}
-              cityError={cityError}
-              isCityLoading={isCityLoading}
-              isMetaLoading={isMetaLoading}
-              metaError={metaError}
-              isSearchLoading={isLoading}
-              onCategoriesChange={updateCategories}
-              onCityChange={updateCity}
-              onClear={clearFilters}
-              onDistanceChange={updateDistance}
-              onKeywordChange={updateKeyword}
-              onPrefectureChange={updatePrefecture}
-              onRequestLocation={requestLocation}
-              onUseFallbackLocation={useFallbackLocation}
-              onClearLocation={clearLocation}
-              onManualLocationChange={setManualLocation}
-              onReloadCities={reloadCities}
-              onReloadMeta={reloadMeta}
-              onSortChange={updateSort}
-              onSubmitSearch={submitSearch}
-              location={location}
-              prefectures={prefectures}
-              state={formState}
-            />
-          </div>
+          {isDesktop ? (
+            <aside className="sticky top-24 z-20 hidden lg:block">
+              <SearchFilters
+                categories={equipmentOptions}
+                cities={cities}
+                cityError={cityError}
+                isCityLoading={isCityLoading}
+                isMetaLoading={isMetaLoading}
+                metaError={metaError}
+                isSearchLoading={isLoading}
+                onCategoriesChange={updateCategories}
+                onCityChange={updateCity}
+                onClear={clearFilters}
+                onDistanceChange={updateDistance}
+                onKeywordChange={updateKeyword}
+                onPrefectureChange={updatePrefecture}
+                onRequestLocation={requestLocation}
+                onUseFallbackLocation={useFallbackLocation}
+                onClearLocation={clearLocation}
+                onManualLocationChange={setManualLocation}
+                onReloadCities={reloadCities}
+                onReloadMeta={reloadMeta}
+                onSortChange={updateSort}
+                onSubmitSearch={submitSearch}
+                location={location}
+                prefectures={prefectures}
+                state={formState}
+              />
+            </aside>
+          ) : (
+            <div className="lg:hidden">
+              <SearchFilters
+                categories={equipmentOptions}
+                cities={cities}
+                cityError={cityError}
+                isCityLoading={isCityLoading}
+                isMetaLoading={isMetaLoading}
+                metaError={metaError}
+                isSearchLoading={isLoading}
+                onCategoriesChange={updateCategories}
+                onCityChange={updateCity}
+                onClear={clearFilters}
+                onDistanceChange={updateDistance}
+                onKeywordChange={updateKeyword}
+                onPrefectureChange={updatePrefecture}
+                onRequestLocation={requestLocation}
+                onUseFallbackLocation={useFallbackLocation}
+                onClearLocation={clearLocation}
+                onManualLocationChange={setManualLocation}
+                onReloadCities={reloadCities}
+                onReloadMeta={reloadMeta}
+                onSortChange={updateSort}
+                onSubmitSearch={submitSearch}
+                location={location}
+                prefectures={prefectures}
+                state={formState}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-6 min-w-0">
             <GymList
