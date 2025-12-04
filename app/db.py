@@ -39,8 +39,12 @@ def _create_engine(database_url: str) -> AsyncEngine:
             # asyncpg accepts 'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'
             connect_args["ssl"] = query.pop("sslmode")
 
-            # Reconstruct URL without sslmode
-            url = url._replace(query=query)
+        if "channel_binding" in query:
+            # asyncpg does not support channel_binding, so we remove it
+            query.pop("channel_binding")
+
+        # Reconstruct URL without sslmode and channel_binding
+        url = url._replace(query=query)
 
     return create_async_engine(
         url,
