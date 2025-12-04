@@ -33,7 +33,8 @@ Renderで以下の環境変数を設定する必要があります：
 | `DATABASE_URL` | PostgreSQLへの接続文字列。 |
 | `OPENAI_API_KEY` | OpenAIのAPIキー（住所のクリーニングや抽出に使用）。 |
 | `GOOGLE_MAPS_API_KEY` | Google MapsのAPIキー（ジオコーディングに使用）。 |
-| `SENTRY_DSN` | Sentryのエラー追跡用DSN。 |
+| `GOOGLE_SEARCH_API_KEY` | Google Custom Search APIキー（ジムのURL検索に使用）。 |
+| `GOOGLE_SEARCH_ENGINE_ID` | Google Custom Search Engine ID。 |
 | `LOG_FORMAT` | 本番ログ用に `json` を設定します。 |
 | `DISCORD_WEBHOOK_URL` | コストレポートや通知を送信するためのWebhook URL。 |
 
