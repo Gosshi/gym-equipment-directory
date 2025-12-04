@@ -248,3 +248,22 @@ async def parse_pages(source: str, limit: int | None) -> int:
             suffix,
         )
     return 0
+
+
+if __name__ == "__main__":
+    import asyncio
+    import sys
+
+    from app.db import configure_engine
+
+    configure_engine()
+
+    if len(sys.argv) < 2:
+        print("Usage: python -m scripts.ingest.parse <source_id> [limit]")
+        sys.exit(1)
+
+    source = sys.argv[1]
+    limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
+
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(parse_pages(source, limit))
