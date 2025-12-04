@@ -18,9 +18,6 @@ selectors:
   address_hint:
     - ".address"
     - ".location"
-  equipment_blocks:
-    - "table"
-    - ".entry-content"
 address_patterns:
   - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
   - "東京都[^\\n]+区[^\\n]+"
