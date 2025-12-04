@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 import time
 import unicodedata
@@ -12,12 +11,13 @@ from collections.abc import Iterable
 from typing import Any
 
 import requests
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.geocode_cache import GeocodeCache
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _USER_AGENT = "GymDir/0.1 (admin@gym.example)"
 _RATE_LIMIT_SECONDS = 1.0
@@ -340,6 +340,9 @@ def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
         },
         "google_maps",
     )
+
+    # Log API usage
+    logger.info("google_maps_api_call", address=sanitized)
 
     if not payload:
         return None
