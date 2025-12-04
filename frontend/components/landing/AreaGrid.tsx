@@ -1,48 +1,63 @@
 import Link from "next/link";
 
 const WARDS = [
-  { slug: "chiyoda", name: "千代田区" },
-  { slug: "chuo", name: "中央区" },
-  { slug: "minato", name: "港区" },
-  { slug: "shinjuku", name: "新宿区" },
-  { slug: "bunkyo", name: "文京区" },
-  { slug: "taito", name: "台東区" },
-  { slug: "sumida", name: "墨田区" },
-  { slug: "koto", name: "江東区" },
-  { slug: "shinagawa", name: "品川区" },
-  { slug: "meguro", name: "目黒区" },
-  { slug: "ota", name: "大田区" },
-  { slug: "setagaya", name: "世田谷区" },
-  { slug: "shibuya", name: "渋谷区" },
-  { slug: "nakano", name: "中野区" },
-  { slug: "suginami", name: "杉並区" },
-  { slug: "toshima", name: "豊島区" },
-  { slug: "kita", name: "北区" },
-  { slug: "arakawa", name: "荒川区" },
-  { slug: "itabashi", name: "板橋区" },
-  { slug: "nerima", name: "練馬区" },
-  { slug: "adachi", name: "足立区" },
-  { slug: "katsushika", name: "葛飾区" },
-  { slug: "edogawa", name: "江戸川区" },
+  { slug: "chiyoda", name: "千代田区", en: "CHIYODA" },
+  { slug: "chuo", name: "中央区", en: "CHUO" },
+  { slug: "minato", name: "港区", en: "MINATO" },
+  { slug: "shinjuku", name: "新宿区", en: "SHINJUKU" },
+  { slug: "bunkyo", name: "文京区", en: "BUNKYO" },
+  { slug: "taito", name: "台東区", en: "TAITO" },
+  { slug: "sumida", name: "墨田区", en: "SUMIDA" },
+  { slug: "koto", name: "江東区", en: "KOTO" },
+  { slug: "shinagawa", name: "品川区", en: "SHINAGAWA" },
+  { slug: "meguro", name: "目黒区", en: "MEGURO" },
+  { slug: "ota", name: "大田区", en: "OTA" },
+  { slug: "setagaya", name: "世田谷区", en: "SETAGAYA" },
+  { slug: "shibuya", name: "渋谷区", en: "SHIBUYA" },
+  { slug: "nakano", name: "中野区", en: "NAKANO" },
+  { slug: "suginami", name: "杉並区", en: "SUGINAMI" },
+  { slug: "toshima", name: "豊島区", en: "TOSHIMA" },
+  { slug: "kita", name: "北区", en: "KITA" },
+  { slug: "arakawa", name: "荒川区", en: "ARAKAWA" },
+  { slug: "itabashi", name: "板橋区", en: "ITABASHI" },
+  { slug: "nerima", name: "練馬区", en: "NERIMA" },
+  { slug: "adachi", name: "足立区", en: "ADACHI" },
+  { slug: "katsushika", name: "葛飾区", en: "KATSUSHIKA" },
+  { slug: "edogawa", name: "江戸川区", en: "EDOGAWA" },
 ];
 
 export function AreaGrid() {
   return (
-    <section className="w-full max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mb-10 text-center">
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Browse by Area</h2>
-        <p className="mt-2 text-muted-foreground">Find municipal gyms in your ward.</p>
+    <section className="w-full max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+      <div className="mb-12 flex flex-col items-center text-center">
+        <span className="font-mono text-sm font-bold tracking-[0.2em] text-accent uppercase">
+          Target Sector
+        </span>
+        <h2 className="font-heading text-4xl font-bold uppercase tracking-tighter sm:text-5xl">
+          Browse by Area
+        </h2>
+        <div className="mt-4 h-1 w-24 bg-accent" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {WARDS.map(ward => (
           <Link
             key={ward.slug}
             href={`/search?city=${ward.slug}`}
-            className="group relative flex items-center justify-center rounded-lg border bg-card px-4 py-4 text-center text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="group relative flex flex-col items-center justify-center gap-1 overflow-hidden border border-border bg-card/30 p-6 text-center backdrop-blur-sm transition-all hover:border-accent hover:bg-accent/5"
           >
-            <span className="absolute inset-0 rounded-lg ring-offset-background transition-all group-hover:ring-2 group-hover:ring-primary/20 group-hover:ring-offset-2" />
-            {ward.name}
+            {/* Corner Accents */}
+            <div className="absolute left-0 top-0 h-2 w-2 border-l-2 border-t-2 border-transparent transition-colors group-hover:border-accent" />
+            <div className="absolute right-0 top-0 h-2 w-2 border-r-2 border-t-2 border-transparent transition-colors group-hover:border-accent" />
+            <div className="absolute bottom-0 left-0 h-2 w-2 border-b-2 border-l-2 border-transparent transition-colors group-hover:border-accent" />
+            <div className="absolute bottom-0 right-0 h-2 w-2 border-b-2 border-r-2 border-transparent transition-colors group-hover:border-accent" />
+
+            <span className="font-heading text-2xl font-bold tracking-wide text-foreground group-hover:text-accent">
+              {ward.name}
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-accent/70">
+              {ward.en}
+            </span>
           </Link>
         ))}
       </div>

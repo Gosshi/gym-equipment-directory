@@ -157,7 +157,7 @@ export function NearbyGymsPage() {
       return;
     }
     toast({
-      title: "地図の読み込みに失敗しました",
+      title: "MAP LOAD ERROR",
       description: mapMarkersError,
       variant: "destructive",
     });
@@ -217,7 +217,7 @@ export function NearbyGymsPage() {
     }
     lastToastMessageRef.current = location.error;
     toast({
-      title: "位置情報を取得できませんでした",
+      title: "LOCATION ERROR",
       description: location.error,
       variant: "destructive",
     });
@@ -272,25 +272,25 @@ export function NearbyGymsPage() {
 
   const locationSummary = useMemo(() => {
     if (!location.hasResolvedSupport) {
-      return "位置情報の利用可否を確認しています…";
+      return "Checking location support...";
     }
     if (!location.isSupported) {
-      return "この環境では位置情報を取得できません。緯度・経度を入力してください。";
+      return "Location not supported. Please enter coordinates manually.";
     }
     const coordinateLabel = `${applied.lat.toFixed(4)}, ${applied.lng.toFixed(4)}`;
     if (location.status === "loading") {
-      return "現在地を取得しています…";
+      return "Acquiring location...";
     }
     if (location.mode === "auto") {
-      return `現在地を使用中（${coordinateLabel}）`;
+      return `Current Location (${coordinateLabel})`;
     }
     if (location.mode === "map") {
-      return `地図で選択した地点（${coordinateLabel}）`;
+      return `Map Selection (${coordinateLabel})`;
     }
     if (location.mode === "manual") {
-      return `手入力した地点（${coordinateLabel}）`;
+      return `Manual Input (${coordinateLabel})`;
     }
-    return `URLで指定された地点（${coordinateLabel}）`;
+    return `URL Specified (${coordinateLabel})`;
   }, [
     applied.lat,
     applied.lng,
@@ -300,7 +300,7 @@ export function NearbyGymsPage() {
     location.status,
   ]);
 
-  const radiusKmLabel = useMemo(() => `約${applied.radiusKm}km`, [applied.radiusKm]);
+  const radiusKmLabel = useMemo(() => `~${applied.radiusKm}km`, [applied.radiusKm]);
 
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef(applied.page);
@@ -312,25 +312,40 @@ export function NearbyGymsPage() {
   }, [applied.page]);
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 sm:pt-10 lg:px-8 xl:px-0">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="flex min-h-screen flex-col gap-6 bg-background px-4 pb-16 pt-8 sm:px-6 sm:pt-10 lg:px-8 xl:px-0">
+      {/* Background Grid */}
+      <div className="fixed inset-0 z-0 bg-grid-pattern opacity-10 pointer-events-none" />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-8">
         <a
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-5 focus:py-2 focus:text-sm focus:text-primary-foreground focus:shadow-lg"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-accent focus:px-5 focus:py-2 focus:font-mono focus:text-sm focus:font-bold focus:text-accent-foreground"
           href="#nearby-results"
         >
-          近隣ジム一覧へスキップ
+          SKIP TO RESULTS
         </a>
-        <header className="space-y-2">
-          <p className="text-sm font-medium text-primary">ジムを探す</p>
-          <h1 className="text-3xl font-bold text-foreground" role="heading" aria-level={1}>
-            近隣ジムをマップでチェック
+
+        <header className="space-y-2 border-b border-border pb-6">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 bg-accent" />
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-accent">
+              System: Nearby
+            </p>
+          </div>
+          <h1
+            className="font-heading text-4xl font-black uppercase tracking-tighter text-foreground sm:text-5xl md:text-6xl"
+            role="heading"
+            aria-level={1}
+          >
+            Proximity Scan
           </h1>
-          <p className="text-base text-muted-foreground">
-            現在地または任意の座標を中心に、半径 {radiusKmLabel} のジムを表示します。
+          <p className="text-base font-mono text-muted-foreground">
+            {"// TARGET: "}
+            {radiusKmLabel}
+            {" RADIUS FROM CENTER."}
           </p>
         </header>
 
-        <div className="flex flex-col gap-6 md:flex-row">
+        <div className="flex flex-col gap-8 md:flex-row">
           <div className="space-y-4 md:w-[320px] md:flex-shrink-0">
             <NearbySearchPanel
               latInput={formState.latInput}
@@ -356,14 +371,18 @@ export function NearbyGymsPage() {
 
           <div className="flex-1 space-y-6">
             <div className="flex flex-col gap-6 md:flex-row">
-              <div className="flex-1 space-y-4">
-                <Card className="overflow-hidden">
-                  <CardHeader className="space-y-1">
-                    <CardTitle className="text-lg font-semibold" role="heading" aria-level={2}>
-                      地図
+              <div className="flex-1 space-y-6">
+                <Card className="overflow-hidden rounded-none border-2 border-border bg-card/50 backdrop-blur-sm">
+                  <CardHeader className="space-y-1 border-b border-border bg-muted/50 px-6 py-4">
+                    <CardTitle
+                      className="font-heading text-xl font-bold uppercase tracking-wide"
+                      role="heading"
+                      aria-level={2}
+                    >
+                      Tactical Map
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      ピンを選択すると右側の詳細パネルが開きます。ドラッグで中心地点を調整できます。
+                    <p className="font-mono text-xs text-muted-foreground">
+                      SELECT TARGET TO VIEW INTEL. DRAG TO RE-CENTER.
                     </p>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -386,13 +405,20 @@ export function NearbyGymsPage() {
                 </Card>
 
                 <div ref={listContainerRef} id="nearby-results">
-                  <Card aria-live="polite">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold" role="heading" aria-level={2}>
-                        近隣のジム一覧
+                  <Card
+                    aria-live="polite"
+                    className="rounded-none border border-border bg-transparent shadow-none"
+                  >
+                    <CardHeader className="px-0 pt-0">
+                      <CardTitle
+                        className="font-heading text-2xl font-bold uppercase tracking-wide"
+                        role="heading"
+                        aria-level={2}
+                      >
+                        Detected Targets
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 px-0">
                       <NearbyList
                         error={error}
                         isInitialLoading={isInitialLoading}
@@ -419,15 +445,18 @@ export function NearbyGymsPage() {
               >
                 {selectedSlug ? (
                   <GymDetailPanel
-                    className="shadow-lg"
+                    className="rounded-none border-2 border-accent bg-card shadow-2xl"
                     onClose={() => {
                       clearSelection();
                     }}
                     slug={selectedSlug}
                   />
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
-                    <p>地図上のピンまたは一覧からジムを選択すると詳細が表示されます。</p>
+                  <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-none border-2 border-dashed border-border/50 bg-card/20 p-6 text-center text-sm text-muted-foreground">
+                    <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/30" />
+                    <p className="font-mono text-xs uppercase tracking-wider">
+                      Awaiting Target Selection
+                    </p>
                   </div>
                 )}
               </aside>
@@ -437,7 +466,7 @@ export function NearbyGymsPage() {
       </div>
       <div
         aria-live="polite"
-        className={`md:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-4 pt-2 transition-transform duration-300 ${
+        className={`md:hidden fixed inset-x-0 bottom-0 z-40 px-0 pb-0 pt-2 transition-transform duration-300 ${
           selectedSlug
             ? "pointer-events-auto translate-y-0"
             : "pointer-events-none translate-y-full"
@@ -448,17 +477,13 @@ export function NearbyGymsPage() {
         <div className="mx-auto max-w-lg">
           {selectedSlug ? (
             <GymDetailPanel
-              className="rounded-3xl border border-border/70 bg-card shadow-xl"
+              className="rounded-t-xl border-t-2 border-accent bg-card shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
               onClose={() => {
                 clearSelection();
               }}
               slug={selectedSlug}
             />
-          ) : (
-            <div className="rounded-3xl border border-dashed border-border/60 bg-card/80 p-6 text-sm text-muted-foreground shadow">
-              <p>地図上のピンを選択すると詳細が表示されます。</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
