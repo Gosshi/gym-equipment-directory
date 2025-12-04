@@ -1,6 +1,6 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
-SQLAlchemy==2.0.32
+SQLAlchemy==2.0.23
 sqlalchemy-utils==0.41.2
 psycopg[binary]==3.1.18
 asyncpg>=0.29.0
