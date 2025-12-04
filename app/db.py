@@ -36,15 +36,8 @@ def _create_engine(database_url: str) -> AsyncEngine:
     if url.get_backend_name() == "postgresql" and url.get_driver_name() == "asyncpg":
         query = dict(url.query)
         if "sslmode" in query:
-            ssl_mode = query.pop("sslmode")
-            if ssl_mode == "require":
-                connect_args["ssl"] = "require"
-            elif ssl_mode == "disable":
-                connect_args["ssl"] = "disable"
-            elif ssl_mode == "prefer":
-                connect_args["ssl"] = "prefer"
-            elif ssl_mode == "allow":
-                connect_args["ssl"] = "allow"
+            # asyncpg accepts 'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'
+            connect_args["ssl"] = query.pop("sslmode")
 
             # Reconstruct URL without sslmode
             url = url._replace(query=query)
