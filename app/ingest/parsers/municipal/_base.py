@@ -467,7 +467,7 @@ def detect_create_gym(
 ) -> bool:
     """Return ``True`` when the parsed page should create a gym candidate."""
 
-    if not address or eq_count < 3:
+    if not address:
         return False
 
     pattern_dict = patterns or {}
@@ -493,8 +493,9 @@ def detect_create_gym(
     keyword_dict = keywords or {}
     searchable = f"{sanitize_text(title)} {sanitize_text(body)}".lower()
     required_keywords = list(_ensure_iterable(keyword_dict.get("training")))
+
+    keyword_hit = False
     if required_keywords:
-        keyword_hit = False
         for token in required_keywords:
             normalized_token = sanitize_text(token).lower()
             if normalized_token and normalized_token in searchable:
@@ -509,7 +510,13 @@ def detect_create_gym(
             normalized_token = sanitize_text(token).lower()
             if normalized_token and normalized_token in searchable:
                 return True
-    return True
+
+    # If we have equipment, we can be more confident even if facility keywords didn't match
+    # (but required keywords must have matched if present)
+    if eq_count >= 3:
+        return True
+
+    return False
 
 
 __all__ = [

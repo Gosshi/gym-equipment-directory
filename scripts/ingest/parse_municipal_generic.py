@@ -114,6 +114,31 @@ def parse_municipal_page(
         normalized_url = normalized_url[:-11]  # Remove /index.html
 
     clean_html = (html or "").replace("\x00", "")
+
+    # Global fix for unicode escapes (e.g. Shibuya)
+    # We use regex to avoid corrupting existing non-ASCII characters
+    try:
+
+        def replace_escape(match):
+            return chr(int(match.group(1), 16))
+
+        if "\\u" in clean_html:
+            clean_html = re.sub(r"\\u([0-9a-fA-F]{4})", replace_escape, clean_html)
+
+            # Extract hidden HTML tables (e.g. inside JSON in scripts) and append to body
+            # This allows BeautifulSoup to parse them as elements
+            hidden_tables = re.findall(
+                r"<table.*?>.*?</table>",
+                clean_html,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if hidden_tables:
+                # print(f"DEBUG: Found {len(hidden_tables)} hidden tables, appending to HTML")
+                clean_html += "\n".join(hidden_tables)
+
+    except Exception as e:
+        print(f"DEBUG: Global unicode escape fix failed: {e}")
+
     soup = BeautifulSoup(clean_html, "html.parser")
     config = load_config(source.title)
     selectors = config.get("selectors", {})
@@ -140,9 +165,15 @@ def parse_municipal_page(
     # 1. Try LLM Facility Extraction
     # Combine text from body nodes
     nodes = _collect_nodes(soup, selectors.get("body"))
-    body_text = " ".join(
-        sanitize_text(node.get_text(" ", strip=True)) for node in nodes if node.get_text()
-    )
+
+    # Combine text from body nodes
+    body_text = " ".join(node.get_text(" ", strip=True) for node in nodes if node.get_text())
+
+    # Sanitize first (safe for real Japanese)
+    body_text = sanitize_text(body_text)
+
+    # Check if keywords are present
+    # print(f"DEBUG: 'トレーニング' in body_text: {'トレーニング' in body_text}")
 
     # Use full page text (or body text) for LLM
     # We prefer body_text but if it's empty, try whole soup text
@@ -190,6 +221,7 @@ def parse_municipal_page(
             aliases=EQUIPMENT_ALIASES,
         )
         equipments_raw = _aggregate_raw_lines(equipments_extracted)
+        equipments_raw = _aggregate_raw_lines(equipments_extracted)
         equipments_structured = _strip_internal_fields(equipments_extracted)
         equipment_count = sum(max(int(entry.get("count", 0)), 0) for entry in equipments_structured)
 
@@ -202,6 +234,12 @@ def parse_municipal_page(
             eq_count=equipment_count,
             address=address,
         )
+        if create_gym:
+            # print(f"DEBUG: detect_create_gym returned True for {normalized_url}")
+            pass
+        else:
+            # print(f"DEBUG: detect_create_gym returned False for {normalized_url}")
+            pass
 
     meta = {"create_gym": create_gym, "page_url": normalized_url}
     center_no = _extract_center_no(normalized_url, source.parse_hints)
