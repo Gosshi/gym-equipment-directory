@@ -1,8 +1,8 @@
 start_urls:
   - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html"
-  - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/sogo_sports_center/index.html"
-  - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/shinozaki_plaza/index.html"
-  - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/tobu_health_support/index.html"
+  - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/sogotaiikukan/index.html"
+  - "https://www.city.edogawa.tokyo.jp/e035/kuseijoho/gaiyo/shisetsuguide/bunya/bunkachiiki/c_koiwa_urban/index.html"
+  - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/mizube/index.html"
 url_patterns:
   intro_top: "/e028/.+/(index\\.html|trainingmachine\\.html)$"
   detail_article: "/e028/.+/(index\\.html|post_\\d+\\.html|tr_detail\\.html)$"

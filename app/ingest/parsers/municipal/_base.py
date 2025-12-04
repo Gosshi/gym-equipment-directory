@@ -226,6 +226,22 @@ def extract_address_one_line(
                     candidates.append(match.group().strip())
 
     if not candidates:
+        # Fallback: If we searched specific nodes but found nothing, try the entire body
+        # This handles cases where the address is in a footer/header outside the
+        # main content selector
+        if nodes and nodes != [soup.body] and soup.body:
+            text = sanitize_text(soup.body.get_text(" ", strip=True))
+            if text:
+                for segment in _iter_text_segments(text):
+                    if segment in seen_segments:
+                        continue
+                    seen_segments.add(segment)
+                    for pattern in compiled:
+                        match = pattern.search(segment)
+                        if match:
+                            candidates.append(match.group().strip())
+
+    if not candidates:
         return None
     candidate = min(candidates, key=len)
     return _clean_address(candidate)
