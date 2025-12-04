@@ -81,58 +81,110 @@ export function GymsPage() {
     }
   }, [selectedSlug]);
 
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/10">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-7 px-4 pb-16 pt-6 sm:gap-10 sm:px-6 sm:pt-10 lg:px-8 xl:px-0">
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      {/* Background Grid */}
+      <div className="fixed inset-0 z-0 bg-grid-pattern opacity-10 pointer-events-none" />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
         <a
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-5 focus:py-2 focus:text-sm focus:text-primary-foreground focus:shadow-lg"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-accent focus:px-5 focus:py-2 focus:font-mono focus:text-sm focus:font-bold focus:text-accent-foreground"
           href="#gym-search-results"
         >
-          検索結果一覧へスキップ
+          SKIP TO RESULTS
         </a>
-        <header className="space-y-3 sm:space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-sm">
-            Gym Directory
-          </p>
+
+        <header className="space-y-2 border-b border-border pb-6">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 bg-accent" />
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-accent">
+              System: Search
+            </p>
+          </div>
           <h1
-            className="text-3xl font-bold tracking-tight sm:text-4xl"
+            className="font-heading text-4xl font-black uppercase tracking-tighter text-foreground sm:text-5xl md:text-6xl"
             role="heading"
             aria-level={1}
           >
-            ジム一覧・検索
+            Gym Database
           </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            設備やエリアで絞り込み、URL 共有で同じ検索条件を再現できます。
+          <p className="max-w-3xl font-mono text-sm text-muted-foreground">
+            {"// FILTER BY EQUIPMENT, AREA, AND DISTANCE."}
           </p>
         </header>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:gap-8">
-          <SearchFilters
-            categories={equipmentOptions}
-            cities={cities}
-            cityError={cityError}
-            isCityLoading={isCityLoading}
-            isMetaLoading={isMetaLoading}
-            metaError={metaError}
-            isSearchLoading={isLoading}
-            onCategoriesChange={updateCategories}
-            onCityChange={updateCity}
-            onClear={clearFilters}
-            onDistanceChange={updateDistance}
-            onKeywordChange={updateKeyword}
-            onPrefectureChange={updatePrefecture}
-            onRequestLocation={requestLocation}
-            onUseFallbackLocation={useFallbackLocation}
-            onClearLocation={clearLocation}
-            onManualLocationChange={setManualLocation}
-            onReloadCities={reloadCities}
-            onReloadMeta={reloadMeta}
-            onSortChange={updateSort}
-            onSubmitSearch={submitSearch}
-            location={location}
-            prefectures={prefectures}
-            state={formState}
-          />
-          <div className="flex flex-col gap-6">
+
+        <div className="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-start">
+          {isDesktop ? (
+            <aside className="sticky top-24 z-20 hidden lg:block">
+              <SearchFilters
+                categories={equipmentOptions}
+                cities={cities}
+                cityError={cityError}
+                isCityLoading={isCityLoading}
+                isMetaLoading={isMetaLoading}
+                metaError={metaError}
+                isSearchLoading={isLoading}
+                onCategoriesChange={updateCategories}
+                onCityChange={updateCity}
+                onClear={clearFilters}
+                onDistanceChange={updateDistance}
+                onKeywordChange={updateKeyword}
+                onPrefectureChange={updatePrefecture}
+                onRequestLocation={requestLocation}
+                onUseFallbackLocation={useFallbackLocation}
+                onClearLocation={clearLocation}
+                onManualLocationChange={setManualLocation}
+                onReloadCities={reloadCities}
+                onReloadMeta={reloadMeta}
+                onSortChange={updateSort}
+                onSubmitSearch={submitSearch}
+                location={location}
+                prefectures={prefectures}
+                state={formState}
+              />
+            </aside>
+          ) : (
+            <div className="lg:hidden">
+              <SearchFilters
+                categories={equipmentOptions}
+                cities={cities}
+                cityError={cityError}
+                isCityLoading={isCityLoading}
+                isMetaLoading={isMetaLoading}
+                metaError={metaError}
+                isSearchLoading={isLoading}
+                onCategoriesChange={updateCategories}
+                onCityChange={updateCity}
+                onClear={clearFilters}
+                onDistanceChange={updateDistance}
+                onKeywordChange={updateKeyword}
+                onPrefectureChange={updatePrefecture}
+                onRequestLocation={requestLocation}
+                onUseFallbackLocation={useFallbackLocation}
+                onClearLocation={clearLocation}
+                onManualLocationChange={setManualLocation}
+                onReloadCities={reloadCities}
+                onReloadMeta={reloadMeta}
+                onSortChange={updateSort}
+                onSubmitSearch={submitSearch}
+                location={location}
+                prefectures={prefectures}
+                state={formState}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6 min-w-0">
             <GymList
               error={error}
               gyms={items}

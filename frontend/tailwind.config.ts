@@ -60,7 +60,9 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", ...fontFamily.sans],
+        sans: ["var(--font-manrope)", ...fontFamily.sans],
+        heading: ["var(--font-oswald)", ...fontFamily.sans],
+        body: ["var(--font-manrope)", ...fontFamily.sans],
       },
       keyframes: {
         "accordion-down": {

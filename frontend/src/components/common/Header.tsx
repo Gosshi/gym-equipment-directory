@@ -28,7 +28,7 @@ const UserAvatar = ({ user }: { user: User }) => {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         alt={`${user.name} のアバター`}
-        className="h-8 w-8 rounded-full object-cover"
+        className="h-8 w-8 rounded-none border border-border object-cover"
         decoding="async"
         loading="lazy"
         src={user.avatarUrl}
@@ -37,7 +37,7 @@ const UserAvatar = ({ user }: { user: User }) => {
   }
 
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+    <div className="flex h-8 w-8 items-center justify-center rounded-none border border-border bg-muted text-sm font-bold text-muted-foreground">
       {getInitials(user.name)}
     </div>
   );
@@ -91,13 +91,13 @@ export function AppHeader() {
     try {
       await signOut();
       toast({
-        title: "ログアウトしました",
-        description: "またのご利用をお待ちしています。",
+        title: "LOGGED OUT",
+        description: "See you at the gym.",
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "ログアウトに失敗しました";
+      const message = error instanceof Error ? error.message : "Logout failed";
       toast({
-        title: "ログアウトに失敗しました",
+        title: "ERROR",
         description: message,
         variant: "destructive",
       });
@@ -105,31 +105,50 @@ export function AppHeader() {
   }, [signOut]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link className="text-lg font-semibold text-foreground" href="/">
-            Gym Equipment Directory
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-8">
+          <Link className="flex items-center gap-2" href="/">
+            <span className="font-heading text-2xl font-black uppercase tracking-tighter text-foreground">
+              IRON <span className="text-accent">MAP</span>
+            </span>
           </Link>
-          <nav className="hidden items-center gap-4 text-sm font-medium text-muted-foreground sm:flex">
-            <Link className="transition hover:text-foreground" href="/gyms">
-              ジム検索
+          <nav className="hidden items-center gap-6 sm:flex">
+            <Link
+              className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
+              href="/gyms"
+            >
+              Search
             </Link>
-            <Link className="transition hover:text-foreground" href="/me/favorites">
-              お気に入り
+            <Link
+              className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
+              href="/gyms/nearby"
+            >
+              Nearby
+            </Link>
+            <Link
+              className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
+              href="/me/favorites"
+            >
+              Favorites
             </Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {status === "loading" ? (
             <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-8 w-8 rounded-none" />
               <Skeleton className="h-4 w-24" />
             </div>
           ) : null}
           {status !== "loading" && !user ? (
-            <Button onClick={handleLoginClick} type="button">
-              ログイン
+            <Button
+              onClick={handleLoginClick}
+              type="button"
+              variant="outline"
+              className="rounded-none border-accent font-mono text-xs font-bold uppercase tracking-wider text-accent hover:bg-accent hover:text-accent-foreground"
+            >
+              Login
             </Button>
           ) : null}
           {status !== "loading" && user ? (
@@ -137,32 +156,32 @@ export function AppHeader() {
               <button
                 aria-expanded={menuOpen}
                 className={cn(
-                  "flex items-center gap-2 rounded-full border border-transparent px-2 py-1 text-sm transition",
-                  menuOpen ? "border-border bg-muted" : "hover:bg-muted",
+                  "flex items-center gap-3 rounded-none border border-transparent px-2 py-1 transition hover:bg-accent/10",
+                  menuOpen && "border-border bg-accent/10",
                 )}
                 onClick={() => setMenuOpen(prev => !prev)}
                 type="button"
               >
                 <UserAvatar user={user} />
-                <span className="hidden text-sm font-medium text-foreground sm:inline">
+                <span className="hidden font-mono text-xs font-bold uppercase tracking-wider text-foreground sm:inline">
                   {user.name}
                 </span>
               </button>
               {menuOpen ? (
-                <div className="absolute right-0 mt-2 w-48 rounded-md border border-border bg-popover p-2 shadow-lg">
+                <div className="absolute right-0 mt-2 w-48 border border-border bg-card p-1 shadow-xl">
                   <Link
-                    className="block rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+                    className="block px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-foreground transition hover:bg-accent hover:text-accent-foreground"
                     href="/me/favorites"
                     onClick={() => setMenuOpen(false)}
                   >
-                    お気に入り
+                    Favorites
                   </Link>
                   <button
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition hover:bg-muted"
+                    className="block w-full px-4 py-2 text-left font-mono text-xs font-bold uppercase tracking-wider text-foreground transition hover:bg-destructive hover:text-destructive-foreground"
                     onClick={handleSignOut}
                     type="button"
                   >
-                    ログアウト
+                    Logout
                   </button>
                 </div>
               ) : null}
