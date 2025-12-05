@@ -18,23 +18,36 @@ async def revert_approvals(
     since_hours: int,
     status_to: str,
     dry_run: bool,
+    list_all: bool = False,
 ) -> None:
     async with SessionLocal() as session:
-        # 1. Find candidates approved recently
+        # 1. Find candidates updated recently
         since = datetime.now(UTC) - timedelta(hours=since_hours)
-        stmt = (
-            select(GymCandidate)
-            .where(GymCandidate.status == CandidateStatus.approved)
-            .where(GymCandidate.updated_at >= since)
-        )
+        stmt = select(GymCandidate).where(GymCandidate.updated_at >= since)
+
+        if not list_all:
+            stmt = stmt.where(GymCandidate.status == CandidateStatus.approved)
+
         if keyword:
             stmt = stmt.where(GymCandidate.name_raw.like(f"%{keyword}%"))
+
+        stmt = stmt.order_by(GymCandidate.updated_at.desc())
 
         result = await session.execute(stmt)
         candidates = result.scalars().all()
 
         if not candidates:
             logger.info("No candidates found matching the criteria.")
+            return
+
+        if list_all:
+            logger.info(
+                f"Found {len(candidates)} candidates updated in the last {since_hours} hours:"
+            )
+            for c in candidates:
+                logger.info(
+                    f"  ID={c.id} Status={c.status.value} Updated={c.updated_at} Name={c.name_raw}"
+                )
             return
 
         logger.info(f"Found {len(candidates)} candidates to revert.")
@@ -109,7 +122,14 @@ def main() -> None:
         "--dry-run", action="store_true", default=False, help="Dry run (no changes)"
     )
     parser.add_argument(
-        "--execute", action="store_true", help="Execute changes (opposite of dry-run, for safety)"
+        "--execute",
+        action="store_true",
+        help="Execute changes (opposite of dry-run, for safety)",
+    )
+    parser.add_argument(
+        "--list-all",
+        action="store_true",
+        help="List all updated candidates regardless of status (debug)",
     )
 
     args = parser.parse_args()
@@ -130,8 +150,12 @@ def main() -> None:
     db_url = os.getenv("DATABASE_URL")
     if db_url:
         configure_engine(db_url)
+    else:
+        logger.warning("DATABASE_URL is not set. Connecting to default (likely empty/local) DB.")
 
-    asyncio.run(revert_approvals(args.keyword, args.since_hours, args.status_to, dry_run))
+    asyncio.run(
+        revert_approvals(args.keyword, args.since_hours, args.status_to, dry_run, args.list_all)
+    )
 
 
 if __name__ == "__main__":
