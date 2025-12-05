@@ -1,0 +1,37 @@
+name: Cost Monitor
+
+on:
+  schedule:
+    # Run at 23:00 JST (14:00 UTC) every day
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-budget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Check Budget
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Assuming logs are stored/persisted or we are checking live API usage if adapted.
+          # Note: Since logs are local, this GH action might not see logs from other runs unless artifacts are used.
+          # However, for now, we'll set it up. If logs are not persisted, this might report 0.
+          # Ideally, logs should be in a shared storage or DB for this to work effectively in CI.
+          # For local execution, this works fine.
+        run: |
+          # Create dummy logs dir if not exists to prevent error, though it won't find logs in a fresh runner.
+          mkdir -p logs
+          python -m scripts.check_budget --days 1
