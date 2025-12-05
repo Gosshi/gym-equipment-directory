@@ -309,40 +309,9 @@ def run_orchestrator(force_day: str | None = None) -> int:
                 target["source"],
             )
 
-    # Run geocoding for missing coordinates
-    logger.info("Starting geocoding for candidates...")
-    geocode_candidates = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "scripts.tools.geocode_missing",
-            "--target",
-            "candidates",
-            "--origin",
-            "all",
-        ],
-        check=False,
-    )
-    if geocode_candidates.returncode != 0:
-        logger.error("Geocoding for candidates failed")
-        had_failures = True
-
-    logger.info("Starting geocoding for gyms...")
-    geocode_gyms = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "scripts.tools.geocode_missing",
-            "--target",
-            "gyms",
-            "--origin",
-            "scraped",
-        ],
-        check=False,
-    )
-    if geocode_gyms.returncode != 0:
-        logger.error("Geocoding for gyms failed")
-        had_failures = True
+    # Geocoding disabled by user request (manual only)
+    # logger.info("Starting geocoding for candidates...")
+    # ... (removed)
 
     # Collect summary
     summary_lines = [f"**Nightly Run Report ({current_day})**"]

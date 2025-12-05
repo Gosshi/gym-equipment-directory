@@ -17,6 +17,7 @@ import {
   approveCandidate,
   patchCandidate,
   rejectCandidate,
+  geocodeCandidate,
 } from "@/lib/adminApi";
 
 const formatDateTime = (value: string | undefined | null) => {
@@ -777,6 +778,7 @@ export default function AdminCandidateDetailPage() {
               />
             </label>
           </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
               <span className="font-medium">緯度</span>
@@ -788,11 +790,37 @@ export default function AdminCandidateDetailPage() {
             </label>
             <label className="flex flex-col gap-2 text-sm">
               <span className="font-medium">経度</span>
-              <input
-                className="rounded border border-gray-300 px-3 py-2"
-                value={formState.longitude}
-                onChange={event => handleInputChange("longitude", event.target.value)}
-              />
+              <div className="flex gap-2">
+                <input
+                  className="w-full rounded border border-gray-300 px-3 py-2"
+                  value={formState.longitude}
+                  onChange={event => handleInputChange("longitude", event.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!candidate) return;
+                    setActionState("saving");
+                    try {
+                      const updated = await geocodeCandidate(candidate.id);
+                      updateCandidateState(updated);
+                      toast({ title: "住所検索を実行しました" });
+                    } catch (err) {
+                      toast({
+                        title: "住所検索に失敗しました",
+                        description: err instanceof Error ? err.message : "不明なエラー",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setActionState("idle");
+                    }
+                  }}
+                  disabled={actionState !== "idle"}
+                  className="whitespace-nowrap rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  住所検索
+                </button>
+              </div>
             </label>
           </div>
           <label className="flex flex-col gap-2 text-sm">

@@ -159,6 +159,32 @@ async def patch_candidate(
     return _to_item(updated)
 
 
+@router.post("/{candidate_id}/geocode", response_model=AdminCandidateItem)
+async def geocode_candidate(
+    candidate_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.services.geocode import geocode
+
+    candidate = await session.get(candidate_service.GymCandidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="candidate not found")
+
+    if not candidate.address_raw:
+        raise HTTPException(status_code=400, detail="candidate has no address")
+
+    coords = await geocode(session, candidate.address_raw)
+    if not coords:
+        raise HTTPException(status_code=404, detail="geocoding failed")
+
+    candidate.latitude, candidate.longitude = coords
+    await session.commit()
+
+    # Re-fetch full row to return AdminCandidateItem
+    updated_row = await candidate_service.get_candidate_detail(session, candidate_id)
+    return _to_item(updated_row)
+
+
 @router.post(
     "/{candidate_id}/approve",
     response_model=ApprovePreview | ApproveResult,

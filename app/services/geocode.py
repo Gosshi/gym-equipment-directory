@@ -403,10 +403,11 @@ def _geocode_with_providers(address: str) -> tuple[float, float, str, Any] | Non
                 return result
             logger.info("miss %s provider=%s addr=%r", "-", "opencage", query)
 
-        result = nominatim_geocode(query)
-        if result is not None:
-            return result
-        logger.info("miss %s provider=%s addr=%r", "-", "nominatim", query)
+        # Nominatim fallback disabled by user request
+        # result = nominatim_geocode(query)
+        # if result is not None:
+        #     return result
+        # logger.info("miss %s provider=%s addr=%r", "-", "nominatim", query)
 
     return None
 

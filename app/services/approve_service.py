@@ -488,6 +488,7 @@ class ApproveService:
         existing = await self._find_gym_by_canonical_id(canonical_id)
         if target_gym is None and existing is not None:
             target_gym = existing
+
         if target_gym:
             updates: dict[str, Any] = {}
             changes: list[FieldChange] = []
@@ -503,6 +504,7 @@ class ApproveService:
                 if value:
                     updates[attr] = value
                     changes.append(FieldChange(field=attr, before=current, after=value))
+
             if official_url and not getattr(target_gym, "official_url", None):
                 updates["official_url"] = official_url
                 changes.append(FieldChange(field="official_url", before=None, after=official_url))
