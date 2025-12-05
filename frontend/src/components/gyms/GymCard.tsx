@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { KeyboardEvent, MouseEvent } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FavoriteButton } from "@/components/gyms/FavoriteButton";
 import { cn } from "@/lib/utils";
 import type { GymSummary } from "@/types/gym";
 
@@ -97,6 +98,9 @@ export function GymCard({
         )}
       >
         <div className="relative isolate overflow-hidden bg-muted">
+          <div className="absolute right-2 top-2 z-10">
+            <FavoriteButton gymId={gym.id} />
+          </div>
           <div className="aspect-[4/3] w-full" aria-hidden />
           <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs text-muted-foreground">
             {gym.thumbnailUrl ? (

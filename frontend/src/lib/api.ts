@@ -276,3 +276,34 @@ export async function fetchGyms(
     },
   };
 }
+
+// Favorites APIs
+export type FavoriteItem = {
+  gym_id: number;
+  slug: string;
+  name: string;
+  pref?: string | null;
+  city?: string | null;
+  last_verified_at?: string | null;
+};
+
+export async function listFavorites(device_id: string): Promise<FavoriteItem[]> {
+  return apiRequest<FavoriteItem[]>("/me/favorites", {
+    method: "GET",
+    query: { device_id },
+  });
+}
+
+export async function addFavorite(device_id: string, gym_id: number): Promise<void> {
+  await apiRequest("/me/favorites", {
+    method: "POST",
+    body: JSON.stringify({ device_id, gym_id }),
+  });
+}
+
+export async function removeFavorite(device_id: string, gym_id: number): Promise<void> {
+  await apiRequest(`/me/favorites/${gym_id}`, {
+    method: "DELETE",
+    query: { device_id },
+  });
+}
