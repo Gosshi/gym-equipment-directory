@@ -19,6 +19,7 @@ async def revert_approvals(
     status_to: str,
     dry_run: bool,
     list_all: bool = False,
+    target_status: str = "approved",
 ) -> None:
     async with SessionLocal() as session:
         # 1. Find candidates updated recently
@@ -26,7 +27,7 @@ async def revert_approvals(
         stmt = select(GymCandidate).where(GymCandidate.updated_at >= since)
 
         if not list_all:
-            stmt = stmt.where(GymCandidate.status == CandidateStatus.approved)
+            stmt = stmt.where(GymCandidate.status == CandidateStatus(target_status))
 
         if keyword:
             stmt = stmt.where(GymCandidate.name_raw.like(f"%{keyword}%"))
@@ -50,56 +51,45 @@ async def revert_approvals(
                 )
             return
 
-        logger.info(f"Found {len(candidates)} candidates to revert.")
+        logger.info(f"Found {len(candidates)} candidates to process (Target: {target_status}).")
 
         for candidate in candidates:
-            # 2. Find corresponding Gym
-            # We reconstruct canonical_id to find the gym
-            # Note: This logic must match ApproveService
-            parsed = candidate.parsed_json or {}
-            name = parsed.get("facility_name") or candidate.name_raw
-            pref = candidate.pref_slug
-            city = candidate.city_slug
+            # 2. Find corresponding Gym (only if target is approved)
+            gym = None
+            if target_status == "approved":
+                parsed = candidate.parsed_json or {}
+                name = parsed.get("facility_name") or candidate.name_raw
+                pref = candidate.pref_slug
+                city = candidate.city_slug
 
-            if not pref or not city:
-                logger.warning(f"Candidate {candidate.id} missing pref/city, skipping.")
-                continue
+                if pref and city:
+                    canonical_id = make_canonical_id(pref, city, name)
+                    gym_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
+                    gym_result = await session.execute(gym_stmt)
+                    gym = gym_result.scalar_one_or_none()
 
-            canonical_id = make_canonical_id(pref, city, name)
-
-            gym_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
-            gym_result = await session.execute(gym_stmt)
-            gym = gym_result.scalar_one_or_none()
-
-            if not gym:
-                logger.warning(
-                    f"Gym not found for candidate {candidate.id} "
-                    f"(canonical_id={canonical_id}), skipping."
+            if gym:
+                logger.info(f"Candidate {candidate.id} -> Gym {gym.id} ({gym.name})")
+            else:
+                logger.info(
+                    f"Candidate {candidate.id} ({candidate.name_raw}) "
+                    "-> No Gym found (or not searching)"
                 )
-                # Even if gym is not found, we might want to reset candidate status?
-                # But if gym is missing, maybe it wasn't created or was already deleted.
-                # Let's assume we only revert if we find the gym or if forced.
-                # For safety, let's just reset status if gym is missing?
-                # No, if gym is missing, maybe it was linked to an existing gym?
-                # It's complex. Let's stick to "delete created gym".
-                continue
-
-            logger.info(f"Candidate {candidate.id} -> Gym {gym.id} ({gym.name})")
 
             if not dry_run:
-                # 3. Delete Gym
-                await session.delete(gym)
+                # 3. Delete Gym if exists
+                if gym:
+                    await session.delete(gym)
+                    logger.info(f"  Deleted Gym {gym.id}")
 
                 # 4. Reset Candidate Status
                 candidate.status = CandidateStatus(status_to)
-                logger.info(
-                    f"  Deleted Gym {gym.id} and set Candidate {candidate.id} to {status_to}"
-                )
+                logger.info(f"  Set Candidate {candidate.id} to {status_to}")
             else:
-                logger.info(
-                    f"  [Dry-Run] Would delete Gym {gym.id} "
-                    f"and set Candidate {candidate.id} to {status_to}"
-                )
+                msg = f"  [Dry-Run] Would set Candidate {candidate.id} to {status_to}"
+                if gym:
+                    msg += f" and delete Gym {gym.id}"
+                logger.info(msg)
 
         if not dry_run:
             await session.commit()
@@ -117,6 +107,12 @@ def main() -> None:
         default="new",
         choices=["new", "ignored", "rejected"],
         help="Status to revert to (default: new)",
+    )
+    parser.add_argument(
+        "--target-status",
+        default="approved",
+        choices=["new", "reviewing", "approved", "rejected", "ignored"],
+        help="Target status to process (default: approved)",
     )
     parser.add_argument(
         "--dry-run", action="store_true", default=False, help="Dry run (no changes)"
@@ -154,7 +150,14 @@ def main() -> None:
         logger.warning("DATABASE_URL is not set. Connecting to default (likely empty/local) DB.")
 
     asyncio.run(
-        revert_approvals(args.keyword, args.since_hours, args.status_to, dry_run, args.list_all)
+        revert_approvals(
+            args.keyword,
+            args.since_hours,
+            args.status_to,
+            dry_run,
+            args.list_all,
+            args.target_status,
+        )
     )
 
 
