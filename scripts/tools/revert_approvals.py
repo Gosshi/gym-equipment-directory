@@ -20,10 +20,63 @@ async def revert_approvals(
     dry_run: bool,
     list_all: bool = False,
     target_status: str = "approved",
+    mode: str = "candidates",
 ) -> None:
     async with SessionLocal() as session:
-        # 1. Find candidates updated recently
         since = datetime.now(UTC) - timedelta(hours=since_hours)
+
+        if mode == "gyms":
+            # Search Gyms directly
+            stmt = select(Gym).where(Gym.created_at >= since)
+            if keyword:
+                stmt = stmt.where(Gym.name.like(f"%{keyword}%"))
+
+            stmt = stmt.order_by(Gym.created_at.desc())
+            result = await session.execute(stmt)
+            gyms = result.scalars().all()
+
+            if not gyms:
+                logger.info("No gyms found matching the criteria.")
+                return
+
+            logger.info(f"Found {len(gyms)} gyms created in the last {since_hours} hours.")
+
+            for gym in gyms:
+                logger.info(f"Gym {gym.id} ({gym.name}) Created={gym.created_at}")
+
+                # Try to find associated candidate to reset
+                # This is a best-effort reverse lookup
+                # cand_stmt = select(GymCandidate).where(
+                #     GymCandidate.parsed_json['approved_gym_slug'].astext == gym.slug
+                # )
+                # Or by canonical_id if available
+                # (GymCandidate doesn't store it directly usually, but we can try)
+                # Actually, GymCandidate doesn't link back easily unless we use
+                # the same canonical_id logic.
+                # Let's try to find candidates that *would* generate this gym.
+                # This is hard.
+                # Alternative: Find candidates with same name/pref/city
+
+                # For now, just delete the Gym is the priority.
+                # Alternative: Find candidates with same name/pref/city
+
+                # For now, just delete the Gym is the priority.
+
+                if not dry_run:
+                    await session.delete(gym)
+                    logger.info(f"  Deleted Gym {gym.id}")
+                else:
+                    logger.info(f"  [Dry-Run] Would delete Gym {gym.id}")
+
+            if not dry_run:
+                await session.commit()
+                logger.info("Changes committed.")
+            else:
+                logger.info("Dry-run complete. No changes made.")
+            return
+
+        # Original Candidate-based logic
+        # 1. Find candidates updated recently
         stmt = select(GymCandidate).where(GymCandidate.updated_at >= since)
 
         if not list_all:
@@ -54,19 +107,19 @@ async def revert_approvals(
         logger.info(f"Found {len(candidates)} candidates to process (Target: {target_status}).")
 
         for candidate in candidates:
-            # 2. Find corresponding Gym (only if target is approved)
+            # 2. Find corresponding Gym
+            # Always try to find gym if we are cleaning up, regardless of status
             gym = None
-            if target_status == "approved":
-                parsed = candidate.parsed_json or {}
-                name = parsed.get("facility_name") or candidate.name_raw
-                pref = candidate.pref_slug
-                city = candidate.city_slug
+            parsed = candidate.parsed_json or {}
+            name = parsed.get("facility_name") or candidate.name_raw
+            pref = candidate.pref_slug
+            city = candidate.city_slug
 
-                if pref and city:
-                    canonical_id = make_canonical_id(pref, city, name)
-                    gym_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
-                    gym_result = await session.execute(gym_stmt)
-                    gym = gym_result.scalar_one_or_none()
+            if pref and city:
+                canonical_id = make_canonical_id(pref, city, name)
+                gym_stmt = select(Gym).where(Gym.canonical_id == canonical_id)
+                gym_result = await session.execute(gym_stmt)
+                gym = gym_result.scalar_one_or_none()
 
             if gym:
                 logger.info(f"Candidate {candidate.id} -> Gym {gym.id} ({gym.name})")
@@ -115,6 +168,12 @@ def main() -> None:
         help="Target status to process (default: approved)",
     )
     parser.add_argument(
+        "--mode",
+        default="candidates",
+        choices=["candidates", "gyms"],
+        help="Search mode: 'candidates' (default) or 'gyms' (direct Gym table search)",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", default=False, help="Dry run (no changes)"
     )
     parser.add_argument(
@@ -157,6 +216,7 @@ def main() -> None:
             dry_run,
             args.list_all,
             args.target_status,
+            args.mode,
         )
     )
 
