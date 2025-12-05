@@ -21,3 +21,4 @@ sentry-sdk[fastapi]>=2.7.0
 eval_type_backport>=0.2
 beautifulsoup4>=4.12,<5
 openai>=1.0.0
+PyYAML>=6.0
