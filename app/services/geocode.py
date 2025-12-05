@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
 import unicodedata
 from collections.abc import Iterable
@@ -86,9 +87,20 @@ _PREFECTURES = [
 
 def sanitize_address(address: str) -> str:
     """Normalize addresses for consistent caching and lookup."""
+    if not address:
+        return ""
 
-    normalized = unicodedata.normalize("NFKC", address or "")
+    normalized = unicodedata.normalize("NFKC", address)
     cleaned = normalized.replace("\x00", "").strip()
+
+    # Remove postal code symbols
+    cleaned = re.sub(r"〒", "", cleaned)
+    cleaned = re.sub(r"郵便番号", "", cleaned)
+
+    # Remove postal code pattern (e.g. 123-4567) at start/end or surrounded by spaces
+    # Be careful not to remove phone numbers, but standard jp postal code is 3-4 digits.
+    cleaned = re.sub(r"(?:^|\s)\d{3}-\d{4}(?:\s|$)", " ", cleaned)
+
     return " ".join(cleaned.split())
 
 
