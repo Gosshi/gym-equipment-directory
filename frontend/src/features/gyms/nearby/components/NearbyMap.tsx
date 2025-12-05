@@ -723,8 +723,8 @@ export function NearbyMap({
   const showErrorOverlay = markersStatus === "error" && Boolean(markersError);
 
   return (
-    <div className="relative">
-      <div className="h-[420px] w-full rounded-lg border" ref={containerRef} />
+    <div className="relative h-full w-full">
+      <div className="h-full w-full rounded-lg border" ref={containerRef} />
       <span aria-hidden className="sr-only" data-testid="nearby-map-zoom">
         {zoomLevel.toFixed(2)}
       </span>
