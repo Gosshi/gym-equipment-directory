@@ -43,62 +43,68 @@ export function Hero() {
         IRON MAP PROJECT
       </div>
 
-      <div className="relative z-10 flex max-w-4xl flex-col items-center gap-8 px-4">
-        {/* Main Heading */}
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-mono text-sm font-bold tracking-[0.2em] text-accent uppercase">
-            Tokyo Public Gym Directory
+      <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
+        <div className="mb-6 inline-flex items-center gap-2 border border-accent/30 bg-accent/10 px-3 py-1 backdrop-blur-sm">
+          <span className="h-2 w-2 animate-pulse bg-accent" />
+          <span className="font-mono text-xs font-bold tracking-widest text-accent">
+            SYSTEM: ONLINE
           </span>
-          <h1 className="font-heading text-7xl font-black uppercase tracking-tighter text-foreground sm:text-8xl md:text-9xl">
-            IRON <span className="text-stroke text-transparent">MAP</span>
-          </h1>
-          <p className="max-w-xl text-lg text-muted-foreground font-body">
-            Find your forge. Discover affordable municipal gyms equipped for serious training.
-          </p>
         </div>
 
-        {/* Search Bar */}
-        <form
-          onSubmit={handleSearch}
-          className="flex w-full max-w-lg items-stretch gap-0 shadow-2xl"
-        >
-          <div className="relative flex-1 group">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors">
-              <Search className="h-5 w-5" />
-            </div>
-            <Input
-              type="search"
-              placeholder="SEARCH EQUIPMENT (E.G. POWER RACK)..."
-              className="h-14 rounded-none border-2 border-r-0 border-border bg-card/80 pl-12 font-mono text-lg uppercase tracking-wide backdrop-blur focus-visible:border-accent focus-visible:ring-0"
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-            />
-          </div>
-          <Button
-            type="submit"
-            className="h-14 rounded-none border-2 border-accent bg-accent px-8 font-heading text-xl font-bold uppercase tracking-widest text-accent-foreground hover:bg-accent/90"
-          >
-            Search
-          </Button>
-        </form>
+        <h1 className="mb-4 font-heading text-6xl font-black uppercase tracking-tighter text-foreground sm:text-7xl md:text-9xl">
+          <span className="block text-stroke-sm md:text-stroke text-transparent">IRON</span>
+          <span className="block text-accent">MAP</span>
+        </h1>
 
-        {/* Popular Tags */}
-        <div className="flex flex-wrap justify-center gap-3">
-          {[
-            { label: "Power Rack", query: "Power Rack", icon: Dumbbell },
-            { label: "Smith Machine", query: "Smith Machine", icon: Dumbbell },
-            { label: "Minato-ku", query: "Minato", icon: MapPin },
-          ].map(tag => (
-            <button
-              key={tag.label}
-              type="button"
-              onClick={() => router.push(`/search?q=${tag.query}`)}
-              className="group flex items-center gap-2 border border-border bg-card/50 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+        <p className="mb-12 max-w-2xl font-mono text-sm text-muted-foreground sm:text-base md:text-lg">
+          東京都内の公営ジムを網羅したデータベース。
+          <br className="hidden sm:block" />
+          あなたの鍛錬の場を見つけよう。
+        </p>
+
+        <div className="w-full max-w-xl">
+          <form
+            onSubmit={handleSearch}
+            className="flex w-full max-w-lg items-stretch gap-0 shadow-2xl"
+          >
+            <div className="relative flex-1 group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors">
+                <Search className="h-5 w-5" />
+              </div>
+              <Input
+                type="search"
+                placeholder="設備名で検索 (例: パワーラック)..."
+                className="h-14 border-2 border-accent/50 bg-background/50 text-lg backdrop-blur-md transition-all focus-within:border-accent focus-within:bg-background/80 focus-within:ring-4 focus-within:ring-accent/20 pl-12 font-mono uppercase tracking-wide focus-visible:ring-0"
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="h-14 rounded-none border-2 border-accent bg-accent px-8 font-heading text-xl font-bold uppercase tracking-widest text-accent-foreground hover:bg-accent/90"
             >
-              <tag.icon className="h-3 w-3" />
-              {tag.label}
-            </button>
-          ))}
+              検索
+            </Button>
+          </form>
+
+          {/* Popular Tags */}
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { label: "パワーラック", query: "パワーラック", icon: Dumbbell },
+              { label: "スミスマシン", query: "スミスマシン", icon: Dumbbell },
+              { label: "港区", query: "港区", icon: MapPin },
+            ].map(tag => (
+              <button
+                key={tag.label}
+                type="button"
+                onClick={() => router.push(`/search?q=${tag.query}`)}
+                className="group flex items-center gap-2 border border-border bg-card/50 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <tag.icon className="h-3 w-3" />
+                {tag.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>

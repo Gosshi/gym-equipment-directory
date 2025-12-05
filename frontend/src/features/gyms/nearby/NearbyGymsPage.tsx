@@ -328,7 +328,7 @@ export function NearbyGymsPage() {
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 bg-accent" />
             <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-accent">
-              System: Nearby
+              現在地から探す
             </p>
           </div>
           <h1
@@ -336,12 +336,12 @@ export function NearbyGymsPage() {
             role="heading"
             aria-level={1}
           >
-            Proximity Scan
+            近隣ジム検索
           </h1>
           <p className="text-base font-mono text-muted-foreground">
-            {"// TARGET: "}
+            {"// ターゲット: 半径"}
             {radiusKmLabel}
-            {" RADIUS FROM CENTER."}
+            {"以内"}
           </p>
         </header>
 
@@ -379,10 +379,10 @@ export function NearbyGymsPage() {
                       role="heading"
                       aria-level={2}
                     >
-                      Tactical Map
+                      マップ
                     </CardTitle>
                     <p className="font-mono text-xs text-muted-foreground">
-                      SELECT TARGET TO VIEW INTEL. DRAG TO RE-CENTER.
+                      ピンを選択して詳細を表示。ドラッグで移動。
                     </p>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -415,7 +415,7 @@ export function NearbyGymsPage() {
                         role="heading"
                         aria-level={2}
                       >
-                        Detected Targets
+                        検索結果
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 px-0">
@@ -455,7 +455,7 @@ export function NearbyGymsPage() {
                   <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-none border-2 border-dashed border-border/50 bg-card/20 p-6 text-center text-sm text-muted-foreground">
                     <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/30" />
                     <p className="font-mono text-xs uppercase tracking-wider">
-                      Awaiting Target Selection
+                      ジムを選択してください
                     </p>
                   </div>
                 )}

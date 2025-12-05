@@ -31,10 +31,10 @@ export function AreaGrid() {
     <section className="w-full max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
       <div className="mb-12 flex flex-col items-center text-center">
         <span className="font-mono text-sm font-bold tracking-[0.2em] text-accent uppercase">
-          Target Sector
+          エリア選択
         </span>
         <h2 className="font-heading text-4xl font-bold uppercase tracking-tighter sm:text-5xl">
-          Browse by Area
+          エリアから探す
         </h2>
         <div className="mt-4 h-1 w-24 bg-accent" />
       </div>

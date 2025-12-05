@@ -4,8 +4,10 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%; /* Light Concrete */
-    --foreground: 220 13% 18%; /* Dark Gunmetal */
+    --background: 210 20% 98%;
+    /* Light Concrete */
+    --foreground: 220 13% 18%;
+    /* Dark Gunmetal */
 
     --card: 0 0% 100%;
     --card-foreground: 220 13% 18%;
@@ -13,8 +15,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 13% 18%;
 
-    --primary: 220 13% 18%; /* Blackish */
-    --primary-foreground: 84 100% 50%; /* Neon Lime */
+    --primary: 220 13% 18%;
+    /* Blackish */
+    --primary-foreground: 0 0% 100%;
+    /* White text on primary */
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,22 +26,27 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 84 100% 50%; /* Neon Lime */
-    --accent-foreground: 220 13% 18%;
+    --accent: 84 100% 40%;
+    /* Darker Lime/Olive for visibility on light bg */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 80%;
+    /* Slightly darker border */
     --input: 214.3 31.8% 91.4%;
     --ring: 220 13% 18%;
 
-    --radius: 0rem; /* Sharp corners for industrial look */
+    --radius: 0rem;
+    /* Sharp corners for industrial look */
   }
 
   .dark {
-    --background: 220 13% 10%; /* Deep Gunmetal */
-    --foreground: 210 20% 98%; /* Light Concrete */
+    --background: 220 13% 10%;
+    /* Deep Gunmetal */
+    --foreground: 210 20% 98%;
+    /* Light Concrete */
 
     --card: 220 13% 14%;
     --card-foreground: 210 20% 98%;
@@ -45,7 +54,8 @@
     --popover: 220 13% 14%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 84 100% 59%; /* Neon Lime */
+    --primary: 84 100% 59%;
+    /* Neon Lime */
     --primary-foreground: 220 13% 10%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -70,6 +80,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
