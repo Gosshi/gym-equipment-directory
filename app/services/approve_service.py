@@ -131,7 +131,7 @@ class EquipmentPlan:
                 availability=Availability.present,
                 count=self.count_after,
                 verification_status=VerificationStatus.user_verified,
-                last_verified_at_cached=datetime.now(UTC),
+                last_verified_at=datetime.now(UTC),
             )
             session.add(link)
             await session.flush()
