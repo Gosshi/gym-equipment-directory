@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
+import { FavoriteButton } from "@/components/gyms/FavoriteButton";
+
 interface GymHeaderProps {
+  gymId: number;
   name: string;
   address?: string;
   locationLabel?: string;
@@ -10,7 +13,14 @@ interface GymHeaderProps {
   actions?: ReactNode;
 }
 
-export function GymHeader({ name, address, locationLabel, categories, actions }: GymHeaderProps) {
+export function GymHeader({
+  gymId,
+  name,
+  address,
+  locationLabel,
+  categories,
+  actions,
+}: GymHeaderProps) {
   return (
     <header className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -21,7 +31,10 @@ export function GymHeader({ name, address, locationLabel, categories, actions }:
             {locationLabel ? <p>{locationLabel}</p> : null}
           </div>
         </div>
-        {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+        <div className="flex flex-wrap gap-3">
+          {actions}
+          <FavoriteButton gymId={gymId} size={32} className="p-2" />
+        </div>
       </div>
       {categories.length > 0 ? (
         <div className="flex flex-wrap gap-2">

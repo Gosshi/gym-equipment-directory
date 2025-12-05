@@ -8,6 +8,8 @@ import type { UseGymDetailResult } from "@/hooks/useGymDetail";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 vi.mock("@/hooks/useGymSearch", () => ({
   useGymSearch: vi.fn(),
   FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
@@ -16,6 +18,27 @@ vi.mock("@/hooks/useGymSearch", () => ({
 vi.mock("@/hooks/useGymDetail", () => ({
   useGymDetail: vi.fn(),
 }));
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const testQueryClient = createTestQueryClient();
+  const { rerender, ...result } = render(
+    <QueryClientProvider client={testQueryClient}>{ui}</QueryClientProvider>,
+  );
+  return {
+    ...result,
+    rerender: (rerenderUi: React.ReactElement) =>
+      rerender(<QueryClientProvider client={testQueryClient}>{rerenderUi}</QueryClientProvider>),
+  };
+};
 
 const mockedUseGymSearch = vi.mocked(useGymSearch);
 const mockedUseGymDetail = vi.mocked(useGymDetail);
@@ -152,7 +175,7 @@ describe("GymsPage", () => {
   it("renders the search filters and results", () => {
     mockedUseGymSearch.mockReturnValue(buildHookState());
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
     expect(screen.getByLabelText("都道府県")).toBeInTheDocument();
@@ -177,7 +200,7 @@ describe("GymsPage", () => {
       }),
     );
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     await userEvent.click(screen.getByRole("button", { name: "次のページ" }));
 
@@ -188,7 +211,7 @@ describe("GymsPage", () => {
     const setLimit = vi.fn();
     mockedUseGymSearch.mockReturnValue(buildHookState({ setLimit }));
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     await userEvent.selectOptions(screen.getByLabelText("表示件数"), "50");
 
@@ -210,7 +233,7 @@ describe("GymsPage", () => {
       }),
     );
 
-    const { rerender } = render(<GymsPage />);
+    const { rerender } = renderWithClient(<GymsPage />);
 
     expect(screen.getByRole("button", { name: "前のページ" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
@@ -239,7 +262,7 @@ describe("GymsPage", () => {
     const clearFilters = vi.fn();
     mockedUseGymSearch.mockReturnValue(buildHookState({ clearFilters }));
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     await userEvent.click(screen.getByRole("button", { name: "条件をクリア" }));
 
@@ -250,7 +273,7 @@ describe("GymsPage", () => {
     const submitSearch = vi.fn();
     mockedUseGymSearch.mockReturnValue(buildHookState({ submitSearch }));
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     const [searchButton] = screen.getAllByRole("button", { name: "検索を実行" });
     await userEvent.click(searchButton);
@@ -279,7 +302,7 @@ describe("GymsPage", () => {
     mockedUseGymDetail.mockReturnValue(detailResult);
     mockedUseGymSearch.mockReturnValue(buildHookState());
 
-    render(<GymsPage />);
+    renderWithClient(<GymsPage />);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
@@ -341,7 +364,7 @@ describe("GymsPage", () => {
     };
     mockedUseGymDetail.mockReturnValue(detailResult);
 
-    const { rerender } = render(<GymsPage />);
+    const { rerender } = renderWithClient(<GymsPage />);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 

@@ -40,6 +40,7 @@ const GymMap = dynamic(() => import("@/components/gym/GymMap").then(module => mo
 });
 
 interface NormalizedGymDetail {
+  id: number;
   slug: string;
   name: string;
   description?: string;
@@ -336,6 +337,7 @@ const normalizeGymDetail = (
   const resolvedWebsite = sanitizeText(data.website ?? data.website_url);
 
   return {
+    id: gymRecord.id as number,
     slug: canonicalSlug,
     name: resolvedName,
     description: sanitizeText(data.description),
@@ -520,6 +522,7 @@ export function GymDetailPage({
     <div className="flex min-h-screen flex-col px-4 py-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <GymHeader
+          gymId={gym.id}
           actions={
             <div className="flex flex-wrap gap-3">
               <ReportIssueButton gymName={gym.name} slug={gym.slug} />

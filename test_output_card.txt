@@ -1,0 +1,97 @@
+
+> gym-equipment-frontend@0.1.0 test:unit
+> vitest run --passWithNoTests --exclude "tests/integration/**/*.int.test.ts*" --exclude "tests/e2e/**" src/components/gyms/__tests__/GymCard.test.tsx
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+ RUN  v2.1.9 /Users/gota/Documents/src/gym-equipment-directory/frontend
+
+stderr | src/components/gyms/__tests__/GymCard.test.tsx > GymCard > supports keyboard navigation by triggering click on space key
+Error: Uncaught [Error: No QueryClient set, use QueryClientProvider to set one]
+    at reportException (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/helpers/runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:353:9)
+    at invokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/generated/EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4213:16)
+    at invokeGuardedCallback (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4277:31)
+    at beginWork$1 (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:27490:7)
+    at performUnitOfWork (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:26599:12) Error: No QueryClient set, use QueryClientProvider to set one
+    at Module.useQueryClient (file:///Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:18:11)
+    at Module.useFavorites (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/hooks/useFavorites.ts:8:23)
+    at FavoriteButton (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/components/gyms/FavoriteButton.tsx:12:55)
+    at renderWithHooks (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:20103:13)
+    at beginWork (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/generated/EventListener.js:26:30)
+    at innerInvokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:350:25)
+    at invokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:286:3)
+Error: Uncaught [Error: No QueryClient set, use QueryClientProvider to set one]
+    at reportException (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/helpers/runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:353:9)
+    at invokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/generated/EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4213:16)
+    at invokeGuardedCallback (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4277:31)
+    at beginWork$1 (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:27490:7)
+    at performUnitOfWork (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:26599:12) Error: No QueryClient set, use QueryClientProvider to set one
+    at Module.useQueryClient (file:///Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:18:11)
+    at Module.useFavorites (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/hooks/useFavorites.ts:8:23)
+    at FavoriteButton (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/components/gyms/FavoriteButton.tsx:12:55)
+    at renderWithHooks (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:20103:13)
+    at beginWork (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/react-dom/cjs/react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/generated/EventListener.js:26:30)
+    at innerInvokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:350:25)
+    at invokeEventListeners (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:286:3)
+The above error occurred in the <FavoriteButton> component:
+
+    at FavoriteButton (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/components/gyms/FavoriteButton.tsx:9:27)
+    at div
+    at div
+    at div
+    at /Users/gota/Documents/src/gym-equipment-directory/frontend/components/ui/card.tsx:8:6
+    at a
+    at LinkComponent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/next/dist/client/link.js:121:19)
+    at GymCard (/Users/gota/Documents/src/gym-equipment-directory/frontend/src/components/gyms/GymCard.tsx:40:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ ❯ src/components/gyms/__tests__/GymCard.test.tsx (4 tests | 1 failed) 63ms
+   × GymCard > supports keyboard navigation by triggering click on space key 7ms
+     → No QueryClient set, use QueryClientProvider to set one
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/gyms/__tests__/GymCard.test.tsx > GymCard > supports keyboard navigation by triggering click on space key
+Error: No QueryClient set, use QueryClientProvider to set one
+ ❯ Module.useQueryClient node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:18:11
+ ❯ Module.useFavorites src/hooks/useFavorites.ts:8:23
+      6| 
+      7| export function useFavorites() {
+      8|   const queryClient = useQueryClient();
+       |                       ^
+      9|   // Ensure device ID exists on client side
+     10|   const deviceId = typeof window !== "undefined" ? getOrCreateDeviceId…
+ ❯ FavoriteButton src/components/gyms/FavoriteButton.tsx:12:55
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom.development.js:15486:18
+ ❯ mountIndeterminateComponent node_modules/react-dom/cjs/react-dom.development.js:20103:13
+ ❯ beginWork node_modules/react-dom/cjs/react-dom.development.js:21626:16
+ ❯ beginWork$1 node_modules/react-dom/cjs/react-dom.development.js:27465:14
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom.development.js:26599:12
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom.development.js:26505:5
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom.development.js:26473:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  16:57:36
+   Duration  509ms (transform 55ms, setup 113ms, collect 95ms, tests 63ms, environment 130ms, prepare 20ms)
+
