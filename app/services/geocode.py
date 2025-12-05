@@ -148,7 +148,7 @@ async def put_cache(
     cache.latitude = latitude
     cache.longitude = longitude
     cache.provider = provider
-    if isinstance(raw, dict | list):
+    if isinstance(raw, (dict, list)):  # noqa: UP038
         cache.raw = raw
     else:
         try:

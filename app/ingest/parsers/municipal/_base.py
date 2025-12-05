@@ -99,7 +99,7 @@ def sanitize_text(text: str) -> str:
 def _ensure_iterable(value: Any) -> Iterable[str]:
     if value is None:
         return ()
-    if isinstance(value, list | tuple | set):
+    if isinstance(value, (list, tuple, set)):  # noqa: UP038
         return tuple(str(item) for item in value if item)
     return (str(value),)
 
