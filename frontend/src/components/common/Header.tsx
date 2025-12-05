@@ -118,19 +118,19 @@ export function AppHeader() {
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
               href="/gyms"
             >
-              Search
+              ジム検索
             </Link>
             <Link
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
               href="/gyms/nearby"
             >
-              Nearby
+              現在地から探す
             </Link>
             <Link
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
               href="/me/favorites"
             >
-              Favorites
+              お気に入り
             </Link>
           </nav>
         </div>
@@ -148,7 +148,7 @@ export function AppHeader() {
               variant="outline"
               className="rounded-none border-accent font-mono text-xs font-bold uppercase tracking-wider text-accent hover:bg-accent hover:text-accent-foreground"
             >
-              Login
+              ログイン
             </Button>
           ) : null}
           {status !== "loading" && user ? (
@@ -174,14 +174,14 @@ export function AppHeader() {
                     href="/me/favorites"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Favorites
+                    お気に入り
                   </Link>
                   <button
                     className="block w-full px-4 py-2 text-left font-mono text-xs font-bold uppercase tracking-wider text-foreground transition hover:bg-destructive hover:text-destructive-foreground"
                     onClick={handleSignOut}
                     type="button"
                   >
-                    Logout
+                    ログアウト
                   </button>
                 </div>
               ) : null}

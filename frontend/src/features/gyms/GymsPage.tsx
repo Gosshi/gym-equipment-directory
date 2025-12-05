@@ -108,7 +108,7 @@ export function GymsPage() {
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 bg-accent" />
             <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-accent">
-              System: Search
+              ジム検索
             </p>
           </div>
           <h1
@@ -116,10 +116,10 @@ export function GymsPage() {
             role="heading"
             aria-level={1}
           >
-            Gym Database
+            ジム一覧
           </h1>
           <p className="max-w-3xl font-mono text-sm text-muted-foreground">
-            {"// FILTER BY EQUIPMENT, AREA, AND DISTANCE."}
+            {"// 設備・エリア・距離で絞り込み"}
           </p>
         </header>
 
