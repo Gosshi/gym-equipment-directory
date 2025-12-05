@@ -73,6 +73,7 @@ async def run_batch(
     respect_robots: bool,
     user_agent: str,
     force: bool,
+    auto_approve: bool = True,
     return_metrics: bool = False,
 ) -> int | tuple[int, dict[str, Any]]:
     metrics = MetricsCollector()
@@ -128,8 +129,13 @@ async def run_batch(
     approve_target_ids = list(diff_summary.new_ids) + list(diff_summary.updated_ids)
     metrics.add("approve_targets", len(approve_target_ids))
 
-    if dry_run:
-        logger.info("Dry-run: approval skipped (targets=%s)", approve_target_ids)
+    if dry_run or not auto_approve:
+        logger.info(
+            "Approval skipped (dry_run=%s, auto_approve=%s, targets=%s)",
+            dry_run,
+            auto_approve,
+            len(approve_target_ids),
+        )
         metrics.add("approved", 0)
     else:
         with metrics.time("approve"):

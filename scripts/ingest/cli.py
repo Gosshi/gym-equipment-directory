@@ -333,6 +333,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force re-fetch ignoring conditional headers",
     )
 
+    batch_parser.add_argument(
+        "--auto-approve",
+        type=_str_to_bool,
+        default=True,
+        help="Whether to automatically approve candidates",
+    )
+
     discover_parser = subparsers.add_parser("discover", help="Discover gym URLs using search API")
     discover_parser.add_argument("--ward", help="Specific ward to search")
 
@@ -398,6 +405,7 @@ def _dispatch(args: argparse.Namespace) -> int:
                 respect_robots=args.respect_robots,
                 user_agent=args.user_agent,
                 force=args.force,
+                auto_approve=args.auto_approve,
             )
         )
     if command == "discover":

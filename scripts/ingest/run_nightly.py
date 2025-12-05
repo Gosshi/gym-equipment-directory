@@ -210,6 +210,7 @@ def run_worker(worker_index: int, day_key: str) -> int:
                 respect_robots=True,
                 user_agent=DEFAULT_USER_AGENT,
                 force=False,
+                auto_approve=False,
             )
         )
         logger.info("--- Worker finished for %s ---", source)
