@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SQLEnum
@@ -44,7 +44,7 @@ class GymCandidate(Base):
     city_slug: Mapped[str | None] = mapped_column(String(64), nullable=True)
     latitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     longitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
-    parsed_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[CandidateStatus] = mapped_column(
         SQLEnum(CandidateStatus, name="candidate_status"),
         nullable=False,

@@ -12,18 +12,18 @@ EPS = 1e-6
 
 
 def _now_naive_utc() -> datetime:
-    """naive(タイムゾーンなし)のUTC時刻を返す。DBのtimestamp without time zoneと整合。"""
+    """naive(タイムゾーンなし)のtimezone.utc時刻を返す。DBのtimestamp without time zoneと整合。"""
     return datetime.utcnow()
 
 
 def _to_naive_utc(dt: datetime | None) -> datetime | None:
-    """aware/naive 混在を避けるため、すべて naive UTC に正規化する。"""
+    """aware/naive 混在を避けるため、すべて naive timezone.utc に正規化する。"""
     if dt is None:
         return None
     if dt.tzinfo is None:
-        # すでに naive とみなし、UTCとして扱う
+        # すでに naive とみなし、timezone.utcとして扱う
         return dt
-    # aware → UTC → naive
+    # aware → timezone.utc → naive
     return dt.astimezone(UTC).replace(tzinfo=None)
 
 

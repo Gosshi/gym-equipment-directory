@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import DateTime, Float, String, Text
 from sqlalchemy.dialects.postgresql import BIGINT, JSONB
@@ -23,7 +22,7 @@ class GeocodeCache(Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
-    raw: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+    raw: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
