@@ -725,7 +725,9 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       return;
     }
     const hasQueryLocation = filters.lat != null && filters.lng != null;
-    if (hasQueryLocation) {
+    const hasAreaFilter = Boolean(filters.city || filters.pref);
+
+    if (hasQueryLocation || hasAreaFilter) {
       initialLocationRequestRef.current = true;
       return;
     }
@@ -742,6 +744,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   }, [
     filters.lat,
     filters.lng,
+    filters.city,
+    filters.pref,
     handleGeolocationError,
     hasResolvedGeolocationSupport,
     isGeolocationSupported,
