@@ -1,3 +1,6 @@
+name: 江戸川区
+pref: tokyo
+city: edogawa
 start_urls:
   - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/index.html"
   - "https://www.city.edogawa.tokyo.jp/e028/kuseijoho/gaiyo/shisetsuguide/bunya/sportsshisetsu/sogotaiikukan/index.html"

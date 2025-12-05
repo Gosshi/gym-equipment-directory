@@ -1,3 +1,6 @@
+name: 墨田区
+pref: tokyo
+city: sumida
 start_urls:
   - "https://www.city.sumida.lg.jp/sisetu_info/setsubi_kinou/okunaisports.html"
   - "https://www.city.sumida.lg.jp/sisetu_info/sports/umewaka.html"
