@@ -1,0 +1,87 @@
+
+> gym-equipment-frontend@0.1.0 test:unit
+> vitest run --passWithNoTests --exclude "tests/integration/**/*.int.test.ts*" --exclude "tests/e2e/**"
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+ RUN  v2.1.9 /Users/gota/Documents/src/gym-equipment-directory/frontend
+
+ ❯ src/features/gyms/__tests__/GymsPage.test.tsx (0 test)
+ ✓ src/features/gyms/nearby/components/__tests__/NearbyMapInteractions.test.tsx (7 tests) 24ms
+stderr | src/hooks/__tests__/useGymSearch.history.test.tsx > useGymSearch history navigation > uses push navigation for filter interactions
+Warning: Cannot update a component (`TestComponent`) while rendering a different component (`TestComponent`). To locate the bad setState() call inside `TestComponent`, follow the stack trace as described in https://reactjs.org/link/setstate-in-render
+    at TestComponent (/Users/gota/Documents/src/gym-equipment-directory/frontend/node_modules/@testing-library/react/dist/pure.js:307:5)
+
+ ✓ src/hooks/__tests__/useGymSearch.history.test.tsx (5 tests) 38ms
+ ✓ src/features/gyms/nearby/components/__tests__/NearbyListInteractions.test.tsx (3 tests) 46ms
+ ✓ src/features/gyms/nearby/__tests__/NearbyGymsPage.test.tsx (3 tests) 109ms
+ ✓ src/auth/__tests__/authSync.test.tsx (1 test) 63ms
+ ✓ src/store/__tests__/favoritesStore.test.ts (4 tests) 5ms
+ ✓ src/lib/__tests__/apiClient.test.ts (9 tests) 5ms
+ ✓ src/lib/__tests__/searchParams.test.ts (7 tests) 3ms
+ ✓ src/lib/__tests__/api.test.ts (3 tests) 3ms
+ ✓ src/hooks/__tests__/useGymSearch.popstate.test.tsx (1 test) 16ms
+ ❯ src/components/gyms/__tests__/GymCard.test.tsx (0 test)
+ ✓ src/hooks/__tests__/useSelectedGym.history.test.tsx (2 tests) 16ms
+ ✓ src/services/__tests__/gyms.test.ts (3 tests) 3ms
+ ✓ src/services/__tests__/gymNearby.test.ts (3 tests) 3ms
+ ✓ src/features/gyms/nearby/__tests__/useNearbySearchController.history.test.tsx (3 tests) 17ms
+ ✓ src/components/gyms/__tests__/GymEquipmentTabs.test.tsx (1 test) 64ms
+ ✓ src/components/gyms/__tests__/InfiniteLoader.test.tsx (3 tests) 9ms
+ ✓ src/state/__tests__/mapSelection.test.ts (4 tests) 2ms
+ ✓ src/components/gyms/__tests__/Pagination.test.tsx (4 tests) 67ms
+ ✓ src/lib/__tests__/geo.test.ts (7 tests) 2ms
+ ✓ src/components/common/__tests__/SearchBar.test.tsx (2 tests) 48ms
+ ✓ src/components/common/__tests__/Header.test.tsx (1 test) 103ms
+ ✓ src/auth/__tests__/authClient.test.ts (1 test) 2ms
+ ❯ src/components/gyms/__tests__/GymList.test.tsx (0 test)
+ ✓ src/lib/__tests__/url.test.ts (4 tests) 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/gyms/__tests__/GymCard.test.tsx [ src/components/gyms/__tests__/GymCard.test.tsx ]
+ FAIL  src/components/gyms/__tests__/GymList.test.tsx [ src/components/gyms/__tests__/GymList.test.tsx ]
+Error: Failed to resolve import "@/lib/device" from "src/hooks/useFavorites.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/gota/Documents/src/gym-equipment-directory/frontend/src/hooks/useFavorites.ts:3:36
+  1  |  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+  2  |  import { addFavorite, listFavorites, removeFavorite } from "@/lib/api";
+  3  |  import { getOrCreateDeviceId } from "@/lib/device";
+     |                                       ^
+  4  |  const FAVORITES_KEY = ["favorites"];
+  5  |  export function useFavorites() {
+ ❯ TransformPluginContext._formatError node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49258:41
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49253:16
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64306:23
+ ❯ node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64438:39
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64365:7
+ ❯ PluginContainer.transform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49099:18
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:51977:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/features/gyms/__tests__/GymsPage.test.tsx [ src/features/gyms/__tests__/GymsPage.test.tsx ]
+Error: Failed to resolve import "@/lib/device" from "src/hooks/useFavorites.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/gota/Documents/src/gym-equipment-directory/frontend/src/hooks/useFavorites.ts:3:36
+  1  |  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+  2  |  import { addFavorite, listFavorites, removeFavorite } from "@/lib/api";
+  3  |  import { getOrCreateDeviceId } from "@/lib/device";
+     |                                       ^
+  4  |  const FAVORITES_KEY = ["favorites"];
+  5  |  export function useFavorites() {
+ ❯ TransformPluginContext._formatError node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49258:41
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49253:16
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64306:23
+ ❯ node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64438:39
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:64365:7
+ ❯ PluginContainer.transform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:49099:18
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:51977:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ Test Files  3 failed | 23 passed (26)
+      Tests  81 passed (81)
+   Start at  16:52:51
+   Duration  8.86s (transform 280ms, setup 2.06s, collect 432ms, tests 649ms, environment 3.10s, prepare 508ms)
+

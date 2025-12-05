@@ -1,9 +1,26 @@
-import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
 import { GymCard } from "@/components/gyms/GymCard";
 import type { GymSummary } from "@/types/gym";
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const testQueryClient = createTestQueryClient();
+  return {
+    ...render(<QueryClientProvider client={testQueryClient}>{ui}</QueryClientProvider>),
+  };
+};
 
 const buildGym = (overrides: Partial<GymSummary> = {}): GymSummary => ({
   id: 1,
@@ -31,7 +48,7 @@ describe("GymCard", () => {
       ],
     });
 
-    render(<GymCard gym={gym} />);
+    renderWithClient(<GymCard gym={gym} />);
 
     const link = screen.getByRole("link", { name: "新宿ストレングスジムの詳細を見る" });
     expect(link).toHaveAttribute("href", "/gyms/shinjuku-strength");
@@ -53,7 +70,7 @@ describe("GymCard", () => {
   it("shows placeholders when thumbnail and equipments are missing", () => {
     const gym = buildGym({ equipments: [], thumbnailUrl: null });
 
-    render(<GymCard gym={gym} />);
+    renderWithClient(<GymCard gym={gym} />);
 
     expect(screen.getByText("画像なし")).toBeInTheDocument();
     expect(screen.getByText("設備情報はまだ登録されていません。")).toBeInTheDocument();
@@ -62,7 +79,7 @@ describe("GymCard", () => {
   it("falls back to prefecture and city when address is unavailable", () => {
     const gym = buildGym({ address: undefined });
 
-    render(<GymCard gym={gym} />);
+    renderWithClient(<GymCard gym={gym} />);
 
     expect(screen.getByTestId("gym-address")).toHaveTextContent("東京都 新宿区");
   });
@@ -75,7 +92,7 @@ describe("GymCard", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    render(<GymCard gym={gym} />);
+    renderWithClient(<GymCard gym={gym} />);
 
     const link = screen.getByRole("link", { name: "新宿ストレングスジムの詳細を見る" });
     link.focus();
