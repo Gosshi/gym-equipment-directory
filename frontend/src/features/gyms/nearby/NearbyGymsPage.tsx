@@ -345,47 +345,39 @@ export function NearbyGymsPage() {
           </p>
         </header>
 
-        <div className="flex flex-col gap-8 md:flex-row">
-          <div className="space-y-4 md:w-[320px] md:flex-shrink-0">
-            <NearbySearchPanel
-              latInput={formState.latInput}
-              lngInput={formState.lngInput}
-              radiusKm={formState.radiusKm}
-              radiusMin={radiusBounds.min}
-              radiusMax={radiusBounds.max}
-              radiusStep={radiusBounds.step}
-              locationSummary={locationSummary}
-              locationStatus={location.status}
-              locationError={location.error}
-              manualError={manualError}
-              isLocating={location.status === "loading"}
-              hasResolvedLocationSupport={location.hasResolvedSupport}
-              isLocationSupported={location.isSupported}
-              onLatChange={setLatInput}
-              onLngChange={setLngInput}
-              onRadiusChange={updateRadius}
-              onSubmit={submitManualCoordinates}
-              onUseCurrentLocation={requestCurrentLocation}
-            />
-          </div>
+        <div className="flex flex-col gap-6">
+          <NearbySearchPanel
+            radiusKm={formState.radiusKm}
+            radiusMin={radiusBounds.min}
+            radiusMax={radiusBounds.max}
+            radiusStep={radiusBounds.step}
+            locationSummary={locationSummary}
+            locationStatus={location.status}
+            locationError={location.error}
+            isLocating={location.status === "loading"}
+            hasResolvedLocationSupport={location.hasResolvedSupport}
+            isLocationSupported={location.isSupported}
+            onRadiusChange={updateRadius}
+            onUseCurrentLocation={requestCurrentLocation}
+          />
 
-          <div className="flex-1 space-y-6">
-            <div className="flex flex-col gap-6 md:flex-row">
-              <div className="flex-1 space-y-6">
-                <Card className="overflow-hidden rounded-none border-2 border-border bg-card/50 backdrop-blur-sm">
-                  <CardHeader className="space-y-1 border-b border-border bg-muted/50 px-6 py-4">
-                    <CardTitle
-                      className="font-heading text-xl font-bold uppercase tracking-wide"
-                      role="heading"
-                      aria-level={2}
-                    >
-                      マップ
-                    </CardTitle>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      ピンを選択して詳細を表示。ドラッグで移動。
-                    </p>
-                  </CardHeader>
-                  <CardContent className="p-0">
+          <div className="flex flex-col gap-6 md:flex-row">
+            <div className="flex-1 space-y-6">
+              <Card className="overflow-hidden rounded-none border-2 border-border bg-card/50 backdrop-blur-sm">
+                <CardHeader className="space-y-1 border-b border-border bg-muted/50 px-6 py-4">
+                  <CardTitle
+                    className="font-heading text-xl font-bold uppercase tracking-wide"
+                    role="heading"
+                    aria-level={2}
+                  >
+                    マップ
+                  </CardTitle>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    ピンを選択して詳細を表示。ドラッグで移動。
+                  </p>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="h-[500px] w-full md:h-[600px]">
                     <NearbyMap
                       center={{ lat: applied.lat, lng: applied.lng }}
                       markers={visibleGyms}
@@ -401,66 +393,66 @@ export function NearbyGymsPage() {
                       markersError={mapMarkersError}
                       onRetryMarkers={reloadVisibleGyms}
                     />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div ref={listContainerRef} id="nearby-results">
+                <Card
+                  aria-live="polite"
+                  className="rounded-none border border-border bg-transparent shadow-none"
+                >
+                  <CardHeader className="px-0 pt-0">
+                    <CardTitle
+                      className="font-heading text-2xl font-bold uppercase tracking-wide"
+                      role="heading"
+                      aria-level={2}
+                    >
+                      検索結果
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 px-0">
+                    <NearbyList
+                      error={error}
+                      isInitialLoading={isInitialLoading}
+                      isLoading={isLoading}
+                      items={items}
+                      meta={meta}
+                      onOpenDetail={handleListRequestDetail}
+                      onPageChange={setPage}
+                      onRetry={reload}
+                      onSelectGym={handleSelectFromList}
+                      selectedGymId={selectedGymId}
+                    />
                   </CardContent>
                 </Card>
-
-                <div ref={listContainerRef} id="nearby-results">
-                  <Card
-                    aria-live="polite"
-                    className="rounded-none border border-border bg-transparent shadow-none"
-                  >
-                    <CardHeader className="px-0 pt-0">
-                      <CardTitle
-                        className="font-heading text-2xl font-bold uppercase tracking-wide"
-                        role="heading"
-                        aria-level={2}
-                      >
-                        検索結果
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 px-0">
-                      <NearbyList
-                        error={error}
-                        isInitialLoading={isInitialLoading}
-                        isLoading={isLoading}
-                        items={items}
-                        meta={meta}
-                        onOpenDetail={handleListRequestDetail}
-                        onPageChange={setPage}
-                        onRetry={reload}
-                        onSelectGym={handleSelectFromList}
-                        selectedGymId={selectedGymId}
-                      />
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
-
-              <aside
-                aria-live="polite"
-                className="hidden md:block md:w-[320px] lg:w-[340px]"
-                ref={desktopPanelRef}
-                role="complementary"
-                tabIndex={-1}
-              >
-                {selectedSlug ? (
-                  <GymDetailPanel
-                    className="rounded-none border-2 border-accent bg-card shadow-2xl"
-                    onClose={() => {
-                      clearSelection();
-                    }}
-                    slug={selectedSlug}
-                  />
-                ) : (
-                  <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-none border-2 border-dashed border-border/50 bg-card/20 p-6 text-center text-sm text-muted-foreground">
-                    <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/30" />
-                    <p className="font-mono text-xs uppercase tracking-wider">
-                      ジムを選択してください
-                    </p>
-                  </div>
-                )}
-              </aside>
             </div>
+
+            <aside
+              aria-live="polite"
+              className="hidden md:block md:w-[320px] lg:w-[340px]"
+              ref={desktopPanelRef}
+              role="complementary"
+              tabIndex={-1}
+            >
+              {selectedSlug ? (
+                <GymDetailPanel
+                  className="rounded-none border-2 border-accent bg-card shadow-2xl"
+                  onClose={() => {
+                    clearSelection();
+                  }}
+                  slug={selectedSlug}
+                />
+              ) : (
+                <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-none border-2 border-dashed border-border/50 bg-card/20 p-6 text-center text-sm text-muted-foreground">
+                  <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/30" />
+                  <p className="font-mono text-xs uppercase tracking-wider">
+                    ジムを選択してください
+                  </p>
+                </div>
+              )}
+            </aside>
           </div>
         </div>
       </div>
