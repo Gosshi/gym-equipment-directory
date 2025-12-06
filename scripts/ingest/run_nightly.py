@@ -306,9 +306,7 @@ def run_orchestrator(force_day: str | None = None) -> int:
     # Run workers in parallel
     import concurrent.futures
 
-    max_workers = (
-        5  # Adjust based on resources (Render Starter has limited CPU/RAM but HTTP is lightweight)
-    )
+    max_workers = 2  # Reduced from 5 to prevent OOM on Render Starter (512MB RAM)
     logger.info(f"Spawning workers with max_workers={max_workers}...")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
