@@ -248,10 +248,11 @@ export async function rejectCandidate(id: number, reason: string): Promise<Admin
   throw new AdminApiError("Failed to reject candidate: unreachable state");
 }
 
-export async function geocodeCandidate(id: number): Promise<AdminCandidateItem> {
+export async function geocodeCandidate(id: number, address?: string): Promise<AdminCandidateItem> {
   try {
     return await apiRequest<AdminCandidateItem>(`/admin/candidates/${id}/geocode`, {
       method: "POST",
+      body: address ? JSON.stringify({ address }) : undefined,
     });
   } catch (err) {
     wrapError(err);

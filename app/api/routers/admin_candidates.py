@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +38,11 @@ from app.services.approve_service import (
     InvalidCandidatePayloadError,
 )
 from app.services.candidates import CandidateDetailRow, CandidateRow, CandidateServiceError
+
+
+class GeocodeRequest(BaseModel):
+    address: str | None = None
+
 
 router = APIRouter(prefix="/admin/candidates", tags=["admin"])
 
@@ -162,6 +168,7 @@ async def patch_candidate(
 @router.post("/{candidate_id}/geocode", response_model=AdminCandidateItem)
 async def geocode_candidate(
     candidate_id: int,
+    payload: GeocodeRequest | None = None,
     session: AsyncSession = Depends(get_async_session),
 ):
     from app.services.geocode import geocode
@@ -170,14 +177,19 @@ async def geocode_candidate(
     if not candidate:
         raise HTTPException(status_code=404, detail="candidate not found")
 
-    if not candidate.address_raw:
+    target_address = payload.address if payload and payload.address else candidate.address_raw
+    if not target_address:
         raise HTTPException(status_code=400, detail="candidate has no address")
 
-    coords = await geocode(session, candidate.address_raw)
+    coords = await geocode(session, target_address)
     if not coords:
         raise HTTPException(status_code=404, detail="geocoding failed")
 
     candidate.latitude, candidate.longitude = coords
+    # If a new address was provided and successfully geocoded, update the candidate's address
+    if payload and payload.address:
+        candidate.address_raw = payload.address
+
     await session.commit()
 
     # Re-fetch full row to return AdminCandidateItem
