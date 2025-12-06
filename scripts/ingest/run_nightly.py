@@ -303,35 +303,65 @@ def run_orchestrator(force_day: str | None = None) -> int:
             "Skipping discovery: GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set"
         )
 
-    for index, target in enumerate(targets):
-        logger.info("Spawning worker index=%s for target=%s", index, target["source"])
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "scripts.ingest.run_nightly",
-                "--worker-index",
-                str(index),
-                "--day",
-                current_day,
-            ],
-            check=False,
-        )
+    # Run workers in parallel
+    import concurrent.futures
 
-        if result.returncode != 0:
-            logger.error(
-                "Worker index=%s (target=%s) failed with exit code %s",
-                index,
-                target["source"],
-                result.returncode,
+    max_workers = (
+        5  # Adjust based on resources (Render Starter has limited CPU/RAM but HTTP is lightweight)
+    )
+    logger.info(f"Spawning workers with max_workers={max_workers}...")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_target = {}
+        for index, target in enumerate(targets):
+            logger.info("Scheduling worker index=%s for target=%s", index, target["source"])
+            future = executor.submit(
+                subprocess.run,
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.ingest.run_nightly",
+                    "--worker-index",
+                    str(index),
+                    "--day",
+                    current_day,
+                ],
+                check=False,
+                capture_output=True,  # Capture output to avoid interleaving logs
+                # Letting it flow is better for live logs, but might be messy.
+                # Given it's a cron job, interleaved logs are okay-ish, but maybe hard to read.
+                # But capturing hides progress until done.
+                # Let's keep check=False and NOT capture, so logs stream (interleaved).
             )
-            had_failures = True
-        else:
-            logger.info(
-                "Worker index=%s (target=%s) completed successfully",
-                index,
-                target["source"],
-            )
+            future_to_target[future] = (index, target)
+
+        for future in concurrent.futures.as_completed(future_to_target):
+            index, target = future_to_target[future]
+            source = target["source"]
+            try:
+                result = future.result()
+                if result.returncode != 0:
+                    logger.error(
+                        "Worker index=%s (target=%s) failed with exit code %s",
+                        index,
+                        source,
+                        result.returncode,
+                    )
+                    had_failures = True
+                else:
+                    logger.info(
+                        "Worker index=%s (target=%s) completed successfully",
+                        index,
+                        source,
+                    )
+            except Exception as exc:
+                logger.error(
+                    "Worker index=%s (target=%s) generated an exception: %s",
+                    index,
+                    source,
+                    exc,
+                )
+                had_failures = True
 
     # Geocoding disabled by user request (manual only)
     # logger.info("Starting geocoding for candidates...")
