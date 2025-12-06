@@ -802,7 +802,7 @@ export default function AdminCandidateDetailPage() {
                     if (!candidate) return;
                     setActionState("saving");
                     try {
-                      const updated = await geocodeCandidate(candidate.id);
+                      const updated = await geocodeCandidate(candidate.id, formState?.address_raw);
                       updateCandidateState(updated);
                       toast({ title: "住所検索を実行しました" });
                     } catch (err) {
