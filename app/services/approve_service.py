@@ -508,6 +508,13 @@ class ApproveService:
             if official_url and not getattr(target_gym, "official_url", None):
                 updates["official_url"] = official_url
                 changes.append(FieldChange(field="official_url", before=None, after=official_url))
+
+            if candidate.parsed_json and not target_gym.parsed_json:
+                updates["parsed_json"] = candidate.parsed_json
+                changes.append(
+                    FieldChange(field="parsed_json", before=None, after=candidate.parsed_json)
+                )
+
             action = "update" if updates else "reuse"
             return GymPlan(
                 action=action,
@@ -530,6 +537,7 @@ class ApproveService:
             "latitude": candidate.latitude,
             "longitude": candidate.longitude,
             "official_url": official_url,
+            "parsed_json": candidate.parsed_json,
         }
         changes = [
             FieldChange(field=key, before=None, after=value)

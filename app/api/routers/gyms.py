@@ -60,6 +60,10 @@ async def search_gyms(
     if q.equipments and not required_slugs:
         required_slugs = [s.strip() for s in q.equipments.split(",") if s.strip()]
 
+    required_conditions: list[str] = []
+    if q.conditions:
+        required_conditions = [s.strip() for s in q.conditions.split(",") if s.strip()]
+
     # 2) サービス呼び出し（DBアクセス・トークン処理はサービス側）
     try:
         return await search_svc(
@@ -68,7 +72,8 @@ async def search_gyms(
             lat=q.lat,
             lng=q.lng,
             radius_km=q.radius_km,
-            required_slugs=required_slugs,
+            equipments=required_slugs,
+            conditions=required_conditions,
             equipment_match=q.equipment_match,
             sort=q.sort,
             page=q.page,

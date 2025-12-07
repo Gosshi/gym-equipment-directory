@@ -6,6 +6,8 @@ Create Date: 2025-09-05 21:42:28.603609
 
 """
 
+from __future__ import annotations
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

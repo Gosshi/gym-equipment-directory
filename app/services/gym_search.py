@@ -30,6 +30,7 @@ class GymSearchService:
         pref: str | None,
         city: str | None,
         equipments: list[str] | None,
+        conditions: list[str] | None,
         equipment_match: EquipmentMatch,
         sort: str,
         page_token: str | None,
@@ -42,6 +43,7 @@ class GymSearchService:
                 pref=pref,
                 city=city,
                 equipments=equipments,
+                conditions=conditions,
                 equipment_match=equipment_match,
                 sort=sort,
                 page_token=page_token,
@@ -56,6 +58,7 @@ async def search_gyms(
     pref: str | None,
     city: str | None,
     equipments: list[str] | None,
+    conditions: list[str] | None,
     equipment_match: EquipmentMatch,
     sort: str,
     page_token: str | None,
@@ -121,6 +124,23 @@ async def search_gyms(
     for item in items_all:
         gid = int(getattr(item["gym"], "id", 0))
         if gid not in allowed_gym_ids:
+            continue
+
+        if conditions:
+            gym = item["gym"]
+            parsed = getattr(gym, "parsed_json", {}) or {}
+            if not isinstance(parsed, dict):
+                parsed = {}
+
+            tags = set(parsed.get("tags", []))
+            # Also consider top-level boolean keys
+            for k, v in parsed.items():
+                if v is True or v == "true":
+                    tags.add(k)
+
+            if not set(conditions).issubset(tags):
+                continue
+
             continue
         item["last_verified_at"] = item.get("last_verified_at") or last_verified_by_gym.get(gid)
         item["score"] = float(richness_by_gym.get(gid, 0.0))

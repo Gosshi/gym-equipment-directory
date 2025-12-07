@@ -106,6 +106,9 @@ class GymSearchQuery(BaseModel):
     equipments: str | None = Field(
         default=None, description="設備スラッグのCSV（例: squat-rack,dumbbell）"
     )
+    conditions: str | None = Field(
+        default=None, description="条件スラッグのCSV（例: parking,late-night）"
+    )
     equipment_match: Literal["all", "any"] = Field(
         default="all", description="equipments の一致条件"
     )
@@ -145,6 +148,15 @@ class GymSearchQuery(BaseModel):
             return None
         if not v.strip():
             raise HTTPException(status_code=400, detail="equipments must not be empty")
+        return v
+
+    @field_validator("conditions")
+    @classmethod
+    def _check_conditions_csv(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        if not v.strip():
+            raise HTTPException(status_code=400, detail="conditions must not be empty")
         return v
 
     @field_validator("page")
@@ -189,6 +201,10 @@ class GymSearchQuery(BaseModel):
             str | None,
             Query(description="設備スラッグCSV（例: squat-rack,dumbbell）"),
         ] = None,
+        conditions: Annotated[
+            str | None,
+            Query(description="条件スラッグCSV（例: parking,late-night）"),
+        ] = None,
         equipment_match: Annotated[
             Literal["all", "any"], Query(description="equipments の一致条件")
         ] = "all",
@@ -228,6 +244,7 @@ class GymSearchQuery(BaseModel):
                 "lng": lng,
                 "radius_km": radius_km,
                 "equipments": equipments,
+                "conditions": conditions,
                 "equipment_match": equipment_match,
                 "sort": sort,
                 "page": page,

@@ -5,6 +5,8 @@ Revises: aa11bb22cc33
 Create Date: 2025-11-27 00:00:00.000000
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -22,8 +24,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(
-        "CREATE TYPE candidate_status_old AS ENUM "
-        "('new', 'reviewing', 'approved', 'rejected')"
+        "CREATE TYPE candidate_status_old AS ENUM ('new', 'reviewing', 'approved', 'rejected')"
     )
     op.execute("ALTER TABLE gym_candidates ALTER COLUMN status DROP DEFAULT")
     op.execute("UPDATE gym_candidates SET status = 'rejected' WHERE status = 'ignored'")

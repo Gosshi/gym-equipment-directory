@@ -61,9 +61,15 @@ async def classify_candidates(
 
         # 1. URL Match in Gym
         stmt_url = (
-            select(Gym.id).where(or_(Gym.official_url == url, Gym.affiliate_url == url)).limit(1)
+            select(Gym).where(or_(Gym.official_url == url, Gym.affiliate_url == url)).limit(1)
         )
-        if (await session.execute(stmt_url)).scalar():
+        existing_gym = (await session.execute(stmt_url)).scalar_one_or_none()
+        if existing_gym:
+            # Check if we need to backfill parsed_json
+            if not existing_gym.parsed_json and candidate.parsed_json:
+                updated_ids.append(candidate.id)
+                continue
+
             duplicate_ids.append(candidate.id)
             candidate.status = CandidateStatus.rejected
             continue
