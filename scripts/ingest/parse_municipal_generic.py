@@ -9,6 +9,7 @@ from typing import Any
 from bs4 import BeautifulSoup, Tag
 
 from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
+from app.ingest.normalizers.tag_aliases import TAG_ALIASES
 from app.ingest.parsers.municipal._base import (
     _extract_facility_with_llm,
     detect_create_gym,
@@ -27,6 +28,7 @@ class MunicipalParseResult:
     address: str | None
     equipments_raw: list[str]
     equipments: list[dict[str, Any]]
+    tags: list[str]
     center_no: str | None
     page_type: str | None
     page_title: str
@@ -152,6 +154,7 @@ def parse_municipal_page(
             address=None,
             equipments_raw=[],
             equipments=[],
+            tags=[],
             center_no=None,
             page_type=page_type,
             page_title="",
@@ -244,11 +247,21 @@ def parse_municipal_page(
     meta = {"create_gym": create_gym, "page_url": normalized_url}
     center_no = _extract_center_no(normalized_url, source.parse_hints)
 
+    # Extract tags from body text
+    tags: list[str] = []
+    if create_gym:
+        for slug, keywords in TAG_ALIASES.items():
+            for keyword in keywords:
+                if keyword in body_text:
+                    tags.append(slug)
+                    break
+
     return MunicipalParseResult(
         facility_name=facility_name,
         address=address,
         equipments_raw=equipments_raw,
         equipments=equipments_structured,
+        tags=tags,
         center_no=center_no,
         page_type=page_type,
         page_title=page_title,

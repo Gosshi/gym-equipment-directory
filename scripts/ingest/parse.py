@@ -126,6 +126,7 @@ def _build_municipal_payload(
         "page_title": parsed.page_title,
         "page_url": page.url,
         "meta": parsed.meta,
+        "tags": parsed.tags,
     }
     return name, address, parsed_json
 
