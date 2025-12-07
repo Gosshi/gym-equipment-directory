@@ -3,10 +3,10 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 
-import { GymDetailPage } from "./GymDetailPage";
+import { GymDetailPage, type NormalizedGymDetail } from "./GymDetailPage";
 
-export function GymDetailClient({ slug }: { slug: string }) {
-  const [canonicalSlug, setCanonicalSlug] = useState(slug);
+export function GymDetailClient({ gym }: { gym: NormalizedGymDetail }) {
+  const [canonicalSlug, setCanonicalSlug] = useState(gym.slug);
 
   const handleCanonicalSlugChange = useCallback((next: string) => {
     setCanonicalSlug(prev => (prev === next ? prev : next));
@@ -14,7 +14,11 @@ export function GymDetailClient({ slug }: { slug: string }) {
 
   return (
     <>
-      <GymDetailPage onCanonicalSlugChange={handleCanonicalSlugChange} slug={slug} />
+      <GymDetailPage
+        initialGym={gym}
+        onCanonicalSlugChange={handleCanonicalSlugChange}
+        slug={gym.slug}
+      />
       <div className="px-4 pb-10">
         <div className="mx-auto w-full max-w-5xl">
           <Link
