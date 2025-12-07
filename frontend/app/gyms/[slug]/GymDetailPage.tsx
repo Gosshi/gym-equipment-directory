@@ -39,7 +39,7 @@ const GymMap = dynamic(() => import("@/components/gym/GymMap").then(module => mo
   ssr: false,
 });
 
-interface NormalizedGymDetail {
+export interface NormalizedGymDetail {
   id: number;
   slug: string;
   name: string;
@@ -282,7 +282,7 @@ const extractFacilityGroups = (data: GymDetailApiResponse): FacilityGroup[] => {
   return result;
 };
 
-const normalizeGymDetail = (
+export const normalizeGymDetail = (
   data: GymDetailApiResponse,
   canonicalSlug: string,
 ): NormalizedGymDetail => {
@@ -415,13 +415,15 @@ const GymDetailSkeleton = () => (
 
 export function GymDetailPage({
   slug,
+  initialGym,
   onCanonicalSlugChange,
 }: {
   slug: string;
+  initialGym?: NormalizedGymDetail;
   onCanonicalSlugChange?: (nextSlug: string) => void;
 }) {
-  const [status, setStatus] = useState<FetchStatus>("idle");
-  const [gym, setGym] = useState<NormalizedGymDetail | null>(null);
+  const [status, setStatus] = useState<FetchStatus>(initialGym ? "success" : "idle");
+  const [gym, setGym] = useState<NormalizedGymDetail | null>(initialGym ?? null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -471,12 +473,15 @@ export function GymDetailPage({
   }, [slug, onCanonicalSlugChange, router]);
 
   useEffect(() => {
+    if (initialGym) {
+      return;
+    }
     loadGym();
 
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [loadGym]);
+  }, [loadGym, initialGym]);
 
   useEffect(() => {
     setIsFavorite(false);
