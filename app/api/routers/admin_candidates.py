@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Union
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
@@ -201,7 +199,7 @@ async def geocode_candidate(
 
 @router.post(
     "/{candidate_id}/approve",
-    response_model=Union[ApprovePreview, ApproveResult],  # noqa: UP007
+    response_model=ApprovePreview | ApproveResult,
 )
 async def approve_candidate(
     candidate_id: int,
