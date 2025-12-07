@@ -16,6 +16,7 @@ export function GymsPage() {
     updatePrefecture,
     updateCity,
     updateCategories,
+    updateConditions,
     updateSort,
     updateDistance,
     clearFilters,
@@ -135,6 +136,7 @@ export function GymsPage() {
                 metaError={metaError}
                 isSearchLoading={isLoading}
                 onCategoriesChange={updateCategories}
+                onConditionsChange={updateConditions}
                 onCityChange={updateCity}
                 onClear={clearFilters}
                 onDistanceChange={updateDistance}
@@ -164,6 +166,7 @@ export function GymsPage() {
                 metaError={metaError}
                 isSearchLoading={isLoading}
                 onCategoriesChange={updateCategories}
+                onConditionsChange={updateConditions}
                 onCityChange={updateCity}
                 onClear={clearFilters}
                 onDistanceChange={updateDistance}

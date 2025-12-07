@@ -25,6 +25,7 @@ describe("searchParams", () => {
       pref: "tokyo",
       city: "shinjuku",
       categories: ["squat-rack", "barbell"],
+      conditions: [],
       sort: "reviews",
       order: "desc",
       page: 2,
@@ -44,6 +45,7 @@ describe("searchParams", () => {
     expect(state.pref).toBeNull();
     expect(state.city).toBeNull();
     expect(state.categories).toEqual([]);
+    expect(state.conditions).toEqual([]);
     expect(state.sort).toBe(DEFAULT_SORT);
     expect(state.page).toBe(1);
     expect(state.order).toBe(DEFAULT_ORDER);
@@ -60,6 +62,7 @@ describe("searchParams", () => {
       pref: "osaka",
       city: "osaka-city",
       categories: ["dumbbell", "smith-machine"],
+      conditions: [],
       sort: "name",
       order: "asc",
       page: 3,
@@ -88,6 +91,7 @@ describe("searchParams", () => {
       pref: "hokkaido",
       city: "sapporo",
       categories: ["power-rack"],
+      conditions: [],
       sort: "rating",
       order: "desc",
       page: 4,
@@ -104,6 +108,7 @@ describe("searchParams", () => {
       pref: "hokkaido",
       city: "sapporo",
       categories: ["power-rack"],
+      conditions: [],
       sort: "rating",
       order: "desc",
       page: 4,
@@ -130,6 +135,7 @@ describe("searchParams", () => {
 
     expect(state.pref).toBe("kanagawa");
     expect(state.categories).toEqual(["cable-machine"]);
+    expect(state.conditions).toEqual([]);
     expect(state.limit).toBe(10);
     expect(state.order).toBe(DEFAULT_ORDER);
   });

@@ -84,6 +84,7 @@ type FormState = {
   prefecture: string;
   city: string;
   categories: string[];
+  conditions: string[];
   sort: SortOption;
   order: SortOrder;
   distance: number;
@@ -98,6 +99,7 @@ const toFormState = (filters: FilterState): FormState => ({
   prefecture: filters.pref ?? "",
   city: filters.city ?? "",
   categories: [...filters.categories],
+  conditions: [...filters.conditions],
   sort: filters.sort,
   order: filters.order,
   distance: filters.distance,
@@ -114,13 +116,15 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
-  areCategoriesEqual(a.categories, b.categories);
+  areCategoriesEqual(a.categories, b.categories) &&
+  areCategoriesEqual(a.conditions, b.conditions);
 
 const normalizeFormState = (state: FormState): FormState => ({
   q: state.q,
   prefecture: state.prefecture.trim(),
   city: state.city.trim(),
   categories: normalizeCategories(state.categories),
+  conditions: normalizeCategories(state.conditions),
   sort: state.sort,
   order: normalizeSortOrder(state.sort, state.order),
   distance: state.distance,
@@ -137,6 +141,7 @@ const buildFilterStateFromForm = (
   pref: form.prefecture.trim() || null,
   city: form.city.trim() || null,
   categories: normalizeCategories(form.categories),
+  conditions: normalizeCategories(form.conditions),
   sort: form.sort,
   order: normalizeSortOrder(form.sort, form.order),
   page: 1,
@@ -158,6 +163,7 @@ export interface UseGymSearchResult {
   updatePrefecture: (value: string) => void;
   updateCity: (value: string) => void;
   updateCategories: (values: string[]) => void;
+  updateConditions: (values: string[]) => void;
   updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
   clearFilters: () => void;
@@ -521,6 +527,15 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       scheduleApply(prev => ({
         ...prev,
         categories: values,
+      })),
+    [scheduleApply],
+  );
+
+  const updateConditions = useCallback(
+    (values: string[]) =>
+      scheduleApply(prev => ({
+        ...prev,
+        conditions: values,
       })),
     [scheduleApply],
   );
@@ -1053,6 +1068,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     updatePrefecture,
     updateCity,
     updateCategories,
+    updateConditions,
     updateSort,
     updateDistance,
     clearFilters,

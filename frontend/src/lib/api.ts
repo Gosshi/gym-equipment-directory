@@ -56,6 +56,7 @@ export interface FetchGymsParams {
   pref?: string | null;
   city?: string | null;
   cats?: string[];
+  conditions?: string[];
   sort?: SortOption | ApiSortKey | null;
   order?: SortOrder | null;
   page?: number;
@@ -186,6 +187,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const page = clampPage(params.page);
   const limit = clampLimit(params.limit);
   const cats = normalizeCats(params.cats);
+  const conditions = normalizeCats(params.conditions);
   const sort = sortOptionToApiSort(params.sort ?? undefined);
   const order = params.order && typeof params.order === "string" ? params.order : undefined;
   const latInput =
@@ -205,6 +207,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     pref: params.pref?.trim() || undefined,
     city: params.city?.trim() || undefined,
     equipments: cats?.join(","),
+    conditions: conditions?.join(","),
     sort,
     ...(order ? { order } : {}),
     page,

@@ -15,6 +15,7 @@ import {
   MIN_LONGITUDE,
   type SortOption,
   type SortOrder,
+  CONDITION_OPTIONS,
 } from "@/lib/searchParams";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/apiClient";
@@ -49,6 +50,7 @@ type SearchFiltersProps = {
     prefecture: string;
     city: string;
     categories: string[];
+    conditions: string[];
     sort: SortOption;
     order: SortOrder;
     distance: number;
@@ -66,6 +68,7 @@ type SearchFiltersProps = {
   onPrefectureChange: (value: string) => void;
   onCityChange: (value: string) => void;
   onCategoriesChange: (values: string[]) => void;
+  onConditionsChange: (values: string[]) => void;
   onSortChange: (sort: SortOption, order: SortOrder) => void;
   onDistanceChange: (value: number) => void;
   onClear: () => void;
@@ -93,6 +96,7 @@ export function SearchFilters({
   onPrefectureChange,
   onCityChange,
   onCategoriesChange,
+  onConditionsChange,
   onSortChange,
   onDistanceChange,
   onClear,
@@ -286,6 +290,15 @@ export function SearchFilters({
       onCategoriesChange(state.categories.filter(item => item !== value));
     } else {
       onCategoriesChange([...state.categories, value]);
+    }
+  };
+
+  const handleConditionToggle = (value: string) => {
+    const isSelected = state.conditions.includes(value);
+    if (isSelected) {
+      onConditionsChange(state.conditions.filter(item => item !== value));
+    } else {
+      onConditionsChange([...state.conditions, value]);
     }
   };
 
@@ -513,6 +526,36 @@ export function SearchFilters({
           {sortedCategories.length === 0 ? (
             <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
           ) : null}
+        </fieldset>
+
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-medium">利用条件</legend>
+          <div className="flex flex-wrap gap-2">
+            {CONDITION_OPTIONS.map(condition => {
+              const checked = state.conditions.includes(condition.value);
+              return (
+                <label
+                  key={condition.value}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
+                    "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
+                    checked
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-input bg-background",
+                  )}
+                >
+                  <input
+                    checked={checked}
+                    className="sr-only"
+                    onChange={() => handleConditionToggle(condition.value)}
+                    type="checkbox"
+                    value={condition.value}
+                  />
+                  <span>{condition.label}</span>
+                </label>
+              );
+            })}
+          </div>
         </fieldset>
 
         <div className="grid gap-2">
