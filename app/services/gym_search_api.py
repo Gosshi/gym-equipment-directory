@@ -4,7 +4,7 @@ import base64
 import json
 import os
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Literal
 
 import structlog
@@ -20,7 +20,7 @@ W_FRESH = float(os.getenv("SCORE_W_FRESH", "0.6"))
 W_RICH = float(os.getenv("SCORE_W_RICH", "0.4"))
 
 
-class GymSortKey(StrEnum):
+class GymSortKey(str, Enum):
     gym_name = "gym_name"
     created_at = "created_at"
     freshness = "freshness"
@@ -126,6 +126,7 @@ async def search_gyms_api(
     lng: float | None,
     radius_km: float | None,
     required_slugs: list[str],
+    conditions: list[str] | None,
     equipment_match: Literal["all", "any"],
     sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
     page: int,
@@ -198,6 +199,14 @@ async def search_gyms_api(
         base_ids = base_ids.where(Gym.latitude.is_not(None), Gym.longitude.is_not(None))
         if radius_value is not None:
             base_ids = base_ids.where(distance_numeric <= radius_value)
+
+    # ---- 1.5) 条件フィルタ (parsed_json) ----
+    if conditions:
+        for cond in conditions:
+            # {"tags": [cond]} OR {cond: true}
+            tag_match = Gym.parsed_json.contains({"tags": [cond]})
+            bool_match = Gym.parsed_json.contains({cond: True})
+            base_ids = base_ids.where(or_(tag_match, bool_match))
 
     # ---- 2) 設備フィルタ（all/any）----
     if required_slugs:

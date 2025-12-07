@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import get_equipment_service

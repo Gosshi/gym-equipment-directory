@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -26,3 +28,4 @@ class Gym(Base):
     # Geolocation (nullable)
     latitude = Column(Float, nullable=True, index=True)
     longitude = Column(Float, nullable=True, index=True)
+    parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

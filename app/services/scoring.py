@@ -21,7 +21,6 @@ def _to_naive_utc(dt: datetime | None) -> datetime | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        # すでに naive とみなし、timezone.utcとして扱う
         return dt
     # aware → timezone.utc → naive
     return dt.astimezone(UTC).replace(tzinfo=None)
