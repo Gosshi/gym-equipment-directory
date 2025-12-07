@@ -26,6 +26,52 @@ function getEquipmentDisplay(equipmentNames: string[] | undefined) {
   return { displayItems, remainingCount };
 }
 
+function getPlaceholderImage(equipments: string[] | undefined): string {
+  if (!equipments || equipments.length === 0) {
+    return "/images/placeholders/gym-general.png";
+  }
+
+  const text = equipments.join(" ").toLowerCase();
+
+  // Heavy/Strength keywords
+  const heavyKeywords = [
+    "smith",
+    "rack",
+    "bench",
+    "dumbbell",
+    "weight",
+    "press",
+    "スミス",
+    "ラック",
+    "ベンチ",
+    "ダンベル",
+    "ウェイト",
+    "プレス",
+  ];
+  if (heavyKeywords.some(k => text.includes(k))) {
+    return "/images/placeholders/gym-heavy.png";
+  }
+
+  // Cardio keywords
+  const cardioKeywords = [
+    "treadmill",
+    "bike",
+    "elliptical",
+    "runner",
+    "walker",
+    "aerobic",
+    "トレッドミル",
+    "バイク",
+    "ランニング",
+    "有酸素",
+  ];
+  if (cardioKeywords.some(k => text.includes(k))) {
+    return "/images/placeholders/gym-cardio.png";
+  }
+
+  return "/images/placeholders/gym-general.png";
+}
+
 function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
   if (event.defaultPrevented) {
     return;
@@ -108,12 +154,21 @@ export function GymCard({
               <img
                 alt={gym.name}
                 className="h-full w-full rounded-none object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                data-testid="gym-thumbnail"
                 decoding="async"
                 loading="lazy"
                 src={gym.thumbnailUrl}
               />
             ) : (
-              <span>画像なし</span>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt=""
+                className="h-full w-full rounded-none object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                data-testid="gym-thumbnail"
+                decoding="async"
+                loading="lazy"
+                src={getPlaceholderImage(gym.equipments)}
+              />
             )}
           </div>
         </div>
