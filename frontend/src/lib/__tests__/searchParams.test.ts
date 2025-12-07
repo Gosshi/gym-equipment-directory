@@ -108,6 +108,7 @@ describe("searchParams", () => {
       pref: "hokkaido",
       city: "sapporo",
       categories: ["power-rack"],
+      conditions: [],
       sort: "rating",
       order: "desc",
       page: 4,
