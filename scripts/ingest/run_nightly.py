@@ -81,6 +81,8 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_adachi", "pref": "tokyo", "city": "adachi"},
         {"source": "municipal_katsushika", "pref": "tokyo", "city": "katsushika"},
         {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
+        # Added site_a to verify updated scraping logic
+        {"source": "site_a", "pref": "tokyo", "city": "koto"},
     ),
 }
 

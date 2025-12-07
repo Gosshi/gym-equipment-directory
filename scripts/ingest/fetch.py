@@ -56,6 +56,11 @@ async def _upsert_scraped_pages(source: str, entries: Sequence[tuple[str, str]])
             if url in existing_pages:
                 page = existing_pages[url]
                 page.fetched_at = fetched_at
+                if page.raw_html != raw_html:
+                    logger.info(f"Updating raw_html for {url}")
+                    page.raw_html = raw_html
+                else:
+                    logger.info(f"No change in raw_html for {url}")
                 updated += 1
                 continue
 

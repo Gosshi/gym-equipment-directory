@@ -424,6 +424,7 @@ def _compose_gym_preview(
     address: str | None,
     latitude: float | None,
     longitude: float | None,
+    parsed_json: dict[str, Any] | None = None,
 ) -> GymUpsertPreview:
     lat = latitude
     lon = longitude
@@ -441,6 +442,7 @@ def _compose_gym_preview(
         address=address,
         latitude=lat,
         longitude=lon,
+        parsed_json=parsed_json,
     )
 
 
@@ -456,6 +458,7 @@ async def _apply_gym_upsert(
     address: str | None,
     latitude: float | None,
     longitude: float | None,
+    parsed_json: dict[str, Any] | None = None,
 ) -> Gym:
     if existing is None:
         gym = Gym(
@@ -467,6 +470,7 @@ async def _apply_gym_upsert(
             address=address,
             latitude=latitude,
             longitude=longitude,
+            parsed_json=parsed_json,
         )
         session.add(gym)
         await session.flush()
@@ -481,6 +485,8 @@ async def _apply_gym_upsert(
         gym.latitude = latitude
     if gym.longitude is None and longitude is not None:
         gym.longitude = longitude
+    if parsed_json is not None:
+        gym.parsed_json = parsed_json
     await session.flush()
     return gym
 
@@ -643,6 +649,7 @@ async def approve_candidate(
         address=address,
         latitude=latitude,
         longitude=longitude,
+        parsed_json=candidate.parsed_json,
     )
     preview_summary, preview_latest = await ensure_equipment_links(
         session,
@@ -664,6 +671,7 @@ async def approve_candidate(
             address=address,
             latitude=preview_gym.latitude,
             longitude=preview_gym.longitude,
+            parsed_json=candidate.parsed_json,
         )
         await set_current_slug(session, gym, slug)
         page_url = getattr(row.page, "url", None)

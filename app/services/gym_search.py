@@ -140,8 +140,6 @@ async def search_gyms(
 
             if not set(conditions).issubset(tags):
                 continue
-
-            continue
         item["last_verified_at"] = item.get("last_verified_at") or last_verified_by_gym.get(gid)
         item["score"] = float(richness_by_gym.get(gid, 0.0))
         filtered.append(item)
