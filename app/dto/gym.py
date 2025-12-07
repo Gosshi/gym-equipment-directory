@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -37,7 +38,7 @@ class GymEquipmentLineDTO(BaseModel):
 
         return self.equipment_slug
 
-    @computed_field(return_type=str | None)
+    @computed_field(return_type=Optional[str])  # noqa: UP045
     def description(self) -> str | None:
         """台数や最大重量をまとめた説明文を生成する。"""
 
@@ -165,7 +166,7 @@ class GymDetailDTO(BaseModel):
 
         return self.equipments
 
-    @computed_field(return_type=str | None)
+    @computed_field(return_type=Optional[str])  # noqa: UP045
     def last_verified_at(self) -> str | None:
         """旧フィールド名の互換用。"""
 

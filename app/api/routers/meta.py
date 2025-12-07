@@ -1,5 +1,7 @@
 # app/api/routers/meta.py
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query

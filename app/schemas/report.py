@@ -3,13 +3,13 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field, constr
 
 
-class ReportType(StrEnum):
+class ReportType(str, Enum):
     wrong_info = "wrong_info"
     closed = "closed"
     duplicate = "duplicate"

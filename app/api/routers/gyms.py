@@ -1,5 +1,7 @@
 """/gyms routers that delegate to services via DI."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from uuid import UUID
 

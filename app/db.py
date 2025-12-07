@@ -1,4 +1,6 @@
 # app/db.py
+from __future__ import annotations
+
 import os
 
 from sqlalchemy.engine.url import make_url
