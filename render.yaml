@@ -22,7 +22,7 @@ services:
     runtime: docker
     region: singapore
     plan: pro # 修正 1: cron は free が選べないので starter に変更 (課金は実行時間分のみ)
-    schedule: "0 19 * * 5" # 毎週金曜19:00 UTC (土曜04:00 JST)
+    schedule: "0 19 * * 0,4" # 毎週日曜・木曜19:00 UTC (月曜・金曜04:00 JST)
     dockerfilePath: ./backend/Dockerfile.render
     dockerCommand: python -m scripts.ingest.run_nightly # 修正 2: command/startCommand ではなく dockerCommand
     envVars:
