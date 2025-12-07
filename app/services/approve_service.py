@@ -336,11 +336,10 @@ class ApproveService:
             logger.warning("Candidate %s not found", candidate_id)
             raise CandidateNotFoundError(f"candidate {candidate_id} not found")
         if candidate.status is not CandidateStatus.new:
+            status = candidate.status
             await txn.rollback()
-            logger.warning("Candidate %s status conflict: %s", candidate_id, candidate.status)
-            raise CandidateStatusConflictError(
-                f"candidate {candidate_id} status is {candidate.status}"
-            )
+            logger.warning("Candidate %s status conflict: %s", candidate_id, status)
+            raise CandidateStatusConflictError(f"candidate {candidate_id} status is {status}")
         try:
             plan = await self._build_plan(candidate)
         except ApprovalError as exc:

@@ -68,6 +68,7 @@ def _build_site_a_payload(page: ScrapedPage) -> tuple[str, str, dict[str, Any]]:
         "site": site_a.SITE_ID,
         "equipments": parsed.equipments,
         "equipments_raw": parsed.equipments_raw,
+        "tags": parsed.tags,
     }
     return parsed.name_raw, parsed.address_raw, parsed_json
 

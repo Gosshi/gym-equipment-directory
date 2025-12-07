@@ -23,6 +23,7 @@ class SiteAGymSeed:
     name: str
     address: str
     equipments: Sequence[str]
+    tags: Sequence[str] = ()
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class SiteAParsedGym:
     address_raw: str
     equipments: list[str]
     equipments_raw: list[str]
+    tags: list[str]
 
 
 _GYM_SEEDS: tuple[SiteAGymSeed, ...] = (
@@ -41,60 +43,70 @@ _GYM_SEEDS: tuple[SiteAGymSeed, ...] = (
         name="ダミージム豊洲",
         address="東京都江東区豊洲1-2-3",
         equipments=("スミスマシン", "ラットプルダウン", "ダンベル 40kg"),
+        tags=("駐車場あり", "Wi-Fi", "シャワー"),
     ),
     SiteAGymSeed(
         slug="kiba",
         name="ダミージム木場",
         address="東京都江東区木場2-1-1",
         equipments=("ラットプル", "チェストプレス", "エアロバイク"),
+        tags=("24時間営業", "レンタルウェア"),
     ),
     SiteAGymSeed(
         slug="monzen-nakacho",
         name="ダミージム門前仲町",
         address="東京都江東区門前仲町1-2-8",
         equipments=("スミス", "シーテッドロー", "バイク"),
+        tags=("サウナ", "パウダールーム"),
     ),
     SiteAGymSeed(
         slug="kinshicho",
         name="ダミージム錦糸町",
         address="東京都墨田区錦糸4-5-6",
         equipments=("ダンベルセット", "ショルダープレス", "トレッドミル"),
+        tags=("駐車場あり", "レンタルシューズ"),
     ),
     SiteAGymSeed(
         slug="funabashi",
         name="ダミージム船橋",
         address="千葉県船橋市本町1-1-1",
         equipments=("レッグプレス", "チェストプレスマシン", "ランニングマシン"),
+        tags=("24時間営業", "Wi-Fi", "レンタルタオル"),
     ),
     SiteAGymSeed(
         slug="narashino",
         name="ダミージム習志野",
         address="千葉県習志野市津田沼2-3-4",
         equipments=("バトルロープ", "クロストレーナー", "スミスマシン"),
+        tags=("駐車場あり",),
     ),
     SiteAGymSeed(
         slug="urayasu",
         name="ダミージム浦安",
         address="千葉県浦安市舞浜1-2-1",
         equipments=("エアバイク", "ダンベル", "ラットプルダウン"),
+        tags=("シャワー", "サウナ"),
     ),
     SiteAGymSeed(
         slug="makuhari",
         name="ダミージム幕張",
         address="千葉県千葉市美浜区中瀬1-4-2",
         equipments=("ヒップアブダクター", "チェストプレス", "ダンベル40kg"),
+        tags=("駐車場あり", "Wi-Fi", "パウダールーム"),
     ),
     SiteAGymSeed(
         slug="tokyo-east",
         name="ダミージム東京イースト",
         address="東京都江戸川区東葛西1-2-3",
         equipments=("レッグプレスマシン", "スミスマシン", "クロストレーナー"),
+        tags=("24時間営業",),
     ),
     SiteAGymSeed(
         slug="tokyo-south",
         name="ダミージム東京サウス",
         address="東京都品川区東品川3-4-5",
         equipments=("チェストプレス", "ショルダープレスマシン", "エリプティカル"),
+        tags=("レンタルウェア", "レンタルシューズ", "レンタルタオル"),
     ),
 )
 
@@ -115,19 +127,39 @@ _EQUIPMENT_VARIANTS: dict[str, tuple[str, ...]] = {
     "rowing": ("ローイング", "ロウイング"),
 }
 
+_TAG_VARIANTS: dict[str, tuple[str, ...]] = {
+    "parking": ("駐車場あり", "駐車場"),
+    "24h": ("24時間営業", "24h"),
+    "shower": ("シャワー", "シャワールーム"),
+    "sauna": ("サウナ",),
+    "wifi": ("wi-fi", "wifi", "ワイファイ"),
+    "powder_room": ("パウダールーム", "化粧室"),
+    "rental_wear": ("レンタルウェア", "ウェアレンタル"),
+    "rental_shoes": ("レンタルシューズ", "シューズレンタル"),
+    "rental_towel": ("レンタルタオル", "タオルレンタル"),
+}
 
-def _normalize_equipment_key(name: str) -> str:
+
+def _normalize_key(name: str) -> str:
+    if not isinstance(name, str):
+        return ""
     return "".join(ch for ch in name.strip().lower() if ch not in {" ", "\u3000", "-"})
 
 
 _EQUIPMENT_LOOKUP: dict[str, str] = {}
 for slug, variants in _EQUIPMENT_VARIANTS.items():
     for variant in variants:
-        _EQUIPMENT_LOOKUP[_normalize_equipment_key(variant)] = slug
+        _EQUIPMENT_LOOKUP[_normalize_key(variant)] = slug
+
+_TAG_LOOKUP: dict[str, str] = {}
+for slug, variants in _TAG_VARIANTS.items():
+    for variant in variants:
+        _TAG_LOOKUP[_normalize_key(variant)] = slug
 
 
 def _render_html(seed: SiteAGymSeed) -> str:
     equipments = "\n".join(f"           <li>{item}</li>" for item in seed.equipments)
+    tags = "\n".join(f"           <li>{item}</li>" for item in seed.tags)
     template = """<html>
   <head><title>サイトA | {name}</title></head>
   <body>
@@ -137,11 +169,14 @@ def _render_html(seed: SiteAGymSeed) -> str:
       <ul class="equipments">
 {equipments}
       </ul>
+      <ul class="tags">
+{tags}
+      </ul>
     </div>
   </body>
 </html>
 """
-    return template.format(name=seed.name, address=seed.address, equipments=equipments)
+    return template.format(name=seed.name, address=seed.address, equipments=equipments, tags=tags)
 
 
 def iter_seed_pages(limit: int | None) -> list[tuple[str, str]]:
@@ -182,14 +217,36 @@ def _extract_equipments(soup: BeautifulSoup) -> list[str]:
     ]
 
 
+def _extract_tags(soup: BeautifulSoup) -> list[str]:
+    # Tags are rendered in <ul class="tags">...</ul> by _render_html
+    return [
+        node.get_text(strip=True) for node in soup.select(".tags li") if node.get_text(strip=True)
+    ]
+
+
 def map_equipments(equipments: Iterable[str]) -> list[str]:
     """Map raw equipment names to known ``EQUIPMENT_SEED`` slugs."""
 
     slugs: list[str] = []
     seen: set[str] = set()
     for name in equipments:
-        key = _normalize_equipment_key(name)
+        key = _normalize_key(name)
         slug = _EQUIPMENT_LOOKUP.get(key)
+        if slug is None or slug in seen:
+            continue
+        slugs.append(slug)
+        seen.add(slug)
+    return slugs
+
+
+def map_tags(tags: Iterable[str]) -> list[str]:
+    """Map raw tag names to known slugs."""
+
+    slugs: list[str] = []
+    seen: set[str] = set()
+    for name in tags:
+        key = _normalize_key(name)
+        slug = _TAG_LOOKUP.get(key)
         if slug is None or slug in seen:
             continue
         slugs.append(slug)
@@ -202,11 +259,13 @@ def parse_gym_html(raw_html: str) -> SiteAParsedGym:
 
     soup = BeautifulSoup(raw_html or "", "html.parser")
     equipments_raw = _extract_equipments(soup)
+    tags_raw = _extract_tags(soup)
     return SiteAParsedGym(
         name_raw=_extract_name(soup),
         address_raw=_extract_address(soup),
         equipments=map_equipments(equipments_raw),
         equipments_raw=equipments_raw,
+        tags=map_tags(tags_raw),
     )
 
 
