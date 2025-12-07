@@ -67,13 +67,32 @@ describe("GymCard", () => {
     expect(equipments).toHaveTextContent("+1");
   });
 
-  it("shows placeholders when thumbnail and equipments are missing", () => {
+  it("shows general placeholder when thumbnail is missing and no equipments", () => {
     const gym = buildGym({ equipments: [], thumbnailUrl: null });
 
     renderWithClient(<GymCard gym={gym} />);
 
-    expect(screen.getByText("画像なし")).toBeInTheDocument();
+    const img = screen.getByTestId("gym-thumbnail");
+    expect(img).toHaveAttribute("src", "/images/placeholders/gym-general.png");
     expect(screen.getByText("設備情報はまだ登録されていません。")).toBeInTheDocument();
+  });
+
+  it("shows heavy placeholder when equipments imply heavy", () => {
+    const gym = buildGym({ equipments: ["スミスマシン", "ダンベル"], thumbnailUrl: null });
+
+    renderWithClient(<GymCard gym={gym} />);
+
+    const img = screen.getByTestId("gym-thumbnail");
+    expect(img).toHaveAttribute("src", "/images/placeholders/gym-heavy.png");
+  });
+
+  it("shows cardio placeholder when equipments imply cardio", () => {
+    const gym = buildGym({ equipments: ["トレッドミル", "エアロバイク"], thumbnailUrl: null });
+
+    renderWithClient(<GymCard gym={gym} />);
+
+    const img = screen.getByTestId("gym-thumbnail");
+    expect(img).toHaveAttribute("src", "/images/placeholders/gym-cardio.png");
   });
 
   it("falls back to prefecture and city when address is unavailable", () => {
