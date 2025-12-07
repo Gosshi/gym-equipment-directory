@@ -141,6 +141,8 @@ _TAG_VARIANTS: dict[str, tuple[str, ...]] = {
 
 
 def _normalize_key(name: str) -> str:
+    if not isinstance(name, str):
+        return ""
     return "".join(ch for ch in name.strip().lower() if ch not in {" ", "\u3000", "-"})
 
 
@@ -216,6 +218,7 @@ def _extract_equipments(soup: BeautifulSoup) -> list[str]:
 
 
 def _extract_tags(soup: BeautifulSoup) -> list[str]:
+    # Tags are rendered in <ul class="tags">...</ul> by _render_html
     return [
         node.get_text(strip=True) for node in soup.select(".tags li") if node.get_text(strip=True)
     ]
