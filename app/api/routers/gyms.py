@@ -74,7 +74,7 @@ async def search_gyms(
             lat=q.lat,
             lng=q.lng,
             radius_km=q.radius_km,
-            equipments=required_slugs,
+            required_slugs=required_slugs,
             conditions=required_conditions,
             equipment_match=q.equipment_match,
             sort=q.sort,
