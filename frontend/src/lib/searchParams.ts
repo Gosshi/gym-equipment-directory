@@ -49,11 +49,35 @@ export const MAX_LATITUDE = 90;
 export const MIN_LONGITUDE = -180;
 export const MAX_LONGITUDE = 180;
 
+export type ConditionOption =
+  | "parking"
+  | "24h"
+  | "shower"
+  | "sauna"
+  | "wifi"
+  | "powder_room"
+  | "rental_wear"
+  | "rental_shoes"
+  | "rental_towel";
+
+export const CONDITION_OPTIONS: { value: ConditionOption; label: string }[] = [
+  { value: "parking", label: "駐車場あり" },
+  { value: "24h", label: "24時間営業" },
+  { value: "shower", label: "シャワー" },
+  { value: "sauna", label: "サウナ" },
+  { value: "wifi", label: "Wi-Fi" },
+  { value: "powder_room", label: "パウダールーム" },
+  { value: "rental_wear", label: "レンタルウェア" },
+  { value: "rental_shoes", label: "レンタルシューズ" },
+  { value: "rental_towel", label: "レンタルタオル" },
+];
+
 export interface FilterState {
   q: string;
   pref: string | null;
   city: string | null;
   categories: string[];
+  conditions: string[];
   sort: SortOption;
   order: SortOrder;
   page: number;
@@ -68,6 +92,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   pref: null,
   city: null,
   categories: [],
+  conditions: [],
   sort: DEFAULT_SORT,
   order: DEFAULT_ORDER,
   page: 1,
@@ -120,6 +145,11 @@ const normalizeCsvList = (value: string | null): string[] => {
 
 const parseCategories = (params: URLSearchParams): string[] => {
   const source = params.get("cats") ?? params.get("equipments") ?? params.get("equipment");
+  return normalizeCsvList(source);
+};
+
+const parseConditions = (params: URLSearchParams): string[] => {
+  const source = params.get("conditions") ?? params.get("conds");
   return normalizeCsvList(source);
 };
 
@@ -193,6 +223,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const pref = sanitizeSlug(params.get("pref") ?? params.get("prefecture"));
   const city = sanitizeSlug(params.get("city"));
   const categories = parseCategories(params);
+  const conditions = parseConditions(params);
   const sort = parseSort(params.get("sort"));
   const order = parseSortOrder(sort, params.get("order"));
   const page = parsePositiveInt(params.get("page"), 1);
@@ -213,6 +244,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
     pref,
     city,
     categories,
+    conditions,
     sort,
     order,
     page,
@@ -237,6 +269,9 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   }
   if (state.categories.length > 0) {
     params.set("cats", state.categories.join(","));
+  }
+  if (state.conditions.length > 0) {
+    params.set("conditions", state.conditions.join(","));
   }
   params.set("sort", state.sort);
   params.set("order", normalizeSortOrder(state.sort, state.order));

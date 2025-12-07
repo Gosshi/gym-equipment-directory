@@ -38,6 +38,7 @@ export interface SearchGymsParams {
   prefecture?: string | null;
   city?: string | null;
   categories?: string[];
+  conditions?: string[];
   equipments?: string[];
   sort?: SortOption | ApiSortKey | null;
   order?: SortOrder | null;
@@ -236,6 +237,7 @@ export async function searchGyms(
     pref: params.prefecture ?? undefined,
     city: params.city ?? undefined,
     cats: params.categories ?? params.equipments,
+    conditions: params.conditions,
     sort: params.sort ?? undefined,
     order: params.order ?? undefined,
     page: params.page,
