@@ -26,6 +26,7 @@ test("検索キーワードでジム一覧を表示できる", async ({ page }) 
         equipments: ["ベンチプレス", "ダンベル"],
         thumbnailUrl: null,
         score: 4.8,
+        tags: ["駐車場あり"],
         lastVerifiedAt: "2024-01-15T00:00:00Z",
       },
     ],
@@ -117,4 +118,31 @@ test("検索キーワードでジム一覧を表示できる", async ({ page }) 
   const resultsSection = page.locator("section[aria-labelledby='gym-search-results-heading']");
   await expect(resultsSection).toBeVisible();
   await expect(resultsSection.locator("a").first()).toContainText("Bench Press Studio");
+
+  // タグが表示されているか確認
+  await expect(resultsSection.getByText("駐車場あり")).toBeVisible();
+});
+
+test("モバイル表示で検索条件フィルターを開ける", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+
+  await page.route("**/meta/prefectures", async route => {
+    await route.fulfill({ status: 200, body: JSON.stringify(["tokyo"]) });
+  });
+  await page.route("**/meta/equipment-categories", async route => {
+    await route.fulfill({ status: 200, body: JSON.stringify(["strength"]) });
+  });
+  await page.route("**/meta/cities**", async route => {
+    await route.fulfill({ status: 200, body: JSON.stringify([]) });
+  });
+
+  await page.goto("/gyms");
+
+  // モバイルでは「検索条件を変更」ボタンが表示される
+  const filterButton = page.getByRole("button", { name: "検索条件を変更" });
+  await expect(filterButton).toBeVisible();
+
+  // クリックするとシートが開く
+  await filterButton.click();
+  await expect(page.getByRole("dialog", { name: "検索条件" })).toBeVisible();
 });
