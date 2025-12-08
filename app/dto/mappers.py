@@ -117,6 +117,7 @@ def assemble_gym_detail(
         freshness=freshness,
         richness=richness,
         score=score,
+        tags=list(getattr(gym, "parsed_json", {}).get("tags", [])),
     )
 
 

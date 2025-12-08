@@ -99,6 +99,7 @@ class GymDetailDTO(BaseModel):
     freshness: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
     richness: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
     score: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
+    tags: list[str] = Field(default_factory=list, description="タグ（利用条件など）")
 
     model_config = ConfigDict(
         from_attributes=True,

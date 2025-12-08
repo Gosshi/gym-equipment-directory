@@ -236,6 +236,7 @@ export function GymDetailPage({
           categories={gym.categories}
           locationLabel={locationLabel}
           name={gym.name}
+          tags={gym.tags}
         />
 
         <Separator />
