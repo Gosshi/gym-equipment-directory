@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-import { normalizeGymDetail } from "./GymDetailPage";
+import { normalizeGymDetail } from "./normalization";
 
 export default async function GymDetailPage({ params }: PageProps) {
   const { slug } = await params;

@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 
-import { GymDetailPage, type NormalizedGymDetail } from "./GymDetailPage";
+import { GymDetailPage } from "./GymDetailPage";
+import { type NormalizedGymDetail } from "./normalization";
 
 export function GymDetailClient({ gym }: { gym: NormalizedGymDetail }) {
   const [canonicalSlug, setCanonicalSlug] = useState(gym.slug);
