@@ -209,6 +209,19 @@ export function GymCard({
               設備情報はまだ登録されていません。
             </p>
           )}
+
+          {gym.tags && gym.tags.length > 0 ? (
+            <div className="mt-auto flex flex-wrap gap-1.5 border-t border-border/50 pt-3">
+              {gym.tags.map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </Link>
