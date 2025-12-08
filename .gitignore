@@ -32,3 +32,8 @@ frontend/.env.demo.local
 
 # Logs
 logs/
+
+# Data exports
+*.jsonl
+*.csv
+tmp/
