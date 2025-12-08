@@ -21,6 +21,7 @@ export interface NormalizedGymDetail {
   facilities: FacilityGroup[];
   latitude?: number;
   longitude?: number;
+  tags: string[];
 }
 
 export const sanitizeText = (value: unknown): string | undefined => {
@@ -320,5 +321,6 @@ export const normalizeGymDetail = (
     facilities,
     latitude,
     longitude,
+    tags: data.tags ?? [],
   };
 };

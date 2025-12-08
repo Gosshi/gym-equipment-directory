@@ -59,9 +59,8 @@ export interface GymDetailGymApiResponse {
   canonical_id?: string | null;
   name?: string | null;
   address?: string | null;
-  pref?: string | null;
-  city?: string | null;
   prefecture?: string | null;
+  parsed_json?: unknown;
 }
 
 export interface GymDetailApiResponse {
@@ -88,6 +87,7 @@ export interface GymDetailApiResponse {
   equipment_details?: unknown;
   facilities?: unknown;
   facility_groups?: unknown;
+  tags?: string[] | null;
   location?: GymLocationApiResponse | null;
   latitude?: number | null;
   lat?: number | null;

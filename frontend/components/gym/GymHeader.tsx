@@ -10,6 +10,7 @@ interface GymHeaderProps {
   address?: string;
   locationLabel?: string;
   categories: string[];
+  tags?: string[];
   actions?: ReactNode;
 }
 
@@ -19,6 +20,7 @@ export function GymHeader({
   address,
   locationLabel,
   categories,
+  tags,
   actions,
 }: GymHeaderProps) {
   return (
@@ -36,6 +38,15 @@ export function GymHeader({
           <FavoriteButton gymId={gymId} size={32} className="p-2" />
         </div>
       </div>
+      {tags && tags.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {tags.map(tag => (
+            <Badge key={tag} className="border-primary/50 text-primary" variant="outline">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
       {categories.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {categories.map(category => (
