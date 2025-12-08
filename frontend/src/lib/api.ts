@@ -86,6 +86,7 @@ export type RawGymSummary = {
   richness_score?: number | null;
   freshness_score?: number | null;
   last_verified_at?: string | null;
+  tags?: string[];
 };
 
 type RawSearchGymsResponse =
@@ -144,6 +145,7 @@ export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
     thumbnailUrl: input.thumbnail_url ?? input.thumbnailUrl ?? null,
     equipments,
     score: input.score ?? input.richness_score ?? undefined,
+    tags: input.tags,
     lastVerifiedAt: input.last_verified_at ?? undefined,
   };
 };
