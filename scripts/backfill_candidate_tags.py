@@ -65,6 +65,36 @@ async def backfill_tags():
                 # Parse with the correct logic
                 result = parse_municipal_page(page.raw_html, page.url, source=target_source)
 
+                # Check rejection (Noise Filtering)
+                if result.meta and result.meta.get("create_gym") is False:
+                    reason = result.meta.get("reason", "parser_rejection")
+                    logger.warning(
+                        f"Candidate {cand.id} ({cand.name_raw}) rejected by parser: {reason}"
+                    )
+                    # Use 'rejected' status if available, or just log for now?
+                    # Assuming 'new' -> 'rejected' is valid transition.
+                    # We need to make sure we don't overwrite approved ones.
+                    if cand.status.value == "new":
+                        # Ideally we should set explicit enum
+                        # The local model def uses SQLEnum.
+                        logger.info(f"  -> Suggest deleting/rejecting candidate {cand.id}")
+                        pass
+
+                # Update Name (Generic Fix)
+                if result.facility_name and result.facility_name != cand.name_raw:
+                    logger.info(
+                        f"Updating name for {cand.id}: "
+                        f"'{cand.name_raw}' -> '{result.facility_name}'"
+                    )
+                    cand.name_raw = result.facility_name
+                    updated_count += 1
+
+                # Update Address (Bonus)
+                if result.address and not cand.address_raw:
+                    logger.info(f"Filling missing address for {cand.id}: {result.address}")
+                    cand.address_raw = result.address
+                    updated_count += 1
+
                 # Check for tags
                 if result.tags:
                     current_parsed = dict(cand.parsed_json) if cand.parsed_json else {}
