@@ -165,6 +165,8 @@ def parse_municipal_page(
     page_title = sanitize_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
     facility_name = title_text or page_title
 
+    # Remove earlier Keyword Checks (User requested LLM check instead)
+
     # 1. Try LLM Facility Extraction
     # Combine text from body nodes
     nodes = _collect_nodes(soup, selectors.get("body"))
@@ -175,16 +177,27 @@ def parse_municipal_page(
     # Sanitize first (safe for real Japanese)
     body_text = sanitize_text(body_text)
 
-    # Check if keywords are present
-    # print(f"DEBUG: 'トレーニング' in body_text: {'トレーニング' in body_text}")
-
     # Use full page text (or body text) for LLM
-    # We prefer body_text but if it's empty, try whole soup text
     llm_text = body_text if len(body_text) > 50 else soup.get_text(" ", strip=True)
 
     llm_data = _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
+    
+    # LLM Filtering Logic
+    if llm_data and llm_data.get("is_gym") is False:
+        # LLM explicitly rejected this page
+        return MunicipalParseResult(
+            facility_name=facility_name,
+            address=None,
+            equipments_raw=[],
+            equipments=[],
+            tags=[],
+            center_no=None,
+            page_type=page_type,
+            page_title=page_title,
+            meta={"create_gym": False, "page_url": normalized_url, "reason": "llm_rejection"},
+        )
 
-    if llm_data:
+    if llm_data and llm_data.get("is_gym") is True:
         # LLM found a gym
         facility_name = llm_data.get("name") or facility_name
         address = llm_data.get("address")
@@ -211,7 +224,14 @@ def parse_municipal_page(
         create_gym = True
 
     else:
-        # 2. Fallback to Legacy Logic
+        # 2. Fallback to Legacy Logic (Only if LLM failed completely/errored, NOT if it said false)
+        # Note: _extract... returns None on Exception.
+        # Ideally we trust LLM. If None, it might be API error.
+        # We can still try heuristic, but risk noise.
+        # User implies "Use LLM".
+        # If LLM returned None (API error), we might skip or fallback.
+        # Let's fallback for robustness, but prioritize LLM rejection.
+        
         address = extract_address_one_line(
             clean_html,
             selectors=selectors,

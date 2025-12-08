@@ -326,24 +326,29 @@ def _extract_facility_with_llm(
         standard_names.append(f"{first_alias} ({slug})")
 
     prompt_content = (
-        "Analyze the text and determine if it describes a public gym or training room facility. "
-        "If NO, return null. "
-        "If YES, extract the following information and return as JSON:\n"
+        "Analyze the text and determine if it describes a physical public gym "
+        "or training room facility that represents a valid candidate for a gym directory. "
+        "Return a JSON object with the following fields:\n"
+        "- is_gym: Boolean. Set to true ONLY if this page describes a facility's "
+        "details (equipment, usage). Set to false if it is an announcement "
+        "(e.g., 'Notice of Closure', 'Recruitment'), a generic list of facilities, "
+        "or irrelevant content.\n"
         "- name: The specific name of the facility (e.g., '墨田区総合体育館'). "
         "Remove generic headers like 'Facility Guide', 'Training Room', 'Access'. "
-        "If the title is generic, look for the parent facility name in the text. "
-        "Do NOT translate the name; keep it in Japanese.\n"
+        "If the title is generic (e.g., 'Training Room'), look for the parent "
+        "facility name in the text/title. Do NOT translate the name; "
+        "keep it in Japanese. Return null if is_gym is false.\n"
         "- address: The full postal address of the facility. "
-        "Look for 'Address:', 'Location:', or postal codes (〒). "
-        "If not explicitly labeled, infer from context (e.g., footer). "
-        "Do NOT translate the address.\n"
-        "- equipments: A list of training equipment available. Objects with 'slug' and 'count'.\n"
+        "Return null if is_gym is false.\n"
+        "- equipments: A list of training equipment available. "
+        "Objects with 'slug' and 'count'. Return empty list if is_gym is false "
+        "or no equipment found.\n"
         "  Map equipment to these standard slugs if possible:\n"
         f"  {', '.join(standard_names)}\n"
         "  IMPORTANT: Use the English ID inside the parentheses (e.g., 'treadmill') "
         "as the 'slug', NOT the Japanese name.\n"
         "  If count is unknown but present, set to 1. If explicitly 'none', exclude it.\n"
-        "Return ONLY the JSON object or null."
+        "Return ONLY the JSON object."
     )
 
     try:
@@ -364,18 +369,15 @@ def _extract_facility_with_llm(
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content.strip()
-        if content == "null":
-            return None
-
         data = json.loads(content)
         if not data:
             return None
 
-        # Validate required fields
-        if not data.get("name") and not data.get("equipments"):
-            return None
-
+        # Return the data as is (containing is_gym)
         return data
+
+    except Exception:
+        return None
 
     except Exception:
         return None

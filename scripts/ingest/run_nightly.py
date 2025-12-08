@@ -360,6 +360,21 @@ def run_orchestrator(force_day: str | None = None) -> int:
         logger.error(f"Backfill failed: {e}")
         summary_lines.append(f"\n**Backfill:** Failed ({e})")
 
+    # Deduplication
+    try:
+        logger.info("Starting candidate deduplication...")
+        # Use existing imported asyncio or import again
+        import asyncio
+
+        from scripts.deduplicate_candidates import deduplicate_candidates
+
+        asyncio.run(deduplicate_candidates())
+        logger.info("Deduplication completed.")
+        summary_lines.append("\n**Deduplication:** Completed")
+    except Exception as e:
+        logger.error(f"Deduplication failed: {e}")
+        summary_lines.append(f"\n**Deduplication:** Failed ({e})")
+
     message = "\n".join(summary_lines)
 
     # Send notification
