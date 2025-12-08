@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 from datetime import UTC, datetime
 from typing import Final
 
@@ -25,6 +26,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
     {
         "name": "Integration Hub Gym",
         "slug": "integration-hub-gym",
+        "canonical_id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
         "pref": "tokyo",
         "city": "shibuya",
         "address": "1-2-3 Integration Ave, Shibuya-ku, Tokyo",
@@ -35,6 +37,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
     {
         "name": "Integration Riverside Gym",
         "slug": "integration-riverside-gym",
+        "canonical_id": uuid.UUID("22222222-2222-2222-2222-222222222222"),
         "pref": "tokyo",
         "city": "shibuya",
         "address": "4-5-6 Riverside Road, Shibuya-ku, Tokyo",
@@ -45,6 +48,7 @@ MINIMAL_GYM_DATASET: Final[list[dict[str, object]]] = [
     {
         "name": "Integration West Gym",
         "slug": "integration-west-gym",
+        "canonical_id": uuid.UUID("33333333-3333-3333-3333-333333333333"),
         "pref": "tokyo",
         "city": "shibuya",
         "address": "7-8-9 West Street, Shibuya-ku, Tokyo",
