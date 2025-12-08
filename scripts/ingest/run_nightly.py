@@ -345,6 +345,21 @@ def run_orchestrator(force_day: str | None = None) -> int:
     # To do this properly, we might need to parse logs or have workers write to a status file/DB.
     # For this iteration, simple process status is enough.
 
+    # Run backfill of tags to fix any missing tags in existing candidates
+    try:
+        logger.info("Starting backfill of candidate tags...")
+        # Import dynamically to avoid circular imports if any
+        import asyncio
+
+        from scripts.backfill_candidate_tags import backfill_tags
+
+        asyncio.run(backfill_tags())
+        logger.info("Backfill completed.")
+        summary_lines.append("\n**Backfill:** Completed")
+    except Exception as e:
+        logger.error(f"Backfill failed: {e}")
+        summary_lines.append(f"\n**Backfill:** Failed ({e})")
+
     message = "\n".join(summary_lines)
 
     # Send notification
