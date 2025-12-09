@@ -17,33 +17,41 @@ async def deduplicate_candidates():
     async with SessionLocal() as session:
         # Fetch all candidates
         # We need name, address, id, tags, etc.
-        stmt = select(GymCandidate).order_by(GymCandidate.id)
+        # Fetch lightweight tuples instead of full objects
+        stmt = select(
+            GymCandidate.id,
+            GymCandidate.name_raw,
+            GymCandidate.address_raw,
+            GymCandidate.parsed_json,
+            GymCandidate.status,
+        ).order_by(GymCandidate.id)
+
+        # Use stream with yield_per just to be safe during fetch even if we collect list
+        # Actually for grouping we probably need them all.
+        # But constructing tuples is cheaper than ORM instances.
         result = await session.execute(stmt)
-        all_candidates = result.scalars().all()
+        all_candidates = result.all()  # List of Row objects (tuples)
 
-        # Group by Address + City (Simple fuzzy match)
-        # Note: address_raw might be "1-2-3" or "1-2-3, Some City".
-        # Ideally rely on strict address if available.
-        # Fallback to name if address is empty? No, dupes common.
-        # Let's rely on address.
-
+        # Group by Address + City
         groups = defaultdict(list)
         norm_groups = defaultdict(list)
 
-        for cand in all_candidates:
-            if cand.status == CandidateStatus.approved:
-                continue  # Don't touch approved ones
+        for row in all_candidates:
+            cid, cname, caddr, cparsed, cstatus = row
+
+            if cstatus == CandidateStatus.approved:
+                continue
 
             # Key 1: Normalized Address (Strongest)
-            parsed = cand.parsed_json or {}
+            parsed = cparsed or {}
             norm_addr = parsed.get("address")
 
             if norm_addr:
-                norm_groups[norm_addr].append(cand)
-            elif cand.address_raw:
-                # Key 2: Raw Address (Cleanup spaces)
-                clean_addr = cand.address_raw.replace(" ", "").replace("　", "")
-                groups[clean_addr].append(cand)
+                norm_groups[norm_addr].append(row)
+            elif caddr:
+                # Key 2: Raw Address
+                clean_addr = caddr.replace(" ", "").replace("　", "")
+                groups[clean_addr].append(row)
 
         # Process duplicates
         duplicates_to_remove = set()
@@ -57,18 +65,22 @@ async def deduplicate_candidates():
             # 2. Name Length (longer is usually better/less generic?)
             # 3. ID (keep newer)
 
-            def score(c):
-                tags = (c.parsed_json or {}).get("tags", [])
-                return (len(tags), len(c.name_raw), c.id)
+            def score(row):
+                cid, cname, caddr, cparsed, cstatus = row
+                tags = (cparsed or {}).get("tags", [])
+                return (len(tags), len(cname or ""), cid)
 
-            sorted_cands = sorted(group_cands, key=score, reverse=True)
-            winner = sorted_cands[0]
-            losers = sorted_cands[1:]
+            sorted_rows = sorted(group_cands, key=score, reverse=True)
+            winner = sorted_rows[0]
+            losers = sorted_rows[1:]
 
-            logger.info(f"Dedupe ({len(group_cands)}): Keep {winner.id} ({winner.name_raw})")
+            w_id, w_name, _, _, _ = winner
+
+            logger.info(f"Dedupe ({len(group_cands)}): Keep {w_id} ({w_name})")
             for loser in losers:
-                logger.info(f"  -> Delete: {loser.id} ({loser.name_raw})")
-                duplicates_to_remove.add(loser.id)
+                l_id, l_name, _, _, _ = loser
+                logger.info(f"  -> Delete: {l_id} ({l_name})")
+                duplicates_to_remove.add(l_id)
 
         for addr, cands in norm_groups.items():
             process_group(cands)
@@ -76,7 +88,7 @@ async def deduplicate_candidates():
         for addr, cands in groups.items():
             # candidates in duplicates_to_remove might appear here too if logic overlaps?
             # Filter out already removed
-            valid_cands = [c for c in cands if c.id not in duplicates_to_remove]
+            valid_cands = [row for row in cands if row[0] not in duplicates_to_remove]
             process_group(valid_cands)
 
         if not duplicates_to_remove:

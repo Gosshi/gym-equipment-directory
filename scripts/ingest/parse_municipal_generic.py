@@ -181,7 +181,7 @@ def parse_municipal_page(
     llm_text = body_text if len(body_text) > 50 else soup.get_text(" ", strip=True)
 
     llm_data = _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
-    
+
     # LLM Filtering Logic
     if llm_data and llm_data.get("is_gym") is False:
         # LLM explicitly rejected this page
@@ -231,7 +231,7 @@ def parse_municipal_page(
         # User implies "Use LLM".
         # If LLM returned None (API error), we might skip or fallback.
         # Let's fallback for robustness, but prioritize LLM rejection.
-        
+
         address = extract_address_one_line(
             clean_html,
             selectors=selectors,
