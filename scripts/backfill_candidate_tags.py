@@ -25,12 +25,17 @@ async def backfill_tags():
             .join(Source, ScrapedPage.source_id == Source.id)
             .order_by(GymCandidate.id)
         )
-        result = await session.execute(stmt)
-        rows = result.all()
+
+        # Determine batch size
+        BATCH_SIZE = 50
+
+        # Use server-side cursor to iterate
+        result = await session.stream(stmt.execution_options(yield_per=BATCH_SIZE))
 
         updated_count = 0
+        batch_updates = 0
 
-        for cand, page, source_model in rows:
+        async for cand, page, source_model in result:
             if not page or not page.raw_html:
                 continue
 
@@ -94,6 +99,7 @@ async def backfill_tags():
                     logger.info(f"Filling missing address for {cand.id}: {result.address}")
                     cand.address_raw = result.address
                     updated_count += 1
+                    batch_updates += 1
 
                 # Check for tags
                 if result.tags:
@@ -109,14 +115,21 @@ async def backfill_tags():
                         current_parsed["tags"] = result.tags
                         cand.parsed_json = current_parsed
                         updated_count += 1
+                        batch_updates += 1
             except Exception as e:
                 logger.error(f"Failed to parse candidate {cand.id}: {e}")
 
-        if updated_count > 0:
-            logger.info(f"Committing {updated_count} updates...")
+            # Periodic Commit
+            if batch_updates >= 10:
+                await session.commit()
+                batch_updates = 0
+
+        # Final commit
+        if batch_updates > 0:
+            logger.info(f"Committing final {batch_updates} updates...")
             await session.commit()
-        else:
-            logger.info("No updates needed.")
+
+        logger.info(f"Backfill complete. Total updates: {updated_count}")
 
 
 if __name__ == "__main__":
