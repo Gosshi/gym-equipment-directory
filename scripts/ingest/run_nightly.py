@@ -20,26 +20,23 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_chiyoda", "pref": "tokyo", "city": "chiyoda"},
         {"source": "municipal_chuo", "pref": "tokyo", "city": "chuo"},
         {"source": "municipal_minato", "pref": "tokyo", "city": "minato"},
-        {
-            "source": "municipal_tokyo_metropolitan",
-            "pref": "tokyo",
-            "city": "tokyo-metropolitan",
-        },
         {"source": "municipal_shinjuku", "pref": "tokyo", "city": "shinjuku"},
         {"source": "municipal_bunkyo", "pref": "tokyo", "city": "bunkyo"},
         {"source": "municipal_taito", "pref": "tokyo", "city": "taito"},
         {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida"},
         {"source": "municipal_koto", "pref": "tokyo", "city": "koto"},
+    ),
+    "wed": (
         {"source": "municipal_shinagawa", "pref": "tokyo", "city": "shinagawa"},
         {"source": "municipal_meguro", "pref": "tokyo", "city": "meguro"},
         {"source": "municipal_ota", "pref": "tokyo", "city": "ota"},
-    ),
-    "fri": (
         {"source": "municipal_setagaya", "pref": "tokyo", "city": "setagaya"},
         {"source": "municipal_shibuya", "pref": "tokyo", "city": "shibuya"},
         {"source": "municipal_nakano", "pref": "tokyo", "city": "nakano"},
         {"source": "municipal_suginami", "pref": "tokyo", "city": "suginami"},
         {"source": "municipal_toshima", "pref": "tokyo", "city": "toshima"},
+    ),
+    "fri": (
         {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
         {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
         {"source": "municipal_itabashi", "pref": "tokyo", "city": "itabashi"},
@@ -47,6 +44,11 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_adachi", "pref": "tokyo", "city": "adachi"},
         {"source": "municipal_katsushika", "pref": "tokyo", "city": "katsushika"},
         {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
+        {
+            "source": "municipal_tokyo_metropolitan",
+            "pref": "tokyo",
+            "city": "tokyo-metropolitan",
+        },
     ),
 }
 
