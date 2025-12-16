@@ -26,6 +26,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+          trivy-version: "0.58.1"
 
       - name: Run Trivy vulnerability scanner (config)
         uses: aquasecurity/trivy-action@master
@@ -35,3 +36,4 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+          trivy-version: "0.58.1"
