@@ -20,26 +20,23 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_chiyoda", "pref": "tokyo", "city": "chiyoda"},
         {"source": "municipal_chuo", "pref": "tokyo", "city": "chuo"},
         {"source": "municipal_minato", "pref": "tokyo", "city": "minato"},
-        {
-            "source": "municipal_tokyo_metropolitan",
-            "pref": "tokyo",
-            "city": "tokyo-metropolitan",
-        },
         {"source": "municipal_shinjuku", "pref": "tokyo", "city": "shinjuku"},
         {"source": "municipal_bunkyo", "pref": "tokyo", "city": "bunkyo"},
         {"source": "municipal_taito", "pref": "tokyo", "city": "taito"},
         {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida"},
         {"source": "municipal_koto", "pref": "tokyo", "city": "koto"},
+    ),
+    "wed": (
         {"source": "municipal_shinagawa", "pref": "tokyo", "city": "shinagawa"},
         {"source": "municipal_meguro", "pref": "tokyo", "city": "meguro"},
         {"source": "municipal_ota", "pref": "tokyo", "city": "ota"},
-    ),
-    "fri": (
         {"source": "municipal_setagaya", "pref": "tokyo", "city": "setagaya"},
         {"source": "municipal_shibuya", "pref": "tokyo", "city": "shibuya"},
         {"source": "municipal_nakano", "pref": "tokyo", "city": "nakano"},
         {"source": "municipal_suginami", "pref": "tokyo", "city": "suginami"},
         {"source": "municipal_toshima", "pref": "tokyo", "city": "toshima"},
+    ),
+    "fri": (
         {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
         {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
         {"source": "municipal_itabashi", "pref": "tokyo", "city": "itabashi"},
@@ -47,6 +44,11 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_adachi", "pref": "tokyo", "city": "adachi"},
         {"source": "municipal_katsushika", "pref": "tokyo", "city": "katsushika"},
         {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
+        {
+            "source": "municipal_tokyo_metropolitan",
+            "pref": "tokyo",
+            "city": "tokyo-metropolitan",
+        },
     ),
 }
 
@@ -210,7 +212,7 @@ def run_worker(worker_index: int, day_key: str) -> int:
         return 1
 
 
-def run_orchestrator(force_day: str | None = None) -> int:
+async def run_orchestrator(force_day: str | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -245,7 +247,7 @@ def run_orchestrator(force_day: str | None = None) -> int:
 
     if api_key and cx:
         for target in targets:
-            # Skip if not a municipal target (e.g. tokyo-metropolitan might not need discovery)
+            # Skip if not a municipal target
             if "municipal" not in target["source"]:
                 continue
 
@@ -254,6 +256,9 @@ def run_orchestrator(force_day: str | None = None) -> int:
                 continue
 
             logger.info(f"Discovering URLs for {ward}...")
+            # Run discovery in SUBPROCESS to avoid async loop conflict/pollution
+            # Discovery uses its own asyncio.run internally if called as script
+            # Keep it as subprocess for isolation
             subprocess.run(
                 [
                     sys.executable,
@@ -269,12 +274,13 @@ def run_orchestrator(force_day: str | None = None) -> int:
             "Skipping discovery: GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set"
         )
 
-    # Run workers in parallel
+    # Run workers in parallel (Subprocesses)
     import concurrent.futures
 
-    max_workers = 2  # Reduced from 5 to prevent OOM on Render Starter (512MB RAM)
+    max_workers = 2
     logger.info(f"Spawning workers with max_workers={max_workers}...")
 
+    # Workers are also subprocesses, so they don't share our event loop
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_target = {}
         for index, target in enumerate(targets):
@@ -291,11 +297,7 @@ def run_orchestrator(force_day: str | None = None) -> int:
                     current_day,
                 ],
                 check=False,
-                capture_output=True,  # Capture output to avoid interleaving logs
-                # Letting it flow is better for live logs, but might be messy.
-                # Given it's a cron job, interleaved logs are okay-ish, but maybe hard to read.
-                # But capturing hides progress until done.
-                # Let's keep check=False and NOT capture, so logs stream (interleaved).
+                capture_output=False,
             )
             future_to_target[future] = (index, target)
 
@@ -327,10 +329,6 @@ def run_orchestrator(force_day: str | None = None) -> int:
                 )
                 had_failures = True
 
-    # Geocoding disabled by user request (manual only)
-    # logger.info("Starting geocoding for candidates...")
-    # ... (removed)
-
     # Collect summary
     summary_lines = [f"**Nightly Run Report ({current_day})**"]
     if had_failures:
@@ -340,35 +338,28 @@ def run_orchestrator(force_day: str | None = None) -> int:
 
     summary_lines.append(f"\n**Targets:** {len(targets)}")
 
-    # TODO: We should collect actual metrics from workers/discovery,
-    # but for now we just report success/failure of the process.
-    # To do this properly, we might need to parse logs or have workers write to a status file/DB.
-    # For this iteration, simple process status is enough.
-
-    # Run backfill of tags to fix any missing tags in existing candidates
+    # Run backfill of tags (Avoid nested asyncio.run)
     try:
         logger.info("Starting backfill of candidate tags...")
-        # Import dynamically to avoid circular imports if any
-        import asyncio
-
         from scripts.backfill_candidate_tags import backfill_tags
 
-        asyncio.run(backfill_tags())
+        # Await directly
+        await backfill_tags()
+
         logger.info("Backfill completed.")
         summary_lines.append("\n**Backfill:** Completed")
     except Exception as e:
         logger.error(f"Backfill failed: {e}")
         summary_lines.append(f"\n**Backfill:** Failed ({e})")
 
-    # Deduplication
+    # Deduplication (Avoid nested asyncio.run)
     try:
         logger.info("Starting candidate deduplication...")
-        # Use existing imported asyncio or import again
-        import asyncio
-
         from scripts.deduplicate_candidates import deduplicate_candidates
 
-        asyncio.run(deduplicate_candidates())
+        # Await directly
+        await deduplicate_candidates()
+
         logger.info("Deduplication completed.")
         summary_lines.append("\n**Deduplication:** Completed")
     except Exception as e:
@@ -377,15 +368,20 @@ def run_orchestrator(force_day: str | None = None) -> int:
 
     message = "\n".join(summary_lines)
 
-    # Send notification
+    # Send notification (Avoid nested asyncio.run)
     try:
-        import asyncio
-
         from app.services.notification import send_notification
 
-        asyncio.run(send_notification(message))
+        # Await directly
+        await send_notification(message)
+
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
+
+    # Dispose of the engine to close all connections cleanly
+    from app.db import engine
+
+    await engine.dispose()
 
     return 1 if had_failures else 0
 
@@ -393,11 +389,18 @@ def run_orchestrator(force_day: str | None = None) -> int:
 if __name__ == "__main__":
     args = parse_args()
     if args.discovery_ward:
+        # Discovery worker uses its own asyncio.run inside
         raise SystemExit(run_discovery_worker(args.discovery_ward))
 
     if args.worker_index is None:
-        raise SystemExit(run_orchestrator(force_day=args.day))
+        # Orchestrator is now async
+        import asyncio
 
+        raise SystemExit(asyncio.run(run_orchestrator(force_day=args.day)))
+    else:
+        # Worker is sync wrapper around async run_batch (inside run_worker)
+        # run_worker uses asyncio.run internally, which is fine as it is a separate process
+        raise SystemExit(run_worker(args.worker_index, args.day))
     # Worker mode needs to know which day's schedule to use to look up the target by index
     # But wait, worker_index relies on the TARGETS list which is now dynamic.
     # We must pass the day to the worker as well.
