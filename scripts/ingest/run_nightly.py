@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -219,25 +219,49 @@ async def run_orchestrator(force_day: str | None = None) -> int:
     )
 
     # Calculate current day in JST (UTC+9)
-    jst = timezone(timedelta(hours=9))
-    now_jst = datetime.now(jst)
+    # jst = timezone(timedelta(hours=9))  <-- unused
 
-    # 0=Mon, 6=Sun
-    weekday_idx = now_jst.weekday()
-    days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-    current_day = days[weekday_idx]
+    current_day = "accelerated"  # Dummy value for logging
 
-    if force_day:
-        logger.info(f"Forcing run for day: {force_day}")
-        current_day = force_day
+    # --- TEMPORARY ACCELERATED SCHEDULE (User Request) ---
+    # Run all 23 wards in 6 batches (every 4 hours)
+    # Flatten all targets
+    ALL_TARGETS = []
+    for day_targets in SCHEDULE.values():
+        ALL_TARGETS.extend(day_targets)
+
+    # Sort to ensure deterministic order (by city code or name)
+    ALL_TARGETS.sort(key=lambda x: x["city"])
+
+    current_hour = datetime.now(UTC).hour
+    # Runs at 0, 4, 8, 12, 16, 20 UTC
+    # 0 -> Batch 0
+    # 4 -> Batch 1
+    # ...
+    # 20 -> Batch 5
+    batch_index = current_hour // 4
+
+    # 23 wards / 6 batches = ~4 wards per batch
+    BATCH_SIZE = 4
+    start_idx = batch_index * BATCH_SIZE
+    end_idx = start_idx + BATCH_SIZE
+
+    # Handle overflow
+    if start_idx >= len(ALL_TARGETS):
+        # Should not happen if cron is correct, but safe fallback
+        logger.info(f"Batch index {batch_index} out of range (Completed?)")
+        targets = ()
     else:
-        logger.info(f"Running schedule for day: {current_day} (JST)")
+        targets = tuple(ALL_TARGETS[start_idx:end_idx])
 
-    targets = SCHEDULE.get(current_day)
+    logger.info(f"--- ACCELERATED RUN (UTC Hour: {current_hour}) ---")
+    logger.info(f"Batch {batch_index + 1}/6: Processing {len(targets)} targets")
+
     if not targets:
-        logger.warning(f"No targets defined for {current_day}")
+        logger.info("No targets for today/time.")
         return 0
 
+    # Regular logic follows... (spawning workers)
     had_failures = False
 
     # Run discovery for each target ward
@@ -281,10 +305,31 @@ async def run_orchestrator(force_day: str | None = None) -> int:
     logger.info(f"Spawning workers with max_workers={max_workers}...")
 
     # Workers are also subprocesses, so they don't share our event loop
+    # Reverse lookup map for worker arguments to handle accelerated batches
+    # (pref, city) -> (day, index)
+    target_lookup = {}
+    for d, t_list in SCHEDULE.items():
+        for idx, t in enumerate(t_list):
+            key = (t["pref"], t["city"])
+            target_lookup[key] = (d, idx)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_target = {}
         for index, target in enumerate(targets):
-            logger.info("Scheduling worker index=%s for target=%s", index, target["source"])
+            # find original args
+            t_key = (target["pref"], target["city"])
+            if t_key not in target_lookup:
+                logger.error(f"Target {t_key} not found in SCHEDULE")
+                continue
+
+            orig_day, orig_idx = target_lookup[t_key]
+
+            logger.info(
+                "Scheduling worker for %s (Original Day: %s, Idx: %s)",
+                target["source"],
+                orig_day,
+                orig_idx,
+            )
             future = executor.submit(
                 subprocess.run,
                 [
@@ -292,9 +337,9 @@ async def run_orchestrator(force_day: str | None = None) -> int:
                     "-m",
                     "scripts.ingest.run_nightly",
                     "--worker-index",
-                    str(index),
+                    str(orig_idx),
                     "--day",
-                    current_day,
+                    orig_day,
                 ],
                 check=False,
                 capture_output=False,
@@ -365,6 +410,20 @@ async def run_orchestrator(force_day: str | None = None) -> int:
     except Exception as e:
         logger.error(f"Deduplication failed: {e}")
         summary_lines.append(f"\n**Deduplication:** Failed ({e})")
+
+    # Auto-Approval (New Step)
+    try:
+        logger.info("Starting candidate auto-approval...")
+        from scripts.auto_approve_candidates import auto_approve_candidates
+
+        # Await directly
+        await auto_approve_candidates()
+
+        logger.info("Auto-approval completed.")
+        summary_lines.append("\n**Auto-Approval:** Completed")
+    except Exception as e:
+        logger.error(f"Auto-approval failed: {e}")
+        summary_lines.append(f"\n**Auto-Approval:** Failed ({e})")
 
     message = "\n".join(summary_lines)
 
