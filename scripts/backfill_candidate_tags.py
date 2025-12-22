@@ -90,9 +90,12 @@ async def backfill_tags():
                         batch_updates += 1
                         updated_count += 1
 
-                    # Update Address
-                    if result.address and not cand.address_raw:
-                        logger.info(f"Filling missing address for {cand.id}: {result.address}")
+                    # Update Address (Fix existing wrong addresses)
+                    if result.address and result.address != cand.address_raw:
+                        logger.info(
+                            f"Updating address for {cand.id}:"
+                            f"'{cand.address_raw}' -> '{result.address}'"
+                        )
                         cand.address_raw = result.address
                         batch_updates += 1
                         updated_count += 1

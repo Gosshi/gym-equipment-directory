@@ -366,6 +366,20 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         logger.error(f"Deduplication failed: {e}")
         summary_lines.append(f"\n**Deduplication:** Failed ({e})")
 
+    # Auto-Approval (New Step)
+    try:
+        logger.info("Starting candidate auto-approval...")
+        from scripts.auto_approve_candidates import auto_approve_candidates
+
+        # Await directly
+        await auto_approve_candidates()
+
+        logger.info("Auto-approval completed.")
+        summary_lines.append("\n**Auto-Approval:** Completed")
+    except Exception as e:
+        logger.error(f"Auto-approval failed: {e}")
+        summary_lines.append(f"\n**Auto-Approval:** Failed ({e})")
+
     message = "\n".join(summary_lines)
 
     # Send notification (Avoid nested asyncio.run)
