@@ -61,7 +61,33 @@ WARDS = [
     ("edogawa", "https://www.city.edogawa.tokyo.jp/"),
 ]
 
+
+# Common external gym providers to support universally
+GLOBAL_ALLOWED_HOSTS = [
+    "information.konamisportsclub.jp",
+    "www.mizuno.jp",
+    "www.tokyo-dome.co.jp",
+    "shisetsu.jp",
+    "www.shisetsu-tokyo.jp",
+    "www.sumispo.com",  # Sumida existing
+    "www.taitogeibun.net",  # Taito existing
+]
+
+GLOBAL_ARTICLE_PATTERNS = [
+    r"/trust/.*",  # Konami
+    r"/facility/.*",  # Generic
+]
+
 SOURCES: dict[str, MunicipalSource] = {}
+
+__all__ = [
+    "MunicipalSource",
+    "SOURCES",
+    "ARTICLE_PAT_DEFAULT",
+    "GLOBAL_ALLOWED_HOSTS",
+    "GLOBAL_ARTICLE_PATTERNS",
+]
+
 
 # 1. Register specific implementations first (overrides)
 # Batch 2: East Wards
@@ -485,4 +511,10 @@ for slug, base_url in WARDS:
     )
 
 
-__all__ = ["MunicipalSource", "SOURCES", "ARTICLE_PAT_DEFAULT"]
+__all__ = [
+    "MunicipalSource",
+    "SOURCES",
+    "ARTICLE_PAT_DEFAULT",
+    "GLOBAL_ALLOWED_HOSTS",
+    "GLOBAL_ARTICLE_PATTERNS",
+]

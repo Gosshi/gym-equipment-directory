@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from scripts.ingest.sources_registry import GLOBAL_ARTICLE_PATTERNS
+
 _CONFIG_CACHE: dict[str, dict[str, Any]] = {}
 _CONFIG_DIR = Path(__file__).resolve().parents[4] / "configs" / "municipal"
 
@@ -56,6 +58,28 @@ def load_config(ward: str) -> dict[str, Any]:
     if data is None:
         msg = f"Municipal parser config not found: {path}"
         raise FileNotFoundError(msg)
+
+    # Universal Support: Inject global patterns into url_patterns
+    if "url_patterns" in data and GLOBAL_ARTICLE_PATTERNS:
+        patterns = data["url_patterns"]
+        # Handle dict format (intro_top/detail_article)
+        if isinstance(patterns, dict):
+            current_detail = patterns.get("detail_article", "")
+            current_intro = patterns.get("intro_top", "")
+
+            # Construct OR regex
+            global_regex = "|".join(GLOBAL_ARTICLE_PATTERNS)
+
+            if current_detail:
+                patterns["detail_article"] = f"{current_detail}|{global_regex}"
+            else:
+                patterns["detail_article"] = global_regex
+
+            # Also add to intro if needed? Usually intro is just for crawling depth
+            if current_intro:
+                patterns["intro_top"] = f"{current_intro}|{global_regex}"
+            else:
+                patterns["intro_top"] = global_regex
 
     _CONFIG_CACHE[ward] = data
     return dict(data)
