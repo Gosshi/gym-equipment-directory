@@ -23,7 +23,11 @@ from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
 
 from .sites import site_a
-from .sources_registry import SOURCES, MunicipalSource
+from .sources_registry import (
+    GLOBAL_ALLOWED_HOSTS,
+    SOURCES,
+    MunicipalSource,
+)
 from .utils import get_or_create_source
 
 logger = logging.getLogger(__name__)
@@ -177,6 +181,9 @@ async def _discover_municipal_pages(
 ) -> list[MunicipalDiscoveredPage]:
     parsed_base = urlparse(source.base_url)
     allowed_hosts = set(source.allowed_hosts) if source.allowed_hosts else {parsed_base.netloc}
+    # Universal Support: Always allow global external hosts
+    allowed_hosts.update(GLOBAL_ALLOWED_HOSTS)
+
     intro_patterns = source.compile_intro_patterns()
     article_patterns = source.compile_article_patterns()
     intro_seed_paths = {
@@ -642,6 +649,9 @@ async def fetch_http_pages(
                     if municipal_source
                     else config.allowed_hosts
                 )
+                # Universal Support: Include globals
+                allowed_hosts = tuple(set(allowed_hosts) | set(GLOBAL_ALLOWED_HOSTS))
+
                 _ensure_allowed_domain(url, allowed_hosts)
                 headers = {"User-Agent": user_agent}
                 existing_result = await session.execute(

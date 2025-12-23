@@ -177,7 +177,47 @@ def _clean_address(candidate: str) -> str:
     if len(cleaned) > 15 or "※" in cleaned:
         cleaned = _clean_address_with_llm(cleaned)
 
+    # Final logic check: Address must contain numbers (chome/ban/go)
+    # Most Japanese addresses have at least one digit.
+    # Exception: "皇居" (Imperial Palace) etc., but for gyms, it always has digits.
+    if not any(char.isdigit() or char in _JP_NUMERAL_MAP for char in cleaned):
+        return ""
+
     return cleaned
+
+
+def validate_facility_name(name: str) -> bool:
+    """Return True if the facility name appears valid (not generic/blacklisted)."""
+    if not name:
+        return False
+
+    # Blocklist for generic terms that shouldn't be main facility names
+    blocklist = {
+        "トレーニングルーム",
+        "トレーニング室",
+        "スポーツ",
+        "カヌー",
+        "施設案内",
+        "利用案内",
+        "野球場",
+        "テニスコート",
+        "屋外広場",
+        "区役所",
+        "市役所",
+    }
+
+    # Also block pure ward names
+    # Hard to list all, but "XX区" length 3 is suspicious if it equals name
+    if name.endswith("区") and len(name) <= 4:  # e.g. "品川区"
+        return False
+
+    if name in blocklist:
+        return False
+
+    # Check for "Just a room name" (e.g. "Meeting Room 1")
+    # Usually gyms have "Gymnasium" or "Center"
+
+    return True
 
 
 def extract_address_one_line(
@@ -329,10 +369,11 @@ def _extract_facility_with_llm(
         "Analyze the text and determine if it describes a physical public gym "
         "or training room facility that represents a valid candidate for a gym directory. "
         "Return a JSON object with the following fields:\n"
-        "- is_gym: Boolean. Set to true ONLY if this page describes a facility's "
-        "details (equipment, usage). Set to false if it is an announcement "
-        "(e.g., 'Notice of Closure', 'Recruitment'), a generic list of facilities, "
-        "or irrelevant content.\n"
+        "- is_gym: Boolean. Set to true ONLY if this page describes a SINGLE facility's "
+        "details (equipment, usage). Set to false if it is an announcement, "
+        "a generic list/index of multiple facilities (e.g. 'List of Sports Centers'), "
+        "or irrelevant content. If the page lists multiple facilities, return false "
+        "unless one facility is clearly the main subject.\n"
         "- name: The specific name of the facility (e.g., '墨田区総合体育館'). "
         "Remove generic headers like 'Facility Guide', 'Training Room', 'Access'. "
         "If the title is generic (e.g., 'Training Room'), look for the parent "
@@ -343,6 +384,8 @@ def _extract_facility_with_llm(
         "CRITICAL: Do NOT extract the address of the City Hall (区役所), "
         "Administration Office, or Contact Information typically found in the footer "
         "unless it is explicitly stated as the facility's location. "
+        "The address MUST be a valid Japanese postal address (starting with '東京都' "
+        "or a ward name), NOT the facility name itself. "
         "Look for keywords like '所在地' (Location), 'アクセス' (Access), or '場所'. "
         "If multiple addresses are found, look for the one associated with the "
         "Gym/Sports Center name or map.\n"

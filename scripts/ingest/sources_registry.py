@@ -61,7 +61,33 @@ WARDS = [
     ("edogawa", "https://www.city.edogawa.tokyo.jp/"),
 ]
 
+
+# Common external gym providers to support universally
+GLOBAL_ALLOWED_HOSTS = [
+    "information.konamisportsclub.jp",
+    "www.mizuno.jp",
+    "www.tokyo-dome.co.jp",
+    "shisetsu.jp",
+    "www.shisetsu-tokyo.jp",
+    "www.sumispo.com",  # Sumida existing
+    "www.taitogeibun.net",  # Taito existing
+]
+
+GLOBAL_ARTICLE_PATTERNS = [
+    r"/trust/.*",  # Konami
+    r"/facility/.*",  # Generic
+]
+
 SOURCES: dict[str, MunicipalSource] = {}
+
+__all__ = [
+    "MunicipalSource",
+    "SOURCES",
+    "ARTICLE_PAT_DEFAULT",
+    "GLOBAL_ALLOWED_HOSTS",
+    "GLOBAL_ARTICLE_PATTERNS",
+]
+
 
 # 1. Register specific implementations first (overrides)
 # Batch 2: East Wards
@@ -311,17 +337,20 @@ SOURCES["municipal_toshima"] = MunicipalSource(
     intro_patterns=[
         r"/501/bunka/sports/sports/003418/.*\.html$",
         r"/501/bunka/sports/sports/.*\.html$",
+        r"/trust/.*",  # Konami Sports patterns
     ],
     article_patterns=[
         r"/501/bunka/sports/sports/003418/.+\.html$",
         r"/501/bunka/sports/sports/.+\.html$",
         r"/501/\d+\.html$",  # For Chihaya Sports Field
+        r"/trust/.+",  # Konami Sports detail
     ],
     list_seeds=[
         "https://www.city.toshima.lg.jp/501/bunka/sports/sports/003418/index.html",
     ],
     pref_slug="tokyo",
     city_slug="toshima",
+    allowed_hosts=["www.city.toshima.lg.jp", "information.konamisportsclub.jp"],
 )
 
 SOURCES["municipal_kita"] = MunicipalSource(
@@ -482,4 +511,10 @@ for slug, base_url in WARDS:
     )
 
 
-__all__ = ["MunicipalSource", "SOURCES", "ARTICLE_PAT_DEFAULT"]
+__all__ = [
+    "MunicipalSource",
+    "SOURCES",
+    "ARTICLE_PAT_DEFAULT",
+    "GLOBAL_ALLOWED_HOSTS",
+    "GLOBAL_ARTICLE_PATTERNS",
+]

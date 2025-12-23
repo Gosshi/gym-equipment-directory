@@ -4,8 +4,8 @@ city: toshima
 start_urls:
   - "https://www.city.toshima.lg.jp/501/bunka/sports/sports/003418/index.html"
 url_patterns:
-  intro_top: "/501/bunka/sports/sports/.*\\.html$"
-  detail_article: "/501/bunka/sports/sports/.*\\.html$|/501/\\d+\\.html$"
+  intro_top: "/501/bunka/sports/sports/.*\\.html$|/trust/.*"
+  detail_article: "/501/bunka/sports/sports/.*\\.html$|/501/\\d+\\.html$|/trust/.+"
   skip: []
 selectors:
   title:
