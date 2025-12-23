@@ -16,6 +16,7 @@ from app.ingest.parsers.municipal._base import (
     extract_address_one_line,
     extract_equipments,
     sanitize_text,
+    validate_facility_name,
 )
 from app.ingest.parsers.municipal.config_loader import load_config
 
@@ -258,11 +259,27 @@ def parse_municipal_page(
             address=address,
         )
         if create_gym:
-            # print(f"DEBUG: detect_create_gym returned True for {normalized_url}")
-            pass
-        else:
-            # print(f"DEBUG: detect_create_gym returned False for {normalized_url}")
-            pass
+            # Post-LLM Validation
+            if not validate_facility_name(facility_name):
+                print(f"DEBUG: Rejected Generic Name: {facility_name}")
+                create_gym = False
+
+            # Address validation is done inside _clean_address called by extract_address_one_line
+            # BUT for LLM result, we just took it. ensure it's valid too.
+            from app.ingest.parsers.municipal._base import _clean_address
+
+            # Re-clean/validate address if it came from LLM
+            if address:
+                cleaned_addr = _clean_address(address)
+                if not cleaned_addr:
+                    print(f"DEBUG: Rejected Invalid Address: {address}")
+                    address = None  # Clear invalid address
+                    create_gym = False  # Recommend rejecting if no address? Or keep checking?
+                    # If address is invalid, likely scraping failed.
+
+            # If no address after validation, reject?
+            if not address:
+                create_gym = False
 
     meta = {"create_gym": create_gym, "page_url": normalized_url}
     center_no = _extract_center_no(normalized_url, source.parse_hints)

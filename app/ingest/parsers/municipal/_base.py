@@ -177,7 +177,47 @@ def _clean_address(candidate: str) -> str:
     if len(cleaned) > 15 or "※" in cleaned:
         cleaned = _clean_address_with_llm(cleaned)
 
+    # Final logic check: Address must contain numbers (chome/ban/go)
+    # Most Japanese addresses have at least one digit.
+    # Exception: "皇居" (Imperial Palace) etc., but for gyms, it always has digits.
+    if not any(char.isdigit() or char in _JP_NUMERAL_MAP for char in cleaned):
+        return ""
+
     return cleaned
+
+
+def validate_facility_name(name: str) -> bool:
+    """Return True if the facility name appears valid (not generic/blacklisted)."""
+    if not name:
+        return False
+
+    # Blocklist for generic terms that shouldn't be main facility names
+    blocklist = {
+        "トレーニングルーム",
+        "トレーニング室",
+        "スポーツ",
+        "カヌー",
+        "施設案内",
+        "利用案内",
+        "野球場",
+        "テニスコート",
+        "屋外広場",
+        "区役所",
+        "市役所",
+    }
+
+    # Also block pure ward names
+    # Hard to list all, but "XX区" length 3 is suspicious if it equals name
+    if name.endswith("区") and len(name) <= 4:  # e.g. "品川区"
+        return False
+
+    if name in blocklist:
+        return False
+
+    # Check for "Just a room name" (e.g. "Meeting Room 1")
+    # Usually gyms have "Gymnasium" or "Center"
+
+    return True
 
 
 def extract_address_one_line(
