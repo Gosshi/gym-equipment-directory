@@ -49,6 +49,10 @@ export interface SearchGymsParams {
   lat?: number | null;
   lng?: number | null;
   radiusKm?: number | null;
+  min_lat?: number | null;
+  max_lat?: number | null;
+  min_lng?: number | null;
+  max_lng?: number | null;
   /** @deprecated Use radiusKm instead. */
   distance?: number | null;
 }
@@ -250,6 +254,10 @@ export async function searchGyms(
           radiusKm: params.radiusKm ?? params.distance ?? undefined,
         }
       : {}),
+    min_lat: params.min_lat,
+    max_lat: params.max_lat,
+    min_lng: params.min_lng,
+    max_lng: params.max_lng,
   };
 
   return fetchGymsApi(request, options);

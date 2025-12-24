@@ -114,6 +114,8 @@ def _gym_summary_from_gym(g: Gym, *, distance_km: float | None) -> GymSummaryDTO
         freshness_score=0.0,
         richness_score=0.0,
         distance_km=distance_km,
+        latitude=getattr(g, "latitude", None),
+        longitude=getattr(g, "longitude", None),
     )
 
 
@@ -125,6 +127,10 @@ async def search_gyms_api(
     lat: float | None,
     lng: float | None,
     radius_km: float | None,
+    min_lat: float | None,
+    max_lat: float | None,
+    min_lng: float | None,
+    max_lng: float | None,
     required_slugs: list[str],
     conditions: list[str] | None,
     equipment_match: Literal["all", "any"],
@@ -199,6 +205,18 @@ async def search_gyms_api(
         base_ids = base_ids.where(Gym.latitude.is_not(None), Gym.longitude.is_not(None))
         if radius_value is not None:
             base_ids = base_ids.where(distance_numeric <= radius_value)
+
+    # ---- 1.2) Bounding Box Filter ----
+    # Note: Using simple lat/lng comparison. Handles basic cases.
+    # For dateline crossing (180/-180), extra logic needed if desired, but Tokyo/Japan is safe.
+    if min_lat is not None:
+        base_ids = base_ids.where(Gym.latitude >= min_lat)
+    if max_lat is not None:
+        base_ids = base_ids.where(Gym.latitude <= max_lat)
+    if min_lng is not None:
+        base_ids = base_ids.where(Gym.longitude >= min_lng)
+    if max_lng is not None:
+        base_ids = base_ids.where(Gym.longitude <= max_lng)
 
     # ---- 1.5) 条件フィルタ (parsed_json) ----
     if conditions:
@@ -592,6 +610,8 @@ async def search_gyms_api(
                     freshness_score=float(row.freshness_score or 0.0),
                     richness_score=float(row.richness_score or 0.0),
                     distance_km=distance_map.get(gid),
+                    latitude=getattr(g, "latitude", None),
+                    longitude=getattr(g, "longitude", None),
                 )
             )
 
