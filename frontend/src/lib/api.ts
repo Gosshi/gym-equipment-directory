@@ -207,10 +207,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const hasLocation = latInput !== undefined && lngInput !== undefined;
   const lat = hasLocation ? clampLatitude(latInput!) : undefined;
   const lng = hasLocation ? clampLongitude(lngInput!) : undefined;
-  const radiusKm = hasLocation
-    ? (clampRadiusKm(params.radiusKm ?? params.distance ?? DEFAULT_DISTANCE_KM) ??
-      DEFAULT_DISTANCE_KM)
-    : undefined;
+  const radiusKm = hasLocation ? clampRadiusKm(params.radiusKm ?? params.distance) : undefined;
   const minLat =
     params.min_lat != null && Number.isFinite(params.min_lat) ? params.min_lat : undefined;
   const maxLat =
