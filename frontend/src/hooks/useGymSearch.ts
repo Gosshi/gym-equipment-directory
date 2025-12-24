@@ -891,6 +891,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
                 radiusKm: filters.distance,
               }
             : {}),
+          min_lat: filters.min_lat,
+          max_lat: filters.max_lat,
+          min_lng: filters.min_lng,
+          max_lng: filters.max_lng,
         },
         { signal },
       ),
