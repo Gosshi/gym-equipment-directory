@@ -132,6 +132,10 @@ describe("searchParams", () => {
       distance: 12,
       lat: 43.0621,
       lng: 141.3544,
+      min_lat: null,
+      max_lat: null,
+      min_lng: null,
+      max_lng: null,
     });
   });
 
