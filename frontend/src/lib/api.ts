@@ -65,6 +65,10 @@ export interface FetchGymsParams {
   lat?: number | null;
   lng?: number | null;
   radiusKm?: number | null;
+  min_lat?: number | null;
+  max_lat?: number | null;
+  min_lng?: number | null;
+  max_lng?: number | null;
   /** @deprecated Use radiusKm instead. */
   distance?: number | null;
 }
@@ -86,6 +90,8 @@ export type RawGymSummary = {
   richness_score?: number | null;
   freshness_score?: number | null;
   last_verified_at?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   tags?: string[];
 };
 
@@ -145,6 +151,8 @@ export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
     thumbnailUrl: input.thumbnail_url ?? input.thumbnailUrl ?? null,
     equipments,
     score: input.score ?? input.richness_score ?? undefined,
+    latitude: input.latitude,
+    longitude: input.longitude,
     tags: input.tags,
     lastVerifiedAt: input.last_verified_at ?? undefined,
   };
@@ -203,6 +211,14 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     ? (clampRadiusKm(params.radiusKm ?? params.distance ?? DEFAULT_DISTANCE_KM) ??
       DEFAULT_DISTANCE_KM)
     : undefined;
+  const minLat =
+    params.min_lat != null && Number.isFinite(params.min_lat) ? params.min_lat : undefined;
+  const maxLat =
+    params.max_lat != null && Number.isFinite(params.max_lat) ? params.max_lat : undefined;
+  const minLng =
+    params.min_lng != null && Number.isFinite(params.min_lng) ? params.min_lng : undefined;
+  const maxLng =
+    params.max_lng != null && Number.isFinite(params.max_lng) ? params.max_lng : undefined;
 
   return {
     q: params.q?.trim() || undefined,
@@ -223,6 +239,10 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
           radius_km: radiusKm ?? DEFAULT_DISTANCE_KM,
         }
       : {}),
+    ...(minLat != null ? { min_lat: minLat } : {}),
+    ...(maxLat != null ? { max_lat: maxLat } : {}),
+    ...(minLng != null ? { min_lng: minLng } : {}),
+    ...(maxLng != null ? { max_lng: maxLng } : {}),
   };
 };
 

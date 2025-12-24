@@ -85,6 +85,10 @@ export interface FilterState {
   distance: number;
   lat: number | null;
   lng: number | null;
+  min_lat: number | null;
+  max_lat: number | null;
+  min_lng: number | null;
+  max_lng: number | null;
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -100,6 +104,10 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   distance: DEFAULT_DISTANCE_KM,
   lat: null,
   lng: null,
+  min_lat: null,
+  max_lat: null,
+  min_lng: null,
+  max_lng: null,
 };
 
 const parsePositiveInt = (value: string | null, fallback: number): number => {
@@ -238,6 +246,10 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const lngRaw = parseLongitude(params.get("lng"));
   const lat = latRaw != null && lngRaw != null ? latRaw : null;
   const lng = latRaw != null && lngRaw != null ? lngRaw : null;
+  const minLat = parseLatitude(params.get("min_lat"));
+  const maxLat = parseLatitude(params.get("max_lat"));
+  const minLng = parseLongitude(params.get("min_lng"));
+  const maxLng = parseLongitude(params.get("max_lng"));
 
   return {
     q,
@@ -252,6 +264,10 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
     distance,
     lat,
     lng,
+    min_lat: minLat,
+    max_lat: maxLat,
+    min_lng: minLng,
+    max_lng: maxLng,
   };
 };
 
@@ -288,6 +304,11 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   } else if (state.distance !== DEFAULT_DISTANCE_KM) {
     params.set("radius_km", String(state.distance));
   }
+
+  if (state.min_lat != null) params.set("min_lat", state.min_lat.toFixed(6));
+  if (state.max_lat != null) params.set("max_lat", state.max_lat.toFixed(6));
+  if (state.min_lng != null) params.set("min_lng", state.min_lng.toFixed(6));
+  if (state.max_lng != null) params.set("max_lng", state.max_lng.toFixed(6));
 
   return params;
 };

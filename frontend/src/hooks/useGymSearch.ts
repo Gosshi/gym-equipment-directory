@@ -90,6 +90,10 @@ type FormState = {
   distance: number;
   lat: number | null;
   lng: number | null;
+  min_lat: number | null;
+  max_lat: number | null;
+  min_lng: number | null;
+  max_lng: number | null;
 };
 
 type NavigationModeOption = "push" | "replace";
@@ -105,6 +109,10 @@ const toFormState = (filters: FilterState): FormState => ({
   distance: filters.distance,
   lat: filters.lat,
   lng: filters.lng,
+  min_lat: filters.min_lat,
+  max_lat: filters.max_lat,
+  min_lng: filters.min_lng,
+  max_lng: filters.max_lng,
 });
 
 const areFormStatesEqual = (a: FormState, b: FormState) =>
@@ -116,6 +124,10 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
+  a.min_lat === b.min_lat &&
+  a.max_lat === b.max_lat &&
+  a.min_lng === b.min_lng &&
+  a.max_lng === b.max_lng &&
   areCategoriesEqual(a.categories, b.categories) &&
   areCategoriesEqual(a.conditions, b.conditions);
 
@@ -130,6 +142,10 @@ const normalizeFormState = (state: FormState): FormState => ({
   distance: state.distance,
   lat: state.lat,
   lng: state.lng,
+  min_lat: state.min_lat,
+  max_lat: state.max_lat,
+  min_lng: state.min_lng,
+  max_lng: state.max_lng,
 });
 
 const buildFilterStateFromForm = (
@@ -149,6 +165,10 @@ const buildFilterStateFromForm = (
   distance: form.distance,
   lat: form.lat,
   lng: form.lng,
+  min_lat: form.min_lat,
+  max_lat: form.max_lat,
+  min_lng: form.min_lng,
+  max_lng: form.max_lng,
   ...overrides,
 });
 
@@ -166,6 +186,9 @@ export interface UseGymSearchResult {
   updateConditions: (values: string[]) => void;
   updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
+  updateBoundingBox: (
+    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null,
+  ) => void;
   clearFilters: () => void;
   submitSearch: () => void;
   location: LocationState;
@@ -559,6 +582,21 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     [scheduleApply],
   );
 
+  const updateBoundingBox = useCallback(
+    (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) =>
+      scheduleApply(
+        prev => ({
+          ...prev,
+          min_lat: bounds?.minLat ?? null,
+          max_lat: bounds?.maxLat ?? null,
+          min_lng: bounds?.minLng ?? null,
+          max_lng: bounds?.maxLng ?? null,
+        }),
+        { debounceMs: 500 },
+      ),
+    [scheduleApply],
+  );
+
   const applyLocation = useCallback(
     (
       lat: number | null,
@@ -717,6 +755,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
       lat: hasLocation ? formState.lat : null,
       lng: hasLocation ? formState.lng : null,
       distance: DEFAULT_DISTANCE_KM,
+      min_lat: null,
+      max_lat: null,
+      min_lng: null,
+      max_lng: null,
     };
     setFormState(toFormState(resetFilters));
     if (!areFilterStatesEqual(filters, resetFilters)) {
@@ -1071,6 +1113,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     updateConditions,
     updateSort,
     updateDistance,
+    updateBoundingBox,
     clearFilters,
     submitSearch,
     location,

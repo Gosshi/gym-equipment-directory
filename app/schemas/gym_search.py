@@ -103,6 +103,18 @@ class GymSearchQuery(BaseModel):
         le=50.0,
         description="検索半径（km）",
     )
+    min_lat: float | None = Field(
+        default=None, ge=-90.0, le=90.0, description="Bounding Box 最小緯度"
+    )
+    max_lat: float | None = Field(
+        default=None, ge=-90.0, le=90.0, description="Bounding Box 最大緯度"
+    )
+    min_lng: float | None = Field(
+        default=None, ge=-180.0, le=180.0, description="Bounding Box 最小経度"
+    )
+    max_lng: float | None = Field(
+        default=None, ge=-180.0, le=180.0, description="Bounding Box 最大経度"
+    )
     equipments: str | None = Field(
         default=None, description="設備スラッグのCSV（例: squat-rack,dumbbell）"
     )
@@ -197,6 +209,14 @@ class GymSearchQuery(BaseModel):
             float | None,
             Query(description="検索半径（km）", ge=0.0, le=50.0),
         ] = None,
+        min_lat: Annotated[float | None, Query(description="BB最小緯度", ge=-90.0, le=90.0)] = None,
+        max_lat: Annotated[float | None, Query(description="BB最大緯度", ge=-90.0, le=90.0)] = None,
+        min_lng: Annotated[
+            float | None, Query(description="BB最小経度", ge=-180.0, le=180.0)
+        ] = None,
+        max_lng: Annotated[
+            float | None, Query(description="BB最大経度", ge=-180.0, le=180.0)
+        ] = None,
         equipments: Annotated[
             str | None,
             Query(description="設備スラッグCSV（例: squat-rack,dumbbell）"),
@@ -243,6 +263,10 @@ class GymSearchQuery(BaseModel):
                 "lat": lat,
                 "lng": lng,
                 "radius_km": radius_km,
+                "min_lat": min_lat,
+                "max_lat": max_lat,
+                "min_lng": min_lng,
+                "max_lng": max_lng,
                 "equipments": equipments,
                 "conditions": conditions,
                 "equipment_match": equipment_match,
