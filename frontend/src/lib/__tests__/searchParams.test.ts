@@ -33,6 +33,10 @@ describe("searchParams", () => {
       distance: 25,
       lat: 35.681,
       lng: 139.767,
+      min_lat: null,
+      max_lat: null,
+      min_lng: null,
+      max_lng: null,
     });
   });
 
@@ -53,6 +57,10 @@ describe("searchParams", () => {
     expect(state.distance).toBe(MAX_DISTANCE_KM);
     expect(state.lat).toBeNull();
     expect(state.lng).toBeNull();
+    expect(state.min_lat).toBeNull();
+    expect(state.max_lat).toBeNull();
+    expect(state.min_lng).toBeNull();
+    expect(state.max_lng).toBeNull();
   });
 
   it("serializes a filter state into query parameters while omitting defaults", () => {
@@ -70,6 +78,10 @@ describe("searchParams", () => {
       distance: DEFAULT_DISTANCE_KM + 1,
       lat: 35.01,
       lng: 135.75,
+      min_lat: null,
+      max_lat: null,
+      min_lng: null,
+      max_lng: null,
     });
 
     expect(params.get("q")).toBe("deadlift");
@@ -99,6 +111,10 @@ describe("searchParams", () => {
       distance: 12,
       lat: 43.0621,
       lng: 141.3544,
+      min_lat: null,
+      max_lat: null,
+      min_lng: null,
+      max_lng: null,
     });
 
     const state = parseFilterState(params);
