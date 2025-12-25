@@ -16,19 +16,36 @@ const SearchMap = dynamic(() => import("./SearchMap"), {
 });
 
 export function MapSearchPage() {
-  const { items, updateBoundingBox, location, isInitialLoading } = useGymSearch({
+  const { items, updateBoundingBox, location, isInitialLoading, appliedFilters } = useGymSearch({
     debounceMs: 500,
   });
   const [initialCenter, setInitialCenter] = useState<{ lat: number; lng: number } | undefined>(
     undefined,
   );
 
-  // Set initial center based on location state or default
+  // Set initial center based on location state or BBox or default
   useEffect(() => {
     if (location.lat && location.lng) {
       setInitialCenter({ lat: location.lat, lng: location.lng });
+    } else if (
+      appliedFilters.min_lat != null &&
+      appliedFilters.max_lat != null &&
+      appliedFilters.min_lng != null &&
+      appliedFilters.max_lng != null
+    ) {
+      // Calculate center from BBox
+      const lat = (appliedFilters.min_lat + appliedFilters.max_lat) / 2;
+      const lng = (appliedFilters.min_lng + appliedFilters.max_lng) / 2;
+      setInitialCenter({ lat, lng });
     }
-  }, [location.lat, location.lng]);
+  }, [
+    location.lat,
+    location.lng,
+    appliedFilters.min_lat,
+    appliedFilters.max_lat,
+    appliedFilters.min_lng,
+    appliedFilters.max_lng,
+  ]);
 
   return (
     <div className="h-[calc(100vh-64px)] w-full flex flex-col relative">

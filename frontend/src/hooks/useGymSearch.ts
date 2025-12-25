@@ -591,6 +591,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           max_lat: bounds?.maxLat ?? null,
           min_lng: bounds?.minLng ?? null,
           max_lng: bounds?.maxLng ?? null,
+          // Clear point-based location to switch to BBox-only mode
+          lat: null,
+          lng: null,
+          distance: DEFAULT_DISTANCE_KM,
         }),
         { debounceMs: 500 },
       ),
