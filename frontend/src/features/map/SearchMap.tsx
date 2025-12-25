@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
 import L, { type LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -39,6 +40,19 @@ function MapEvents({ onBoundsChange }: { onBoundsChange: SearchMapProps["onBound
       });
     },
   });
+
+  useEffect(() => {
+    map.invalidateSize();
+    // Trigger initial bounds calculation
+    const bounds = map.getBounds();
+    onBoundsChange({
+      minLat: bounds.getSouth(),
+      maxLat: bounds.getNorth(),
+      minLng: bounds.getWest(),
+      maxLng: bounds.getEast(),
+    });
+  }, [map, onBoundsChange]);
+
   return null;
 }
 
