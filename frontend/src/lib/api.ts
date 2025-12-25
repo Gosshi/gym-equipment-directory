@@ -233,7 +233,7 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
       ? {
           lat,
           lng,
-          radius_km: radiusKm ?? DEFAULT_DISTANCE_KM,
+          ...(radiusKm !== undefined ? { radius_km: radiusKm } : {}),
         }
       : {}),
     ...(minLat != null ? { min_lat: minLat } : {}),
