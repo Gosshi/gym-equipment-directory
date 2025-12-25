@@ -26,7 +26,12 @@ export const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
   a.distance === b.distance &&
   a.lat === b.lat &&
   a.lng === b.lng &&
-  areCategoriesEqual(a.categories, b.categories);
+  a.min_lat === b.min_lat &&
+  a.max_lat === b.max_lat &&
+  a.min_lng === b.min_lng &&
+  a.max_lng === b.max_lng &&
+  areCategoriesEqual(a.categories, b.categories) &&
+  areCategoriesEqual(a.conditions, b.conditions);
 
 export type NavigationSource = "initial" | "push" | "pop" | "replace" | "idle";
 
