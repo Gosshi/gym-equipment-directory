@@ -888,7 +888,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
             ? {
                 lat: filters.lat,
                 lng: filters.lng,
-                radiusKm: filters.distance,
+                radiusKm: filters.min_lat ? undefined : filters.distance,
               }
             : {}),
           min_lat: filters.min_lat,
