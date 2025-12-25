@@ -29,8 +29,10 @@ export interface SearchMapProps {
 }
 
 function MapEvents({ onBoundsChange }: { onBoundsChange: SearchMapProps["onBoundsChange"] }) {
-  const map = useMapEvents({
-    moveend: () => {
+  const map = useMapEvents({});
+
+  useEffect(() => {
+    const handleMoveEnd = () => {
       const bounds = map.getBounds();
       onBoundsChange({
         minLat: bounds.getSouth(),
@@ -38,19 +40,17 @@ function MapEvents({ onBoundsChange }: { onBoundsChange: SearchMapProps["onBound
         minLng: bounds.getWest(),
         maxLng: bounds.getEast(),
       });
-    },
-  });
+    };
 
-  useEffect(() => {
+    map.on("moveend", handleMoveEnd);
+
+    // Initial trigger
     map.invalidateSize();
-    // Trigger initial bounds calculation
-    const bounds = map.getBounds();
-    onBoundsChange({
-      minLat: bounds.getSouth(),
-      maxLat: bounds.getNorth(),
-      minLng: bounds.getWest(),
-      maxLng: bounds.getEast(),
-    });
+    handleMoveEnd();
+
+    return () => {
+      map.off("moveend", handleMoveEnd);
+    };
   }, [map, onBoundsChange]);
 
   return null;
