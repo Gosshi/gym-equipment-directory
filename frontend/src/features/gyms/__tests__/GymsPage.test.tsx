@@ -19,6 +19,11 @@ vi.mock("@/hooks/useGymDetail", () => ({
   useGymDetail: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn().mockReturnValue("/search"),
+  useSearchParams: vi.fn().mockReturnValue(new URLSearchParams()),
+}));
+
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
