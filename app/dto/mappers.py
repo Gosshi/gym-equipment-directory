@@ -99,6 +99,41 @@ def assemble_gym_detail(
     richness: float | None = None,
     score: float | None = None,
 ) -> GymDetailDTO:
+    parsed_json = getattr(gym, "parsed_json", None) or {}
+
+    # Extract hours from parsed_json
+    hours_data = parsed_json.get("hours")
+    opening_hours: str | None = None
+    if hours_data:
+        if isinstance(hours_data, dict):
+            open_time = hours_data.get("open")
+            close_time = hours_data.get("close")
+            if open_time and close_time:
+                # Format: 900 -> "9:00", 2100 -> "21:00"
+                def fmt_time(t: int) -> str:
+                    h, m = divmod(t, 100)
+                    return f"{h}:{m:02d}"
+
+                opening_hours = f"{fmt_time(open_time)}〜{fmt_time(close_time)}"
+        elif isinstance(hours_data, str):
+            opening_hours = hours_data
+
+    # Extract fee from parsed_json
+    fee_data = parsed_json.get("fee")
+    fees: str | None = None
+    if fee_data:
+        if isinstance(fee_data, int):
+            fees = f"{fee_data}円"
+        elif isinstance(fee_data, dict):
+            parts = []
+            for key, value in fee_data.items():
+                if isinstance(value, int):
+                    parts.append(f"{key}: {value}円")
+            if parts:
+                fees = " / ".join(parts)
+        elif isinstance(fee_data, str):
+            fees = fee_data
+
     return GymDetailDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "")),
@@ -108,6 +143,8 @@ def assemble_gym_detail(
         pref=str(getattr(gym, "pref", "")),
         address=getattr(gym, "address", None),
         official_url=getattr(gym, "official_url", None),
+        opening_hours=opening_hours,
+        fees=fees,
         latitude=getattr(gym, "latitude", None),
         longitude=getattr(gym, "longitude", None),
         last_verified_at_cached=_iso(getattr(gym, "last_verified_at_cached", None)),
@@ -118,7 +155,7 @@ def assemble_gym_detail(
         freshness=freshness,
         richness=richness,
         score=score,
-        tags=list(getattr(gym, "parsed_json", {}).get("tags", [])),
+        tags=list(parsed_json.get("tags", [])),
     )
 
 

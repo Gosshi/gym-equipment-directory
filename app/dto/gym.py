@@ -83,6 +83,8 @@ class GymDetailDTO(BaseModel):
     pref: str = Field(description="都道府県スラッグ")
     address: str | None = Field(default=None, description="住所（任意）")
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
+    opening_hours: str | None = Field(default=None, description="営業時間（任意）")
+    fees: str | None = Field(default=None, description="料金情報（任意）")
     latitude: float | None = Field(default=None, description="緯度（任意）")
     longitude: float | None = Field(default=None, description="経度（任意）")
     last_verified_at_cached: str | None = Field(
