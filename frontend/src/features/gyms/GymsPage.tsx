@@ -7,6 +7,7 @@ import { GymList } from "@/components/gyms/GymList";
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import { MobileViewToggle } from "@/components/common/MobileViewToggle";
+import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 
 export function GymsPage() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -105,6 +106,9 @@ export function GymsPage() {
         >
           SKIP TO RESULTS
         </a>
+
+        {/* Breadcrumbs */}
+        <Breadcrumbs className="mb-4" />
 
         <header className="space-y-2 border-b border-border pb-6">
           <div className="flex items-center gap-2">

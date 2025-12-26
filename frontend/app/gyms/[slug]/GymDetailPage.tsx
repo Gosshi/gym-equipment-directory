@@ -8,6 +8,7 @@ import { BookmarkCheck, BookmarkPlus } from "lucide-react";
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
 import { GymHeader } from "@/components/gym/GymHeader";
 import { ReportIssueButton } from "@/components/gym/ReportIssueButton";
+import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -215,6 +216,14 @@ export function GymDetailPage({
   return (
     <div className="flex min-h-screen flex-col px-4 py-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+        {/* Breadcrumbs with gym name */}
+        <Breadcrumbs
+          items={[
+            { label: "ジム検索", href: "/gyms" },
+            { label: gym.name, href: `/gyms/${gym.slug}`, current: true },
+          ]}
+        />
+
         <GymHeader
           gymId={gym.id}
           actions={
