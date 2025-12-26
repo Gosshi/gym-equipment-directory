@@ -276,11 +276,21 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
 
             else:
                 # CREATE NEW GYM?
-                is_gym = parsed.get("is_gym")
+                # Accept all recognized facility categories (not just gyms)
+                category = cand.category
+                is_facility = category in (
+                    "gym",
+                    "pool",
+                    "court",
+                    "hall",
+                    "field",
+                    "martial_arts",
+                    "archery",
+                )
                 has_addr = is_valid_address(cand.address_raw)
                 is_trusted = is_trusted_source(cand_url)
 
-                if is_gym and has_addr and is_trusted:
+                if is_facility and has_addr and is_trusted:
                     logger.info(f"APPROVED: {cand_id_str}")
                     if not dry_run:
                         # Create Gym logic
@@ -298,6 +308,7 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                             slug=new_slug,
                             canonical_id=uuid.uuid4(),
                             created_at=cand.created_at,  # inherit
+                            category=category,  # Copy category from candidate
                         )
                         session.add(new_gym)
                         await session.flush()  # to get ID
@@ -307,8 +318,8 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                 else:
                     # Leave as 'new' for manual review
                     reasons = []
-                    if not is_gym:
-                        reasons.append("Not a gym")
+                    if not is_facility:
+                        reasons.append(f"Not a recognized facility (category={category})")
                     if not has_addr:
                         reasons.append("Invalid address")
                     if not is_trusted:
