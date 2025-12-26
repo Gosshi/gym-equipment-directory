@@ -21,24 +21,31 @@ export function GymFacilities({ facilities }: GymFacilitiesProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {hasFacilities ? (
-          facilities.map(group => (
-            <section
-              aria-label={`${group.category}の設備`}
-              className="space-y-3"
-              key={group.category}
-            >
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                {group.category}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {group.items.map(item => (
-                  <Badge key={`${group.category}-${item}`} variant="outline">
-                    {item}
-                  </Badge>
-                ))}
-              </div>
-            </section>
-          ))
+          facilities.map(group => {
+            // Don't show redundant "設備" header since CardTitle already says "設備"
+            const showCategoryHeader = group.category !== "設備" && group.category !== "default";
+
+            return (
+              <section
+                aria-label={`${group.category}の設備`}
+                className="space-y-3"
+                key={group.category}
+              >
+                {showCategoryHeader && (
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.category}
+                  </h3>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {group.items.map(item => (
+                    <Badge key={`${group.category}-${item}`} variant="outline">
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              </section>
+            );
+          })
         ) : (
           <p className="text-sm text-muted-foreground">設備情報は現在準備中です。</p>
         )}
