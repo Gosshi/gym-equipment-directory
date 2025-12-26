@@ -93,8 +93,24 @@ def _as_naive_utc(value: datetime | None) -> datetime | None:
 
 
 def _slugify(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value)
-    cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\s-]", "", normalized)
+    """Convert Japanese text to SEO-friendly romaji slug.
+
+    Uses pykakasi to convert kanji/kana to romaji, then normalizes.
+    """
+    try:
+        from pykakasi import kakasi
+
+        kks = kakasi()
+        # Convert Japanese to romaji
+        result = kks.convert(value)
+        romaji = "".join([item["hepburn"] for item in result])
+    except ImportError:
+        # Fallback if pykakasi not available
+        romaji = value
+
+    normalized = unicodedata.normalize("NFKC", romaji)
+    # Remove non-alphanumeric characters except hyphens and spaces
+    cleaned = re.sub(r"[^0-9A-Za-z\s-]", "", normalized)
     lowered = cleaned.lower()
     tokens = re.split(r"[\s_-]+", lowered)
     slug = "-".join(filter(None, tokens))
