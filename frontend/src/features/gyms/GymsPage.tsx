@@ -6,6 +6,7 @@ import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
 import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { useGymSearch } from "@/hooks/useGymSearch";
+import { MobileViewToggle } from "@/components/common/MobileViewToggle";
 
 export function GymsPage() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -212,6 +213,7 @@ export function GymsPage() {
         onRequestClose={handleClosePanel}
         slug={selectedSlug}
       />
+      <MobileViewToggle />
     </div>
   );
 }
