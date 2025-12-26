@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Oswald } from "next/font/google";
 
 import { AuthProvider } from "@/auth/AuthProvider";
+import { AppFooter } from "@/components/common/Footer";
 import { AppHeader } from "@/components/common/Header";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex min-h-screen flex-col">
               <AppHeader />
               <div className="flex-1">{children}</div>
+              <AppFooter />
               <Toaster />
             </div>
           </QueryProvider>
