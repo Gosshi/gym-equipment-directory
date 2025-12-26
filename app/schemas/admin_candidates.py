@@ -35,6 +35,7 @@ class AdminCandidateItem(BaseModel):
     city_slug: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    category: str | None = None  # gym, pool, court, hall, field, martial_arts, archery
     parsed_json: dict[str, Any] | None = None
     source: AdminSourceRef
     fetched_at: datetime | None = None

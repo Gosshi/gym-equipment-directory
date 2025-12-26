@@ -20,6 +20,8 @@ const DEFAULT_FILTERS: Filters = {
   q: "",
   pref: "",
   city: "",
+  category: undefined,
+  has_coords: undefined,
 };
 
 const formatDateTime = (value: string | null | undefined) => {
@@ -55,6 +57,8 @@ export default function AdminCandidatesPage() {
       q: filters.q?.trim() || undefined,
       pref: filters.pref?.trim() || undefined,
       city: filters.city?.trim() || undefined,
+      category: filters.category || undefined,
+      has_coords: filters.has_coords,
       cursor,
     }),
     [filters, cursor],
@@ -173,7 +177,7 @@ export default function AdminCandidatesPage() {
     () => (
       <form
         onSubmit={handleSubmit}
-        className="mb-6 grid gap-4 rounded-md border border-gray-200 p-4 shadow-sm md:grid-cols-5"
+        className="mb-6 grid gap-4 rounded-md border border-gray-200 p-4 shadow-sm md:grid-cols-4 lg:grid-cols-7"
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-gray-700" htmlFor="status">
@@ -241,7 +245,52 @@ export default function AdminCandidatesPage() {
             onChange={event => setFilters(prev => ({ ...prev, city: event.target.value }))}
           />
         </div>
-        <div className="md:col-span-5 flex flex-wrap gap-4 items-center">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700" htmlFor="category">
+            カテゴリ
+          </label>
+          <select
+            id="category"
+            className="rounded border border-gray-300 px-3 py-2"
+            value={filters.category ?? ""}
+            onChange={event =>
+              setFilters(prev => ({
+                ...prev,
+                category: event.target.value || undefined,
+              }))
+            }
+          >
+            <option value="">全て</option>
+            <option value="gym">ジム</option>
+            <option value="pool">プール</option>
+            <option value="court">コート</option>
+            <option value="hall">体育館</option>
+            <option value="field">グラウンド</option>
+            <option value="martial_arts">武道場</option>
+            <option value="archery">弓道場</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700" htmlFor="has_coords">
+            座標
+          </label>
+          <select
+            id="has_coords"
+            className="rounded border border-gray-300 px-3 py-2"
+            value={filters.has_coords === undefined ? "" : filters.has_coords ? "true" : "false"}
+            onChange={event =>
+              setFilters(prev => ({
+                ...prev,
+                has_coords: event.target.value === "" ? undefined : event.target.value === "true",
+              }))
+            }
+          >
+            <option value="">全て</option>
+            <option value="true">有り</option>
+            <option value="false">無し</option>
+          </select>
+        </div>
+        <div className="md:col-span-4 lg:col-span-7 flex flex-wrap gap-4 items-center">
           <button
             type="submit"
             className="rounded bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
@@ -307,6 +356,8 @@ export default function AdminCandidatesPage() {
       filters.q,
       filters.source,
       filters.status,
+      filters.category,
+      filters.has_coords,
       handleSubmit,
       performBulkApprove,
       performBulkReject,
@@ -381,6 +432,7 @@ export default function AdminCandidatesPage() {
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">ID</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Status</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-600">カテゴリ</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Name</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Source</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Fetched</th>
@@ -390,7 +442,7 @@ export default function AdminCandidatesPage() {
             <tbody className="divide-y divide-gray-200">
               {items.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-4 text-center" colSpan={6}>
+                  <td className="px-3 py-4 text-center" colSpan={8}>
                     対象の候補がありません。
                   </td>
                 </tr>
@@ -412,6 +464,11 @@ export default function AdminCandidatesPage() {
                     </td>
                     <td className="px-3 py-2">{item.id}</td>
                     <td className="px-3 py-2">{item.status}</td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                        {item.category ?? "-"}
+                      </span>
+                    </td>
                     <td className="px-3 py-2">{item.name_raw}</td>
                     <td className="px-3 py-2">{item.source?.title ?? "-"}</td>
                     <td className="px-3 py-2">{formatDateTime(item.fetched_at ?? null)}</td>
