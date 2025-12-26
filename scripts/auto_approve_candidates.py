@@ -1,9 +1,15 @@
+import argparse
 import asyncio
 import logging
+import os
 import re
+import sys
 import unicodedata
 import uuid
 from difflib import SequenceMatcher
+
+# Add current directory to sys.path to ensure module imports work
+sys.path.append(os.getcwd())
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -61,8 +67,75 @@ def is_name_similar(name1: str, name2: str, threshold: float = 0.8) -> bool:
     return ratio >= threshold
 
 
-async def auto_approve_candidates():
-    logger.info("Starting auto-approval of new candidates...")
+# Trusted domains that are safe to auto-approve
+TRUSTED_DOMAINS = {
+    "city.chuo.lg.jp",
+    "city.koto.lg.jp",
+    "city.minato.tokyo.jp",
+    "city.shinjuku.lg.jp",
+    "city.bunkyo.lg.jp",
+    "city.taito.lg.jp",
+    "city.sumida.lg.jp",
+    "city.shinagawa.tokyo.jp",
+    "city.meguro.tokyo.jp",
+    "city.ota.tokyo.jp",
+    "city.setagaya.lg.jp",
+    "city.shibuya.tokyo.jp",
+    "city.nakano.tokyo.jp",
+    "city.suginami.tokyo.jp",
+    "city.toshima.lg.jp",
+    "city.kita.tokyo.jp",
+    "city.arakawa.tokyo.jp",
+    "city.itabashi.tokyo.jp",
+    "city.nerima.tokyo.jp",
+    "city.adachi.tokyo.jp",
+    "city.katsushika.lg.jp",
+    "city.edogawa.tokyo.jp",
+    "konami.com",
+    "central.co.jp",
+    "renaissance.co.jp",
+    "tipness.co.jp",
+    "megalos.co.jp",
+    "jexer.jp",
+    "goldgym.jp",
+    "joyfit.jp",
+    "anytimefitness.co.jp",
+    "choco-zap.jp",
+    "fastgym24.jp",
+    "curves.co.jp",
+}
+
+
+def is_trusted_source(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        from urllib.parse import urlparse
+
+        domain = urlparse(url).netloc
+        # Allow exact match or subdomain
+        for trusted in TRUSTED_DOMAINS:
+            if domain == trusted or domain.endswith("." + trusted):
+                return True
+        return False
+    except Exception:
+        return False
+
+
+def is_valid_address(address: str | None) -> bool:
+    if not address:
+        return False
+    # Must contain at least one digit (for chome/banchi)
+    if not any(char.isdigit() for char in address):
+        return False
+    # Must not be too short
+    if len(address) < 5:
+        return False
+    return True
+
+
+async def auto_approve_candidates(dry_run: bool = True):
+    logger.info(f"Starting auto-approval of new candidates (DRY_RUN={dry_run})...")
 
     async with SessionLocal() as session:
         # 1. Fetch all 'new' candidates with source_page loaded
@@ -77,8 +150,7 @@ async def auto_approve_candidates():
 
         logger.info(f"Found {len(candidates)} new candidates.")
 
-        # 2. Fetch all existing Gyms for comparison (Cache in memory if not too large)
-        # Assuming < 1000 items, safe to load.
+        # 2. Fetch all existing Gyms for comparison
         stmt_gyms = select(Gym)
         result_gyms = await session.execute(stmt_gyms)
         existing_gyms = result_gyms.scalars().all()
@@ -94,10 +166,12 @@ async def auto_approve_candidates():
 
         approved_count = 0
         merged_count = 0
+        skipped_count = 0
 
         for cand in candidates:
-            # Skip if critical info missing
+            cand_id_str = f"[ID:{cand.id}] {cand.name_raw}"
             if not cand.name_raw:
+                skipped_count += 1
                 continue
 
             parsed = cand.parsed_json or {}
@@ -110,7 +184,7 @@ async def auto_approve_candidates():
             # 1. Match by URL (Exact)
             if cand_url and cand_url in gyms_by_url:
                 matched_gym = gyms_by_url[cand_url]
-                logger.info(f"Match found by URL: {cand.name_raw} -> {matched_gym.name}")
+                logger.info(f"MATCH (URL): {cand_id_str} -> {matched_gym.name}")
 
             # 2. Match by Address (Normalized)
             if not matched_gym and cand.address_raw:
@@ -119,7 +193,7 @@ async def auto_approve_candidates():
                     for g in existing_gyms:
                         if g.address and normalize_address(g.address) == c_norm_addr:
                             matched_gym = g
-                            logger.info(f"Match found by Address: {cand.name_raw} -> {g.name}")
+                            logger.info(f"MATCH (Address): {cand_id_str} -> {g.name}")
                             break
 
             # 3. Match by Name Similarity (Same City)
@@ -127,7 +201,7 @@ async def auto_approve_candidates():
                 for g in gyms_by_city[cand_city]:
                     if is_name_similar(cand.name_raw, g.name):
                         matched_gym = g
-                        logger.info(f"Match found by Name Similarity: {cand.name_raw} -> {g.name}")
+                        logger.info(f"MATCH (Name): {cand_id_str} -> {g.name}")
                         break
 
             # --- ACTION ---
@@ -139,61 +213,76 @@ async def auto_approve_candidates():
 
                 if not new_tags.issubset(current_tags):
                     merged_tags = list(current_tags | new_tags)
-                    # Update Gym
-                    g_parsed = dict(matched_gym.parsed_json) if matched_gym.parsed_json else {}
-                    g_parsed["tags"] = merged_tags
-                    matched_gym.parsed_json = g_parsed
-                    logger.info(f"  -> Merged tags: {new_tags - current_tags}")
+                    logger.info(f"  -> Merging tags: {new_tags - current_tags}")
+                    if not dry_run:
+                        g_parsed = dict(matched_gym.parsed_json) if matched_gym.parsed_json else {}
+                        g_parsed["tags"] = merged_tags
+                        matched_gym.parsed_json = g_parsed
 
                 # Update Candidate Status
-                # Mark as ignored (because it's merged/duplicate)
-                cand.status = CandidateStatus.ignored
+                logger.info(f"  -> ACTION: IGNORE (Merged to {matched_gym.name})")
+                if not dry_run:
+                    cand.status = CandidateStatus.ignored
                 merged_count += 1
 
             else:
                 # CREATE NEW GYM?
-                # Condition: High Confidence
-                # 1. Source is municipal (implicitly true if trusted)
-                # 2. LLM says is_gym=True
-                # 3. Has Address
-
-                # Check parsed_json 'is_gym'
                 is_gym = parsed.get("is_gym")
+                has_addr = is_valid_address(cand.address_raw)
+                is_trusted = is_trusted_source(cand_url)
 
-                if is_gym and cand.address_raw:
-                    # Create New Gym
-                    logger.info(f"Creating NEW Gym: {cand.name_raw}")
+                if is_gym and has_addr and is_trusted:
+                    logger.info(f"APPROVED: {cand_id_str}")
+                    if not dry_run:
+                        # Create Gym logic
+                        new_slug = f"gym-{uuid.uuid4().hex[:8]}"
 
-                    new_slug = f"gym-{uuid.uuid4().hex[:8]}"
+                        new_gym = Gym(
+                            name=cand.name_raw,
+                            address=cand.address_raw,
+                            pref=cand.pref_slug,  # assuming these match
+                            city=cand.city_slug,
+                            official_url=cand_url,
+                            latitude=cand.latitude,
+                            longitude=cand.longitude,
+                            parsed_json=parsed,
+                            slug=new_slug,
+                            canonical_id=uuid.uuid4(),
+                            created_at=cand.created_at,  # inherit
+                        )
+                        session.add(new_gym)
+                        await session.flush()  # to get ID
+                        cand.status = CandidateStatus.approved
 
-                    new_gym = Gym(
-                        name=cand.name_raw,
-                        address=cand.address_raw,
-                        pref=cand.pref_slug,  # assuming these match
-                        city=cand.city_slug,
-                        official_url=cand_url,
-                        latitude=cand.latitude,
-                        longitude=cand.longitude,
-                        parsed_json=parsed,
-                        slug=new_slug,
-                        canonical_id=uuid.uuid4(),
-                        created_at=cand.created_at,  # inherit
-                    )
-                    session.add(new_gym)
-                    await session.flush()  # to get ID
-
-                    cand.status = CandidateStatus.approved
                     approved_count += 1
                 else:
                     # Leave as 'new' for manual review
-                    pass
+                    reasons = []
+                    if not is_gym:
+                        reasons.append("Not a gym")
+                    if not has_addr:
+                        reasons.append("Invalid address")
+                    if not is_trusted:
+                        reasons.append("Untrusted source")
+                    logger.info(f"SKIPPED: {cand_id_str} Reason: {', '.join(reasons)}")
+                    skipped_count += 1
 
-        await session.commit()
+        if not dry_run:
+            await session.commit()
+            logger.info("Changes committed to database.")
+        else:
+            logger.info("DRY RUN: No changes committed.")
+
         logger.info(
-            f"Auto-approval complete. Merged: {merged_count}, Approved (New): {approved_count}"
+            f"Summary: Merged={merged_count}, Approved={approved_count}, Skipped={skipped_count}"
         )
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--commit", action="store_true", help="Commit changes to DB")
+    args = parser.parse_args()
+
     configure_engine()
-    asyncio.run(auto_approve_candidates())
+    # If --commit is NOT present, it is a dry run (default safe)
+    asyncio.run(auto_approve_candidates(dry_run=not args.commit))
