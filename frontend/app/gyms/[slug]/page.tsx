@@ -69,5 +69,38 @@ export default async function GymDetailPage({ params }: PageProps) {
 
   const normalized = normalizeGymDetail(apiResponse, gym.slug);
 
-  return <GymDetailClient gym={normalized} />;
+  // Structured data for Google rich snippets
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SportsActivityLocation",
+    name: gym.name,
+    description: `${gym.prefecture ?? ""}${gym.city ?? ""}にある公営スポーツ施設`,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: gym.city ?? undefined,
+      addressRegion: gym.prefecture ?? undefined,
+      addressCountry: "JP",
+    },
+    url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://ironmap.app"}/gyms/${gym.slug}`,
+    ...(gym.latitude && gym.longitude
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: gym.latitude,
+            longitude: gym.longitude,
+          },
+        }
+      : {}),
+    ...(gym.website ? { sameAs: gym.website } : {}),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <GymDetailClient gym={normalized} />
+    </>
+  );
 }
