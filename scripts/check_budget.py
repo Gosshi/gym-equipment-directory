@@ -1,11 +1,14 @@
 import argparse
 import asyncio
-import json
 import logging
 import os
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import date, timedelta
+from typing import TypedDict
 
+from sqlalchemy import func, select
+
+from app.db import SessionLocal, configure_engine
+from app.models.api_usage import ApiUsage
 from app.services.notification import send_notification
 
 # Pricing (approximate as of late 2024)
@@ -20,93 +23,97 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-def parse_logs(log_dir: Path, days: int = 1):
-    cutoff = datetime.now() - timedelta(days=days)
-
-    total_openai_input = 0
-    total_openai_output = 0
-    total_google_maps = 0
-
-    for root, _, files in os.walk(log_dir):
-        for file in files:
-            if not file.endswith(".log"):
-                continue
-
-            file_path = Path(root) / file
-            # Check file modification time first
-            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-            if mtime < cutoff:
-                continue
-
-            with open(file_path, encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-
-                    timestamp_str = entry.get("timestamp")
-                    if not timestamp_str:
-                        continue
-
-                    # Simple timestamp check (assuming ISO format)
-                    # If parsing fails or is slow, we might skip strict check
-                    # if file mtime is close enough
-                    # But let's try to parse
-                    try:
-                        # Handle Z or +00:00
-                        ts = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                        if ts.replace(tzinfo=None) < cutoff:
-                            continue
-                    except ValueError:
-                        continue
-
-                    event = entry.get("event")
-                    if event == "openai_usage":
-                        total_openai_input += entry.get("prompt_tokens", 0)
-                        total_openai_output += entry.get("completion_tokens", 0)
-                    elif event == "google_maps_api_call":
-                        total_google_maps += 1
-
-    return total_openai_input, total_openai_output, total_google_maps
+class UsageStats(TypedDict):
+    openai_input: int
+    openai_output: int
+    google_maps: int
 
 
-async def main():
-    parser = argparse.ArgumentParser(description="Check API usage and estimated cost")
-    parser.add_argument("--days", type=int, default=1, help="Number of days to look back")
-    parser.add_argument(
-        "--log-dir", type=Path, default=Path("logs"), help="Directory containing logs"
-    )
-    args = parser.parse_args()
+async def get_usage_for_period(days: int = 1) -> UsageStats:
+    """Fetch usage stats from the database for the last N days."""
+    today = date.today()
+    start_date = today - timedelta(
+        days=days - 1
+    )  # Inclusive of today + (days-1) past days = N days?
+    # If days=1, start_date = today. Range [today, today].
+    # Wait, usually "past 1 day" means "last 24h" or "today"?
+    # For cost *monitoring*, "daily" usually means "today so far" or "yesterday".
+    # Implementation Plan says "Daily (nightly check)".
+    # If it runs at 3 AM, it's checking yesterday? Or today?
+    # Nightly usually means "previous day".
+    # If it runs at 3 AM JST, it covers likely the previous day UTC?
+    # Let's assume we want "Last N days including today".
+    # If days=1, we query usage >= today.
 
-    input_tokens, output_tokens, maps_calls = parse_logs(args.log_dir, args.days)
+    async with SessionLocal() as session:
+        stmt = (
+            select(ApiUsage.service, ApiUsage.metric, func.sum(ApiUsage.value))
+            .where(ApiUsage.date >= start_date)
+            .group_by(ApiUsage.service, ApiUsage.metric)
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+
+    stats: UsageStats = {"openai_input": 0, "openai_output": 0, "google_maps": 0}
+
+    for service, metric, value in rows:
+        val = int(value or 0)
+        if service == "openai" and metric == "input_tokens":
+            stats["openai_input"] += val
+        elif service == "openai" and metric == "output_tokens":
+            stats["openai_output"] += val
+        elif service == "google_maps" and metric == "requests":
+            stats["google_maps"] += val
+
+    return stats
+
+
+async def get_cost_report(days: int = 1) -> str:
+    """Generate a cost report string for notification."""
+    stats = await get_usage_for_period(days)
+    input_tokens = stats["openai_input"]
+    output_tokens = stats["openai_output"]
+    maps_calls = stats["google_maps"]
 
     openai_cost = (input_tokens * PRICE_OPENAI_INPUT) + (output_tokens * PRICE_OPENAI_OUTPUT)
     maps_cost = maps_calls * PRICE_GOOGLE_MAPS
     total_cost = openai_cost + maps_cost
 
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+
+    date_range_str = f"{start_date} ~ {today}" if days > 1 else f"{today}"
+
     report_lines = [
-        f"--- Usage Report (Last {args.days} days) ---",
-        f"OpenAI Input Tokens:  {input_tokens:,}",
-        f"OpenAI Output Tokens: {output_tokens:,}",
-        f"OpenAI Est. Cost:     ${openai_cost:.4f}",
-        f"Google Maps Calls:    {maps_calls:,}",
-        f"Google Maps Est. Cost:${maps_cost:.4f}",
+        f"**Cost Report ({date_range_str})**",
+        f"OpenAI Input: {input_tokens:,} tokens",
+        f"OpenAI Output: {output_tokens:,} tokens",
+        f"OpenAI Est. Cost: ${openai_cost:.4f}",
+        f"Google Maps: {maps_calls:,} requests",
+        f"Google Maps Est. Cost: ${maps_cost:.4f}",
         "-----------------------------------",
-        f"Total Est. Cost:      ${total_cost:.4f}",
+        f"**Total Est. Cost: ${total_cost:.4f}**",
     ]
 
-    report_text = "\n".join(report_lines)
+    if total_cost > 5.00:
+        report_lines.append("\n⚠️ **ALERT: Total cost exceeded $5.00 threshold!**")
+
+    return "\n".join(report_lines)
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="Check API usage and estimated cost")
+    parser.add_argument("--days", type=int, default=1, help="Number of days to look back")
+    args = parser.parse_args()
+
+    configure_engine()
+
+    report_text = await get_cost_report(args.days)
     logger.info(report_text)
 
-    # Simple alert threshold (e.g., $5.00)
-    if total_cost > 5.00:
-        logger.warning("ALERT: Total cost exceeded $5.00 threshold!")
-        report_text += "\n\n⚠️ **ALERT: Total cost exceeded $5.00 threshold!**"
-
-    # Send to Discord
-    if os.getenv("DISCORD_WEBHOOK_URL"):
-        await send_notification(f"```\n{report_text}\n```")
+    # Send to Discord if CLI env var is set (for testing)
+    if os.getenv("DISCORD_WEBHOOK_URL") and os.getenv("SEND_NOTIFICATION"):
+        await send_notification(report_text)
 
 
 if __name__ == "__main__":

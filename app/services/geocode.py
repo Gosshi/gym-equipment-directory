@@ -6,24 +6,23 @@ import asyncio
 import json
 import os
 import re
-import time
 import unicodedata
 from collections.abc import Iterable
 from typing import Any
 
-import requests
+import httpx
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.geocode_cache import GeocodeCache
+from app.services.cost_tracking import record_api_usage
 
 logger = structlog.get_logger(__name__)
 
 _USER_AGENT = "GymDir/0.1 (admin@gym.example)"
-_RATE_LIMIT_SECONDS = 1.0
+_RATE_LIMIT_SECONDS = 0.5  # Reduced since we are async, but still polite
 _LAST_REQUEST_AT = 0.0
-_MAX_BACKOFF_SECONDS = 2.0
 
 _OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
 
@@ -98,7 +97,6 @@ def sanitize_address(address: str) -> str:
     cleaned = re.sub(r"郵便番号", "", cleaned)
 
     # Remove postal code pattern (e.g. 123-4567) at start/end or surrounded by spaces
-    # Be careful not to remove phone numbers, but standard jp postal code is 3-4 digits.
     cleaned = re.sub(r"(?:^|\s)\d{3}-\d{4}(?:\s|$)", " ", cleaned)
 
     return " ".join(cleaned.split())
@@ -158,56 +156,54 @@ async def put_cache(
     await session.flush()
 
 
-def _enforce_rate_limit() -> None:
-    global _LAST_REQUEST_AT
-
-    now = time.monotonic()
-    wait = _RATE_LIMIT_SECONDS - (now - _LAST_REQUEST_AT)
-    if wait > 0:
-        time.sleep(wait)
-    _LAST_REQUEST_AT = time.monotonic()
-
-
-def _request_json(url: str, params: dict[str, Any], provider: str) -> Any:
-    """Execute an HTTP GET with rate limiting and exponential backoff."""
+async def _request_json(
+    client: httpx.AsyncClient, url: str, params: dict[str, Any], provider: str
+) -> Any:
+    """Execute an HTTP GET with rate limiting and exponential backoff use httpx."""
 
     backoff = 0.1
     attempts = 0
+    # Simple simplistic rate limit sleep
+    # In a real concurrent environment, we'd need a token bucket or semaphore.
+    # For now, simplistic sleep inside the coroutine is okay-ish if concurrency is low.
+    await asyncio.sleep(_RATE_LIMIT_SECONDS)
+
     while True:
         attempts += 1
-        _enforce_rate_limit()
         try:
-            response = requests.get(
+            response = await client.get(
                 url,
                 params=params,
                 headers={"User-Agent": _USER_AGENT, "Referer": "https://gym.example/"},
                 timeout=10,
             )
-        except requests.RequestException as exc:  # pragma: no cover - network failures
+        except httpx.RequestError as exc:
             logger.warning("%s request failed: %s", provider, exc)
             return None
 
-        if response.status_code == 429 and backoff <= _MAX_BACKOFF_SECONDS and attempts <= 3:
-            time.sleep(backoff)
-            backoff = min(backoff * 2, _MAX_BACKOFF_SECONDS)
+        if response.status_code == 429 and backoff <= 2.0 and attempts <= 3:
+            await asyncio.sleep(backoff)
+            backoff *= 2
             continue
 
         if response.status_code == 429:
             logger.warning("%s rate limited (429)", provider)
             return None
 
-        if not response.ok:
+        if not response.is_success:
             logger.warning("%s request failed with status %s", provider, response.status_code)
             return None
 
         try:
             return response.json()
-        except ValueError:  # pragma: no cover - unexpected response
+        except ValueError:
             logger.warning("Failed to decode %s response as JSON", provider)
             return None
 
 
-def opencage_geocode(address: str) -> tuple[float, float, str, Any] | None:
+async def opencage_geocode(
+    client: httpx.AsyncClient, address: str
+) -> tuple[float, float, str, Any] | None:
     """Lookup coordinates via the OpenCage endpoint when available."""
 
     if not _OPENCAGE_API_KEY:
@@ -217,7 +213,8 @@ def opencage_geocode(address: str) -> tuple[float, float, str, Any] | None:
     if not sanitized:
         return None
 
-    payload = _request_json(
+    payload = await _request_json(
+        client,
         _OPENCAGE_URL,
         {
             "key": _OPENCAGE_API_KEY,
@@ -251,45 +248,6 @@ def opencage_geocode(address: str) -> tuple[float, float, str, Any] | None:
     except (TypeError, ValueError):
         logger.warning("Invalid OpenCage coordinates: %s", geometry)
         return None
-
-
-def nominatim_geocode(address: str) -> tuple[float, float, str, Any] | None:
-    """Lookup coordinates via the public Nominatim endpoint."""
-
-    sanitized = sanitize_address(address)
-    if not sanitized:
-        return None
-
-    payload = _request_json(
-        _NOMINATIM_URL,
-        {
-            "format": "jsonv2",
-            "q": sanitized,
-            "limit": 1,
-            "addressdetails": 0,
-            "accept-language": "ja",
-            "countrycodes": "jp",
-            "bounded": 1,
-            "viewbox": _NOMINATIM_VIEWBOX,
-        },
-        "nominatim",
-    )
-
-    if not payload:
-        return None
-
-    first = payload[0] if isinstance(payload, list) and payload else None
-    if not isinstance(first, dict):
-        return None
-
-    try:
-        latitude = float(first["lat"])
-        longitude = float(first["lon"])
-    except (KeyError, TypeError, ValueError):
-        logger.warning("Invalid Nominatim payload: %s", first)
-        return None
-
-    return latitude, longitude, "nominatim", first
 
 
 def _strip_facility_name(address: str) -> str:
@@ -332,7 +290,9 @@ _GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 _GOOGLE_MAPS_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 
-def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
+async def google_maps_geocode(
+    client: httpx.AsyncClient, address: str
+) -> tuple[float, float, str, Any] | None:
     """Lookup coordinates via the Google Maps Geocoding API."""
 
     if not _GOOGLE_MAPS_API_KEY:
@@ -342,7 +302,8 @@ def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
     if not sanitized:
         return None
 
-    payload = _request_json(
+    payload = await _request_json(
+        client,
         _GOOGLE_MAPS_URL,
         {
             "key": _GOOGLE_MAPS_API_KEY,
@@ -353,8 +314,11 @@ def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
         "google_maps",
     )
 
-    # Log API usage
-    logger.info("google_maps_api_call", address=sanitized)
+    # Log API usage to DB
+    try:
+        await record_api_usage(service="google_maps", metric="requests", value=1)
+    except Exception as e:
+        logger.error("cost_tracking_failed", error=str(e))
 
     if not payload:
         return None
@@ -386,28 +350,24 @@ def google_maps_geocode(address: str) -> tuple[float, float, str, Any] | None:
         return None
 
 
-def _geocode_with_providers(address: str) -> tuple[float, float, str, Any] | None:
+async def _geocode_with_providers(
+    client: httpx.AsyncClient, address: str
+) -> tuple[float, float, str, Any] | None:
     """Try configured providers sequentially until one succeeds."""
 
     for query in _build_queries(address):
         # Prioritize Google Maps
         if _GOOGLE_MAPS_API_KEY:
-            result = google_maps_geocode(query)
+            result = await google_maps_geocode(client, query)
             if result is not None:
                 return result
             logger.info("miss %s provider=%s addr=%r", "-", "google_maps", query)
 
         if _OPENCAGE_API_KEY:
-            result = opencage_geocode(query)
+            result = await opencage_geocode(client, query)
             if result is not None:
                 return result
             logger.info("miss %s provider=%s addr=%r", "-", "opencage", query)
-
-        # Nominatim fallback disabled by user request
-        # result = nominatim_geocode(query)
-        # if result is not None:
-        #     return result
-        # logger.info("miss %s provider=%s addr=%r", "-", "nominatim", query)
 
     return None
 
@@ -424,11 +384,9 @@ async def geocode(session: AsyncSession, address: str) -> tuple[float, float] | 
     if cached is not None:
         return cached
 
-    try:
-        result = await asyncio.to_thread(_geocode_with_providers, sanitized)
-    except Exception:  # pragma: no cover - defensive logging
-        logger.exception("Geocoding thread execution failed")
-        return None
+    # Use httpx AsyncClient context manager for efficient connection pooling
+    async with httpx.AsyncClient() as client:
+        result = await _geocode_with_providers(client, sanitized)
 
     if result is None:
         return None

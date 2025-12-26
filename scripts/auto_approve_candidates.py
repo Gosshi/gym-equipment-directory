@@ -156,7 +156,7 @@ def is_valid_address(address: str | None) -> bool:
     return True
 
 
-async def auto_approve_candidates(dry_run: bool = True):
+async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
     logger.info(f"Starting auto-approval (Phase 2: Distance Check) (DRY_RUN={dry_run})...")
 
     async with SessionLocal() as session:
@@ -322,9 +322,13 @@ async def auto_approve_candidates(dry_run: bool = True):
         else:
             logger.info("DRY RUN: No changes committed.")
 
-        logger.info(
-            f"Summary: Merged={merged_count}, Approved={approved_count}, Skipped={skipped_count}"
-        )
+        summary = {
+            "merged": merged_count,
+            "approved": approved_count,
+            "skipped": skipped_count,
+        }
+        logger.info(f"Summary: {summary}")
+        return summary
 
 
 if __name__ == "__main__":
