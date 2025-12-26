@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import math
 import os
 import re
 import sys
@@ -22,6 +23,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def calculate_distance(
+    lat1: float | None, lon1: float | None, lat2: float | None, lon2: float | None
+) -> float | None:
+    """Calculate Haversine distance in kilometers between two points."""
+    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+        return None
+
+    R = 6371  # Earth radius in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
 def normalize_address(text: str | None) -> str:
     """Normalize Japanese address for fuzzy matching."""
     if not text:
@@ -37,6 +56,9 @@ def normalize_address(text: str | None) -> str:
     # Mapping common ones found in addresses
     kanji_map = str.maketrans("一二三四五六七八九〇", "1234567890")
     normalized = normalized.translate(kanji_map)
+
+    # Common variations normalization
+    normalized = normalized.replace("F", "階").replace("f", "階")
 
     # Standardize separators
     # Convert '丁目', '番', '号', '番地' to '-'
@@ -135,7 +157,7 @@ def is_valid_address(address: str | None) -> bool:
 
 
 async def auto_approve_candidates(dry_run: bool = True):
-    logger.info(f"Starting auto-approval of new candidates (DRY_RUN={dry_run})...")
+    logger.info(f"Starting auto-approval (Phase 2: Distance Check) (DRY_RUN={dry_run})...")
 
     async with SessionLocal() as session:
         # 1. Fetch all 'new' candidates with source_page loaded
@@ -148,9 +170,6 @@ async def auto_approve_candidates(dry_run: bool = True):
         result = await session.execute(stmt)
         candidates = result.scalars().all()
 
-        logger.info(f"Found {len(candidates)} new candidates.")
-
-        # 2. Fetch all existing Gyms for comparison
         stmt_gyms = select(Gym)
         result_gyms = await session.execute(stmt_gyms)
         existing_gyms = result_gyms.scalars().all()
@@ -160,9 +179,7 @@ async def auto_approve_candidates(dry_run: bool = True):
         gyms_by_city = {}
         for g in existing_gyms:
             if g.city:
-                if g.city not in gyms_by_city:
-                    gyms_by_city[g.city] = []
-                gyms_by_city[g.city].append(g)
+                gyms_by_city.setdefault(g.city, []).append(g)
 
         approved_count = 0
         merged_count = 0
@@ -180,11 +197,12 @@ async def auto_approve_candidates(dry_run: bool = True):
 
             # --- MATCHING LOGIC ---
             matched_gym: Gym | None = None
+            match_reason = ""
 
             # 1. Match by URL (Exact)
             if cand_url and cand_url in gyms_by_url:
                 matched_gym = gyms_by_url[cand_url]
-                logger.info(f"MATCH (URL): {cand_id_str} -> {matched_gym.name}")
+                match_reason = "URL"
 
             # 2. Match by Address (Normalized)
             if not matched_gym and cand.address_raw:
@@ -193,20 +211,51 @@ async def auto_approve_candidates(dry_run: bool = True):
                     for g in existing_gyms:
                         if g.address and normalize_address(g.address) == c_norm_addr:
                             matched_gym = g
-                            logger.info(f"MATCH (Address): {cand_id_str} -> {g.name}")
+                            match_reason = "Address (Normalized)"
                             break
 
-            # 3. Match by Name Similarity (Same City)
-            if not matched_gym and cand_city and cand_city in gyms_by_city:
-                for g in gyms_by_city[cand_city]:
-                    if is_name_similar(cand.name_raw, g.name):
-                        matched_gym = g
-                        logger.info(f"MATCH (Name): {cand_id_str} -> {g.name}")
-                        break
+            # 3. Match by Distance + Name Fuzzy
+            if not matched_gym:
+                search_pool = gyms_by_city.get(cand_city, []) if cand_city else existing_gyms
+
+                best_match = None
+                best_score = 0.0
+
+                for g in search_pool:
+                    # Calculate Distance
+                    dist = calculate_distance(
+                        cand.latitude, cand.longitude, g.latitude, g.longitude
+                    )
+
+                    # Calculate Name Sim
+                    sim = SequenceMatcher(None, cand.name_raw, g.name).ratio()
+
+                    is_match = False
+                    reason = ""
+
+                    # Logic A: Very close (< 100m) AND Somewhat similar name (> 0.4)
+                    if dist is not None and dist < 0.1 and sim > 0.4:
+                        is_match = True
+                        reason = f"Distance ({dist * 1000:.0f}m) & NameSim ({sim:.2f})"
+
+                    # Logic B: Same City AND High Name Sim (> 0.8) (fallback for no coords)
+                    elif dist is None and cand_city == g.city and sim > 0.8:
+                        is_match = True
+                        reason = f"Same City & NameSim ({sim:.2f})"
+
+                    if is_match and sim > best_score:
+                        best_match = g
+                        best_score = sim
+                        match_reason = reason
+
+                if best_match:
+                    matched_gym = best_match
 
             # --- ACTION ---
 
             if matched_gym:
+                logger.info(f"MATCH: {cand_id_str} -> {matched_gym.name} [{match_reason}]")
+
                 # MERGE TAGS
                 current_tags = set((matched_gym.parsed_json or {}).get("tags", []))
                 new_tags = set(parsed.get("tags", []))
