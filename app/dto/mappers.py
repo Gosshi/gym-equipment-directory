@@ -101,8 +101,11 @@ def assemble_gym_detail(
 ) -> GymDetailDTO:
     parsed_json = getattr(gym, "parsed_json", None) or {}
 
-    # Extract hours from parsed_json
-    hours_data = parsed_json.get("hours")
+    # Data may be in parsed_json.meta (new structure) or parsed_json root (old structure)
+    meta = parsed_json.get("meta", {})
+
+    # Extract hours from parsed_json (check meta first, then root)
+    hours_data = meta.get("hours") or parsed_json.get("hours")
     opening_hours: str | None = None
     if hours_data:
         if isinstance(hours_data, dict):
@@ -118,8 +121,8 @@ def assemble_gym_detail(
         elif isinstance(hours_data, str):
             opening_hours = hours_data
 
-    # Extract fee from parsed_json
-    fee_data = parsed_json.get("fee")
+    # Extract fee from parsed_json (check meta first, then root)
+    fee_data = meta.get("fee") or parsed_json.get("fee")
     fees: str | None = None
     if fee_data:
         if isinstance(fee_data, int):
