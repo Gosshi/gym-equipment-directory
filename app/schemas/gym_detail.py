@@ -44,6 +44,8 @@ class GymDetailResponse(BaseModel):
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
+    opening_hours: str | None = Field(default=None, description="営業時間（任意）")
+    fees: str | None = Field(default=None, description="料金情報（任意）")
     equipments: list[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
 
     # 追加: 関連する gym_equipments の要約（N+1 回避して取得）
