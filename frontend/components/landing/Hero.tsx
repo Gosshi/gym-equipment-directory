@@ -81,9 +81,14 @@ export function Hero() {
             </div>
             <Button
               type="submit"
-              className="h-14 rounded-none border-2 border-accent bg-accent px-8 font-heading text-xl font-bold uppercase tracking-widest text-accent-foreground hover:bg-accent/90"
+              className="group relative h-14 overflow-hidden rounded-none border-2 border-foreground bg-foreground px-8 font-heading text-xl font-bold uppercase tracking-widest text-background shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_50px_rgba(255,255,255,0.5)]"
             >
-              検索
+              <span className="relative z-10 flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                検索
+              </span>
+              {/* Shine effect on hover */}
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
             </Button>
           </form>
 
