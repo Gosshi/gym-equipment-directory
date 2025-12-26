@@ -93,4 +93,19 @@ export interface GymDetailApiResponse {
   lat?: number | null;
   longitude?: number | null;
   lng?: number | null;
+
+  // Category-specific fields
+  category?: string | null;
+  pool_lanes?: number | null;
+  pool_length_m?: number | null;
+  pool_heated?: boolean | null;
+  court_type?: string | null;
+  court_count?: number | null;
+  court_surface?: string | null;
+  court_lighting?: boolean | null;
+  hall_sports?: string[] | null;
+  hall_area_sqm?: number | null;
+  field_type?: string | null;
+  field_count?: number | null;
+  field_lighting?: boolean | null;
 }

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { BookmarkCheck, BookmarkPlus } from "lucide-react";
 
+import { CategoryInfo } from "@/components/gym/CategoryInfo";
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
 import { GymHeader } from "@/components/gym/GymHeader";
 import { ReportIssueButton } from "@/components/gym/ReportIssueButton";
@@ -302,6 +303,22 @@ export function GymDetailPage({
                 </dl>
               </CardContent>
             </Card>
+
+            <CategoryInfo
+              category={gym.category}
+              poolLanes={gym.poolLanes}
+              poolLengthM={gym.poolLengthM}
+              poolHeated={gym.poolHeated}
+              courtType={gym.courtType}
+              courtCount={gym.courtCount}
+              courtSurface={gym.courtSurface}
+              courtLighting={gym.courtLighting}
+              hallSports={gym.hallSports}
+              hallAreaSqm={gym.hallAreaSqm}
+              fieldType={gym.fieldType}
+              fieldCount={gym.fieldCount}
+              fieldLighting={gym.fieldLighting}
+            />
 
             <GymFacilities facilities={gym.facilities} />
           </div>

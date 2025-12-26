@@ -54,6 +54,25 @@ export interface GymDetail {
   phone?: string | null;
   website?: string | null;
   description?: string | null;
+
+  // Category and category-specific fields
+  category?: string | null;
+  // Pool
+  poolLanes?: number | null;
+  poolLengthM?: number | null;
+  poolHeated?: boolean | null;
+  // Court
+  courtType?: string | null;
+  courtCount?: number | null;
+  courtSurface?: string | null;
+  courtLighting?: boolean | null;
+  // Hall
+  hallSports?: string[];
+  hallAreaSqm?: number | null;
+  // Field
+  fieldType?: string | null;
+  fieldCount?: number | null;
+  fieldLighting?: boolean | null;
 }
 
 export interface NearbyGym {
