@@ -18,14 +18,35 @@ const formatSlugLabel = (slug: unknown) => {
     .join(" ");
 };
 
+// Fallback prefectures list (Tokyo and surrounding areas)
+const FALLBACK_PREFECTURES: PrefectureOption[] = [
+  { value: "tokyo", label: "Tokyo" },
+  { value: "kanagawa", label: "Kanagawa" },
+  { value: "saitama", label: "Saitama" },
+  { value: "chiba", label: "Chiba" },
+];
+
 export async function getPrefectures(): Promise<PrefectureOption[]> {
-  const response = await apiRequest<string[]>("/meta/prefectures", { method: "GET" });
-  return response
-    .map(slug => ({
-      value: typeof slug === "string" ? slug.trim() : "",
-      label: formatSlugLabel(slug),
-    }))
-    .filter((item): item is PrefectureOption => Boolean(item.value) && item.label !== null);
+  try {
+    const response = await apiRequest<string[]>("/meta/prefectures", { method: "GET" });
+    const prefectures = response
+      .map(slug => ({
+        value: typeof slug === "string" ? slug.trim() : "",
+        label: formatSlugLabel(slug),
+      }))
+      .filter((item): item is PrefectureOption => Boolean(item.value) && item.label !== null);
+
+    // If API returns empty, use fallback
+    if (prefectures.length === 0) {
+      console.warn("[meta] No prefectures from API, using fallback list");
+      return FALLBACK_PREFECTURES;
+    }
+
+    return prefectures;
+  } catch (error) {
+    console.error("[meta] Failed to fetch prefectures, using fallback:", error);
+    return FALLBACK_PREFECTURES;
+  }
 }
 
 type EquipmentMetaResponse = {
