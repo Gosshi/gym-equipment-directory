@@ -1,4 +1,4 @@
-import { Compass } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,29 +13,61 @@ export function SearchEmpty({ onResetFilters, className }: SearchEmptyProps) {
     <div
       aria-live="polite"
       className={cn(
-        "flex flex-col items-center gap-5 rounded-2xl border border-dashed",
-        "border-muted-foreground/40 bg-muted/20 p-8 text-center shadow-sm sm:p-10",
+        "flex flex-col items-center gap-6 border-2 border-dashed",
+        "border-muted-foreground/30 bg-muted/10 p-8 text-center sm:p-12",
         "max-w-2xl mx-auto",
         className,
       )}
       role="status"
     >
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-background shadow">
-        <Compass aria-hidden="true" className="h-7 w-7 text-muted-foreground" />
+      {/* Status Badge */}
+      <div className="flex items-center gap-2 border border-muted-foreground/30 bg-background px-4 py-2">
+        <AlertTriangle aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+        <span className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          NO RESULTS FOUND
+        </span>
       </div>
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold">該当するジムが見つかりませんでした</h3>
-        <p className="text-sm text-muted-foreground">
-          条件を少し緩めるか、別のキーワードでお試しください。
+
+      {/* Main Message */}
+      <div className="space-y-3">
+        <h3 className="font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+          該当するジムが見つかりませんでした
+        </h3>
+        <p className="font-mono text-sm text-muted-foreground">
+          条件を緩めるか、別のキーワードで検索してください
         </p>
       </div>
-      <ul className="list-disc space-y-1 text-left text-sm text-muted-foreground">
-        <li>キーワードを短くするか、別の言葉を試す</li>
-        <li>距離やカテゴリの条件を広げて再検索する</li>
-        <li>都道府県・市区町村の指定を解除する</li>
-      </ul>
+
+      {/* Suggestions */}
+      <div className="w-full max-w-md space-y-2 text-left">
+        <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
+          SUGGESTIONS:
+        </p>
+        <ul className="space-y-1 font-mono text-xs text-muted-foreground">
+          <li className="flex items-center gap-2">
+            <span className="h-1 w-1 bg-muted-foreground" />
+            キーワードを短くするか、別の言葉を試す
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="h-1 w-1 bg-muted-foreground" />
+            距離やカテゴリの条件を広げて再検索する
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="h-1 w-1 bg-muted-foreground" />
+            都道府県・市区町村の指定を解除する
+          </li>
+        </ul>
+      </div>
+
+      {/* Reset Button */}
       {onResetFilters ? (
-        <Button onClick={onResetFilters} type="button" variant="outline">
+        <Button
+          onClick={onResetFilters}
+          type="button"
+          variant="outline"
+          className="gap-2 font-mono text-xs font-bold uppercase tracking-widest"
+        >
+          <RotateCcw className="h-3 w-3" />
           条件をクリア
         </Button>
       ) : null}
