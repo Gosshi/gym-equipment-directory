@@ -202,6 +202,8 @@ def _apply_filters(
     q: str | None,
     pref: str | None,
     city: str | None,
+    category: str | None,
+    has_coords: bool | None,
     cursor: dict[str, int] | None,
 ) -> Select[tuple[GymCandidate, ScrapedPage, Source | None]]:
     conditions = []
@@ -219,6 +221,13 @@ def _apply_filters(
         conditions.append(GymCandidate.pref_slug == pref.strip())
     if city:
         conditions.append(GymCandidate.city_slug == city.strip())
+    if category:
+        conditions.append(GymCandidate.category == category.strip())
+    if has_coords is True:
+        conditions.append(GymCandidate.latitude.isnot(None))
+        conditions.append(GymCandidate.longitude.isnot(None))
+    elif has_coords is False:
+        conditions.append(or_(GymCandidate.latitude.is_(None), GymCandidate.longitude.is_(None)))
     if cursor:
         conditions.append(GymCandidate.id < cursor["id"])
     if conditions:
@@ -234,6 +243,8 @@ async def list_candidates(
     q: str | None,
     pref: str | None,
     city: str | None,
+    category: str | None = None,
+    has_coords: bool | None = None,
     limit: int,
     cursor: str | None,
 ) -> tuple[list[CandidateRow], str | None]:
@@ -248,6 +259,8 @@ async def list_candidates(
         q=q,
         pref=pref,
         city=city,
+        category=category,
+        has_coords=has_coords,
         cursor=decoded_cursor,
     ).limit(limit + 1)
     result = await session.execute(stmt)

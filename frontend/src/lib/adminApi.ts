@@ -27,6 +27,7 @@ export interface AdminCandidateItem {
   city_slug?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  category?: string | null; // gym, pool, court, hall, field, martial_arts, archery
   fetched_at?: string | null;
   updated_at?: string | null;
   source?: AdminCandidateSource | null;
@@ -49,6 +50,8 @@ export interface AdminCandidateListParams {
   q?: string | undefined;
   pref?: string | undefined;
   city?: string | undefined;
+  category?: string | undefined; // gym, pool, court, hall, field, martial_arts, archery
+  has_coords?: boolean | undefined; // lat/lon有無フィルター
   cursor?: string | undefined;
 }
 
@@ -147,6 +150,8 @@ export async function listCandidates(
     if (params.q) query.q = params.q;
     if (params.pref) query.pref = params.pref;
     if (params.city) query.city = params.city;
+    if (params.category) query.category = params.category;
+    if (params.has_coords !== undefined) query.has_coords = params.has_coords;
     if (params.cursor) query.cursor = params.cursor;
     return await apiRequest<AdminCandidateListResponse>("/admin/candidates", {
       method: "GET",
