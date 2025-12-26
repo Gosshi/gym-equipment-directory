@@ -127,8 +127,9 @@ async def _build_municipal_payload(
         "page_url": page.url,
         "meta": parsed.meta,
         "tags": parsed.tags,
+        "category": parsed.category,
     }
-    return name, address, parsed_json
+    return name, address, parsed_json, parsed.category
 
 
 async def parse_pages(source: str, limit: int | None) -> int:
@@ -182,6 +183,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 }
 
             for page in pages:
+                category = None  # Default for non-municipal sources
                 if source == "dummy":
                     assert address_iter is not None and equipment_iter is not None
                     name_raw, address_raw, parsed_json = _build_dummy_payload(
@@ -193,7 +195,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                     payload = await _build_municipal_payload(page, source_id=source)
                     if payload is None:
                         continue
-                    name_raw, address_raw, parsed_json = payload
+                    name_raw, address_raw, parsed_json, category = payload
                 else:
                     msg = f"Unsupported source: {source}"
                     raise ValueError(msg)
@@ -209,6 +211,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                         address_raw=address_raw,
                         parsed_json=parsed_json,
                         status=CandidateStatus.new,
+                        category=category,
                     )
                     session.add(candidate)
                     created += 1
@@ -223,6 +226,9 @@ async def parse_pages(source: str, limit: int | None) -> int:
                     has_change = True
                 if candidate.parsed_json != parsed_json:
                     candidate.parsed_json = parsed_json
+                    has_change = True
+                if candidate.category != category:
+                    candidate.category = category
                     has_change = True
                 if has_change:
                     updated += 1

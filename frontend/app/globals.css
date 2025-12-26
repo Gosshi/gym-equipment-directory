@@ -45,6 +45,15 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Category Colors */
+    --category-gym: 142 76% 36%; /* Emerald green */
+    --category-pool: 199 89% 48%; /* Cyan blue */
+    --category-court: 39 100% 50%; /* Orange amber */
+    --category-field: 25 95% 53%; /* Warm orange */
+    --category-hall: 262 83% 58%; /* Purple violet */
+    --category-martial-arts: 0 84% 60%; /* Red */
+    --category-archery: 173 58% 39%; /* Teal */
   }
 
   .dark {

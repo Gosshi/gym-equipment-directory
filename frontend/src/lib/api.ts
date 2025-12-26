@@ -93,6 +93,7 @@ export type RawGymSummary = {
   latitude?: number | null;
   longitude?: number | null;
   tags?: string[];
+  category?: string | null;
 };
 
 type RawSearchGymsResponse =
@@ -155,6 +156,7 @@ export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
     longitude: input.longitude,
     tags: input.tags,
     lastVerifiedAt: input.last_verified_at ?? undefined,
+    category: input.category ?? undefined,
   };
 };
 

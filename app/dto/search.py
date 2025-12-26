@@ -25,6 +25,9 @@ class GymSummaryDTO(BaseModel):
     latitude: float | None = Field(default=None, description="緯度")
     longitude: float | None = Field(default=None, description="経度")
     tags: list[str] = Field(default_factory=list, description="検索用タグ（利用条件など）")
+    category: str | None = Field(
+        default=None, description="施設カテゴリ（gym, pool, court, hall, etc.）"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

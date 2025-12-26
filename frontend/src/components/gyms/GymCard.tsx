@@ -72,6 +72,36 @@ function getPlaceholderImage(equipments: string[] | undefined): string {
   return "/images/placeholders/gym-general.png";
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  gym: "ジム",
+  pool: "プール",
+  court: "コート",
+  field: "グラウンド",
+  hall: "体育館",
+  martial_arts: "武道場",
+  archery: "弓道場",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  gym: "bg-emerald-500",
+  pool: "bg-cyan-500",
+  court: "bg-amber-500",
+  field: "bg-orange-500",
+  hall: "bg-violet-500",
+  martial_arts: "bg-red-500",
+  archery: "bg-teal-500",
+};
+
+function getCategoryLabel(category: string | null | undefined): string {
+  if (!category) return "";
+  return CATEGORY_LABELS[category] ?? category;
+}
+
+function getCategoryColorClass(category: string | null | undefined): string {
+  if (!category) return "bg-muted";
+  return CATEGORY_COLORS[category] ?? "bg-muted";
+}
+
 function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
   if (event.defaultPrevented) {
     return;
@@ -144,7 +174,17 @@ export function GymCard({
         )}
       >
         <div className="relative isolate overflow-hidden bg-muted">
-          <div className="absolute right-2 top-2 z-10">
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
+            {gym.category && (
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm",
+                  getCategoryColorClass(gym.category),
+                )}
+              >
+                {getCategoryLabel(gym.category)}
+              </span>
+            )}
             <FavoriteButton gymId={gym.id} />
           </div>
           <div className="aspect-[4/3] w-full" aria-hidden />

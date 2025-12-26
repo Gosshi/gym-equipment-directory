@@ -12,6 +12,7 @@ export interface GymSummary {
   latitude?: number | null;
   longitude?: number | null;
   tags?: string[];
+  category?: string | null;
 }
 
 export interface GymSearchMeta {

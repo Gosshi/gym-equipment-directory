@@ -220,6 +220,36 @@ def validate_facility_name(name: str) -> bool:
     return True
 
 
+# Category classification keywords
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "gym": ["トレーニング室", "トレーニングジム", "フィットネス", "ウェイト", "マシン"],
+    "pool": ["温水プール", "水泳場", "プール", "25m", "50m", "競泳"],
+    "court": ["テニスコート", "庭球場", "フットサル", "バスケットコート", "バレーコート"],
+    "field": ["野球場", "軟式野球場", "サッカー場", "陸上競技場", "グラウンド"],
+    "hall": ["体育館", "アリーナ", "競技場", "多目的ホール"],
+    "martial_arts": ["武道場", "柔道場", "剣道場", "空手道場"],
+    "archery": ["弓道場", "アーチェリー"],
+}
+
+
+def classify_category(text: str) -> str:
+    """Classify facility category based on text content.
+
+    Returns the most likely category slug based on keyword matching.
+    Priority order: gym > pool > court > field > martial_arts > archery > hall
+    """
+    normalized = sanitize_text(text).lower()
+
+    # Check in priority order
+    for category in ["gym", "pool", "court", "field", "martial_arts", "archery", "hall"]:
+        keywords = _CATEGORY_KEYWORDS.get(category, [])
+        for keyword in keywords:
+            if keyword.lower() in normalized:
+                return category
+
+    return "hall"  # Default fallback for generic indoor facilities
+
+
 async def extract_address_one_line(
     html: str,
     *,
@@ -580,6 +610,7 @@ def detect_create_gym(
 
 __all__ = [
     "EquipmentEntry",
+    "classify_category",
     "detect_create_gym",
     "extract_address_one_line",
     "extract_equipments",
