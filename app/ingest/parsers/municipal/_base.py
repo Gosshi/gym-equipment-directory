@@ -118,11 +118,11 @@ def _iter_text_segments(text: str) -> Iterable[str]:
             yield cleaned
 
 
-def _clean_address_with_llm(candidate: str) -> str:
+async def _clean_address_with_llm(candidate: str) -> str:
     """Clean address using LLM to remove complex noise."""
     try:
         client = OpenAIClientWrapper()
-        response = client.chat_completion(
+        response = await client.chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {
@@ -154,7 +154,7 @@ def _clean_address_with_llm(candidate: str) -> str:
         return candidate
 
 
-def _clean_address(candidate: str) -> str:
+async def _clean_address(candidate: str) -> str:
     cleaned = sanitize_text(candidate)
     # Remove phone number trail
     cleaned = _TEL_TRAIL_RE.sub("", cleaned).strip()
@@ -175,7 +175,7 @@ def _clean_address(candidate: str) -> str:
     # Given the low cost of gpt-4o-mini, we'll apply it if the length is suspicious (> 15 chars)
     # or contains "※" which indicates notes.
     if len(cleaned) > 15 or "※" in cleaned:
-        cleaned = _clean_address_with_llm(cleaned)
+        cleaned = await _clean_address_with_llm(cleaned)
 
     # Final logic check: Address must contain numbers (chome/ban/go)
     # Most Japanese addresses have at least one digit.
@@ -220,7 +220,7 @@ def validate_facility_name(name: str) -> bool:
     return True
 
 
-def extract_address_one_line(
+async def extract_address_one_line(
     html: str,
     *,
     selectors: dict[str, Any],
@@ -280,7 +280,7 @@ def extract_address_one_line(
     if not candidates:
         return None
     candidate = min(candidates, key=len)
-    return _clean_address(candidate)
+    return await _clean_address(candidate)
 
 
 def _parse_digit(text: str | None) -> int | None:
@@ -351,7 +351,7 @@ def _iter_equipment_lines(block: Tag) -> Iterable[str]:
                 yield text
 
 
-def _extract_facility_with_llm(
+async def _extract_facility_with_llm(
     text: str,
     aliases: Mapping[str, Iterable[str]],
 ) -> dict[str, Any] | None:
@@ -402,7 +402,7 @@ def _extract_facility_with_llm(
 
     try:
         client = OpenAIClientWrapper()
-        response = client.chat_completion(
+        response = await client.chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {

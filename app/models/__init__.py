@@ -1,5 +1,6 @@
 # モジュール読み込み用（Alembicがモデルを見つけるために必要）
 # app/models/__init__.py
+from .api_usage import ApiUsage
 from .base import Base
 from .equipment import Equipment
 from .favorite import Favorite
@@ -15,6 +16,7 @@ from .source import Source, SourceType
 
 __all__ = [
     "Base",
+    "ApiUsage",
     "Gym",
     "Equipment",
     "GymEquipment",

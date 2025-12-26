@@ -104,7 +104,7 @@ def _strip_internal_fields(entries: list[dict[str, Any]]) -> list[dict[str, Any]
     return cleaned
 
 
-def parse_municipal_page(
+async def parse_municipal_page(
     html: str,
     url: str,
     *,
@@ -181,7 +181,7 @@ def parse_municipal_page(
     # Use full page text (or body text) for LLM
     llm_text = body_text if len(body_text) > 50 else soup.get_text(" ", strip=True)
 
-    llm_data = _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
+    llm_data = await _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
 
     # LLM Filtering Logic
     if llm_data and llm_data.get("is_gym") is False:
@@ -233,7 +233,7 @@ def parse_municipal_page(
         # If LLM returned None (API error), we might skip or fallback.
         # Let's fallback for robustness, but prioritize LLM rejection.
 
-        address = extract_address_one_line(
+        address = await extract_address_one_line(
             clean_html,
             selectors=selectors,
             patterns={"address": config.get("address_patterns")},

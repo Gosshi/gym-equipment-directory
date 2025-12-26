@@ -417,13 +417,30 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         from scripts.auto_approve_candidates import auto_approve_candidates
 
         # Await directly (dry_run=False to apply changes)
-        await auto_approve_candidates(dry_run=False)
+        stats = await auto_approve_candidates(dry_run=False)
+
+        merged = stats.get("merged", 0)
+        approved = stats.get("approved", 0)
+        skipped = stats.get("skipped", 0)
 
         logger.info("Auto-approval completed.")
-        summary_lines.append("\n**Auto-Approval:** Completed")
+        summary_lines.append(
+            f"\n**Auto-Approval:** Completed "
+            f"(Merged={merged}, Approved={approved}, Skipped={skipped})"
+        )
     except Exception as e:
         logger.error(f"Auto-approval failed: {e}")
         summary_lines.append(f"\n**Auto-Approval:** Failed ({e})")
+
+    # Cost Report (New Step)
+    try:
+        from scripts.check_budget import get_cost_report
+
+        cost_report = await get_cost_report(days=1)
+        summary_lines.append(f"\n{cost_report}")
+    except Exception as e:
+        logger.error(f"Cost report generation failed: {e}")
+        summary_lines.append(f"\n**Cost Report:** Failed ({e})")
 
     message = "\n".join(summary_lines)
 

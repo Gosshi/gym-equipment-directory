@@ -82,7 +82,7 @@ def _get_page_type(page: ScrapedPage) -> str | None:
     return None
 
 
-def _build_municipal_payload(
+async def _build_municipal_payload(
     page: ScrapedPage,
     *,
     source_id: str,
@@ -106,7 +106,7 @@ def _build_municipal_payload(
         raise ValueError(msg)
 
     page_type = _get_page_type(page)
-    parsed = parser(page.raw_html or "", page.url, page_type=page_type)
+    parsed = await parser(page.raw_html or "", page.url, page_type=page_type)
 
     if not parsed.meta.get("create_gym"):
         return None
@@ -190,7 +190,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 elif source == site_a.SITE_ID:
                     name_raw, address_raw, parsed_json = _build_site_a_payload(page)
                 elif source in SOURCES:
-                    payload = _build_municipal_payload(page, source_id=source)
+                    payload = await _build_municipal_payload(page, source_id=source)
                     if payload is None:
                         continue
                     name_raw, address_raw, parsed_json = payload
