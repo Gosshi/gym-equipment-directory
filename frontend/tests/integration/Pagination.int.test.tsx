@@ -188,7 +188,7 @@ describe("Pagination integration", () => {
   });
 
   it("loads the next page and updates the query parameters", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // No auto-location request - gyms load without location filter
 
     const searchRequests: URL[] = [];
     const pageOneResponse = {
@@ -284,7 +284,7 @@ describe("Pagination integration", () => {
     expect(latestPageTwoCall).toBeDefined();
     expect(latestPageTwoCall).toContain("page=2");
 
-    await waitFor(() => expect(searchRequests.length).toBeGreaterThan(2));
+    await waitFor(() => expect(searchRequests.length).toBeGreaterThanOrEqual(2));
     await waitFor(() =>
       expect(searchRequests.some(url => url.searchParams.get("page") === "2")).toBe(true),
     );
@@ -295,7 +295,7 @@ describe("Pagination integration", () => {
   });
 
   it("keeps the requested page while the next page is loading", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // No auto-location request - gyms load without location filter
 
     const pageOneResponse = {
       items: [
@@ -391,7 +391,7 @@ describe("Pagination integration", () => {
   });
 
   it("changes the page size when a new limit is selected", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // No auto-location request - gyms load without location filter
 
     const searchRequests: URL[] = [];
     const limitTwentyResponse = {

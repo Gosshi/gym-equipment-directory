@@ -778,40 +778,14 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     }
   }, [applyFilters, cancelPendingDebounce, filters, formState.lat, formState.lng]);
 
+  // NOTE: Auto-location request removed.
+  // /gyms page now shows all gyms initially without location filter.
+  // Users can explicitly request location via "現在地から探す" or filter controls.
+  // The effect below was causing /gyms to auto-request geolocation on load.
+  // Keeping the ref to prevent accidental re-enabling if this effect is uncommented.
   useEffect(() => {
-    if (initialLocationRequestRef.current) {
-      return;
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    const hasQueryLocation = filters.lat != null && filters.lng != null;
-    const hasAreaFilter = Boolean(filters.city || filters.pref);
-
-    if (hasQueryLocation || hasAreaFilter) {
-      initialLocationRequestRef.current = true;
-      return;
-    }
-    if (!hasResolvedGeolocationSupport) {
-      return;
-    }
-    if (!isGeolocationSupported) {
-      handleGeolocationError(null, LOCATION_UNSUPPORTED_MESSAGE);
-      initialLocationRequestRef.current = true;
-      return;
-    }
     initialLocationRequestRef.current = true;
-    requestLocation();
-  }, [
-    filters.lat,
-    filters.lng,
-    filters.city,
-    filters.pref,
-    handleGeolocationError,
-    hasResolvedGeolocationSupport,
-    isGeolocationSupported,
-    requestLocation,
-  ]);
+  }, []);
 
   const setPage = useCallback(
     (page: number) => {

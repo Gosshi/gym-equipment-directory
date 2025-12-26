@@ -198,7 +198,7 @@ describe("Search flow integration", () => {
   });
 
   it("performs a keyword search and renders the matching gyms", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // No auto-location request - gyms load without location filter
 
     const searchRequests: URL[] = [];
     const keywordResponse = {
@@ -260,7 +260,7 @@ describe("Search flow integration", () => {
   });
 
   it("displays an empty state when no gyms match the filters", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // No auto-location request needed
 
     const emptyResponse = {
       items: [],
@@ -317,126 +317,47 @@ describe("Search flow integration", () => {
     expect(requestCount).toBeGreaterThanOrEqual(2);
   });
 
-  it("requests the current position and includes coordinates in the search query", async () => {
+  it("does NOT auto-request location on initial load (users must explicitly request)", async () => {
     const geolocation = createSuccessGeolocation(35.68, 139.76);
 
-    const searchRequests: URL[] = [];
-    const nearbyResponse = {
-      items: [
-        {
-          id: 20,
-          slug: "nearby-fitness",
-          name: "現在地フィットネス",
-          city: "chiyoda",
-          pref: "tokyo",
-          equipments: ["ランニングマシン"],
-          thumbnail_url: null,
-          last_verified_at: "2024-05-01T08:00:00Z",
-        },
-      ],
-      total: 1,
-      page: 1,
-      page_size: 20,
-      per_page: 20,
-      has_next: false,
-      has_prev: false,
-      has_more: false,
-      page_token: null,
-    };
-
     server.use(
-      http.get("*/gyms/search", ({ request }) => {
-        const url = new URL(request.url);
-        searchRequests.push(url);
-        if (url.searchParams.has("lat")) {
-          return HttpResponse.json(nearbyResponse);
-        }
+      http.get("*/gyms/search", () => {
         return HttpResponse.json(defaultGymSearchResponse);
       }),
     );
 
     renderGymsPage();
 
-    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalled());
+    // Should show gyms without location filter
+    await screen.findByText("東京フィットジム");
 
-    await screen.findByText("現在地フィットネス");
-
-    expect(
-      searchRequests.some(
-        url => url.searchParams.get("lat") === "35.68" && url.searchParams.get("lng") === "139.76",
-      ),
-    ).toBe(true);
-    expect(await screen.findByText(/現在地を使用中/)).toBeInTheDocument();
+    // getCurrentPosition should NOT be called automatically
+    expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it("falls back to the default location when geolocation is denied", async () => {
-    const geolocation = createPermissionDeniedGeolocation();
-
-    const searchRequests: URL[] = [];
-    const fallbackResponse = {
-      items: [
-        {
-          id: 30,
-          slug: "tokyo-station-gym",
-          name: "東京駅トレーニングセンター",
-          city: "chiyoda",
-          pref: "tokyo",
-          equipments: ["マシン", "ストレッチ"],
-          thumbnail_url: null,
-          last_verified_at: "2024-05-20T09:00:00Z",
-        },
-      ],
-      total: 1,
-      page: 1,
-      page_size: 20,
-      per_page: 20,
-      has_next: false,
-      has_prev: false,
-      has_more: false,
-      page_token: null,
-    };
+  it("loads gyms without location filter when geolocation is not available", async () => {
+    // Simulate no geolocation API
+    applyGeolocationMock({
+      getCurrentPosition: vi.fn(),
+      watchPosition: vi.fn(),
+      clearWatch: vi.fn(),
+    });
 
     server.use(
-      http.get("*/gyms/search", ({ request }) => {
-        const url = new URL(request.url);
-        searchRequests.push(url);
-        if (
-          url.searchParams.get("lat") === FALLBACK_LOCATION.lat.toString() &&
-          url.searchParams.get("lng") === FALLBACK_LOCATION.lng.toString()
-        ) {
-          return HttpResponse.json(fallbackResponse);
-        }
+      http.get("*/gyms/search", () => {
         return HttpResponse.json(defaultGymSearchResponse);
       }),
     );
 
     renderGymsPage();
 
-    await waitFor(() => expect(geolocation.getCurrentPosition).toHaveBeenCalled());
-
-    await screen.findByText("東京駅トレーニングセンター");
-
-    expect(
-      searchRequests.some(
-        url =>
-          url.searchParams.get("lat") === FALLBACK_LOCATION.lat.toString() &&
-          url.searchParams.get("lng") === FALLBACK_LOCATION.lng.toString(),
-      ),
-    ).toBe(true);
-
-    expect(await screen.findByText(/デフォルト地点（東京駅）を使用中/)).toBeInTheDocument();
-
-    const guidanceButton = await screen.findByRole("button", { name: "住所や駅名で検索する" });
-    expect(guidanceButton).toBeInTheDocument();
-
-    const user = userEvent.setup();
-    const keywordInput = screen.getByLabelText("キーワード");
-    await user.click(guidanceButton);
-    await waitFor(() => expect(keywordInput).toHaveFocus());
+    // Should load gyms without any location filter
+    await screen.findByText("東京フィットジム");
   });
 
   it("updates results when distance changes, paginates, and routes to detail", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // Set initial location via query params (simulating user has set location)
+    setSearchParams("lat=35.68&lng=139.76&distance=5");
 
     const searchRequests: URL[] = [];
     const radiusResponse = {
