@@ -210,11 +210,14 @@ async def parse_municipal_page(
         # Otherwise, continue processing as a non-gym facility
 
     if llm_data and llm_data.get("is_gym") is True:
-        # LLM found a gym
+        # LLM found a facility
         facility_name = llm_data.get("name") or facility_name
         address = llm_data.get("address")
 
-        # Process equipments from LLM
+        # Get category from LLM (fallback to classify_category later)
+        llm_category = llm_data.get("category")
+
+        # Process equipments from LLM (for gym category)
         equipments_structured = []
         raw_eq_items = llm_data.get("equipments", [])
         if isinstance(raw_eq_items, list):
@@ -234,6 +237,29 @@ async def parse_municipal_page(
 
         equipments_raw = [f"{e['slug']} x{e['count']}" for e in equipments_structured]
         create_gym = True
+
+        # Store structured data from LLM
+        llm_structured_data = {}
+        if llm_data.get("hours"):
+            llm_structured_data["hours"] = llm_data["hours"]
+        if llm_data.get("fee") is not None:
+            llm_structured_data["fee"] = llm_data["fee"]
+        # Category-specific fields
+        for field in [
+            "lanes",
+            "length_m",
+            "heated",
+            "court_type",
+            "courts",
+            "surface",
+            "lighting",
+            "sports",
+            "area_sqm",
+            "field_type",
+            "fields",
+        ]:
+            if llm_data.get(field) is not None:
+                llm_structured_data[field] = llm_data[field]
 
     else:
         # 2. Fallback to Legacy Logic (Only if LLM failed completely/errored, NOT if it said false)
@@ -292,14 +318,22 @@ async def parse_municipal_page(
             if not address:
                 create_gym = False
 
-    # Determine facility category
-    category = classify_category(body_text)
+    # Determine facility category (prefer LLM, fallback to keyword-based)
+    if "llm_category" in dir() and llm_category:
+        category = llm_category
+    else:
+        category = classify_category(body_text)
 
     # For non-gym categories, we still create facilities if we have an address
     # This allows pools, courts, etc. to be saved
     should_create = create_gym or (address and category != "hall")
 
     meta = {"create_gym": should_create, "page_url": normalized_url, "category": category}
+
+    # Add structured data from LLM if available
+    if "llm_structured_data" in dir() and llm_structured_data:
+        meta.update(llm_structured_data)
+
     center_no = _extract_center_no(normalized_url, source.parse_hints)
 
     # Extract tags from body text
