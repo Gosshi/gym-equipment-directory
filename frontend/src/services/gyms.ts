@@ -17,6 +17,8 @@ type RawGymDetail = RawGymSummary & {
   website_url?: string | null;
   opening_hours?: string | null;
   openingHours?: string | null;
+  fees?: string | null;
+  price?: string | null;
   main_image_url?: string | null;
   hero_image_url?: string | null;
   images?: unknown;
@@ -31,6 +33,20 @@ type RawGymDetail = RawGymSummary & {
   latitude?: number | string | null;
   longitude?: number | string | null;
   location?: unknown;
+  // Category-specific fields
+  category?: string | null;
+  pool_lanes?: number | null;
+  pool_length_m?: number | null;
+  pool_heated?: boolean | null;
+  court_type?: string | null;
+  court_count?: number | null;
+  court_surface?: string | null;
+  court_lighting?: boolean | null;
+  hall_sports?: string[] | null;
+  hall_area_sqm?: number | null;
+  field_type?: string | null;
+  field_count?: number | null;
+  field_lighting?: boolean | null;
 };
 
 export interface SearchGymsParams {
@@ -223,6 +239,20 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     phone: input.phone ?? null,
     website: input.website ?? input.website_url ?? null,
     description: input.description ?? null,
+    // Category-specific fields
+    category: input.category ?? null,
+    poolLanes: input.pool_lanes ?? null,
+    poolLengthM: input.pool_length_m ?? null,
+    poolHeated: input.pool_heated ?? null,
+    courtType: input.court_type ?? null,
+    courtCount: input.court_count ?? null,
+    courtSurface: input.court_surface ?? null,
+    courtLighting: input.court_lighting ?? null,
+    hallSports: input.hall_sports ?? [],
+    hallAreaSqm: input.hall_area_sqm ?? null,
+    fieldType: input.field_type ?? null,
+    fieldCount: input.field_count ?? null,
+    fieldLighting: input.field_lighting ?? null,
   };
 };
 

@@ -137,6 +137,32 @@ def assemble_gym_detail(
         elif isinstance(fee_data, str):
             fees = fee_data
 
+    # Extract category
+    category = meta.get("category") or getattr(gym, "category", None)
+
+    # Extract category-specific fields from meta
+    # Pool
+    pool_lanes = meta.get("lanes")
+    pool_length_m = meta.get("length_m")
+    pool_heated = meta.get("heated")
+
+    # Court
+    court_type = meta.get("court_type")
+    court_count = meta.get("courts")
+    court_surface = meta.get("surface")
+    court_lighting = meta.get("lighting") if category == "court" else None
+
+    # Hall
+    hall_sports = meta.get("sports", [])
+    if not isinstance(hall_sports, list):
+        hall_sports = []
+    hall_area_sqm = meta.get("area_sqm")
+
+    # Field
+    field_type = meta.get("field_type")
+    field_count = meta.get("fields")
+    field_lighting = meta.get("lighting") if category == "field" else None
+
     return GymDetailDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "")),
@@ -159,6 +185,20 @@ def assemble_gym_detail(
         richness=richness,
         score=score,
         tags=list(parsed_json.get("tags", [])),
+        # Category-specific fields
+        category=category,
+        pool_lanes=pool_lanes,
+        pool_length_m=pool_length_m,
+        pool_heated=pool_heated,
+        court_type=court_type,
+        court_count=court_count,
+        court_surface=court_surface,
+        court_lighting=court_lighting,
+        hall_sports=hall_sports,
+        hall_area_sqm=hall_area_sqm,
+        field_type=field_type,
+        field_count=field_count,
+        field_lighting=field_lighting,
     )
 
 

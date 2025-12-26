@@ -103,6 +103,31 @@ class GymDetailDTO(BaseModel):
     score: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
     tags: list[str] = Field(default_factory=list, description="タグ（利用条件など）")
 
+    # Category and category-specific fields
+    category: str | None = Field(
+        default=None, description="施設カテゴリ: gym, pool, court, hall, field, etc."
+    )
+
+    # Pool-specific fields
+    pool_lanes: int | None = Field(default=None, description="プールレーン数")
+    pool_length_m: int | None = Field(default=None, description="プール長さ（メートル）")
+    pool_heated: bool | None = Field(default=None, description="温水プールか")
+
+    # Court-specific fields
+    court_type: str | None = Field(default=None, description="コートタイプ（テニス、バスケ等）")
+    court_count: int | None = Field(default=None, description="コート面数")
+    court_surface: str | None = Field(default=None, description="コート表面（クレー、人工芝等）")
+    court_lighting: bool | None = Field(default=None, description="照明設備の有無")
+
+    # Hall-specific fields
+    hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")
+    hall_area_sqm: int | None = Field(default=None, description="面積（平方メートル）")
+
+    # Field-specific fields
+    field_type: str | None = Field(default=None, description="グラウンドタイプ")
+    field_count: int | None = Field(default=None, description="グラウンド面数")
+    field_lighting: bool | None = Field(default=None, description="照明設備の有無")
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={

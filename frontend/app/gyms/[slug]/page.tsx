@@ -64,7 +64,24 @@ export default async function GymDetailPage({ params }: PageProps) {
     facility_groups: [],
     equipment_details: [],
     equipments: gym.equipments,
-    // Add other fields if necessary
+    // Hours and fees
+    opening_hours: gym.openingHours,
+    openingHours: gym.openingHours,
+    fees: null, // TODO: Add fees to GymDetail type when backend returns it
+    // Category-specific fields
+    category: gym.category,
+    pool_lanes: gym.poolLanes,
+    pool_length_m: gym.poolLengthM,
+    pool_heated: gym.poolHeated,
+    court_type: gym.courtType,
+    court_count: gym.courtCount,
+    court_surface: gym.courtSurface,
+    court_lighting: gym.courtLighting,
+    hall_sports: gym.hallSports,
+    hall_area_sqm: gym.hallAreaSqm,
+    field_type: gym.fieldType,
+    field_count: gym.fieldCount,
+    field_lighting: gym.fieldLighting,
   } as any; // Casting to any to avoid strict type matching for now
 
   const normalized = normalizeGymDetail(apiResponse, gym.slug);

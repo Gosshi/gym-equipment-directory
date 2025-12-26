@@ -22,6 +22,21 @@ export interface NormalizedGymDetail {
   latitude?: number;
   longitude?: number;
   tags: string[];
+
+  // Category and category-specific fields
+  category?: string;
+  poolLanes?: number;
+  poolLengthM?: number;
+  poolHeated?: boolean;
+  courtType?: string;
+  courtCount?: number;
+  courtSurface?: string;
+  courtLighting?: boolean;
+  hallSports?: string[];
+  hallAreaSqm?: number;
+  fieldType?: string;
+  fieldCount?: number;
+  fieldLighting?: boolean;
 }
 
 export const sanitizeText = (value: unknown): string | undefined => {
@@ -322,5 +337,24 @@ export const normalizeGymDetail = (
     latitude,
     longitude,
     tags: data.tags ?? [],
+
+    // Category-specific fields
+    category: sanitizeText(data.category ?? gymRecord.category),
+    poolLanes: pickNumber(data.pool_lanes ?? gymRecord.pool_lanes),
+    poolLengthM: pickNumber(data.pool_length_m ?? gymRecord.pool_length_m),
+    poolHeated: data.pool_heated ?? (gymRecord.pool_heated as boolean | undefined),
+    courtType: sanitizeText(data.court_type ?? gymRecord.court_type),
+    courtCount: pickNumber(data.court_count ?? gymRecord.court_count),
+    courtSurface: sanitizeText(data.court_surface ?? gymRecord.court_surface),
+    courtLighting: data.court_lighting ?? (gymRecord.court_lighting as boolean | undefined),
+    hallSports: Array.isArray(data.hall_sports)
+      ? data.hall_sports
+      : Array.isArray(gymRecord.hall_sports)
+        ? (gymRecord.hall_sports as string[])
+        : [],
+    hallAreaSqm: pickNumber(data.hall_area_sqm ?? gymRecord.hall_area_sqm),
+    fieldType: sanitizeText(data.field_type ?? gymRecord.field_type),
+    fieldCount: pickNumber(data.field_count ?? gymRecord.field_count),
+    fieldLighting: data.field_lighting ?? (gymRecord.field_lighting as boolean | undefined),
   };
 };

@@ -46,6 +46,24 @@ class GymDetailResponse(BaseModel):
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
     opening_hours: str | None = Field(default=None, description="営業時間（任意）")
     fees: str | None = Field(default=None, description="料金情報（任意）")
+
+    # Category and category-specific fields
+    category: str | None = Field(
+        default=None, description="施設カテゴリ: gym, pool, court, hall, field, etc."
+    )
+    pool_lanes: int | None = Field(default=None, description="プールレーン数")
+    pool_length_m: int | None = Field(default=None, description="プール長さ（メートル）")
+    pool_heated: bool | None = Field(default=None, description="温水プールか")
+    court_type: str | None = Field(default=None, description="コートタイプ")
+    court_count: int | None = Field(default=None, description="コート面数")
+    court_surface: str | None = Field(default=None, description="コート表面")
+    court_lighting: bool | None = Field(default=None, description="照明設備の有無")
+    hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")
+    hall_area_sqm: int | None = Field(default=None, description="面積（平方メートル）")
+    field_type: str | None = Field(default=None, description="グラウンドタイプ")
+    field_count: int | None = Field(default=None, description="グラウンド面数")
+    field_lighting: bool | None = Field(default=None, description="照明設備の有無")
+
     equipments: list[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
 
     # 追加: 関連する gym_equipments の要約（N+1 回避して取得）
