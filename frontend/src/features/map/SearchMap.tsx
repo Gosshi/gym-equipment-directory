@@ -56,6 +56,57 @@ function MapEvents({ onBoundsChange }: { onBoundsChange: SearchMapProps["onBound
   return null;
 }
 
+import { Locate, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useMap } from "react-leaflet";
+import { Button } from "@/components/ui/button";
+
+function CurrentLocationControl() {
+  const map = useMap();
+  const [loading, setLoading] = useState(false);
+
+  const handleLocationClick = () => {
+    if (!navigator.geolocation) {
+      alert("お使いのブラウザは位置情報をサポートしていません。");
+      return;
+    }
+
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const { latitude, longitude } = position.coords;
+        map.flyTo([latitude, longitude], 14, {
+          duration: 1.5,
+        });
+        setLoading(false);
+      },
+      error => {
+        console.error(error);
+        alert("位置情報の取得に失敗しました。");
+        setLoading(false);
+      },
+      { timeout: 10000, maximumAge: 0 },
+    );
+  };
+
+  return (
+    <div className="leaflet-bottom leaflet-right">
+      <div className="leaflet-control leaflet-bar m-4">
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-10 w-10 shadow-md rounded-lg bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300"
+          onClick={handleLocationClick}
+          disabled={loading}
+          title="現在地に移動"
+        >
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Locate className="h-5 w-5" />}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function SearchMap({
   items,
   onBoundsChange,
@@ -74,6 +125,7 @@ export default function SearchMap({
         zoom={initialZoom ?? 13}
         scrollWheelZoom={true}
         style={{ height: "100%", width: "100%" }}
+        zoomControl={false} // We can add custom zoom control if needed, or leave default top-left
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -105,6 +157,7 @@ export default function SearchMap({
             </Marker>
           );
         })}
+        <CurrentLocationControl />
       </MapContainer>
     </div>
   );

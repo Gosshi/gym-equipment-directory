@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import { Loader2 } from "lucide-react";
+import { MobileViewToggle } from "@/components/common/MobileViewToggle";
 
 // Dynamically import SearchMap to avoid SSR issues with Leaflet
 const SearchMap = dynamic(() => import("./SearchMap"), {
@@ -62,6 +63,7 @@ export function MapSearchPage() {
           <p className="text-xs text-gray-500 mt-1">地図を移動すると自動で再検索します</p>
         </div>
       </div>
+      <MobileViewToggle />
     </div>
   );
 }
