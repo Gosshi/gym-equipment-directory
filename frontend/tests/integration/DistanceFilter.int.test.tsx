@@ -178,7 +178,8 @@ describe("Distance filter integration", () => {
   });
 
   it("applies the selected radius to the API query and updates the list", async () => {
-    createSuccessGeolocation(35.68, 139.76);
+    // Set location via query params (simulating user has set location)
+    setSearchParams("lat=35.68&lng=139.76&distance=5");
 
     const searchRequests: URL[] = [];
     const radiusFiveResponse = {
