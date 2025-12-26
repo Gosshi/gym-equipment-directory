@@ -33,6 +33,9 @@ class GymSummary(BaseModel):
     richness_score: float | None = Field(default=None, description="充実度スコア（nullable）")
     distance_km: float | None = Field(default=None, description="検索基準点からの距離（km）")
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
+    category: str | None = Field(
+        default=None, description="施設カテゴリ（gym, pool, court, hall, etc.）"
+    )
 
 
 class GymSearchResponse(BaseModel):

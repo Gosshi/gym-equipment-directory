@@ -45,6 +45,8 @@ class GymCandidate(Base):
     latitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     longitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Category: gym, pool, court, hall, field, martial_arts, archery
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[CandidateStatus] = mapped_column(
         SQLEnum(CandidateStatus, name="candidate_status"),
         nullable=False,

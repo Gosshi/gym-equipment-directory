@@ -49,6 +49,7 @@ def map_gym_to_summary(
         richness_score=richness_score,
         distance_km=distance_km,
         tags=list(getattr(gym, "parsed_json", {}).get("tags", [])),
+        category=getattr(gym, "category", None),
     )
 
 

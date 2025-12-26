@@ -12,6 +12,7 @@ from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
 from app.ingest.normalizers.tag_aliases import TAG_ALIASES
 from app.ingest.parsers.municipal._base import (
     _extract_facility_with_llm,
+    classify_category,
     detect_create_gym,
     extract_address_one_line,
     extract_equipments,
@@ -34,6 +35,7 @@ class MunicipalParseResult:
     page_type: str | None
     page_title: str
     meta: dict[str, Any]
+    category: str | None = None  # gym, pool, court, hall, field, martial_arts, archery
 
 
 def _ensure_iterable(value: Any) -> list[str]:
@@ -183,20 +185,29 @@ async def parse_municipal_page(
 
     llm_data = await _extract_facility_with_llm(llm_text, EQUIPMENT_ALIASES)
 
-    # LLM Filtering Logic
+    # LLM Filtering Logic - Only reject if this is NOT a facility page at all
+    # (e.g., index page, announcement, etc.)
+    # We now accept non-gym facilities like pools, courts, halls.
+    # The LLM's is_gym flag originally meant "is a gym", but we repurpose it as "is a facility"
+    # For now, we'll trust the LLM rejection for truly irrelevant pages.
     if llm_data and llm_data.get("is_gym") is False:
-        # LLM explicitly rejected this page
-        return MunicipalParseResult(
-            facility_name=facility_name,
-            address=None,
-            equipments_raw=[],
-            equipments=[],
-            tags=[],
-            center_no=None,
-            page_type=page_type,
-            page_title=page_title,
-            meta={"create_gym": False, "page_url": normalized_url, "reason": "llm_rejection"},
-        )
+        # Check if it's at least a recognizable facility by keywords
+        detected_category = classify_category(body_text)
+        if detected_category == "hall":  # Fallback means no specific category found
+            # Double-check: if no specific category, trust LLM rejection
+            return MunicipalParseResult(
+                facility_name=facility_name,
+                address=None,
+                equipments_raw=[],
+                equipments=[],
+                tags=[],
+                center_no=None,
+                page_type=page_type,
+                page_title=page_title,
+                meta={"create_gym": False, "page_url": normalized_url, "reason": "llm_rejection"},
+                category=None,
+            )
+        # Otherwise, continue processing as a non-gym facility
 
     if llm_data and llm_data.get("is_gym") is True:
         # LLM found a gym
@@ -281,12 +292,19 @@ async def parse_municipal_page(
             if not address:
                 create_gym = False
 
-    meta = {"create_gym": create_gym, "page_url": normalized_url}
+    # Determine facility category
+    category = classify_category(body_text)
+
+    # For non-gym categories, we still create facilities if we have an address
+    # This allows pools, courts, etc. to be saved
+    should_create = create_gym or (address and category != "hall")
+
+    meta = {"create_gym": should_create, "page_url": normalized_url, "category": category}
     center_no = _extract_center_no(normalized_url, source.parse_hints)
 
     # Extract tags from body text
     tags: list[str] = []
-    if create_gym:
+    if should_create:
         for slug, keywords in TAG_ALIASES.items():
             for keyword in keywords:
                 if keyword in body_text:
@@ -303,6 +321,7 @@ async def parse_municipal_page(
         page_type=page_type,
         page_title=page_title,
         meta=meta,
+        category=category if should_create else None,
     )
 
 
