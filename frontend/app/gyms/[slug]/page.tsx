@@ -67,7 +67,7 @@ export default async function GymDetailPage({ params }: PageProps) {
     // Hours and fees
     opening_hours: gym.openingHours,
     openingHours: gym.openingHours,
-    fees: null, // TODO: Add fees to GymDetail type when backend returns it
+    fees: gym.fees,
     // Category-specific fields
     category: gym.category,
     pool_lanes: gym.poolLanes,

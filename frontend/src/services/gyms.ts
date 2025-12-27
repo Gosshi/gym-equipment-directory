@@ -236,6 +236,7 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     thumbnailUrl,
     images,
     openingHours: input.openingHours ?? input.opening_hours ?? null,
+    fees: input.fees ?? input.price ?? null,
     phone: input.phone ?? null,
     website: input.website ?? input.website_url ?? null,
     description: input.description ?? null,
