@@ -223,8 +223,8 @@ async def run_orchestrator(force_day: str | None = None) -> int:
 
     current_day = "accelerated"  # Dummy value for logging
 
-    # --- TEMPORARY ACCELERATED SCHEDULE (User Request) ---
-    # Run all 23 wards in 6 batches (every 4 hours)
+    # --- ACCELERATED SCHEDULE ---
+    # Run all 23 wards in 8 batches (every 3 hours)
     # Flatten all targets
     ALL_TARGETS = []
     for day_targets in SCHEDULE.values():
@@ -234,15 +234,15 @@ async def run_orchestrator(force_day: str | None = None) -> int:
     ALL_TARGETS.sort(key=lambda x: x["city"])
 
     current_hour = datetime.now(UTC).hour
-    # Runs at 0, 4, 8, 12, 16, 20 UTC
+    # Runs at 0, 3, 6, 9, 12, 15, 18, 21 UTC
     # 0 -> Batch 0
-    # 4 -> Batch 1
+    # 3 -> Batch 1
     # ...
-    # 20 -> Batch 5
-    batch_index = current_hour // 4
+    # 21 -> Batch 7
+    batch_index = current_hour // 3
 
-    # 23 wards / 6 batches = ~4 wards per batch
-    BATCH_SIZE = 4
+    # 23 wards / 8 batches = ~3 wards per batch
+    BATCH_SIZE = 3
     start_idx = batch_index * BATCH_SIZE
     end_idx = start_idx + BATCH_SIZE
 
@@ -255,7 +255,7 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         targets = tuple(ALL_TARGETS[start_idx:end_idx])
 
     logger.info(f"--- ACCELERATED RUN (UTC Hour: {current_hour}) ---")
-    logger.info(f"Batch {batch_index + 1}/6: Processing {len(targets)} targets")
+    logger.info(f"Batch {batch_index + 1}/8: Processing {len(targets)} targets")
 
     if not targets:
         logger.info("No targets for today/time.")
