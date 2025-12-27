@@ -51,6 +51,7 @@ export interface GymDetail {
   thumbnailUrl?: string | null;
   images?: string[];
   openingHours?: string | null;
+  fees?: string | null;
   phone?: string | null;
   website?: string | null;
   description?: string | null;
