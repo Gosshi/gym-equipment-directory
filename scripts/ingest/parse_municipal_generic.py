@@ -222,6 +222,9 @@ async def parse_municipal_page(
             llm_structured_data["hours"] = llm_data["hours"]
         if llm_data.get("fee") is not None:
             llm_structured_data["fee"] = llm_data["fee"]
+        # Multi-facility flag
+        if llm_data.get("is_multi_facility") is not None:
+            llm_structured_data["is_multi_facility"] = llm_data["is_multi_facility"]
         # Category-specific fields
         for field in [
             "lanes",
