@@ -416,8 +416,8 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         logger.info("Starting candidate auto-approval...")
         from scripts.auto_approve_candidates import auto_approve_candidates
 
-        # Await directly (dry_run=False to apply changes)
-        stats = await auto_approve_candidates(dry_run=False)
+        # Await directly (dry_run=True to only log, not apply)
+        stats = await auto_approve_candidates(dry_run=True)
 
         merged = stats.get("merged", 0)
         approved = stats.get("approved", 0)
