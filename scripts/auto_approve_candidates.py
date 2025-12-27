@@ -276,12 +276,30 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
 
             else:
                 # CREATE NEW GYM?
-                is_gym = parsed.get("is_gym")
+                # Note: is_gym flag from LLM means "is a valid facility page"
+                # It should be True for all categories (gym, pool, court, hall, field, etc.)
+                is_valid_facility = parsed.get("is_gym")
+
+                # Also check if category is set - this indicates LLM found a valid facility
+                # even if is_gym was not explicitly set to True
+                category = parsed.get("meta", {}).get("category") or cand.category
+                valid_categories = {
+                    "gym",
+                    "pool",
+                    "court",
+                    "hall",
+                    "field",
+                    "martial_arts",
+                    "archery",
+                }
+                has_valid_category = category in valid_categories
+
                 has_addr = is_valid_address(cand.address_raw)
                 is_trusted = is_trusted_source(cand_url)
 
-                if is_gym and has_addr and is_trusted:
-                    logger.info(f"APPROVED: {cand_id_str}")
+                # Approve if: (is_gym=True OR valid category) AND has address AND trusted source
+                if (is_valid_facility or has_valid_category) and has_addr and is_trusted:
+                    logger.info(f"APPROVED: {cand_id_str} (category: {category})")
                     if not dry_run:
                         # Create Gym logic
                         new_slug = f"gym-{uuid.uuid4().hex[:8]}"
@@ -298,6 +316,7 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                             slug=new_slug,
                             canonical_id=uuid.uuid4(),
                             created_at=cand.created_at,  # inherit
+                            category=category,  # Set the category!
                         )
                         session.add(new_gym)
                         await session.flush()  # to get ID
@@ -307,8 +326,8 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                 else:
                     # Leave as 'new' for manual review
                     reasons = []
-                    if not is_gym:
-                        reasons.append("Not a gym")
+                    if not is_valid_facility and not has_valid_category:
+                        reasons.append(f"No valid category (got: {category})")
                     if not has_addr:
                         reasons.append("Invalid address")
                     if not is_trusted:
