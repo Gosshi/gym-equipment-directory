@@ -402,8 +402,11 @@ async def _extract_facility_with_llm(
         "- is_gym: Boolean. Set to true if this page describes a SINGLE facility's "
         "details. Set to false if it's an announcement, index/list of facilities, "
         "or irrelevant content.\n"
+        "- is_multi_facility: Boolean. Set to true if this page describes a "
+        "COMPLEX with MULTIPLE different facility types (e.g., pool + gym + field). "
+        "This is common for 'スポーツセンター' or '総合体育館'.\n"
         "- category: String. One of: 'gym', 'pool', 'court', 'hall', 'field', "
-        "'martial_arts', 'archery'. Determine based on content:\n"
+        "'martial_arts', 'archery'. Determine based on the PRIMARY facility:\n"
         "  - gym: トレーニングルーム, 筋トレ, ダンベル, マシン\n"
         "  - pool: プール, 水泳, 温水, レーン\n"
         "  - court: テニス, バスケ, コート, 庭球\n"
@@ -415,6 +418,11 @@ async def _extract_facility_with_llm(
         "- name: The specific facility name in Japanese. Return null if is_gym is false.\n"
         "- address: The full postal address of the physical facility. "
         "Do NOT extract City Hall or footer addresses. Return null if is_gym is false.\n\n"
+        "**IMPORTANT: If is_multi_facility is true:**\n"
+        "  - Choose ONE primary facility type for 'category'\n"
+        "  - Only include category-specific fields for that ONE category\n"
+        "  - Do NOT mix data (e.g., don't put court count in 'fields')\n"
+        "  - For hours/fee, use the general facility hours if specific ones vary\n\n"
         "**Structured data:**\n"
         "- hours: Object with 'open' and 'close' as integers (24h format without colon). "
         'Example: 9:00-21:00 → {"open": 900, "close": 2100}. '
@@ -424,7 +432,7 @@ async def _extract_facility_with_llm(
         '  - Object {"adult": 500, "child": 200} if age-separated\n'
         '  - Object {"per_hour": 1200} if hourly rate\n'
         "  Return null if not found.\n\n"
-        "**Category-specific fields (only include if applicable):**\n"
+        "**Category-specific fields (only include for the chosen category):**\n"
         "- For pool: lanes (int), length_m (int), heated (bool)\n"
         "- For court: court_type (string), courts (int), surface (string), lighting (bool)\n"
         "- For hall: sports (string array), area_sqm (int)\n"
