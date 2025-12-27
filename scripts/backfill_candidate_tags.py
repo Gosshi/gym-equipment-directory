@@ -67,7 +67,9 @@ async def backfill_tags():
                     continue
 
                 try:
-                    result = parse_municipal_page(page.raw_html, page.url, source=target_source)
+                    result = await parse_municipal_page(
+                        page.raw_html, page.url, source=target_source
+                    )
 
                     # Check rejection (Noise Filtering)
                     if result.meta and result.meta.get("create_gym") is False:
