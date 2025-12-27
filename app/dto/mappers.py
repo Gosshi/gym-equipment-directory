@@ -128,10 +128,24 @@ def assemble_gym_detail(
         if isinstance(fee_data, int):
             fees = f"{fee_data}円"
         elif isinstance(fee_data, dict):
+            # Japanese key mapping for better readability
+            fee_key_ja = {
+                "per_hour": "1時間",
+                "per_2hours": "2時間",
+                "per_session": "1回",
+                "adult": "大人",
+                "child": "子供",
+                "senior": "シニア",
+                "student": "学生",
+                "youth": "青年",
+                "monthly": "月額",
+                "yearly": "年額",
+            }
             parts = []
             for key, value in fee_data.items():
                 if isinstance(value, int):
-                    parts.append(f"{key}: {value}円")
+                    label = fee_key_ja.get(key, key)
+                    parts.append(f"{label}: {value}円")
             if parts:
                 fees = " / ".join(parts)
         elif isinstance(fee_data, str):
