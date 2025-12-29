@@ -50,6 +50,21 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
             "city": "tokyo-metropolitan",
         },
     ),
+    # Catch-up day: Run Friday's wards again on Tuesday to complete any interrupted scraping
+    "tue": (
+        {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
+        {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
+        {"source": "municipal_itabashi", "pref": "tokyo", "city": "itabashi"},
+        {"source": "municipal_nerima", "pref": "tokyo", "city": "nerima"},
+        {"source": "municipal_adachi", "pref": "tokyo", "city": "adachi"},
+        {"source": "municipal_katsushika", "pref": "tokyo", "city": "katsushika"},
+        {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
+        {
+            "source": "municipal_tokyo_metropolitan",
+            "pref": "tokyo",
+            "city": "tokyo-metropolitan",
+        },
+    ),
 }
 
 ASYNC_TIMEOUT = 300.0
