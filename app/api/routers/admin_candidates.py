@@ -203,6 +203,53 @@ async def geocode_candidate(
     return _to_item(updated_row)
 
 
+class ScrapeRequest(BaseModel):
+    official_url: str | None = None
+
+
+@router.post("/{candidate_id}/scrape", response_model=AdminCandidateItem)
+async def scrape_official_url(
+    candidate_id: int,
+    payload: ScrapeRequest | None = None,
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.services.scrape_utils import try_scrape_official_url
+
+    candidate = await session.get(candidate_service.GymCandidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="candidate not found")
+
+    target_url = (
+        payload.official_url
+        if payload and payload.official_url
+        else (candidate.parsed_json or {}).get("official_url")
+    )
+    if not target_url:
+        raise HTTPException(
+            status_code=400, detail="No official_url provided or found in candidate"
+        )
+
+    # Pass None as existing_page_url since we want to force check even if it matches source
+    # (or maybe we pass source page url if available)
+    # The requirement is to allow manual scrape.
+    parsed_json = candidate.parsed_json or {}
+
+    merged_data = await try_scrape_official_url(
+        target_url,
+        scraped_page_url=None,  # Force scrape even if it matches something (user action)
+        existing_parsed_json=parsed_json,
+    )
+
+    if merged_data:
+        candidate.parsed_json = merged_data
+        session.add(candidate)
+        await session.commit()
+
+    # Re-fetch full row
+    updated_row = await candidate_service.get_candidate_detail(session, candidate_id)
+    return _to_item(updated_row)
+
+
 @router.post(
     "/{candidate_id}/approve",
     response_model=ApprovePreview | ApproveResult,

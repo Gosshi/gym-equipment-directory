@@ -98,12 +98,39 @@ async def try_scrape_official_url(
             len(html),
         )
 
-        # Mark the official URL as scraped in parsed_json
+        # Basic metadata
         new_data: dict[str, Any] = {
             "official_url_scraped": True,
             "official_url_status": status,
             "official_url": official_url,
         }
+
+        # Extract text and use LLM
+        try:
+            from bs4 import BeautifulSoup
+
+            from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
+            from app.ingest.parsers.municipal._base import _extract_facility_with_llm
+
+            soup = BeautifulSoup(html, "html.parser")
+            # Remove scripts and styles
+            for script in soup(["script", "style", "noscript", "iframe"]):
+                script.decompose()
+
+            text_content = soup.get_text(separator="\n", strip=True)
+
+            logger.info("Extracting facility info with LLM for %s", official_url)
+            llm_result = await _extract_facility_with_llm(text_content, EQUIPMENT_ALIASES)
+
+            if llm_result:
+                logger.info("LLM extraction successful for %s", official_url)
+                new_data.update(llm_result)
+            else:
+                logger.warning("LLM extraction returned None for %s", official_url)
+
+        except Exception as e:
+            logger.error("Error during LLM extraction for %s: %s", official_url, e)
+            # Proceed with just metadata if LLM fails
 
         # Merge with existing parsed_json
         return merge_parsed_json(existing_parsed_json, new_data)

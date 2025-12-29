@@ -18,7 +18,7 @@ import {
   patchCandidate,
   rejectCandidate,
   geocodeCandidate,
-  scrapeGymOfficialUrl,
+  scrapeCandidateOfficialUrl,
 } from "@/lib/adminApi";
 
 import GymMap from "@/components/gym/GymMap";
@@ -463,12 +463,7 @@ export default function AdminCandidateDetailPage() {
 
   const handleScrapeOfficialUrl = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!candidate?.gym_id) {
-      toast({
-        title: "エラー",
-        description: "この候補はまだジムとして登録されていません（IDがありません）",
-        variant: "destructive",
-      });
+    if (!candidate) {
       return;
     }
     if (!formState?.official_url) {
@@ -482,20 +477,13 @@ export default function AdminCandidateDetailPage() {
 
     setIsScraping(true);
     try {
-      const res = await scrapeGymOfficialUrl(candidate.gym_id, formState.official_url);
-      if (res.scraped) {
-        toast({
-          title: "スクレイピング完了",
-          description: "データを更新しました",
-        });
-        // データを再読み込み
-        void loadCandidate();
-      } else {
-        toast({
-          title: "更新スキップ",
-          description: res.message,
-        });
-      }
+      await scrapeCandidateOfficialUrl(candidate.id, formState.official_url);
+      toast({
+        title: "スクレイピング完了",
+        description: "データを更新しました（parsed_json）",
+      });
+      // データを再読み込み
+      void loadCandidate();
     } catch (err) {
       toast({
         title: "エラー",
