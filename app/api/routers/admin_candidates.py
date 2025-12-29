@@ -74,6 +74,7 @@ def _to_item(row: CandidateRow) -> AdminCandidateItem:
         fetched_at=row.page.fetched_at,
         created_at=candidate.created_at,
         updated_at=candidate.updated_at,
+        official_url=(candidate.parsed_json or {}).get("official_url"),
     )
 
 
