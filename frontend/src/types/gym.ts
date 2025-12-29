@@ -58,6 +58,7 @@ export interface GymDetail {
 
   // Category and category-specific fields
   category?: string | null;
+  categories?: string[];
   // Pool
   poolLanes?: number | null;
   poolLengthM?: number | null;

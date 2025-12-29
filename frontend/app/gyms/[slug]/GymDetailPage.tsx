@@ -307,6 +307,7 @@ export function GymDetailPage({
 
             <CategoryInfo
               category={gym.category}
+              categories={gym.categories}
               poolLanes={gym.poolLanes}
               poolLengthM={gym.poolLengthM}
               poolHeated={gym.poolHeated}
