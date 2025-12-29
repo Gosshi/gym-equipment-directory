@@ -47,6 +47,7 @@ class AdminCandidateItem(BaseModel):
 class AdminCandidateDetail(AdminCandidateItem):
     scraped_page: ScrapedPageInfo
     similar: list[SimilarGymInfo] | None = None
+    gym_id: int | None = None
 
 
 class AdminCandidateCreate(BaseModel):

@@ -5,6 +5,7 @@ from fastapi.openapi.utils import get_openapi
 from app.api import errors
 from app.api.routers import (
     admin_candidates,
+    admin_gyms,
     admin_reports,
     equipments,
     gyms,
@@ -47,6 +48,7 @@ app.include_router(meta.router, tags=["meta"])
 app.include_router(suggest.router, tags=["suggest"])
 app.include_router(admin_reports.router, tags=["admin"])
 app.include_router(admin_candidates.router, tags=["admin"])
+app.include_router(admin_gyms.router, tags=["admin"])
 app.include_router(me_favorites.router, tags=["me"])
 
 # Centralized error handlers

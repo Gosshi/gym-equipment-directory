@@ -42,6 +42,7 @@ export interface AdminCandidateDetail extends AdminCandidateItem {
     http_status?: number | null;
   };
   similar?: Array<{ gym_id: number; gym_slug: string; gym_name: string }>;
+  gym_id?: number | null;
 }
 
 export interface AdminCandidateListParams {
@@ -294,4 +295,28 @@ export async function rejectBulkCandidates(
     wrapError(err);
   }
   throw new AdminApiError("Failed to bulk reject candidates: unreachable state");
+}
+
+// --- Admin Gyms API ---
+
+export interface ScrapeOfficialUrlResponse {
+  gym_id: number;
+  official_url: string;
+  scraped: boolean;
+  message: string;
+}
+
+export async function scrapeGymOfficialUrl(
+  gymId: number,
+  officialUrl: string,
+): Promise<ScrapeOfficialUrlResponse> {
+  try {
+    return await apiRequest<ScrapeOfficialUrlResponse>(`/admin/gyms/${gymId}/scrape-official-url`, {
+      method: "POST",
+      body: JSON.stringify({ official_url: officialUrl }),
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to scrape official URL: unreachable state");
 }
