@@ -38,6 +38,10 @@ from app.schemas.admin_candidates import (
     GymUpsertPreview,
 )
 from app.services.canonical import make_canonical_id
+from app.services.scrape_utils import (
+    fetch_and_parse_url,
+    merge_parsed_json,
+)
 from app.services.slug_history import set_current_slug
 
 _ARTICLE_PAT = re.compile(
@@ -591,6 +595,72 @@ async def ensure_equipment_links(
     return summary, latest
 
 
+async def _try_scrape_official_url(
+    official_url: str | None,
+    scraped_page_url: str | None,
+    existing_parsed_json: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Try to scrape the official URL and merge with existing parsed_json.
+
+    Returns the merged parsed_json if scraping was successful, or None if:
+    - official_url is None or empty
+    - official_url is the same as the scraped page URL
+    - robots.txt blocks scraping
+    - HTTP fetch fails
+
+    Note: This is a simplified version that doesn't use LLM parsing.
+    It just fetches the page to confirm it's accessible and marks it as scraped.
+    Full LLM parsing would require additional infrastructure.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    if not official_url:
+        return None
+
+    # Normalize URLs for comparison
+    official_normalized = official_url.rstrip("/").lower()
+    scraped_normalized = (scraped_page_url or "").rstrip("/").lower()
+
+    if official_normalized == scraped_normalized:
+        logger.debug("Official URL same as scraped URL, skipping: %s", official_url)
+        return None
+
+    logger.info(
+        "Attempting to scrape official URL: %s (different from scraped: %s)",
+        official_url,
+        scraped_page_url,
+    )
+
+    try:
+        html, status = await fetch_and_parse_url(official_url)
+        if html is None:
+            logger.warning("Failed to fetch official URL: %s", official_url)
+            return None
+
+        logger.info(
+            "Successfully fetched official URL: %s (status=%s, %d bytes)",
+            official_url,
+            status,
+            len(html),
+        )
+
+        # Mark the official URL as scraped in parsed_json
+        new_data: dict[str, Any] = {
+            "official_url_scraped": True,
+            "official_url_status": status,
+            "official_url": official_url,
+        }
+
+        # Merge with existing parsed_json
+        return merge_parsed_json(existing_parsed_json, new_data)
+
+    except Exception as exc:
+        logger.exception("Error scraping official URL %s: %s", official_url, exc)
+        return None
+
+
 async def approve_candidate(
     session: AsyncSession, candidate_id: int, request: ApproveRequest
 ) -> ApprovePreview | ApproveResult:
@@ -697,6 +767,15 @@ async def approve_candidate(
     )
     if request.dry_run:
         return ApprovePreview(preview=ApproveSummary(gym=preview_gym, equipments=preview_summary))
+
+    # Try to scrape official URL if different from scraped page
+    scraped_page_url = getattr(row.page, "url", None) if row.page else None
+    merged_parsed_json = await _try_scrape_official_url(
+        official_url,
+        scraped_page_url,
+        candidate.parsed_json,
+    )
+    final_parsed_json = merged_parsed_json or candidate.parsed_json
     try:
         gym = await _apply_gym_upsert(
             session,
@@ -709,7 +788,7 @@ async def approve_candidate(
             address=address,
             latitude=preview_gym.latitude,
             longitude=preview_gym.longitude,
-            parsed_json=candidate.parsed_json,
+            parsed_json=final_parsed_json,
             official_url=official_url,
         )
         await set_current_slug(session, gym, slug)
