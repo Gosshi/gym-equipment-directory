@@ -766,7 +766,13 @@ export default function AdminCandidateDetailPage() {
         </div>
       </div>
     );
-  }, [closeOverrideDialog, handleOverrideFieldChange, handleOverrideSubmit, overrideDialog]);
+  }, [
+    closeOverrideDialog,
+    handleOverrideFieldChange,
+    handleOverrideSubmit,
+    overrideDialog,
+    actionState,
+  ]);
 
   if (error) {
     return (
