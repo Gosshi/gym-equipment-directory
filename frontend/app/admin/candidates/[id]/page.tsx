@@ -809,7 +809,7 @@ export default function AdminCandidateDetailPage() {
                 onChange={event => handleInputChange("official_url", event.target.value)}
                 placeholder="https://..."
               />
-              {candidate?.gym_id && (
+              {candidate && (
                 <button
                   type="button"
                   onClick={handleScrapeOfficialUrl}
