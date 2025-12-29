@@ -38,6 +38,7 @@ from app.services.approve_service import (
     InvalidCandidatePayloadError,
 )
 from app.services.candidates import CandidateDetailRow, CandidateRow, CandidateServiceError
+from app.services.scrape_utils import try_scrape_official_url
 
 
 class GeocodeRequest(BaseModel):
@@ -201,6 +202,86 @@ async def geocode_candidate(
     # Re-fetch full row to return AdminCandidateItem
     updated_row = await candidate_service.get_candidate_detail(session, candidate_id)
     return _to_item(updated_row)
+
+
+class ScrapeOfficialUrlRequest(BaseModel):
+    """Request to scrape an official URL for a candidate."""
+
+    official_url: str
+
+
+class ScrapeOfficialUrlResponse(BaseModel):
+    """Response from scraping an official URL for a candidate."""
+
+    candidate_id: int
+    official_url: str
+    scraped: bool
+    message: str
+
+
+@router.post("/{candidate_id}/scrape-official-url", response_model=ScrapeOfficialUrlResponse)
+async def scrape_candidate_official_url(
+    candidate_id: int,
+    payload: ScrapeOfficialUrlRequest,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Scrape an official URL for a candidate and merge data into parsed_json.
+
+    This endpoint allows updating the official_url for candidates and triggering
+    a scrape to extract additional information. The scraped data is merged
+    into the candidate's parsed_json. robots.txt is checked before scraping.
+    """
+    from sqlalchemy import select
+
+    from app.models.scraped_page import ScrapedPage
+
+    candidate = await session.get(candidate_service.GymCandidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="candidate not found")
+
+    official_url = payload.official_url.strip()
+    if not official_url:
+        raise HTTPException(status_code=400, detail="official_url is required")
+
+    # Get the scraped page URL for comparison (from ScrapedPage table)
+    scraped_page_url = None
+    stmt = select(ScrapedPage.url).where(ScrapedPage.candidate_id == candidate_id).limit(1)
+    result = await session.scalar(stmt)
+    if result:
+        scraped_page_url = result
+
+    # Try to scrape the official URL
+    merged_json = await try_scrape_official_url(
+        official_url,
+        scraped_page_url,
+        candidate.parsed_json,
+    )
+
+    if merged_json is None:
+        # Scraping failed or was skipped, but still update the official_url in parsed_json
+        if candidate.parsed_json is None:
+            candidate.parsed_json = {}
+        elif not isinstance(candidate.parsed_json, dict):
+            candidate.parsed_json = {}
+        candidate.parsed_json["official_url"] = official_url
+        await session.commit()
+        return ScrapeOfficialUrlResponse(
+            candidate_id=candidate_id,
+            official_url=official_url,
+            scraped=False,
+            message="URL updated but scraping skipped (same URL or robots.txt blocked)",
+        )
+
+    # Scraping succeeded, update both parsed_json and official_url
+    candidate.parsed_json = merged_json
+    await session.commit()
+
+    return ScrapeOfficialUrlResponse(
+        candidate_id=candidate_id,
+        official_url=official_url,
+        scraped=True,
+        message="Official URL scraped successfully and merged into candidate data",
+    )
 
 
 @router.post(

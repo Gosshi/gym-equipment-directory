@@ -192,6 +192,25 @@ export const rejectCandidate = (id: number, reason: string) =>
     body: JSON.stringify({ reason }),
   });
 
+export interface ScrapeCandidateOfficialUrlResponse {
+  candidate_id: number;
+  official_url: string;
+  scraped: boolean;
+  message: string;
+}
+
+export const scrapeCandidateOfficialUrl = (
+  candidateId: number,
+  officialUrl: string,
+): Promise<ScrapeCandidateOfficialUrlResponse> =>
+  request<ScrapeCandidateOfficialUrlResponse>(
+    `/admin/candidates/${candidateId}/scrape-official-url`,
+    {
+      method: "POST",
+      body: JSON.stringify({ official_url: officialUrl }),
+    },
+  );
+
 export type {
   AdminCandidateDetail,
   AdminCandidateItem,

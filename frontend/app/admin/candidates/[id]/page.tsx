@@ -18,7 +18,7 @@ import {
   patchCandidate,
   rejectCandidate,
   geocodeCandidate,
-  scrapeGymOfficialUrl,
+  scrapeCandidateOfficialUrl,
 } from "@/lib/adminApi";
 
 import GymMap from "@/components/gym/GymMap";
@@ -463,15 +463,15 @@ export default function AdminCandidateDetailPage() {
 
   const handleScrapeOfficialUrl = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!candidate?.gym_id) {
+    if (!candidate) {
       toast({
         title: "エラー",
-        description: "この候補はまだジムとして登録されていません（IDがありません）",
+        description: "候補データが読み込まれていません",
         variant: "destructive",
       });
       return;
     }
-    if (!formState?.official_url) {
+    if (!formState?.official_url?.trim()) {
       toast({
         title: "エラー",
         description: "URLを入力してください",
@@ -482,7 +482,7 @@ export default function AdminCandidateDetailPage() {
 
     setIsScraping(true);
     try {
-      const res = await scrapeGymOfficialUrl(candidate.gym_id, formState.official_url);
+      const res = await scrapeCandidateOfficialUrl(candidate.id, formState.official_url.trim());
       if (res.scraped) {
         toast({
           title: "スクレイピング完了",
@@ -495,6 +495,8 @@ export default function AdminCandidateDetailPage() {
           title: "更新スキップ",
           description: res.message,
         });
+        // スキップされてもURLは更新されている可能性があるので再読み込み
+        void loadCandidate();
       }
     } catch (err) {
       toast({
@@ -816,23 +818,34 @@ export default function AdminCandidateDetailPage() {
             <span className="font-medium">公式サイトURL</span>
             <div className="flex items-center gap-2">
               <input
-                className="flex-1 rounded border border-gray-300 px-3 py-2"
+                className="flex-1 rounded border border-gray-300 px-3 py-2 disabled:opacity-50 disabled:bg-gray-100"
                 value={formState.official_url}
                 onChange={event => handleInputChange("official_url", event.target.value)}
                 placeholder="https://..."
+                disabled={isScraping}
               />
-              {candidate?.gym_id && (
-                <button
-                  type="button"
-                  onClick={handleScrapeOfficialUrl}
-                  disabled={isScraping}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-50"
-                  title="公式URLから情報を再取得"
-                >
-                  {isScraping ? "取得中..." : "スクレイプ"}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleScrapeOfficialUrl}
+                disabled={isScraping || !formState.official_url?.trim()}
+                className="whitespace-nowrap rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title="公式URLから情報を再取得（robots.txtを確認）"
+              >
+                {isScraping ? (
+                  <>
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></span>
+                    <span>取得中...</span>
+                  </>
+                ) : (
+                  "スクレイプ"
+                )}
+              </button>
             </div>
+            {isScraping && (
+              <p className="text-xs text-gray-500">
+                robots.txtを確認中... スクレイピング中です。しばらくお待ちください。
+              </p>
+            )}
           </label>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">名称</span>
