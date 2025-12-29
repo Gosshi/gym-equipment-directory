@@ -211,6 +211,7 @@ def assemble_gym_detail(
         # Category-specific fields
         category=category,
         categories=categories,
+        facility_meta=meta,
         pool_lanes=pool_lanes,
         pool_length_m=pool_length_m,
         pool_heated=pool_heated,

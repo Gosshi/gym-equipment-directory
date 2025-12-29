@@ -58,6 +58,9 @@ class GymDetailResponse(BaseModel):
     pool_length_m: int | None = Field(default=None, description="プール長さ（メートル）")
     pool_heated: bool | None = Field(default=None, description="温水プールか")
     court_type: str | None = Field(default=None, description="コートタイプ")
+    facility_meta: dict | None = Field(
+        default=None, description="メタデータ（料金・営業時間詳細等）"
+    )
     court_count: int | None = Field(default=None, description="コート面数")
     court_surface: str | None = Field(default=None, description="コート表面")
     court_lighting: bool | None = Field(default=None, description="照明設備の有無")
