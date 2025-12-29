@@ -110,7 +110,7 @@ export function AppHeader() {
         <div className="flex items-center gap-8">
           <Link className="flex items-center gap-2" href="/">
             <span className="font-heading text-2xl font-black uppercase tracking-tighter text-foreground">
-              IRON <span className="text-accent">MAP</span>
+              SPO<span className="text-accent">MAP</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-6 sm:flex">
@@ -122,15 +122,15 @@ export function AppHeader() {
             </Link>
             <Link
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
-              href="/gyms/nearby"
+              href="/map"
             >
-              現在地から探す
+              地図で探す
             </Link>
             <Link
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
-              href="/me/favorites"
+              href="/gyms/nearby"
             >
-              お気に入り
+              現在地から探す
             </Link>
           </nav>
         </div>

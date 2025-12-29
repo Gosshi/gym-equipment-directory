@@ -40,7 +40,7 @@ export function Hero() {
       <div className="absolute right-4 bottom-4 font-mono text-xs text-muted-foreground/50 text-right">
         EST. 2024
         <br />
-        IRON MAP PROJECT
+        SPOMAP PROJECT
       </div>
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
@@ -52,7 +52,7 @@ export function Hero() {
         </div>
 
         <h1 className="mb-4 font-heading text-6xl font-black uppercase tracking-tighter text-foreground sm:text-7xl md:text-9xl">
-          <span className="block text-stroke-sm md:text-stroke text-transparent">IRON</span>
+          <span className="block text-stroke-sm md:text-stroke text-transparent">SPO</span>
           <span className="block text-accent">MAP</span>
         </h1>
 
@@ -92,8 +92,21 @@ export function Hero() {
             </Button>
           </form>
 
+          {/* Primary CTA: Map */}
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => router.push("/map")}
+              className="group flex items-center gap-3 border-2 border-accent bg-accent/10 px-6 py-3 font-mono text-sm font-bold uppercase tracking-wider text-accent transition-all hover:bg-accent hover:text-accent-foreground"
+            >
+              <MapPin className="h-5 w-5" />
+              地図で探す
+              <span className="text-xs opacity-70">→</span>
+            </button>
+          </div>
+
           {/* Popular Tags */}
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
             {[
               { label: "パワーラック", query: "パワーラック", icon: Dumbbell },
               { label: "スミスマシン", query: "スミスマシン", icon: Dumbbell },
