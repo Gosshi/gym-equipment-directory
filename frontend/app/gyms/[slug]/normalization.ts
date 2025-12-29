@@ -37,6 +37,7 @@ export interface NormalizedGymDetail {
   fieldType?: string;
   fieldCount?: number;
   fieldLighting?: boolean;
+  facility_meta?: Record<string, unknown>;
 }
 
 export const sanitizeText = (value: unknown): string | undefined => {

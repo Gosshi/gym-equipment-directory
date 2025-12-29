@@ -328,7 +328,7 @@ export function GymDetailPage({
               fieldType={gym.fieldType}
               fieldCount={gym.fieldCount}
               fieldLighting={gym.fieldLighting}
-              facilityMeta={gym.facility_meta}
+              facility_meta={gym.facility_meta}
             />
 
             <GymFacilities facilities={gym.facilities} />
