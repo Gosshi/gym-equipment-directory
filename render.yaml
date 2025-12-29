@@ -24,7 +24,7 @@ services:
     runtime: docker
     region: singapore
     plan: pro
-    schedule: "0 */3 * * *" # Run every 3 hours (8 times per day)
+    schedule: "0 13,16,19,22,1,4,7,10 * * *" # Run at 22:00, 01:00, 04:00, 07:00, 10:00, 13:00, 16:00, 19:00 JST
     dockerfilePath: ./backend/Dockerfile.render
     dockerCommand: python -m scripts.ingest.run_nightly
     envVars:
