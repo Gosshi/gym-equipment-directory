@@ -14,9 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 # Schedule definition: Day of week (0=Mon, 6=Sun) -> List of targets
-# Note: Tokyo Metropolitan is assigned to Monday
+# INTENSIVE 2-DAY SCHEDULE (2025-12-30 ~ 2025-12-31)
+# Goal: Re-scrape all 23 wards with new multi-category LLM prompt
 SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
-    "mon": (
+    # Day 1 (Tuesday Dec 30): 12 wards
+    "tue": (
         {"source": "municipal_chiyoda", "pref": "tokyo", "city": "chiyoda"},
         {"source": "municipal_chuo", "pref": "tokyo", "city": "chuo"},
         {"source": "municipal_minato", "pref": "tokyo", "city": "minato"},
@@ -25,33 +27,17 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_taito", "pref": "tokyo", "city": "taito"},
         {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida"},
         {"source": "municipal_koto", "pref": "tokyo", "city": "koto"},
-    ),
-    "wed": (
         {"source": "municipal_shinagawa", "pref": "tokyo", "city": "shinagawa"},
         {"source": "municipal_meguro", "pref": "tokyo", "city": "meguro"},
         {"source": "municipal_ota", "pref": "tokyo", "city": "ota"},
         {"source": "municipal_setagaya", "pref": "tokyo", "city": "setagaya"},
+    ),
+    # Day 2 (Wednesday Dec 31): 11 wards + Tokyo Metropolitan
+    "wed": (
         {"source": "municipal_shibuya", "pref": "tokyo", "city": "shibuya"},
         {"source": "municipal_nakano", "pref": "tokyo", "city": "nakano"},
         {"source": "municipal_suginami", "pref": "tokyo", "city": "suginami"},
         {"source": "municipal_toshima", "pref": "tokyo", "city": "toshima"},
-    ),
-    "fri": (
-        {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
-        {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
-        {"source": "municipal_itabashi", "pref": "tokyo", "city": "itabashi"},
-        {"source": "municipal_nerima", "pref": "tokyo", "city": "nerima"},
-        {"source": "municipal_adachi", "pref": "tokyo", "city": "adachi"},
-        {"source": "municipal_katsushika", "pref": "tokyo", "city": "katsushika"},
-        {"source": "municipal_edogawa", "pref": "tokyo", "city": "edogawa"},
-        {
-            "source": "municipal_tokyo_metropolitan",
-            "pref": "tokyo",
-            "city": "tokyo-metropolitan",
-        },
-    ),
-    # Catch-up day: Run Friday's wards again on Tuesday to complete any interrupted scraping
-    "tue": (
         {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
         {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
         {"source": "municipal_itabashi", "pref": "tokyo", "city": "itabashi"},
