@@ -156,13 +156,15 @@ def assemble_gym_detail(
 
     # Get categories array from gym model, parsed_json root, or meta
     # Fallback to single category wrapped in list
+    # Priority: parsed_json.categories > meta.categories > gym.categories > [category]
     categories_raw = getattr(gym, "categories", None)
-    if categories_raw and isinstance(categories_raw, list):
-        categories = categories_raw
-    elif parsed_json.get("categories") and isinstance(parsed_json.get("categories"), list):
+    if parsed_json.get("categories") and isinstance(parsed_json.get("categories"), list):
+        # parsed_json の categories を最優先（最新の情報）
         categories = parsed_json.get("categories")
     elif meta.get("categories") and isinstance(meta.get("categories"), list):
         categories = meta.get("categories")
+    elif categories_raw and isinstance(categories_raw, list):
+        categories = categories_raw
     elif category:
         categories = [category]
     else:
