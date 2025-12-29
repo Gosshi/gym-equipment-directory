@@ -142,6 +142,16 @@ const INITIAL_OVERRIDE_DIALOG: OverrideDialogState = {
   baseOverride: null,
 };
 
+type ScrapePreviewState = {
+  open: boolean;
+  data: Record<string, unknown> | null;
+};
+
+const INITIAL_SCRAPE_PREVIEW: ScrapePreviewState = {
+  open: false,
+  data: null,
+};
+
 const hasPreview = (response: ApproveResponse): response is ApprovePreviewResponse =>
   "preview" in response;
 
@@ -155,6 +165,7 @@ export default function AdminCandidateDetailPage() {
   const [candidate, setCandidate] = useState<AdminCandidateDetail | null>(null);
   const [formState, setFormState] = useState<FormState | null>(null);
   const [preview, setPreview] = useState<PreviewState>(INITIAL_PREVIEW_STATE);
+  const [scrapePreview, setScrapePreview] = useState<ScrapePreviewState>(INITIAL_SCRAPE_PREVIEW);
   const [actionState, setActionState] = useState<CandidateActionState>("idle");
   const [rejectReason, setRejectReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -450,6 +461,26 @@ export default function AdminCandidateDetailPage() {
     setPreview({ summary: null, open: false });
   }, []);
 
+  const closeScrapePreview = useCallback(() => {
+    setScrapePreview(INITIAL_SCRAPE_PREVIEW);
+  }, []);
+
+  const handleScrapeApply = useCallback(() => {
+    if (!scrapePreview.data) return;
+    setFormState(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        parsed_json: JSON.stringify(scrapePreview.data, null, 2),
+      };
+    });
+    closeScrapePreview();
+    toast({
+      title: "反映しました",
+      description: "必ず「保存」ボタンを押して変更を確定してください",
+    });
+  }, [scrapePreview.data, closeScrapePreview]);
+
   const handleOverrideFieldChange = useCallback(
     <T extends keyof OverrideFormValues>(key: T, value: OverrideFormValues[T]) => {
       setOverrideDialog(prev => ({
@@ -477,13 +508,23 @@ export default function AdminCandidateDetailPage() {
 
     setIsScraping(true);
     try {
-      await scrapeCandidateOfficialUrl(candidate.id, formState.official_url);
-      toast({
-        title: "スクレイピング完了",
-        description: "データを更新しました（parsed_json）",
-      });
-      // データを再読み込み
-      void loadCandidate();
+      const result = await scrapeCandidateOfficialUrl(candidate.id, formState.official_url, true);
+
+      if (result.parsed_json) {
+        setScrapePreview({
+          open: true,
+          data: result.parsed_json,
+        });
+        toast({
+          title: "スクレイピング完了",
+          description: "内容を確認して反映してください",
+        });
+      } else {
+        toast({
+          title: "データなし",
+          description: "有効なデータが取得できませんでした",
+        });
+      }
     } catch (err) {
       toast({
         title: "エラー",
@@ -623,6 +664,50 @@ export default function AdminCandidateDetailPage() {
       </div>
     );
   }, [preview, closePreview]);
+
+  const renderScrapePreview = useMemo(() => {
+    if (!scrapePreview.open || !scrapePreview.data) {
+      return null;
+    }
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md bg-white p-6 shadow-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">スクレイピング結果プレビュー</h2>
+            <button type="button" className="text-sm text-gray-500" onClick={closeScrapePreview}>
+              閉じる
+            </button>
+          </div>
+          <p className="mb-2 text-sm text-gray-600">
+            以下の内容で <code>parsed_json</code> を上書きしますか？
+            <br />
+            反映後、必ず「保存」ボタンを押してください。
+          </p>
+          <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-4">
+            <pre className="overflow-x-auto whitespace-pre-wrap text-xs font-mono">
+              {JSON.stringify(scrapePreview.data, null, 2)}
+            </pre>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              className="rounded border border-gray-300 px-4 py-2 text-sm"
+              onClick={closeScrapePreview}
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              onClick={handleScrapeApply}
+            >
+              反映する
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }, [scrapePreview, closeScrapePreview, handleScrapeApply]);
 
   const renderOverrideDialog = useMemo(() => {
     if (!overrideDialog.open) {
@@ -1036,6 +1121,7 @@ export default function AdminCandidateDetailPage() {
       </section>
       {renderPreview}
       {renderOverrideDialog}
+      {renderScrapePreview}
     </Fragment>
   );
 }

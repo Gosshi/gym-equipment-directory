@@ -206,6 +206,7 @@ async def geocode_candidate(
 
 class ScrapeRequest(BaseModel):
     official_url: str | None = None
+    dry_run: bool = False
 
 
 @router.post("/{candidate_id}/scrape", response_model=AdminCandidateItem)
@@ -220,11 +221,12 @@ async def scrape_official_url(
     if not candidate:
         raise HTTPException(status_code=404, detail="candidate not found")
 
-    target_url = (
-        payload.official_url
-        if payload and payload.official_url
-        else (candidate.parsed_json or {}).get("official_url")
-    )
+    target_url = None
+    if payload and payload.official_url:
+        target_url = payload.official_url
+    else:
+        target_url = (candidate.parsed_json or {}).get("official_url")
+
     if not target_url:
         raise HTTPException(
             status_code=400, detail="No official_url provided or found in candidate"
@@ -242,12 +244,32 @@ async def scrape_official_url(
     )
 
     if merged_data:
+        # Update parsed_json for the return object
+        # If dry_run is True, we DON'T commit to DB, but we return the modified object
+        # so the frontend can see the result.
         candidate.parsed_json = merged_data
-        session.add(candidate)
-        await session.commit()
+
+        if not (payload and payload.dry_run):
+            session.add(candidate)
+            await session.commit()
+            # Reuse logic below to fetch full details
 
     # Re-fetch full row
     updated_row = await candidate_service.get_candidate_detail(session, candidate_id)
+
+    # If dry_run, we need to manually inject the preview parsed_json into the result
+    # because updated_row will come from DB (which is unchanged).
+    if payload and payload.dry_run and merged_data:
+        # We need to construct a robust return object.
+        # Since updated_row is a dataclass/object, we can't easily mutate it
+        # if it's fetched freshly.
+        # But we need to return AdminCandidateItem.
+        item = _to_item(updated_row)
+        item.parsed_json = merged_data
+        item.official_url = str(merged_data.get("official_url") or "")
+        # Return mapped item directly
+        return item  # type: ignore[return-value]
+
     return _to_item(updated_row)
 
 

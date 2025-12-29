@@ -32,6 +32,7 @@ export interface AdminCandidateItem {
   updated_at?: string | null;
   source?: AdminCandidateSource | null;
   official_url?: string | null; // 手動入稿時などに付与される公式URL
+  parsed_json?: Record<string, unknown> | null;
 }
 
 export interface AdminCandidateDetail extends AdminCandidateItem {
@@ -324,11 +325,16 @@ export async function scrapeGymOfficialUrl(
 export async function scrapeCandidateOfficialUrl(
   candidateId: number,
   officialUrl?: string,
+  dryRun?: boolean,
 ): Promise<AdminCandidateItem> {
   try {
     return await apiRequest<AdminCandidateItem>(`/admin/candidates/${candidateId}/scrape`, {
       method: "POST",
-      body: officialUrl ? JSON.stringify({ official_url: officialUrl }) : undefined,
+      body: JSON.stringify({
+        official_url: officialUrl || undefined,
+        dry_run: dryRun,
+      }),
+      timeoutMs: 60000,
     });
   } catch (err) {
     wrapError(err);
