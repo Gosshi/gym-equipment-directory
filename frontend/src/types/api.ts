@@ -108,4 +108,7 @@ export interface GymDetailApiResponse {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+
+  // Meta for structured data
+  facility_meta?: Record<string, unknown> | null;
 }
