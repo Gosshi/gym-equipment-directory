@@ -935,7 +935,24 @@ export default function AdminCandidateDetailPage() {
             <h2 className="text-lg font-semibold">スクレイプ情報</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="font-medium">URL</dt>
+                <dt className="font-medium">Official URL</dt>
+                <dd>
+                  {candidate.official_url ? (
+                    <a
+                      className="text-blue-600 underline"
+                      href={candidate.official_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {candidate.official_url}
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="font-medium">Source URL</dt>
                 <dd>
                   <a
                     className="text-blue-600 underline"
