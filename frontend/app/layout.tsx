@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/providers/QueryProvider";
 
 import "./globals.css";
+import { AdSense } from "@/components/ads/AdSense";
 
 const oswald = Oswald({
   subsets: ["latin"],
@@ -38,6 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AppFooter />
               <Toaster />
             </div>
+            {process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID && (
+              <AdSense pId={process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID} />
+            )}
           </QueryProvider>
         </AuthProvider>
       </body>

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AdBanner } from "@/components/ads/AdBanner";
 import { useToast } from "@/components/ui/use-toast";
 import { ApiError, apiRequest } from "@/lib/apiClient";
 import { encodeOnce } from "@/lib/url";
@@ -333,6 +334,10 @@ export function GymDetailPage({
               city={gym.city}
               slug={gym.slug}
             />
+
+            <div className="mt-6">
+              <AdBanner slotId="YOUR_SLOT_ID_HERE" />
+            </div>
           </div>
         </div>
       </div>
