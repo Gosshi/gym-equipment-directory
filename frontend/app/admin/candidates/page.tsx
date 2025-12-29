@@ -434,6 +434,7 @@ export default function AdminCandidatesPage() {
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Status</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">カテゴリ</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Name</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">Map</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Source</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Fetched</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Updated</th>
@@ -470,6 +471,34 @@ export default function AdminCandidatesPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2">{item.name_raw}</td>
+                    <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
+                      {item.address_raw ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address_raw)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center rounded-full bg-blue-100 p-1.5 text-blue-600 hover:bg-blue-200"
+                          title={`Google Mapsで開く: ${item.address_raw}`}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </a>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">{item.source?.title ?? "-"}</td>
                     <td className="px-3 py-2">{formatDateTime(item.fetched_at ?? null)}</td>
                     <td className="px-3 py-2">{formatDateTime(item.updated_at)}</td>
