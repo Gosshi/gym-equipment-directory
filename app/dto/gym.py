@@ -110,6 +110,7 @@ class GymDetailDTO(BaseModel):
     categories: list[str] = Field(
         default_factory=list, description="施設カテゴリ配列 (複合施設対応)"
     )
+    facility_meta: dict | None = Field(default=None, description="メタデータ")
 
     # Pool-specific fields
     pool_lanes: int | None = Field(default=None, description="プールレーン数")

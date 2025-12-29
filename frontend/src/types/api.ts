@@ -93,6 +93,7 @@ export interface GymDetailApiResponse {
   lat?: number | null;
   longitude?: number | null;
   lng?: number | null;
+  official_url?: string | null;
 
   // Category-specific fields
   category?: string | null;
@@ -108,4 +109,7 @@ export interface GymDetailApiResponse {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+
+  // Meta for structured data
+  facility_meta?: Record<string, unknown> | null;
 }
