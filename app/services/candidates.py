@@ -376,9 +376,10 @@ async def get_candidate_detail(session: AsyncSession, candidate_id: int) -> Cand
 
     # Try to resolve gym_id if possible
     gym_id: int | None = None
-    if candidate.official_url:
+    official_url = (candidate.parsed_json or {}).get("official_url")
+    if official_url:
         # Find by official URL
-        stmt = select(Gym.id).where(Gym.official_url == candidate.official_url).limit(1)
+        stmt = select(Gym.id).where(Gym.official_url == official_url).limit(1)
         gym_id = await session.scalar(stmt)
 
     if gym_id is None and similar:
