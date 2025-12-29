@@ -327,7 +327,7 @@ export const normalizeGymDetail = (
     sanitizeText(data.prefecture ?? data.pref) ??
     sanitizeText(gymRecord.pref ?? gymRecord.prefecture);
   const resolvedCity = sanitizeText(data.city) ?? sanitizeText(gymRecord.city);
-  const resolvedWebsite = sanitizeText(data.website ?? data.website_url);
+  const resolvedWebsite = sanitizeText(data.official_url ?? data.website ?? data.website_url);
 
   return {
     id: gymRecord.id as number,

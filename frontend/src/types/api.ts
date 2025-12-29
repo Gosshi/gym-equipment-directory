@@ -93,6 +93,7 @@ export interface GymDetailApiResponse {
   lat?: number | null;
   longitude?: number | null;
   lng?: number | null;
+  official_url?: string | null;
 
   // Category-specific fields
   category?: string | null;

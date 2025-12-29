@@ -326,7 +326,6 @@ export function GymDetailPage({
               hallSports={gym.hallSports}
               hallAreaSqm={gym.hallAreaSqm}
               fieldType={gym.fieldType}
-              facility_meta={gym.facility_meta}
               fieldCount={gym.fieldCount}
               fieldLighting={gym.fieldLighting}
               facility_meta={gym.facility_meta}
