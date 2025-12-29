@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api import errors as api_errors
 from app.api.routers.admin_candidates import router as admin_candidates_router
+from app.api.routers.admin_gyms import router as admin_gyms_router
 from app.api.routers.admin_reports import router as admin_reports_router
 from app.api.routers.equipments import router as equipments_router
 from app.api.routers.gyms import router as gyms_router
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(readyz_router)
     app.include_router(admin_reports_router)
     app.include_router(admin_candidates_router)
+    app.include_router(admin_gyms_router)
     app.include_router(me_favorites_router)
     app.include_router(me_history_router)
     api_errors.install(app)

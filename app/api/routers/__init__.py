@@ -2,6 +2,7 @@
 
 from . import (
     admin_candidates,
+    admin_gyms,
     admin_reports,
     equipments,
     gyms,
@@ -14,6 +15,7 @@ from . import (
 
 __all__ = [
     "admin_candidates",
+    "admin_gyms",
     "admin_reports",
     "equipments",
     "gyms",
