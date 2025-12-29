@@ -40,7 +40,7 @@ export function Hero() {
       <div className="absolute right-4 bottom-4 font-mono text-xs text-muted-foreground/50 text-right">
         EST. 2024
         <br />
-        IRON MAP PROJECT
+        SPOMAP PROJECT
       </div>
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
@@ -52,7 +52,7 @@ export function Hero() {
         </div>
 
         <h1 className="mb-4 font-heading text-6xl font-black uppercase tracking-tighter text-foreground sm:text-7xl md:text-9xl">
-          <span className="block text-stroke-sm md:text-stroke text-transparent">IRON</span>
+          <span className="block text-stroke-sm md:text-stroke text-transparent">SPO</span>
           <span className="block text-accent">MAP</span>
         </h1>
 
