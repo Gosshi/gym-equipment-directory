@@ -17,22 +17,25 @@ services:
       - key: GOOGLE_MAPS_API_KEY
         sync: false
 
-  - type: cron
-    name: gym-ingestion-worker
-    runtime: docker
-    region: singapore
-    plan: pro # 修正 1: cron は free が選べないので starter に変更 (課金は実行時間分のみ)
-    schedule: "0 */3 * * *" # Run every 3 hours (8 times per day)
-    dockerfilePath: ./backend/Dockerfile.render
-    dockerCommand: python -m scripts.ingest.run_nightly # 修正 2: command/startCommand ではなく dockerCommand
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: GOOGLE_SEARCH_API_KEY
-        sync: false
-      - key: GOOGLE_SEARCH_ENGINE_ID
-        sync: false
-      - key: DISCORD_WEBHOOK_URL
-        sync: false
+  # --- SCRAPING PAUSED (2025-12-29) ---
+  # Focus on approving 148 existing candidates before resuming
+  # Uncomment to resume scraping
+  # - type: cron
+  #   name: gym-ingestion-worker
+  #   runtime: docker
+  #   region: singapore
+  #   plan: pro
+  #   schedule: "0 */3 * * *" # Run every 3 hours (8 times per day)
+  #   dockerfilePath: ./backend/Dockerfile.render
+  #   dockerCommand: python -m scripts.ingest.run_nightly
+  #   envVars:
+  #     - key: DATABASE_URL
+  #       sync: false
+  #     - key: OPENAI_API_KEY
+  #       sync: false
+  #     - key: GOOGLE_SEARCH_API_KEY
+  #       sync: false
+  #     - key: GOOGLE_SEARCH_ENGINE_ID
+  #       sync: false
+  #     - key: DISCORD_WEBHOOK_URL
+  #       sync: false
