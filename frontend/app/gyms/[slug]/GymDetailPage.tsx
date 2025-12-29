@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { BookmarkCheck, BookmarkPlus } from "lucide-react";
+import { BookmarkCheck, BookmarkPlus, ExternalLink } from "lucide-react";
 
 import { CategoryInfo } from "@/components/gym/CategoryInfo";
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
@@ -241,6 +241,14 @@ export function GymDetailPage({
                 <FavoriteIcon aria-hidden className="mr-2 h-4 w-4" />
                 {favoriteLabel}
               </Button>
+              {gym.website ? (
+                <Button asChild variant="outline">
+                  <a href={gym.website} target="_blank" rel="noreferrer">
+                    <ExternalLink aria-hidden className="mr-2 h-4 w-4" />
+                    公式サイト
+                  </a>
+                </Button>
+              ) : null}
             </div>
           }
           address={gym.address}
@@ -320,6 +328,7 @@ export function GymDetailPage({
               fieldType={gym.fieldType}
               fieldCount={gym.fieldCount}
               fieldLighting={gym.fieldLighting}
+              facilityMeta={gym.facility_meta}
             />
 
             <GymFacilities facilities={gym.facilities} />

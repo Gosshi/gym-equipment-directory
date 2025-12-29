@@ -69,6 +69,7 @@ export interface ApproveOverride {
   address?: string;
   latitude?: number;
   longitude?: number;
+  official_url?: string;
 }
 
 export interface ApproveEquipmentsSummary {

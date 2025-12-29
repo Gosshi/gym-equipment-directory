@@ -454,6 +454,7 @@ def _compose_gym_preview(
     latitude: float | None,
     longitude: float | None,
     parsed_json: dict[str, Any] | None = None,
+    official_url: str | None = None,
 ) -> GymUpsertPreview:
     lat = latitude
     lon = longitude
@@ -488,6 +489,7 @@ async def _apply_gym_upsert(
     latitude: float | None,
     longitude: float | None,
     parsed_json: dict[str, Any] | None = None,
+    official_url: str | None = None,
 ) -> Gym:
     if existing is None:
         gym = Gym(
@@ -500,6 +502,7 @@ async def _apply_gym_upsert(
             latitude=latitude,
             longitude=longitude,
             parsed_json=parsed_json,
+            official_url=official_url,
         )
         session.add(gym)
         await session.flush()
@@ -516,6 +519,8 @@ async def _apply_gym_upsert(
         gym.longitude = longitude
     if parsed_json is not None:
         gym.parsed_json = parsed_json
+    if official_url:
+        gym.official_url = official_url
     await session.flush()
     return gym
 
@@ -610,6 +615,9 @@ async def approve_candidate(
     address = override_address or candidate_address
     latitude = override.latitude if override.latitude is not None else candidate.latitude
     longitude = override.longitude if override.longitude is not None else candidate.longitude
+    official_url = override.official_url or (
+        candidate.parsed_json.get("official_url") if candidate.parsed_json else None
+    )
     if not name:
         raise CandidateServiceError("name is required")
     if not pref_slug:
@@ -679,6 +687,7 @@ async def approve_candidate(
         latitude=latitude,
         longitude=longitude,
         parsed_json=candidate.parsed_json,
+        official_url=official_url,
     )
     preview_summary, preview_latest = await ensure_equipment_links(
         session,
@@ -701,12 +710,13 @@ async def approve_candidate(
             latitude=preview_gym.latitude,
             longitude=preview_gym.longitude,
             parsed_json=candidate.parsed_json,
+            official_url=official_url,
         )
         await set_current_slug(session, gym, slug)
         page_url = getattr(row.page, "url", None)
         source_url = getattr(row.source, "url", None) if row.source else None
         official = page_url or source_url
-        if official and existing_gym is None:
+        if official and existing_gym is None and not gym.official_url:
             gym.official_url = official
         elif official and not getattr(gym, "official_url", None):
             gym.official_url = official
