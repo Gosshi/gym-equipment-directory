@@ -181,11 +181,13 @@ def assemble_gym_detail(
     court_type = meta.get("court_type") or court_data.get("court_type")
     court_count = meta.get("courts") or court_data.get("courts")
     court_surface = meta.get("surface") or court_data.get("surface")
+    # Check if court is in categories list, not just if category == "court"
+    is_court_category = category == "court" or "court" in categories
     court_lighting = (
         meta.get("lighting")
-        if category == "court" and meta.get("lighting") is not None
+        if is_court_category and meta.get("lighting") is not None
         else court_data.get("lighting")
-        if category == "court"
+        if is_court_category
         else None
     )
 
@@ -200,11 +202,13 @@ def assemble_gym_detail(
     field_data = meta.get("field") or parsed_json.get("field") or {}
     field_type = meta.get("field_type") or field_data.get("field_type")
     field_count = meta.get("fields") or field_data.get("fields")
+    # Check if field is in categories list, not just if category == "field"
+    is_field_category = category == "field" or "field" in categories
     field_lighting = (
         meta.get("lighting")
-        if category == "field" and meta.get("lighting") is not None
+        if is_field_category and meta.get("lighting") is not None
         else field_data.get("lighting")
-        if category == "field"
+        if is_field_category
         else None
     )
 
