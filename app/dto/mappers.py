@@ -154,37 +154,59 @@ def assemble_gym_detail(
     # Extract category (legacy) and categories (new array)
     category = meta.get("category") or getattr(gym, "category", None)
 
-    # Get categories array from gym model, fallback to single category wrapped in list
+    # Get categories array from gym model, parsed_json root, or meta
+    # Fallback to single category wrapped in list
     categories_raw = getattr(gym, "categories", None)
     if categories_raw and isinstance(categories_raw, list):
         categories = categories_raw
+    elif parsed_json.get("categories") and isinstance(parsed_json.get("categories"), list):
+        categories = parsed_json.get("categories")
+    elif meta.get("categories") and isinstance(meta.get("categories"), list):
+        categories = meta.get("categories")
     elif category:
         categories = [category]
     else:
         categories = []
 
-    # Extract category-specific fields from meta
+    # Extract category-specific fields from meta or parsed_json root
+    # Try meta first, then fallback to parsed_json root for category-specific objects
     # Pool
-    pool_lanes = meta.get("lanes")
-    pool_length_m = meta.get("length_m")
-    pool_heated = meta.get("heated")
+    pool_data = meta.get("pool") or parsed_json.get("pool") or {}
+    pool_lanes = meta.get("lanes") or pool_data.get("lanes")
+    pool_length_m = meta.get("length_m") or pool_data.get("length_m")
+    pool_heated = meta.get("heated") if meta.get("heated") is not None else pool_data.get("heated")
 
     # Court
-    court_type = meta.get("court_type")
-    court_count = meta.get("courts")
-    court_surface = meta.get("surface")
-    court_lighting = meta.get("lighting") if category == "court" else None
+    court_data = meta.get("court") or parsed_json.get("court") or {}
+    court_type = meta.get("court_type") or court_data.get("court_type")
+    court_count = meta.get("courts") or court_data.get("courts")
+    court_surface = meta.get("surface") or court_data.get("surface")
+    court_lighting = (
+        meta.get("lighting")
+        if category == "court" and meta.get("lighting") is not None
+        else court_data.get("lighting")
+        if category == "court"
+        else None
+    )
 
     # Hall
-    hall_sports = meta.get("sports", [])
+    hall_data = meta.get("hall") or parsed_json.get("hall") or {}
+    hall_sports = meta.get("sports") or hall_data.get("sports", [])
     if not isinstance(hall_sports, list):
         hall_sports = []
-    hall_area_sqm = meta.get("area_sqm")
+    hall_area_sqm = meta.get("area_sqm") or hall_data.get("area_sqm")
 
     # Field
-    field_type = meta.get("field_type")
-    field_count = meta.get("fields")
-    field_lighting = meta.get("lighting") if category == "field" else None
+    field_data = meta.get("field") or parsed_json.get("field") or {}
+    field_type = meta.get("field_type") or field_data.get("field_type")
+    field_count = meta.get("fields") or field_data.get("fields")
+    field_lighting = (
+        meta.get("lighting")
+        if category == "field" and meta.get("lighting") is not None
+        else field_data.get("lighting")
+        if category == "field"
+        else None
+    )
 
     return GymDetailDTO(
         id=int(getattr(gym, "id", 0)),
