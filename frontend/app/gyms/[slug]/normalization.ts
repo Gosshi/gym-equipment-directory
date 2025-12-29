@@ -37,6 +37,8 @@ export interface NormalizedGymDetail {
   fieldType?: string;
   fieldCount?: number;
   fieldLighting?: boolean;
+  archeryType?: string;
+  archeryRooms?: number;
   facility_meta?: Record<string, unknown>;
 }
 
@@ -364,5 +366,7 @@ export const normalizeGymDetail = (
     fieldType: sanitizeText(data.field_type ?? gymRecord.field_type),
     fieldCount: pickNumber(data.field_count ?? gymRecord.field_count),
     fieldLighting: data.field_lighting ?? (gymRecord.field_lighting as boolean | undefined),
+    archeryType: sanitizeText(data.archery_type ?? gymRecord.archery_type),
+    archeryRooms: pickNumber(data.archery_rooms ?? gymRecord.archery_rooms),
   };
 };

@@ -110,6 +110,10 @@ export interface GymDetailApiResponse {
   field_count?: number | null;
   field_lighting?: boolean | null;
 
+  // Archery-specific fields
+  archery_type?: string | null;
+  archery_rooms?: number | null;
+
   // Meta for structured data
   facility_meta?: Record<string, unknown> | null;
 }

@@ -21,6 +21,9 @@ interface CategoryInfoProps {
   fieldType?: string | null;
   fieldCount?: number | null;
   fieldLighting?: boolean | null;
+  // Archery
+  archeryType?: string | null;
+  archeryRooms?: number | null;
 
   // Meta
   facility_meta?: Record<string, unknown>;
@@ -36,6 +39,8 @@ const CATEGORY_CONFIG: Record<
   hall: { label: "体育館", icon: Building },
   field: { label: "グラウンド", icon: TreeDeciduous },
   studio: { label: "スタジオ", icon: LayoutGrid },
+  archery: { label: "弓道場", icon: LayoutGrid },
+  martial_arts: { label: "武道場", icon: LayoutGrid },
 };
 
 // Helper to format keys like "2_hours" -> "2時間", "usage_fee" -> "利用料"
@@ -166,6 +171,7 @@ export function CategoryInfo(props: CategoryInfoProps) {
               {cat === "court" && <CourtInfo {...props} />}
               {cat === "hall" && <HallInfo {...props} />}
               {cat === "field" && <FieldInfo {...props} />}
+              {cat === "archery" && <ArcheryInfo {...props} />}
             </CardContent>
           </Card>
         );
@@ -266,6 +272,18 @@ function FieldInfo({ fieldType, fieldCount, fieldLighting }: CategoryInfoProps) 
             : null
         }
       />
+    </div>
+  );
+}
+
+function ArcheryInfo({ archeryType, archeryRooms }: CategoryInfoProps) {
+  const hasData = archeryType || archeryRooms;
+  if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
+
+  return (
+    <div>
+      <InfoRow label="種類" value={archeryType} />
+      <InfoRow label="道場数" value={archeryRooms ? `${archeryRooms}室` : null} />
     </div>
   );
 }
