@@ -52,8 +52,10 @@ export function Hero() {
         </div>
 
         <h1 className="mb-4 font-heading text-6xl font-black uppercase tracking-tighter text-foreground sm:text-7xl md:text-9xl">
-          <span className="block text-stroke-sm md:text-stroke text-transparent">SPO</span>
-          <span className="block text-accent">MAP</span>
+          <span className="block text-stroke-sm md:text-stroke text-transparent drop-shadow-sm">
+            SPO
+          </span>
+          <span className="block text-accent drop-shadow-md">MAP</span>
         </h1>
 
         <p className="mb-12 max-w-2xl font-mono text-sm text-muted-foreground sm:text-base md:text-lg">
