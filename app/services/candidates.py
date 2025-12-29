@@ -538,7 +538,7 @@ async def _apply_gym_upsert(
         gym.longitude = longitude
     if parsed_json is not None:
         gym.parsed_json = parsed_json
-    if official_url:
+    if official_url is not None:
         gym.official_url = official_url
     await session.flush()
     return gym
