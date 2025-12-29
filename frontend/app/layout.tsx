@@ -23,8 +23,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "IRON MAP | Gym Equipment Directory",
-  description: "Find the perfect gym for your workout. Filter by equipment, location, and vibe.",
+  title: "SPOMAP | 公式サイトなしでもOK。東京都内の公営ジム検索",
+  description:
+    "SPOMAP（スポマップ）は東京都内の公営ジム・スポーツセンターの設備情報を網羅したデータベースです。パワーラック、ダンベル、プールなどの設備からジムを検索できます。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

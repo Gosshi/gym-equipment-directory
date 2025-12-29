@@ -26,9 +26,9 @@
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
 
-    --accent: 0 0% 96.1%;
-    /* Darker Lime/Olive for visibility on light bg */
-    --accent-foreground: 0 0% 9%;
+    --accent: 25 100% 50%;
+    /* Vibrant Orange for high contrast */
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -47,13 +47,20 @@
     --chart-5: 27 87% 67%;
 
     /* Category Colors */
-    --category-gym: 142 76% 36%; /* Emerald green */
-    --category-pool: 199 89% 48%; /* Cyan blue */
-    --category-court: 39 100% 50%; /* Orange amber */
-    --category-field: 25 95% 53%; /* Warm orange */
-    --category-hall: 262 83% 58%; /* Purple violet */
-    --category-martial-arts: 0 84% 60%; /* Red */
-    --category-archery: 173 58% 39%; /* Teal */
+    --category-gym: 142 76% 36%;
+    /* Emerald green */
+    --category-pool: 199 89% 48%;
+    /* Cyan blue */
+    --category-court: 39 100% 50%;
+    /* Orange amber */
+    --category-field: 25 95% 53%;
+    /* Warm orange */
+    --category-hall: 262 83% 58%;
+    /* Purple violet */
+    --category-martial-arts: 0 84% 60%;
+    /* Red */
+    --category-archery: 173 58% 39%;
+    /* Teal */
   }
 
   .dark {
