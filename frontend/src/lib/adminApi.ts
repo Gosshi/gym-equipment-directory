@@ -320,3 +320,18 @@ export async function scrapeGymOfficialUrl(
   }
   throw new AdminApiError("Failed to scrape official URL: unreachable state");
 }
+
+export async function scrapeCandidateOfficialUrl(
+  candidateId: number,
+  officialUrl?: string,
+): Promise<AdminCandidateItem> {
+  try {
+    return await apiRequest<AdminCandidateItem>(`/admin/candidates/${candidateId}/scrape`, {
+      method: "POST",
+      body: officialUrl ? JSON.stringify({ official_url: officialUrl }) : undefined,
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to scrape candidate official URL: unreachable state");
+}
