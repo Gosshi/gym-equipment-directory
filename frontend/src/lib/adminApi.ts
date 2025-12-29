@@ -42,6 +42,7 @@ export interface AdminCandidateDetail extends AdminCandidateItem {
     http_status?: number | null;
   };
   similar?: Array<{ gym_id: number; gym_slug: string; gym_name: string }>;
+  gym_id?: number | null;
 }
 
 export interface AdminCandidateListParams {
