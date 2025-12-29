@@ -15,7 +15,7 @@ export function AppFooter() {
           <div className="space-y-4 lg:col-span-2">
             <div className="flex items-center gap-2">
               <span className="font-heading text-2xl font-black uppercase tracking-tighter text-foreground">
-                IRON <span className="text-accent">MAP</span>
+                SPO<span className="text-accent">MAP</span>
               </span>
             </div>
             <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
@@ -110,7 +110,7 @@ export function AppFooter() {
         {/* Bottom Section */}
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
-            &copy; {currentYear} IRON MAP. ALL RIGHTS RESERVED.
+            &copy; {currentYear} SPOMAP. ALL RIGHTS RESERVED.
           </p>
           <div className="flex items-center gap-4">
             <a
