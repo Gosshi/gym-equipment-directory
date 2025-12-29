@@ -766,7 +766,13 @@ export default function AdminCandidateDetailPage() {
         </div>
       </div>
     );
-  }, [closeOverrideDialog, handleOverrideFieldChange, handleOverrideSubmit, overrideDialog]);
+  }, [
+    closeOverrideDialog,
+    handleOverrideFieldChange,
+    handleOverrideSubmit,
+    overrideDialog,
+    actionState,
+  ]);
 
   if (error) {
     return (
@@ -808,12 +814,25 @@ export default function AdminCandidateDetailPage() {
           <h2 className="text-lg font-semibold">編集</h2>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">公式サイトURL</span>
-            <input
-              className="rounded border border-gray-300 px-3 py-2"
-              value={formState.official_url}
-              onChange={event => handleInputChange("official_url", event.target.value)}
-              placeholder="https://..."
-            />
+            <div className="flex items-center gap-2">
+              <input
+                className="flex-1 rounded border border-gray-300 px-3 py-2"
+                value={formState.official_url}
+                onChange={event => handleInputChange("official_url", event.target.value)}
+                placeholder="https://..."
+              />
+              {candidate?.gym_id && (
+                <button
+                  type="button"
+                  onClick={handleScrapeOfficialUrl}
+                  disabled={isScraping}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-50"
+                  title="公式URLから情報を再取得"
+                >
+                  {isScraping ? "取得中..." : "スクレイプ"}
+                </button>
+              )}
+            </div>
           </label>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">名称</span>
