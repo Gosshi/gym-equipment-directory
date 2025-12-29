@@ -1,4 +1,3 @@
-import { Container } from "@/components/common/Container";
 import { type Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -9,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <Container className="py-12">
+    <div className="container mx-auto px-4 py-12">
       <div className="prose prose-zinc dark:prose-invert max-w-3xl mx-auto">
         <h1>プライバシーポリシー</h1>
         <p className="text-muted-foreground text-sm">最終更新日: 2025年12月29日</p>
@@ -61,6 +60,6 @@ export default function PrivacyPage() {
           </p>
         </section>
       </div>
-    </Container>
+    </div>
   );
 }
