@@ -20,6 +20,8 @@ import {
   geocodeCandidate,
 } from "@/lib/adminApi";
 
+import GymMap from "@/components/gym/GymMap";
+
 const formatDateTime = (value: string | undefined | null) => {
   if (!value) {
     return "-";
@@ -840,6 +842,19 @@ export default function AdminCandidateDetailPage() {
           </button>
         </form>
         <div className="flex flex-col gap-4">
+          <section className="rounded border border-gray-200 p-4 shadow-sm">
+            <h2 className="text-lg font-semibold mb-3">地図</h2>
+            <div className="rounded-lg overflow-hidden">
+              <GymMap
+                name={formState.name_raw}
+                address={formState.address_raw}
+                latitude={formState.latitude ? Number(formState.latitude) : undefined}
+                longitude={formState.longitude ? Number(formState.longitude) : undefined}
+                prefecture={formState.pref_slug}
+                city={formState.city_slug}
+              />
+            </div>
+          </section>
           <section className="rounded border border-gray-200 p-4 shadow-sm">
             <h2 className="text-lg font-semibold">スクレイプ情報</h2>
             <dl className="mt-3 space-y-2 text-sm">
