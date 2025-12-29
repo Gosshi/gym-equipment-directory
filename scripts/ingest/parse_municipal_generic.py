@@ -12,6 +12,7 @@ from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
 from app.ingest.normalizers.tag_aliases import TAG_ALIASES
 from app.ingest.parsers.municipal._base import (
     _extract_facility_with_llm,
+    classify_categories,
     classify_category,
     detect_create_gym,
     extract_address_one_line,
@@ -209,13 +210,19 @@ async def parse_municipal_page(
             )
         # Otherwise, continue processing as a non-gym facility
 
-    # Extract llm_category and llm_structured_data from LLM response (regardless of is_gym flag)
+    # Extract llm_categories and llm_structured_data from LLM response (regardless of is_gym flag)
     # This ensures hours/fee are captured for pools, halls, courts, etc.
-    llm_category = None
+    llm_categories: list[str] | None = None
     llm_structured_data = {}
 
     if llm_data:
-        llm_category = llm_data.get("category")
+        # Support both new 'categories' array and legacy 'category' string
+        raw_categories = llm_data.get("categories")
+        if isinstance(raw_categories, list):
+            llm_categories = [c for c in raw_categories if isinstance(c, str)]
+        elif llm_data.get("category"):
+            # Fallback to legacy single category
+            llm_categories = [llm_data["category"]]
 
         # Store structured data from LLM
         if llm_data.get("hours"):
@@ -325,17 +332,25 @@ async def parse_municipal_page(
             if not address:
                 create_gym = False
 
-    # Determine facility category (prefer LLM, fallback to keyword-based)
-    if llm_category:
-        category = llm_category
+    # Determine facility categories (prefer LLM, fallback to keyword-based)
+    if llm_categories:
+        categories = llm_categories
     else:
-        category = classify_category(body_text)
+        categories = classify_categories(body_text)
+
+    # Primary category for backward compatibility
+    category = categories[0] if categories else "hall"
 
     # For non-gym categories, we still create facilities if we have an address
     # This allows pools, courts, etc. to be saved
     should_create = create_gym or (address and category != "hall")
 
-    meta = {"create_gym": should_create, "page_url": normalized_url, "category": category}
+    meta = {
+        "create_gym": should_create,
+        "page_url": normalized_url,
+        "category": category,
+        "categories": categories,  # New: array of all categories
+    }
 
     # Add structured data from LLM if available
     if llm_structured_data:

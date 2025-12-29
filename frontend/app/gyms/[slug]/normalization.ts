@@ -267,7 +267,14 @@ export const normalizeGymDetail = (
   data: GymDetailApiResponse,
   canonicalSlug: string,
 ): NormalizedGymDetail => {
-  const categories = extractCategoryNames(data.categories ?? data.facilities ?? []);
+  // Prioritize categories array from backend (new format), fallback to extraction
+  const backendCategories = Array.isArray(data.categories)
+    ? data.categories.filter((c): c is string => typeof c === "string")
+    : [];
+  const categories =
+    backendCategories.length > 0
+      ? backendCategories
+      : extractCategoryNames(data.categories ?? data.facilities ?? []);
   const facilities = extractFacilityGroups(data);
   const gymRecord = (data.gym ?? {}) as Record<string, unknown>;
   const locationSource =

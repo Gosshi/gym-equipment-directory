@@ -151,8 +151,17 @@ def assemble_gym_detail(
         elif isinstance(fee_data, str):
             fees = fee_data
 
-    # Extract category
+    # Extract category (legacy) and categories (new array)
     category = meta.get("category") or getattr(gym, "category", None)
+
+    # Get categories array from gym model, fallback to single category wrapped in list
+    categories_raw = getattr(gym, "categories", None)
+    if categories_raw and isinstance(categories_raw, list):
+        categories = categories_raw
+    elif category:
+        categories = [category]
+    else:
+        categories = []
 
     # Extract category-specific fields from meta
     # Pool
@@ -201,6 +210,7 @@ def assemble_gym_detail(
         tags=list(parsed_json.get("tags", [])),
         # Category-specific fields
         category=category,
+        categories=categories,
         pool_lanes=pool_lanes,
         pool_length_m=pool_length_m,
         pool_heated=pool_heated,

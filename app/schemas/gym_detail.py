@@ -49,7 +49,10 @@ class GymDetailResponse(BaseModel):
 
     # Category and category-specific fields
     category: str | None = Field(
-        default=None, description="施設カテゴリ: gym, pool, court, hall, field, etc."
+        default=None, description="施設カテゴリ (legacy): gym, pool, court, hall, field, etc."
+    )
+    categories: list[str] = Field(
+        default_factory=list, description="施設カテゴリ配列 (複合施設対応)"
     )
     pool_lanes: int | None = Field(default=None, description="プールレーン数")
     pool_length_m: int | None = Field(default=None, description="プール長さ（メートル）")

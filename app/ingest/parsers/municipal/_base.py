@@ -232,22 +232,39 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def classify_category(text: str) -> str:
-    """Classify facility category based on text content.
+def classify_categories(text: str) -> list[str]:
+    """Classify facility categories based on text content.
 
-    Returns the most likely category slug based on keyword matching.
-    Priority order: gym > pool > court > field > martial_arts > archery > hall
+    Returns a list of category slugs based on keyword matching.
+    For complex facilities, multiple categories may be returned.
     """
     normalized = sanitize_text(text).lower()
+    found_categories: list[str] = []
 
-    # Check in priority order
+    # Check all categories
     for category in ["gym", "pool", "court", "field", "martial_arts", "archery", "hall"]:
         keywords = _CATEGORY_KEYWORDS.get(category, [])
         for keyword in keywords:
             if keyword.lower() in normalized:
-                return category
+                if category not in found_categories:
+                    found_categories.append(category)
+                break
 
-    return "hall"  # Default fallback for generic indoor facilities
+    # Default fallback for generic indoor facilities
+    if not found_categories:
+        found_categories.append("hall")
+
+    return found_categories
+
+
+# Legacy function for backward compatibility
+def classify_category(text: str) -> str:
+    """Classify facility category based on text content (single category).
+
+    Returns the first (most likely) category slug based on keyword matching.
+    """
+    categories = classify_categories(text)
+    return categories[0] if categories else "hall"
 
 
 async def extract_address_one_line(
@@ -405,8 +422,7 @@ async def _extract_facility_with_llm(
         "- is_multi_facility: Boolean. Set to true if this page describes a "
         "COMPLEX with MULTIPLE different facility types (e.g., pool + gym + field). "
         "This is common for 'スポーツセンター' or '総合体育館'.\n"
-        "- category: String. One of: 'gym', 'pool', 'court', 'hall', 'field', "
-        "'martial_arts', 'archery'. Determine based on the PRIMARY facility:\n"
+        "- categories: Array of strings. List ALL facility types present:\n"
         "  - gym: トレーニングルーム, 筋トレ, ダンベル, マシン\n"
         "  - pool: プール, 水泳, 温水, レーン\n"
         "  - court: テニス, バスケ, コート, 庭球\n"
@@ -414,15 +430,12 @@ async def _extract_facility_with_llm(
         "  - field: グラウンド, 野球場, サッカー場\n"
         "  - martial_arts: 武道場, 柔道, 剣道\n"
         "  - archery: 弓道場, アーチェリー\n"
-        "  Return null if is_gym is false.\n"
+        "  For complex facilities (is_multi_facility=true), include ALL applicable types.\n"
+        "  Example: ['gym', 'pool', 'hall'] for a sports center.\n"
+        "  Return empty array if is_gym is false.\n"
         "- name: The specific facility name in Japanese. Return null if is_gym is false.\n"
         "- address: The full postal address of the physical facility. "
         "Do NOT extract City Hall or footer addresses. Return null if is_gym is false.\n\n"
-        "**IMPORTANT: If is_multi_facility is true:**\n"
-        "  - Choose ONE primary facility type for 'category'\n"
-        "  - Only include category-specific fields for that ONE category\n"
-        "  - Do NOT mix data (e.g., don't put court count in 'fields')\n"
-        "  - For hours/fee, use the general facility hours if specific ones vary\n\n"
         "**Structured data:**\n"
         "- hours: Object with 'open' and 'close' as integers (24h format without colon). "
         'Example: 9:00-21:00 → {"open": 900, "close": 2100}. '
@@ -432,7 +445,7 @@ async def _extract_facility_with_llm(
         '  - Object {"adult": 500, "child": 200} if age-separated\n'
         '  - Object {"per_hour": 1200} if hourly rate\n'
         "  Return null if not found.\n\n"
-        "**Category-specific fields (only include for the chosen category):**\n"
+        "**Category-specific fields (include for ALL applicable categories):**\n"
         "- For pool: lanes (int), length_m (int), heated (bool)\n"
         "- For court: court_type (string), courts (int), surface (string), lighting (bool)\n"
         "- For hall: sports (string array), area_sqm (int)\n"
@@ -623,6 +636,7 @@ def detect_create_gym(
 
 __all__ = [
     "EquipmentEntry",
+    "classify_categories",
     "classify_category",
     "detect_create_gym",
     "extract_address_one_line",

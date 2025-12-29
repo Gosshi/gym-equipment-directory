@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Waves, LayoutGrid, Building, TreeDeciduous } from "lucide-react";
+import { Waves, LayoutGrid, Building, TreeDeciduous, Dumbbell } from "lucide-react";
 
 interface CategoryInfoProps {
   category?: string | null;
+  categories?: string[];
   // Pool
   poolLanes?: number | null;
   poolLengthM?: number | null;
@@ -26,6 +27,7 @@ const CATEGORY_CONFIG: Record<
   string,
   { label: string; icon: React.ComponentType<{ className?: string }> }
 > = {
+  gym: { label: "トレーニング室", icon: Dumbbell },
   pool: { label: "プール", icon: Waves },
   court: { label: "コート", icon: LayoutGrid },
   hall: { label: "体育館", icon: Building },
@@ -33,33 +35,44 @@ const CATEGORY_CONFIG: Record<
 };
 
 export function CategoryInfo(props: CategoryInfoProps) {
-  const { category } = props;
+  const { category, categories = [] } = props;
 
-  if (!category || category === "gym") {
-    // For gyms, GymFacilities component handles equipment display
+  // Determine which categories to display
+  const categoriesToShow = categories.length > 0 ? categories : category ? [category] : [];
+
+  // Filter out 'gym' as it's handled by GymFacilities
+  const nonGymCategories = categoriesToShow.filter(c => c !== "gym");
+
+  if (nonGymCategories.length === 0) {
     return null;
   }
 
-  const config = CATEGORY_CONFIG[category];
-  if (!config) return null;
-
-  const Icon = config.icon;
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon className="h-5 w-5" />
-          {config.label}施設情報
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {category === "pool" && <PoolInfo {...props} />}
-        {category === "court" && <CourtInfo {...props} />}
-        {category === "hall" && <HallInfo {...props} />}
-        {category === "field" && <FieldInfo {...props} />}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {nonGymCategories.map(cat => {
+        const config = CATEGORY_CONFIG[cat];
+        if (!config) return null;
+
+        const Icon = config.icon;
+
+        return (
+          <Card key={cat}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Icon className="h-5 w-5" />
+                {config.label}施設情報
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {cat === "pool" && <PoolInfo {...props} />}
+              {cat === "court" && <CourtInfo {...props} />}
+              {cat === "hall" && <HallInfo {...props} />}
+              {cat === "field" && <FieldInfo {...props} />}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 
