@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
-from typing import Any, NamedTuple
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -21,6 +21,15 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models.scraped_page import ScrapedPage
+from app.services.http_utils import (
+    RobotsRules,
+)
+from app.services.http_utils import (
+    load_robots as _load_robots,
+)
+from app.services.http_utils import (
+    request_with_retries as _request_with_retries,
+)
 
 from .sites import site_a
 from .sources_registry import (
@@ -70,32 +79,6 @@ MUNICIPAL_MAX_DEPTH = 2
 class MunicipalDiscoveredPage:
     url: str
     page_type: str | None
-
-
-class RobotsRules:
-    """Simple representation of robots.txt disallow rules."""
-
-    def __init__(self, disallow_rules: Iterable[str]):
-        cleaned = []
-        for rule in disallow_rules:
-            rule = rule.strip()
-            if not rule:
-                continue
-            cleaned.append(rule)
-        self._rules = tuple(cleaned)
-
-    def allows(self, path: str) -> bool:
-        """Return whether ``path`` is allowed."""
-
-        if not self._rules:
-            return True
-        for rule in self._rules:
-            if rule == "/":
-                return False
-            normalized = rule.rstrip("*")
-            if normalized and path.startswith(normalized):
-                return False
-        return True
 
 
 def _resolve_limit(raw_limit: int | None, app_env: str) -> int:
@@ -249,104 +232,6 @@ async def _discover_municipal_pages(
 
     logger.info(f"Discovery complete. Found {len(results)} pages.")
     return results
-
-
-def _parse_robots(txt: str, *, user_agent: str) -> RobotsRules:
-    disallow: list[str] = []
-    active = False
-    agent_lower = user_agent.lower()
-    for line in txt.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.lower().startswith("user-agent:"):
-            value = stripped.split(":", 1)[1].strip()
-            value_lower = value.lower()
-            active = value_lower in {"*", agent_lower}
-            continue
-        if not active:
-            continue
-        if stripped.lower().startswith("disallow:"):
-            value = stripped.split(":", 1)[1].strip()
-            disallow.append(value)
-    return RobotsRules(disallow)
-
-
-async def _request_with_retries(
-    client: httpx.AsyncClient,
-    url: str,
-    *,
-    headers: dict[str, str] | None = None,
-) -> httpx.Response:
-    last_error: Exception | None = None
-    for attempt in range(1, RETRY_ATTEMPTS + 1):
-        try:
-            return await client.get(url, headers=headers)
-        except httpx.HTTPError as exc:  # pragma: no cover - retried path
-            last_error = exc
-            logger.warning(
-                "HTTP request failed (attempt %s/%s) for %s: %s",
-                attempt,
-                RETRY_ATTEMPTS,
-                url,
-                exc,
-            )
-            await asyncio.sleep(0.5 * attempt)
-    assert last_error is not None  # for type checkers
-    raise last_error
-
-
-class RobotsDecision(NamedTuple):
-    rules: RobotsRules | None
-    proceed: bool
-
-
-async def _load_robots(
-    client: httpx.AsyncClient,
-    *,
-    base_url: str,
-    user_agent: str,
-    timeout: float,
-    respect_robots: bool,
-) -> RobotsDecision:
-    robots_url = urljoin(base_url, "/robots.txt")
-    try:
-        response = await client.get(robots_url, timeout=timeout)
-    except httpx.HTTPError as exc:
-        logger.warning("Failed to fetch robots.txt from %s: %s", robots_url, exc)
-        if respect_robots:
-            logger.warning("Aborting fetch because robots.txt could not be loaded")
-            return RobotsDecision(None, False)
-        logger.warning("Continuing because --respect-robots=false")
-        return RobotsDecision(None, True)
-
-    status = response.status_code
-    if status == 200:
-        rules = _parse_robots(response.text or "", user_agent=user_agent)
-        return RobotsDecision(rules, True)
-    if status == 404:
-        logger.warning(
-            "robots.txt returned 404; proceeding as 'no robots' for %s",
-            robots_url,
-        )
-        return RobotsDecision(None, True)
-    if status >= 400:
-        if respect_robots:
-            logger.warning(
-                "robots.txt returned status %s from %s; aborting due to respect_robots",
-                status,
-                robots_url,
-            )
-            return RobotsDecision(None, False)
-        logger.warning(
-            "robots.txt status %s from %s; continuing because --respect-robots=false",
-            status,
-            robots_url,
-        )
-        return RobotsDecision(None, True)
-
-    rules = _parse_robots(response.text or "", user_agent=user_agent)
-    return RobotsDecision(rules, True)
 
 
 async def _collect_detail_urls(

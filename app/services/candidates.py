@@ -38,6 +38,7 @@ from app.schemas.admin_candidates import (
     GymUpsertPreview,
 )
 from app.services.canonical import make_canonical_id
+from app.services.scrape_utils import try_scrape_official_url
 from app.services.slug_history import set_current_slug
 
 _ARTICLE_PAT = re.compile(
@@ -697,6 +698,15 @@ async def approve_candidate(
     )
     if request.dry_run:
         return ApprovePreview(preview=ApproveSummary(gym=preview_gym, equipments=preview_summary))
+
+    # Try to scrape official URL if different from scraped page
+    scraped_page_url = getattr(row.page, "url", None) if row.page else None
+    merged_parsed_json = await try_scrape_official_url(
+        official_url,
+        scraped_page_url,
+        candidate.parsed_json,
+    )
+    final_parsed_json = merged_parsed_json or candidate.parsed_json
     try:
         gym = await _apply_gym_upsert(
             session,
@@ -709,7 +719,7 @@ async def approve_candidate(
             address=address,
             latitude=preview_gym.latitude,
             longitude=preview_gym.longitude,
-            parsed_json=candidate.parsed_json,
+            parsed_json=final_parsed_json,
             official_url=official_url,
         )
         await set_current_slug(session, gym, slug)
