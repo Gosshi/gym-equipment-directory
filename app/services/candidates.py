@@ -60,6 +60,7 @@ class CandidateRow:
 @dataclass
 class CandidateDetailRow(CandidateRow):
     similar: list[Gym]
+    gym_id: int | None = None
 
 
 class CandidateServiceError(ValueError):
@@ -372,11 +373,27 @@ async def get_candidate_detail(session: AsyncSession, candidate_id: int) -> Cand
     similar_stmt = similar_stmt.order_by(Gym.id.asc()).limit(5)
     similar_result = await session.execute(similar_stmt)
     similar = list(similar_result.scalars().all())
+
+    # Try to resolve gym_id if possible
+    gym_id: int | None = None
+    if candidate.official_url:
+        # Find by official URL
+        stmt = select(Gym.id).where(Gym.official_url == candidate.official_url).limit(1)
+        gym_id = await session.scalar(stmt)
+
+    if gym_id is None and similar:
+        # If no official URL match, but we have similar gyms,
+        # checking if we definitely know which one it is difficult without explicit link.
+        # But if the candidate is APPROVED, we might want to try harder to find the gym.
+        # For now, we only use official_url exact match.
+        pass
+
     return CandidateDetailRow(
         candidate=row.candidate,
         page=row.page,
         source=row.source,
         similar=similar,
+        gym_id=gym_id,
     )
 
 

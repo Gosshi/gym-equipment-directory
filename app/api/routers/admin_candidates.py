@@ -94,6 +94,7 @@ def _to_detail(row: CandidateDetailRow) -> AdminCandidateDetail:
         **item.dict(),
         scraped_page=scraped_page,
         similar=similar,
+        gym_id=row.gym_id,
     )
 
 

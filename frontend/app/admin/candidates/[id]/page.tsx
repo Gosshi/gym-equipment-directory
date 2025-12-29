@@ -18,6 +18,7 @@ import {
   patchCandidate,
   rejectCandidate,
   geocodeCandidate,
+  scrapeGymOfficialUrl,
 } from "@/lib/adminApi";
 
 import GymMap from "@/components/gym/GymMap";
@@ -159,6 +160,7 @@ export default function AdminCandidateDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [overrideDialog, setOverrideDialog] =
     useState<OverrideDialogState>(INITIAL_OVERRIDE_DIALOG);
+  const [isScraping, setIsScraping] = useState(false);
 
   const loadCandidate = useCallback(async () => {
     if (Number.isNaN(candidateId)) {
@@ -458,6 +460,52 @@ export default function AdminCandidateDetailPage() {
     },
     [],
   );
+
+  const handleScrapeOfficialUrl = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!candidate?.gym_id) {
+      toast({
+        title: "エラー",
+        description: "この候補はまだジムとして登録されていません（IDがありません）",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!formState?.official_url) {
+      toast({
+        title: "エラー",
+        description: "URLを入力してください",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsScraping(true);
+    try {
+      const res = await scrapeGymOfficialUrl(candidate.gym_id, formState.official_url);
+      if (res.scraped) {
+        toast({
+          title: "スクレイピング完了",
+          description: "データを更新しました",
+        });
+        // データを再読み込み
+        void loadCandidate();
+      } else {
+        toast({
+          title: "更新スキップ",
+          description: res.message,
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "エラー",
+        description: err instanceof Error ? err.message : "スクレイピングに失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScraping(false);
+    }
+  };
 
   const handleOverrideSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {

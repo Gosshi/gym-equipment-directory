@@ -295,3 +295,27 @@ export async function rejectBulkCandidates(
   }
   throw new AdminApiError("Failed to bulk reject candidates: unreachable state");
 }
+
+// --- Admin Gyms API ---
+
+export interface ScrapeOfficialUrlResponse {
+  gym_id: number;
+  official_url: string;
+  scraped: boolean;
+  message: string;
+}
+
+export async function scrapeGymOfficialUrl(
+  gymId: number,
+  officialUrl: string,
+): Promise<ScrapeOfficialUrlResponse> {
+  try {
+    return await apiRequest<ScrapeOfficialUrlResponse>(`/admin/gyms/${gymId}/scrape-official-url`, {
+      method: "POST",
+      body: JSON.stringify({ official_url: officialUrl }),
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to scrape official URL: unreachable state");
+}
