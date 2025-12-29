@@ -41,6 +41,7 @@ type FormState = {
   latitude: string;
   longitude: string;
   parsed_json: string;
+  official_url: string;
 };
 
 const toFormState = (candidate: AdminCandidateDetail): FormState => ({
@@ -57,6 +58,7 @@ const toFormState = (candidate: AdminCandidateDetail): FormState => ({
       ? String(candidate.longitude)
       : "",
   parsed_json: candidate.parsed_json ? JSON.stringify(candidate.parsed_json, null, 2) : "",
+  official_url: candidate.official_url ?? "",
 });
 
 const parseJsonInput = (input: string): Record<string, unknown> | null => {
@@ -85,6 +87,7 @@ type OverrideFormValues = {
   address: string;
   latitude: string;
   longitude: string;
+  official_url: string;
 };
 
 const DEFAULT_OVERRIDE_VALUES: OverrideFormValues = {
@@ -94,6 +97,7 @@ const DEFAULT_OVERRIDE_VALUES: OverrideFormValues = {
   address: "",
   latitude: "",
   longitude: "",
+  official_url: "",
 };
 
 const toOverrideFormValues = (override?: ApproveOverride | null): Partial<OverrideFormValues> => {
@@ -113,6 +117,7 @@ const toOverrideFormValues = (override?: ApproveOverride | null): Partial<Overri
       override.longitude !== undefined && override.longitude !== null
         ? String(override.longitude)
         : "",
+    official_url: override.official_url ?? "",
   };
 };
 
@@ -222,6 +227,7 @@ export default function AdminCandidateDetailPage() {
         latitude: formState.latitude ? Number(formState.latitude) : null,
         longitude: formState.longitude ? Number(formState.longitude) : null,
         parsed_json: parsed,
+        official_url: formState.official_url || null,
       };
       const updated = await patchCandidate(candidate.id, payload);
       updateCandidateState(updated);
@@ -296,6 +302,7 @@ export default function AdminCandidateDetailPage() {
         address: formState.address_raw ?? "",
         latitude: formState.latitude ?? "",
         longitude: formState.longitude ?? "",
+        official_url: formState.official_url ?? "",
       };
 
       const mergedValues: OverrideFormValues = {
@@ -521,6 +528,7 @@ export default function AdminCandidateDetailPage() {
         address: values.address.trim() || baseOverride?.address || undefined,
         latitude: latitudeValue ?? baseOverride?.latitude,
         longitude: longitudeValue ?? baseOverride?.longitude,
+        official_url: values.official_url.trim() || baseOverride?.official_url || undefined,
       });
 
       if (success) {
@@ -670,6 +678,16 @@ export default function AdminCandidateDetailPage() {
                     />
                   </label>
                 </div>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="font-medium">公式サイトURL</span>
+                  <input
+                    className="rounded border border-gray-300 px-3 py-2"
+                    value={overrideDialog.values.official_url}
+                    onChange={event =>
+                      handleOverrideFieldChange("official_url", event.target.value)
+                    }
+                  />
+                </label>
               </>
             )}
             {overrideDialog.error ? (
@@ -700,13 +718,7 @@ export default function AdminCandidateDetailPage() {
         </div>
       </div>
     );
-  }, [
-    actionState,
-    closeOverrideDialog,
-    handleOverrideFieldChange,
-    handleOverrideSubmit,
-    overrideDialog,
-  ]);
+  }, [closeOverrideDialog, handleOverrideFieldChange, handleOverrideSubmit, overrideDialog]);
 
   if (error) {
     return (
@@ -746,6 +758,15 @@ export default function AdminCandidateDetailPage() {
           className="flex flex-col gap-4 rounded border border-gray-200 p-4 shadow-sm"
         >
           <h2 className="text-lg font-semibold">編集</h2>
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium">公式サイトURL</span>
+            <input
+              className="rounded border border-gray-300 px-3 py-2"
+              value={formState.official_url}
+              onChange={event => handleInputChange("official_url", event.target.value)}
+              placeholder="https://..."
+            />
+          </label>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">名称</span>
             <input

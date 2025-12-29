@@ -37,6 +37,7 @@ class AdminCandidateItem(BaseModel):
     longitude: float | None = None
     category: str | None = None  # gym, pool, court, hall, field, martial_arts, archery
     parsed_json: dict[str, Any] | None = None
+    official_url: str | None = None
     source: AdminSourceRef
     fetched_at: datetime | None = None
     created_at: datetime
@@ -68,6 +69,7 @@ class AdminCandidatePatch(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     parsed_json: dict[str, Any] | None = None
+    official_url: str | None = None
 
 
 class EquipmentAssign(BaseModel):
@@ -84,6 +86,7 @@ class ApproveOverride(BaseModel):
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    official_url: str | None = None
 
 
 class ApproveRequest(BaseModel):
