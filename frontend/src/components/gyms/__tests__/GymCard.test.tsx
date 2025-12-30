@@ -36,16 +36,10 @@ const buildGym = (overrides: Partial<GymSummary> = {}): GymSummary => ({
 });
 
 describe("GymCard", () => {
-  it("renders gym information, trims equipments, and exposes navigation link", () => {
+  it("renders gym information, categories, and exposes navigation link", () => {
     const gym = buildGym({
-      equipments: [
-        "パワーラック",
-        "ダンベル",
-        "バーベル",
-        "ケーブルマシン",
-        "トレッドミル",
-        "エアロバイク",
-      ],
+      categories: ["gym", "pool"],
+      equipments: [], // Equipments are no longer displayed directly
     });
 
     renderWithClient(<GymCard gym={gym} />);
@@ -58,23 +52,20 @@ describe("GymCard", () => {
     );
     expect(screen.getByTestId("gym-address")).toHaveTextContent("東京都新宿区1-1-1");
 
-    const equipments = screen.getByTestId("gym-equipments");
-    expect(equipments).toHaveTextContent("パワーラック");
-    expect(equipments).toHaveTextContent("ダンベル");
-    expect(equipments).toHaveTextContent("バーベル");
-    expect(equipments).toHaveTextContent("ケーブルマシン");
-    expect(equipments).toHaveTextContent("トレッドミル");
-    expect(equipments).toHaveTextContent("+1");
+    const categories = screen.getByTestId("gym-categories");
+    expect(categories).toHaveTextContent("ジム");
+    expect(categories).toHaveTextContent("プール");
   });
 
   it("shows general placeholder when thumbnail is missing and no equipments", () => {
-    const gym = buildGym({ equipments: [], thumbnailUrl: null });
+    const gym = buildGym({ equipments: [], thumbnailUrl: null, categories: [] });
 
     renderWithClient(<GymCard gym={gym} />);
 
     const img = screen.getByTestId("gym-thumbnail");
     expect(img).toHaveAttribute("src", "/images/placeholders/gym-general.png");
-    expect(screen.getByText("設備情報はまだ登録されていません。")).toBeInTheDocument();
+    const categories = screen.getByTestId("gym-categories");
+    expect(categories).toHaveTextContent("ジム");
   });
 
   it("shows heavy placeholder when equipments imply heavy", () => {
