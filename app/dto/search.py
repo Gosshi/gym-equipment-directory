@@ -26,7 +26,10 @@ class GymSummaryDTO(BaseModel):
     longitude: float | None = Field(default=None, description="経度")
     tags: list[str] = Field(default_factory=list, description="検索用タグ（利用条件など）")
     category: str | None = Field(
-        default=None, description="施設カテゴリ（gym, pool, court, hall, etc.）"
+        default=None,
+        description=(
+            "施設カテゴリ（gym, pool, etc.）。将来的に廃止予定; categories を参照してください。"
+        ),
     )
     categories: list[str] = Field(
         default_factory=list, description="施設カテゴリ配列 (gym, pool, etc.)"

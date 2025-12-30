@@ -35,6 +35,11 @@ def map_gym_to_summary(
     richness_score: float | None = None,
     distance_km: float | None = None,
 ) -> GymSummaryDTO:
+    """Map Gym ORM object to GymSummaryDTO.
+
+    Handles fallback logic for fields that might be missing or structured differently
+    in JSON vs columns.
+    """
     return GymSummaryDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "") or ""),
@@ -50,7 +55,7 @@ def map_gym_to_summary(
         distance_km=distance_km,
         tags=list(getattr(gym, "parsed_json", {}).get("tags", [])),
         category=getattr(gym, "category", None),
-        categories=getattr(gym, "categories", []) or [],
+        categories=getattr(gym, "categories", []),
     )
 
 
