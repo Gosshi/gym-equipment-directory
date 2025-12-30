@@ -39,7 +39,7 @@ export const normalizeFacilityCategories = (
   if (fallback && !EXCLUDED_CATEGORIES.has(fallback)) {
     return [fallback];
   }
-  return ["gym"];
+  return ["facility"];
 };
 
 export const getFacilityCategoryLabel = (category: string | null | undefined): string => {
