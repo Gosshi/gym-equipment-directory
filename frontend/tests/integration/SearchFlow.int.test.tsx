@@ -278,7 +278,7 @@ describe("Search flow integration", () => {
 
     renderGymsPage();
 
-    const emptyMessage = await screen.findByText("該当するジムが見つかりませんでした");
+    const emptyMessage = await screen.findByText("該当する施設が見つかりませんでした");
     const emptyState = emptyMessage.closest('[role="status"]');
     expect(emptyState).not.toBeNull();
     expect(
