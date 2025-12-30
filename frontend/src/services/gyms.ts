@@ -244,7 +244,7 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     openingHours: input.openingHours ?? input.opening_hours ?? null,
     fees: input.fees ?? input.price ?? null,
     phone: input.phone ?? null,
-    website: input.website ?? input.website_url ?? null,
+    website: input.official_url ?? input.website ?? input.website_url ?? null,
     description: input.description ?? null,
     // Category-specific fields
     category: input.category ?? null,
