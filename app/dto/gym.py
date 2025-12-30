@@ -132,6 +132,10 @@ class GymDetailDTO(BaseModel):
     field_count: int | None = Field(default=None, description="グラウンド面数")
     field_lighting: bool | None = Field(default=None, description="照明設備の有無")
 
+    # Archery-specific fields
+    archery_type: str | None = Field(default=None, description="弓道場タイプ")
+    archery_rooms: int | None = Field(default=None, description="弓道場室数")
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={

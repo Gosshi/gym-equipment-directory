@@ -214,6 +214,11 @@ def assemble_gym_detail(
         else None
     )
 
+    # Archery
+    archery_data = meta.get("archery") or parsed_json.get("archery") or {}
+    archery_type = archery_data.get("archery_type")
+    archery_rooms = archery_data.get("rooms")
+
     return GymDetailDTO(
         id=int(getattr(gym, "id", 0)),
         slug=str(getattr(gym, "slug", "")),
@@ -252,6 +257,8 @@ def assemble_gym_detail(
         field_type=field_type,
         field_count=field_count,
         field_lighting=field_lighting,
+        archery_type=archery_type,
+        archery_rooms=archery_rooms,
     )
 
 
