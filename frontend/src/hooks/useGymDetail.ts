@@ -56,7 +56,7 @@ export function useGymDetail(slug: string | null): UseGymDetailResult {
         const message =
           thrownError instanceof Error && thrownError.message
             ? thrownError.message
-            : "ジム詳細の取得に失敗しました。";
+            : "施設詳細の取得に失敗しました。";
         setError(message);
       })
       .finally(() => {

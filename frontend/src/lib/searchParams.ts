@@ -1,26 +1,22 @@
-export type SortOption = "distance" | "name" | "rating" | "reviews";
+export type SortOption = "distance" | "name";
 export type SortOrder = "asc" | "desc";
 
-export const SORT_OPTIONS: SortOption[] = ["distance", "name", "rating", "reviews"];
+export const SORT_OPTIONS: SortOption[] = ["distance", "name"];
 
 const SORT_OPTION_SET = new Set<SortOption>(SORT_OPTIONS);
 const SORT_ORDER_SET = new Set<SortOrder>(["asc", "desc"]);
 
-export const DEFAULT_SORT: SortOption = "rating";
-export const DEFAULT_ORDER: SortOrder = "desc";
+export const DEFAULT_SORT: SortOption = "name";
+export const DEFAULT_ORDER: SortOrder = "asc";
 
 export const SORT_DEFAULT_ORDERS: Record<SortOption, SortOrder> = {
   distance: "asc",
   name: "asc",
-  rating: "desc",
-  reviews: "desc",
 };
 
 export const SORT_ALLOWED_ORDERS: Record<SortOption, SortOrder[]> = {
   distance: ["asc"],
   name: ["asc"],
-  rating: ["desc"],
-  reviews: ["desc"],
 };
 
 export const getDefaultOrderForSort = (sort: SortOption): SortOrder => SORT_DEFAULT_ORDERS[sort];
@@ -77,6 +73,7 @@ export interface FilterState {
   pref: string | null;
   city: string | null;
   categories: string[];
+  equipments: string[];
   conditions: string[];
   sort: SortOption;
   order: SortOrder;
@@ -96,6 +93,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   pref: null,
   city: null,
   categories: [],
+  equipments: [],
   conditions: [],
   sort: DEFAULT_SORT,
   order: DEFAULT_ORDER,
@@ -152,7 +150,12 @@ const normalizeCsvList = (value: string | null): string[] => {
 };
 
 const parseCategories = (params: URLSearchParams): string[] => {
-  const source = params.get("cats") ?? params.get("equipments") ?? params.get("equipment");
+  const source = params.get("cats") ?? params.get("categories");
+  return normalizeCsvList(source);
+};
+
+const parseEquipments = (params: URLSearchParams): string[] => {
+  const source = params.get("equipments") ?? params.get("equipment");
   return normalizeCsvList(source);
 };
 
@@ -175,10 +178,10 @@ const parseSort = (value: string | null): SortOption => {
     return value as SortOption;
   }
   if (value === "score" || value === "popular" || value === "richness") {
-    return "rating";
+    return "name";
   }
   if (value === "fresh" || value === "freshness") {
-    return "reviews";
+    return "name";
   }
   if (value === "newest" || value === "created_at") {
     return "name";
@@ -231,6 +234,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
   const pref = sanitizeSlug(params.get("pref") ?? params.get("prefecture"));
   const city = sanitizeSlug(params.get("city"));
   const categories = parseCategories(params);
+  const equipments = parseEquipments(params);
   const conditions = parseConditions(params);
   const sort = parseSort(params.get("sort"));
   const order = parseSortOrder(sort, params.get("order"));
@@ -256,6 +260,7 @@ export const parseFilterState = (params: URLSearchParams): FilterState => {
     pref,
     city,
     categories,
+    equipments,
     conditions,
     sort,
     order,
@@ -285,6 +290,9 @@ export const serializeFilterState = (state: FilterState): URLSearchParams => {
   }
   if (state.categories.length > 0) {
     params.set("cats", state.categories.join(","));
+  }
+  if (state.equipments.length > 0) {
+    params.set("equipments", state.equipments.join(","));
   }
   if (state.conditions.length > 0) {
     params.set("conditions", state.conditions.join(","));

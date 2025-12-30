@@ -336,7 +336,7 @@ export function NearbyGymsPage() {
             role="heading"
             aria-level={1}
           >
-            近隣ジム検索
+            近隣施設検索
           </h1>
           <p className="text-base font-mono text-muted-foreground">
             {"// ターゲット: 半径"}
@@ -448,7 +448,7 @@ export function NearbyGymsPage() {
                 <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-none border-2 border-dashed border-border/50 bg-card/20 p-6 text-center text-sm text-muted-foreground">
                   <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/30" />
                   <p className="font-mono text-xs uppercase tracking-wider">
-                    ジムを選択してください
+                    施設を選択してください
                   </p>
                 </div>
               )}

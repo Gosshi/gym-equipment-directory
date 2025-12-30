@@ -76,7 +76,7 @@ const NearbySkeleton = () => (
 const NearbyEmptyState = () => (
   <Card>
     <CardHeader>
-      <CardTitle className="text-base">近隣のジムが見つかりませんでした</CardTitle>
+      <CardTitle className="text-base">近隣の施設が見つかりませんでした</CardTitle>
     </CardHeader>
     <CardContent className="space-y-2 text-sm text-muted-foreground">
       <p>検索範囲を広げるか、地図をドラッグして別の地点をお試しください。</p>
@@ -474,7 +474,7 @@ export function NearbyList({
       ) : shouldVirtualize ? (
         <div
           aria-activedescendant={activeOptionId ? `gym-option-${activeOptionId}` : undefined}
-          aria-label="近隣のジム一覧"
+          aria-label="近隣の施設一覧"
           className="max-h-[70vh] overflow-y-auto focus:outline-none"
           onKeyDown={handleKeyDown}
           ref={node => {
@@ -524,7 +524,7 @@ export function NearbyList({
       ) : (
         <div
           aria-activedescendant={activeOptionId ? `gym-option-${activeOptionId}` : undefined}
-          aria-label="近隣のジム一覧"
+          aria-label="近隣の施設一覧"
           className="focus:outline-none"
           onKeyDown={handleKeyDown}
           ref={node => {

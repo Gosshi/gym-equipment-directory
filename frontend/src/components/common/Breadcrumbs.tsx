@@ -19,7 +19,7 @@ interface BreadcrumbsProps {
 }
 
 const pathLabels: Record<string, string> = {
-  gyms: "ジム検索",
+  gyms: "施設検索",
   nearby: "現在地から探す",
   map: "地図",
   search: "検索",

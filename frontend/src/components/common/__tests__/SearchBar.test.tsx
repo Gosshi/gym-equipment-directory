@@ -21,7 +21,7 @@ describe("SearchBar", () => {
             setValue(nextValue);
             handleChange(nextValue);
           }}
-          placeholder="設備やジム名で検索"
+          placeholder="施設名やカテゴリで検索"
           value={value}
         />
       );

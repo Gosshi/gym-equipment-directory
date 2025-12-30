@@ -24,6 +24,7 @@ type RawGymDetail = RawGymSummary & {
   images?: unknown;
   image_urls?: unknown;
   gallery?: unknown;
+  tags?: string[] | null;
   equipment_details?: unknown;
   equipmentDetails?: unknown;
   main_equipment_details?: unknown;
@@ -246,6 +247,7 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     phone: input.phone ?? null,
     website: input.official_url ?? input.website ?? input.website_url ?? null,
     description: input.description ?? null,
+    tags: input.tags ?? [],
     // Category-specific fields
     category: input.category ?? null,
     poolLanes: input.pool_lanes ?? null,
@@ -283,7 +285,8 @@ export async function searchGyms(
     q: params.q,
     pref: params.prefecture ?? undefined,
     city: params.city ?? undefined,
-    cats: params.categories ?? params.equipments,
+    categories: params.categories,
+    equipments: params.equipments,
     conditions: params.conditions,
     sort: params.sort ?? undefined,
     order: params.order ?? undefined,

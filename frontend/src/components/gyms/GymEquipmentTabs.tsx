@@ -85,7 +85,7 @@ export function GymEquipmentTabs({ equipments, className }: GymEquipmentTabsProp
     <Card className={className}>
       <CardHeader>
         <CardTitle>設備</CardTitle>
-        <CardDescription>カテゴリ別にジムの主要設備を確認できます。</CardDescription>
+        <CardDescription>カテゴリ別に施設の主要設備を確認できます。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="設備カテゴリ">

@@ -17,6 +17,7 @@ export function GymsPage() {
     updatePrefecture,
     updateCity,
     updateCategories,
+    updateEquipments,
     updateConditions,
     updateSort,
     updateDistance,
@@ -102,7 +103,7 @@ export function GymsPage() {
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 bg-accent" />
             <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-accent">
-              ジム検索
+              施設検索
             </p>
           </div>
           <h1
@@ -110,10 +111,10 @@ export function GymsPage() {
             role="heading"
             aria-level={1}
           >
-            ジム一覧
+            施設一覧
           </h1>
           <p className="max-w-3xl font-mono text-sm text-muted-foreground">
-            {"// 設備・エリア・距離で絞り込み"}
+            {"// カテゴリ・エリア・距離で絞り込み"}
           </p>
         </header>
 
@@ -121,7 +122,7 @@ export function GymsPage() {
           {isDesktop ? (
             <aside className="sticky top-24 z-20 hidden lg:block">
               <SearchFilters
-                categories={equipmentOptions}
+                equipmentOptions={equipmentOptions}
                 cities={cities}
                 cityError={cityError}
                 isCityLoading={isCityLoading}
@@ -133,6 +134,7 @@ export function GymsPage() {
                 onCityChange={updateCity}
                 onClear={clearFilters}
                 onDistanceChange={updateDistance}
+                onEquipmentsChange={updateEquipments}
                 onKeywordChange={updateKeyword}
                 onPrefectureChange={updatePrefecture}
                 onRequestLocation={requestLocation}
@@ -151,7 +153,7 @@ export function GymsPage() {
           ) : (
             <div className="lg:hidden">
               <SearchFilters
-                categories={equipmentOptions}
+                equipmentOptions={equipmentOptions}
                 cities={cities}
                 cityError={cityError}
                 isCityLoading={isCityLoading}
@@ -163,6 +165,7 @@ export function GymsPage() {
                 onCityChange={updateCity}
                 onClear={clearFilters}
                 onDistanceChange={updateDistance}
+                onEquipmentsChange={updateEquipments}
                 onKeywordChange={updateKeyword}
                 onPrefectureChange={updatePrefecture}
                 onRequestLocation={requestLocation}

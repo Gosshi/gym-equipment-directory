@@ -55,7 +55,8 @@ export interface FetchGymsParams {
   q?: string;
   pref?: string | null;
   city?: string | null;
-  cats?: string[];
+  categories?: string[];
+  equipments?: string[];
   conditions?: string[];
   sort?: SortOption | ApiSortKey | null;
   order?: SortOrder | null;
@@ -171,16 +172,9 @@ const sortOptionToApiSort = (sort: SortOption | ApiSortKey | null | undefined) =
   }
   switch (sort) {
     case "distance":
-      // TODO: distance sort is not yet supported by the search API; omit the key so the
-      // backend falls back to its default order instead of returning 422.
-      return undefined;
+      return "distance";
     case "name":
       return "gym_name";
-    case "rating":
-      return "score";
-    case "reviews":
-      // TODO: API does not expose review-count sorting; use richness as the closest match.
-      return "richness";
     default:
       return undefined;
   }
@@ -200,7 +194,8 @@ const normalizeCats = (values: string[] | undefined): string[] | undefined => {
 export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
   const page = clampPage(params.page);
   const limit = clampLimit(params.limit);
-  const cats = normalizeCats(params.cats);
+  const categories = normalizeCats(params.categories);
+  const equipments = normalizeCats(params.equipments);
   const conditions = normalizeCats(params.conditions);
   const sort = sortOptionToApiSort(params.sort ?? undefined);
   const order = params.order && typeof params.order === "string" ? params.order : undefined;
@@ -225,7 +220,8 @@ export const buildGymSearchQuery = (params: FetchGymsParams = {}) => {
     q: params.q?.trim() || undefined,
     pref: params.pref?.trim() || undefined,
     city: params.city?.trim() || undefined,
-    equipments: cats?.join(","),
+    categories: categories?.join(","),
+    equipments: equipments?.join(","),
     conditions: conditions?.join(","),
     sort,
     ...(order ? { order } : {}),

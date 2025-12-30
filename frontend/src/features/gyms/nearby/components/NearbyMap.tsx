@@ -155,7 +155,7 @@ const createClusterMarkerElement = (count: number, onClick: () => void): HTMLBut
   element.dataset.markerType = "cluster";
   element.dataset.count = String(count);
   element.dataset.panelAnchor = "cluster";
-  element.setAttribute("aria-label", `周辺のジム ${count}件`);
+  element.setAttribute("aria-label", `周辺の施設 ${count}件`);
   element.style.zIndex = "15";
   element.addEventListener("click", onClick);
   const activate = () => {
@@ -770,7 +770,7 @@ export function NearbyMap({
       ) : null}
       {showErrorOverlay ? (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-6 text-center text-destructive">
-          <p className="text-sm font-semibold">地図のジム取得に失敗しました</p>
+          <p className="text-sm font-semibold">地図の施設取得に失敗しました</p>
           <p className="text-xs text-destructive/80">{markersError}</p>
           {onRetryMarkers ? (
             <Button onClick={onRetryMarkers} type="button" variant="outline" size="sm">

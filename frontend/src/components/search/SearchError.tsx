@@ -9,7 +9,7 @@ type SearchErrorProps = {
   className?: string;
 };
 
-const DEFAULT_ERROR_MESSAGE = "ジムの取得に失敗しました";
+const DEFAULT_ERROR_MESSAGE = "施設の取得に失敗しました";
 
 export function SearchError({ message, onRetry, className }: SearchErrorProps) {
   return (
