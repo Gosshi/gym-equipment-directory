@@ -49,10 +49,10 @@ export function GymDetailHeader({
       <div className="flex flex-col items-start gap-3 md:items-end">
         <div className="flex flex-wrap items-center gap-2">
           {website ? (
-            <Button asChild size="sm" variant="outline">
+            <Button asChild size="sm">
               <Link href={website} rel="noreferrer noopener" target="_blank">
                 <ExternalLink aria-hidden className="h-4 w-4" />
-                <span className="ml-2">公式サイト</span>
+                <span className="ml-2">公式サイトへ</span>
               </Link>
             </Button>
           ) : null}

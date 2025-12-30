@@ -65,7 +65,7 @@ describe("GymCard", () => {
     const img = screen.getByTestId("gym-thumbnail");
     expect(img).toHaveAttribute("src", "/images/placeholders/gym-general.png");
     const categories = screen.getByTestId("gym-categories");
-    expect(categories).toHaveTextContent("ジム");
+    expect(categories).toHaveTextContent("施設");
   });
 
   it("shows heavy placeholder when equipments imply heavy", () => {

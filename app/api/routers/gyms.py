@@ -62,6 +62,10 @@ async def search_gyms(
     if q.equipments and not required_slugs:
         required_slugs = [s.strip() for s in q.equipments.split(",") if s.strip()]
 
+    required_categories: list[str] = []
+    if q.categories:
+        required_categories = [s.strip() for s in q.categories.split(",") if s.strip()]
+
     required_conditions: list[str] = []
     if q.conditions:
         required_conditions = [s.strip() for s in q.conditions.split(",") if s.strip()]
@@ -79,6 +83,7 @@ async def search_gyms(
             min_lng=q.min_lng,
             max_lng=q.max_lng,
             required_slugs=required_slugs,
+            categories=required_categories,
             conditions=required_conditions,
             equipment_match=q.equipment_match,
             sort=q.sort,

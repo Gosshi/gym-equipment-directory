@@ -3,6 +3,11 @@ import type { KeyboardEvent, MouseEvent } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FavoriteButton } from "@/components/gyms/FavoriteButton";
+import {
+  getFacilityCategoryColorClass,
+  getFacilityCategoryLabel,
+  normalizeFacilityCategories,
+} from "@/lib/facilityCategories";
 import { cn } from "@/lib/utils";
 import type { GymSummary } from "@/types/gym";
 
@@ -60,36 +65,6 @@ function getPlaceholderImage(equipments: string[] | undefined): string {
   return "/images/placeholders/gym-general.png";
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  gym: "ジム",
-  pool: "プール",
-  court: "コート",
-  field: "グラウンド",
-  hall: "体育館",
-  martial_arts: "武道場",
-  archery: "弓道場",
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  gym: "bg-emerald-500",
-  pool: "bg-cyan-500",
-  court: "bg-amber-500",
-  field: "bg-orange-500",
-  hall: "bg-violet-500",
-  martial_arts: "bg-red-500",
-  archery: "bg-teal-500",
-};
-
-function getCategoryLabel(category: string | null | undefined): string {
-  if (!category) return "";
-  return CATEGORY_LABELS[category] ?? category;
-}
-
-function getCategoryColorClass(category: string | null | undefined): string {
-  if (!category) return "bg-muted";
-  return CATEGORY_COLORS[category] ?? "bg-muted";
-}
-
 function handleLinkKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
   if (event.defaultPrevented) {
     return;
@@ -136,6 +111,7 @@ export function GymCard({
 
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
   const addressLabel = primaryAddress || fallbackAddress || "所在地情報なし";
+  const categories = normalizeFacilityCategories(gym.categories, gym.category);
 
   return (
     <Link
@@ -207,20 +183,15 @@ export function GymCard({
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
           <div className="flex flex-wrap gap-2" data-testid="gym-categories">
-            {(gym.categories && gym.categories.length > 0
-              ? gym.categories
-              : gym.category
-                ? [gym.category]
-                : ["gym"]
-            ).map(category => (
+            {categories.map(category => (
               <span
                 key={category}
                 className={cn(
                   "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm",
-                  getCategoryColorClass(category),
+                  getFacilityCategoryColorClass(category),
                 )}
               >
-                {getCategoryLabel(category)}
+                {getFacilityCategoryLabel(category)}
               </span>
             ))}
           </div>

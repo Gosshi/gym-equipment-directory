@@ -31,6 +31,7 @@ export const areFilterStatesEqual = (a: FilterState, b: FilterState) =>
   a.min_lng === b.min_lng &&
   a.max_lng === b.max_lng &&
   areCategoriesEqual(a.categories, b.categories) &&
+  areCategoriesEqual(a.equipments, b.equipments) &&
   areCategoriesEqual(a.conditions, b.conditions);
 
 export type NavigationSource = "initial" | "push" | "pop" | "replace" | "idle";
@@ -57,7 +58,11 @@ export const useSearchStore = create<SearchStoreState>((set, get) => ({
   scrollPositions: {},
   setFilters: (next, options) => {
     set(state => {
-      const normalized = { ...next, categories: [...next.categories] };
+      const normalized = {
+        ...next,
+        categories: [...next.categories],
+        equipments: [...next.equipments],
+      };
       const nextQuery = options?.queryString ?? filterStateToQueryString(normalized);
       const filtersEqual = areFilterStatesEqual(state.filters, normalized);
       const queryUnchanged = state.queryString === nextQuery;

@@ -118,7 +118,7 @@ export function AppHeader() {
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"
               href="/gyms"
             >
-              ジム検索
+              施設検索
             </Link>
             <Link
               className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent"

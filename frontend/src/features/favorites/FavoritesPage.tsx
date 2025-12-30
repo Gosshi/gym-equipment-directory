@@ -84,12 +84,12 @@ const FavoritesEmptyState = () => (
     <CardHeader>
       <CardTitle className="text-xl">お気に入りがまだありません</CardTitle>
       <CardDescription>
-        気になるジムを見つけたら、詳細ページからお気に入り登録してみましょう。
+        気になる施設を見つけたら、詳細ページからお気に入り登録してみましょう。
       </CardDescription>
     </CardHeader>
     <CardContent>
       <Button asChild type="button">
-        <Link href="/gyms">ジムを探しに行く</Link>
+        <Link href="/gyms">施設を探しに行く</Link>
       </Button>
     </CardContent>
   </Card>
@@ -151,7 +151,7 @@ const FavoriteCard = ({
           <div className="flex gap-2">
             <Button asChild size="sm" type="button">
               <Link href={`/gyms/${gym.slug}`} prefetch>
-                ジム詳細へ
+                施設詳細へ
               </Link>
             </Button>
             <Button
@@ -220,7 +220,7 @@ export function FavoritesPage() {
           <p className="text-sm uppercase tracking-wide text-muted-foreground">My Favorites</p>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">お気に入り一覧</h1>
           <p className="text-sm text-muted-foreground">
-            詳細ページで登録したジムのお気に入りをここで管理できます。
+            詳細ページで登録した施設のお気に入りをここで管理できます。
           </p>
         </header>
 

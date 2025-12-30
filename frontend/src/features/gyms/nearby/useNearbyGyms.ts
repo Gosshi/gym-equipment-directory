@@ -95,7 +95,7 @@ export function useNearbyGyms({
         if (!active || controller.signal.aborted) {
           return;
         }
-        const message = err instanceof ApiError ? err.message : "近隣ジムの取得に失敗しました";
+        const message = err instanceof ApiError ? err.message : "近隣施設の取得に失敗しました";
         setError(message);
         setItems([]);
         setMeta(prev => ({

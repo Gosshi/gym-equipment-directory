@@ -15,7 +15,7 @@ import {
 describe("searchParams", () => {
   it("parses query parameters into a normalized filter state", () => {
     const params = new URLSearchParams(
-      "q= bench &pref=tokyo&city= shinjuku &cats=squat-rack,barbell,squat-rack&sort=reviews&order=desc&page=2&per_page=40&radius_km=25&lat=35.681&lng=139.767",
+      "q= bench &pref=tokyo&city= shinjuku &cats=gym,pool&equipments=squat-rack,barbell,squat-rack&sort=name&order=asc&page=2&per_page=40&radius_km=25&lat=35.681&lng=139.767",
     );
 
     const state = parseFilterState(params);
@@ -24,10 +24,11 @@ describe("searchParams", () => {
       q: "bench",
       pref: "tokyo",
       city: "shinjuku",
-      categories: ["squat-rack", "barbell"],
+      categories: ["gym", "pool"],
+      equipments: ["squat-rack", "barbell"],
       conditions: [],
-      sort: "reviews",
-      order: "desc",
+      sort: "name",
+      order: "asc",
       page: 2,
       limit: 40,
       distance: 25,
@@ -49,6 +50,7 @@ describe("searchParams", () => {
     expect(state.pref).toBeNull();
     expect(state.city).toBeNull();
     expect(state.categories).toEqual([]);
+    expect(state.equipments).toEqual([]);
     expect(state.conditions).toEqual([]);
     expect(state.sort).toBe(DEFAULT_SORT);
     expect(state.page).toBe(1);
@@ -70,6 +72,7 @@ describe("searchParams", () => {
       pref: "osaka",
       city: "osaka-city",
       categories: ["dumbbell", "smith-machine"],
+      equipments: ["lat-pulldown"],
       conditions: [],
       sort: "name",
       order: "asc",
@@ -88,6 +91,7 @@ describe("searchParams", () => {
     expect(params.get("pref")).toBe("osaka");
     expect(params.get("city")).toBe("osaka-city");
     expect(params.get("cats")).toBe("dumbbell,smith-machine");
+    expect(params.get("equipments")).toBe("lat-pulldown");
     expect(params.get("sort")).toBe("name");
     expect(params.get("order")).toBe("asc");
     expect(params.get("page")).toBe("3");
@@ -102,10 +106,11 @@ describe("searchParams", () => {
       q: "squat",
       pref: "hokkaido",
       city: "sapporo",
-      categories: ["power-rack"],
+      categories: ["gym"],
+      equipments: ["power-rack"],
       conditions: [],
-      sort: "rating",
-      order: "desc",
+      sort: "name",
+      order: "asc",
       page: 4,
       limit: 24,
       distance: 12,
@@ -123,10 +128,11 @@ describe("searchParams", () => {
       q: "squat",
       pref: "hokkaido",
       city: "sapporo",
-      categories: ["power-rack"],
+      categories: ["gym"],
+      equipments: ["power-rack"],
       conditions: [],
-      sort: "rating",
-      order: "desc",
+      sort: "name",
+      order: "asc",
       page: 4,
       limit: 24,
       distance: 12,
@@ -154,7 +160,7 @@ describe("searchParams", () => {
     const state = parseFilterState(params);
 
     expect(state.pref).toBe("kanagawa");
-    expect(state.categories).toEqual(["cable-machine"]);
+    expect(state.equipments).toEqual(["cable-machine"]);
     expect(state.conditions).toEqual([]);
     expect(state.limit).toBe(10);
     expect(state.order).toBe(DEFAULT_ORDER);

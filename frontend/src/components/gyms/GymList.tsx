@@ -356,9 +356,9 @@ export function GymList({
       return "検索結果の取得に失敗しました。";
     }
     if (resultState.isEmpty) {
-      return "条件に一致するジムは見つかりませんでした。";
+      return "条件に一致する施設は見つかりませんでした。";
     }
-    return `${totalLabel.replace("件", "件のジムが見つかりました。")}`.concat(
+    return `${totalLabel.replace("件", "件の施設が見つかりました。")}`.concat(
       totalPages ? `（全 ${totalPages} ページ）` : "",
     );
   })();
