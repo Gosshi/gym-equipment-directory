@@ -6,6 +6,8 @@
 -- - meta.lanes -> pool.lanes
 -- - meta.length_m -> pool.length_m
 -- - meta.heated -> pool.heated
+--
+-- NOTE: lanes = 0 or length_m = 0 is treated as NULL (couldn't scrape, not actual 0)
 
 BEGIN;
 
@@ -30,14 +32,23 @@ BEGIN
 END $$;
 
 -- Step 1: Create pool object from meta fields for gyms
+-- Use NULL for lanes/length_m if value is 0 or missing (0 is not realistic for pools)
 UPDATE gyms
 SET parsed_json = jsonb_set(
     parsed_json,
     '{pool}',
     jsonb_build_object(
-        'lanes', COALESCE((parsed_json->'meta'->>'lanes')::int, 0),
-        'length_m', COALESCE((parsed_json->'meta'->>'length_m')::int, 0),
-        'heated', COALESCE((parsed_json->'meta'->>'heated')::boolean, false)
+        'lanes', CASE 
+            WHEN (parsed_json->'meta'->>'lanes')::int > 0 
+            THEN (parsed_json->'meta'->>'lanes')::int 
+            ELSE NULL 
+        END,
+        'length_m', CASE 
+            WHEN (parsed_json->'meta'->>'length_m')::int > 0 
+            THEN (parsed_json->'meta'->>'length_m')::int 
+            ELSE NULL 
+        END,
+        'heated', (parsed_json->'meta'->>'heated')::boolean
     )
 )
 WHERE parsed_json->'meta'->>'lanes' IS NOT NULL
@@ -49,9 +60,17 @@ SET parsed_json = jsonb_set(
     parsed_json,
     '{pool}',
     jsonb_build_object(
-        'lanes', COALESCE((parsed_json->'meta'->>'lanes')::int, 0),
-        'length_m', COALESCE((parsed_json->'meta'->>'length_m')::int, 0),
-        'heated', COALESCE((parsed_json->'meta'->>'heated')::boolean, false)
+        'lanes', CASE 
+            WHEN (parsed_json->'meta'->>'lanes')::int > 0 
+            THEN (parsed_json->'meta'->>'lanes')::int 
+            ELSE NULL 
+        END,
+        'length_m', CASE 
+            WHEN (parsed_json->'meta'->>'length_m')::int > 0 
+            THEN (parsed_json->'meta'->>'length_m')::int 
+            ELSE NULL 
+        END,
+        'heated', (parsed_json->'meta'->>'heated')::boolean
     )
 )
 WHERE parsed_json->'meta'->>'lanes' IS NOT NULL
@@ -72,6 +91,15 @@ WHERE parsed_json->'pool' IS NOT NULL
   AND (parsed_json->'meta'->>'lanes' IS NOT NULL 
        OR parsed_json->'meta'->>'length_m' IS NOT NULL
        OR parsed_json->'meta'->>'heated' IS NOT NULL);
+
+-- Step 5: Fix any existing pool objects with lanes = 0 to NULL
+UPDATE gyms
+SET parsed_json = jsonb_set(parsed_json, '{pool,lanes}', 'null'::jsonb)
+WHERE parsed_json->'pool'->>'lanes' = '0';
+
+UPDATE gym_candidates
+SET parsed_json = jsonb_set(parsed_json, '{pool,lanes}', 'null'::jsonb)
+WHERE parsed_json->'pool'->>'lanes' = '0';
 
 -- Verify
 DO $$
