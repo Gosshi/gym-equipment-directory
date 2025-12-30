@@ -286,10 +286,6 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                 # Use categories from meta or fallback to candidate's categories
                 categories = meta.get("categories") or cand.categories or []
 
-                # If legacy single category exists in meta, include it
-                single_cat = meta.get("category")
-                if single_cat and single_cat not in categories:
-                    categories.append(single_cat)
                 valid_categories = {
                     "gym",
                     "pool",

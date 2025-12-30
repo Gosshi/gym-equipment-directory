@@ -86,7 +86,7 @@ async def _build_municipal_payload(
     page: ScrapedPage,
     *,
     source_id: str,
-) -> tuple[str, str | None, dict[str, Any]] | None:
+) -> tuple[str, str | None, dict[str, Any], list[str]] | None:
     source = SOURCES.get(source_id)
     if source_id == "municipal_koto":
         parser = parse_municipal_koto_page
@@ -127,9 +127,9 @@ async def _build_municipal_payload(
         "page_url": page.url,
         "meta": parsed.meta,
         "tags": parsed.tags,
-        "category": parsed.category,
+        "categories": parsed.categories,
     }
-    return name, address, parsed_json, parsed.category
+    return name, address, parsed_json, parsed.categories
 
 
 async def parse_pages(source: str, limit: int | None) -> int:
@@ -183,7 +183,8 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 }
 
             for page in pages:
-                category = None  # Default for non-municipal sources
+                # Default for non-municipal sources handles dummy properly
+                categories: list[str] = []
                 if source == "dummy":
                     assert address_iter is not None and equipment_iter is not None
                     name_raw, address_raw, parsed_json = _build_dummy_payload(
@@ -195,7 +196,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                     payload = await _build_municipal_payload(page, source_id=source)
                     if payload is None:
                         continue
-                    name_raw, address_raw, parsed_json, category = payload
+                    name_raw, address_raw, parsed_json, categories = payload
                 else:
                     msg = f"Unsupported source: {source}"
                     raise ValueError(msg)
@@ -211,7 +212,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                         address_raw=address_raw,
                         parsed_json=parsed_json,
                         status=CandidateStatus.new,
-                        categories=[category] if category else [],
+                        categories=categories,
                     )
                     session.add(candidate)
                     created += 1
@@ -227,14 +228,10 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 if candidate.parsed_json != parsed_json:
                     candidate.parsed_json = parsed_json
                     has_change = True
-                # Check for category changes (legacy category -> categories list)
-                new_categories = [category] if category else []
-                # Only update if current categories are None or explicitly different
-                # Note: This simple check replaces existing categories if parser returns a category.
-                # Ideally we might want to merge, but for now we follow the parser's output.
+                # Update categories if changed
                 current_categories = candidate.categories or []
-                if new_categories and current_categories != new_categories:
-                    candidate.categories = new_categories
+                if categories and current_categories != categories:
+                    candidate.categories = categories
                     has_change = True
                 if has_change:
                     updated += 1

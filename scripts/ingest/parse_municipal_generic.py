@@ -36,7 +36,7 @@ class MunicipalParseResult:
     page_type: str | None
     page_title: str
     meta: dict[str, Any]
-    category: str | None = None  # gym, pool, court, hall, field, martial_arts, archery
+    categories: list[str]  # gym, pool, court, hall, field, martial_arts, archery
 
 
 def _ensure_iterable(value: Any) -> list[str]:
@@ -348,7 +348,6 @@ async def parse_municipal_page(
     meta = {
         "create_gym": should_create,
         "page_url": normalized_url,
-        "category": category,
         "categories": categories,  # New: array of all categories
     }
 
@@ -377,7 +376,7 @@ async def parse_municipal_page(
         page_type=page_type,
         page_title=page_title,
         meta=meta,
-        category=category if should_create else None,
+        categories=categories if should_create else [],
     )
 
 
