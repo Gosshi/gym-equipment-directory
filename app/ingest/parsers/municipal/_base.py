@@ -446,13 +446,17 @@ async def _extract_facility_with_llm(
         '  - Object {"per_hour": 1200} if hourly rate\n'
         "  Return null if not found.\n\n"
         "**Category-specific fields (include for ALL applicable categories):**\n"
-        "- For pool: lanes (int), length_m (int), heated (bool)\n"
-        "- For court: court_type (string), courts (int), surface (string), lighting (bool)\n"
-        "- For hall: sports (string array), area_sqm (int)\n"
-        "- For field: field_type (string), fields (int), lighting (bool)\n"
-        "- For gym: equipments (array of {slug, count}). Map to these slugs:\n"
+        "Return category-specific data as NESTED OBJECTS under each category key:\n"
+        '- pool: {"lanes": int, "length_m": int, "heated": bool}\n'
+        '- court: {"court_type": string, "courts": int, "surface": string, "lighting": bool}\n'
+        '- hall: {"sports": string array, "area_sqm": int}\n'
+        '- field: {"field_type": string, "fields": int, "lighting": bool}\n'
+        '- archery: {"archery_type": string, "rooms": int}\n'
+        '- gym: {"equipments": array of {slug, count}}. Map to these slugs:\n'
         f"  {', '.join(standard_names)}\n"
         "  Use English slug in parentheses, not Japanese name.\n\n"
+        "Example for a pool facility:\n"
+        '{"pool": {"lanes": 6, "length_m": 25, "heated": true}}\n\n'
         "Return ONLY the JSON object."
     )
 
