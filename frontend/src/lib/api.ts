@@ -94,6 +94,7 @@ export type RawGymSummary = {
   longitude?: number | null;
   tags?: string[];
   category?: string | null;
+  categories?: string[];
 };
 
 type RawSearchGymsResponse =
@@ -157,6 +158,7 @@ export const normalizeGymSummary = (input: RawGymSummary): GymSummary => {
     tags: input.tags,
     lastVerifiedAt: input.last_verified_at ?? undefined,
     category: input.category ?? undefined,
+    categories: input.categories ?? undefined,
   };
 };
 

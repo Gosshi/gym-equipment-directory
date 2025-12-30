@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import { SearchFilters } from "@/components/gyms/SearchFilters";
 import { GymList } from "@/components/gyms/GymList";
-import { GymDetailModal } from "@/components/gym/GymDetailModal";
 import { useGymSearch } from "@/hooks/useGymSearch";
 import { MobileViewToggle } from "@/components/common/MobileViewToggle";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
@@ -49,11 +48,6 @@ export function GymsPage() {
     reloadCities,
   } = useGymSearch();
 
-  const handleSelectGym = useCallback((slug: string) => {
-    setSelectedSlug(slug);
-    setDetailModalOpen(true);
-  }, []);
-
   const handleClosePanel = useCallback(() => {
     setSelectedSlug(null);
     setDetailModalOpen(false);
@@ -76,13 +70,7 @@ export function GymsPage() {
       setSelectedSlug(null);
       setDetailModalOpen(false);
     }
-  }, [isLoading, items, selectedSlug]);
-
-  useEffect(() => {
-    if (!selectedSlug) {
-      setDetailModalOpen(false);
-    }
-  }, [selectedSlug]);
+  }, [isLoading, items]);
 
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -205,18 +193,10 @@ export function GymsPage() {
               onPageChange={setPage}
               onRetry={retry}
               page={page}
-              onGymSelect={handleSelectGym}
-              selectedSlug={selectedSlug}
             />
           </div>
         </div>
       </div>
-      <GymDetailModal
-        open={isDetailModalOpen && Boolean(selectedSlug)}
-        onOpenChange={setDetailModalOpen}
-        onRequestClose={handleClosePanel}
-        slug={selectedSlug}
-      />
       <MobileViewToggle />
     </div>
   );

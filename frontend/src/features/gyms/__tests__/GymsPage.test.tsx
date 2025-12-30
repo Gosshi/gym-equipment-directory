@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
 import { GymsPage } from "@/features/gyms/GymsPage";
-import { useGymDetail } from "@/hooks/useGymDetail";
-import type { UseGymDetailResult } from "@/hooks/useGymDetail";
+
 import { useGymSearch } from "@/hooks/useGymSearch";
 import type { UseGymSearchResult } from "@/hooks/useGymSearch";
 
@@ -13,10 +12,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 vi.mock("@/hooks/useGymSearch", () => ({
   useGymSearch: vi.fn(),
   FALLBACK_LOCATION: { lat: 35.681236, lng: 139.767125, label: "東京駅" },
-}));
-
-vi.mock("@/hooks/useGymDetail", () => ({
-  useGymDetail: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -46,7 +41,6 @@ const renderWithClient = (ui: React.ReactElement) => {
 };
 
 const mockedUseGymSearch = vi.mocked(useGymSearch);
-const mockedUseGymDetail = vi.mocked(useGymDetail);
 
 const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSearchResult => {
   const defaultState: UseGymSearchResult = {
@@ -175,18 +169,13 @@ const buildHookState = (overrides: Partial<UseGymSearchResult> = {}): UseGymSear
 
 describe("GymsPage", () => {
   beforeEach(() => {
-    mockedUseGymDetail.mockReturnValue({
-      data: null,
-      error: null,
-      isLoading: false,
-      reload: vi.fn(),
-    });
+    // No specific setup needed currently
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     mockedUseGymSearch.mockReset();
-    mockedUseGymDetail.mockReset();
+    mockedUseGymSearch.mockReset();
   });
 
   it("renders the search filters and results", () => {
@@ -296,101 +285,5 @@ describe("GymsPage", () => {
     await userEvent.click(searchButton);
 
     expect(submitSearch).toHaveBeenCalled();
-  });
-
-  it("opens and closes the detail modal when a gym is selected", async () => {
-    const detailResult: UseGymDetailResult = {
-      data: {
-        id: 99,
-        slug: "test-gym",
-        name: "テストジム詳細",
-        prefecture: "tokyo",
-        city: "shinjuku",
-        address: "東京都新宿区1-2-3",
-        latitude: 35.6895,
-        longitude: 139.6917,
-        equipments: [],
-        website: "https://example.com",
-      },
-      error: null,
-      isLoading: false,
-      reload: vi.fn(),
-    };
-    mockedUseGymDetail.mockReturnValue(detailResult);
-    mockedUseGymSearch.mockReturnValue(buildHookState());
-
-    renderWithClient(<GymsPage />);
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
-
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "テストジム詳細" })).toBeInTheDocument();
-    expect(screen.getByText("東京都新宿区1-2-3")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "詳細パネルを閉じる" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
-  it("clears the selected gym when it disappears from the current page", async () => {
-    const initialState = buildHookState();
-    const updatedState = buildHookState({
-      items: [
-        {
-          id: 2,
-          slug: "another-gym",
-          name: "別のジム",
-          prefecture: "tokyo",
-          city: "shinjuku",
-          equipments: ["Bench Press"],
-          thumbnailUrl: null,
-          score: undefined,
-          address: "東京都新宿区2-3-4",
-          lastVerifiedAt: "2024-09-02T08:00:00Z",
-        },
-      ],
-      meta: {
-        total: 1,
-        page: 2,
-        perPage: 20,
-        hasNext: false,
-        hasPrev: true,
-        hasMore: false,
-        pageToken: null,
-      },
-    });
-    let currentState = initialState;
-    mockedUseGymSearch.mockImplementation(() => currentState);
-
-    const detailResult: UseGymDetailResult = {
-      data: {
-        id: 2,
-        slug: "another-gym",
-        name: "別のジム",
-        prefecture: "tokyo",
-        city: "shinjuku",
-        address: "東京都新宿区2-3-4",
-        latitude: 35.6895,
-        longitude: 139.6917,
-        equipments: [],
-      },
-      error: null,
-      isLoading: false,
-      reload: vi.fn(),
-    };
-    mockedUseGymDetail.mockReturnValue(detailResult);
-
-    const { rerender } = renderWithClient(<GymsPage />);
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("link", { name: "テストジムの詳細を見る" }));
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-
-    currentState = updatedState;
-    rerender(<GymsPage />);
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

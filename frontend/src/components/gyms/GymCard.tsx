@@ -14,18 +14,6 @@ export interface GymCardProps {
   isSelected?: boolean;
 }
 
-function getEquipmentDisplay(equipmentNames: string[] | undefined) {
-  if (!equipmentNames || equipmentNames.length === 0) {
-    return { displayItems: [], remainingCount: 0 };
-  }
-
-  const filtered = equipmentNames.filter(Boolean);
-  const displayItems = filtered.slice(0, 5);
-  const remainingCount = Math.max(filtered.length - displayItems.length, 0);
-
-  return { displayItems, remainingCount };
-}
-
 function getPlaceholderImage(equipments: string[] | undefined): string {
   if (!equipments || equipments.length === 0) {
     return "/images/placeholders/gym-general.png";
@@ -144,8 +132,8 @@ export function GymCard({
   onSelect,
   isSelected = false,
 }: GymCardProps) {
-  const { displayItems, remainingCount } = getEquipmentDisplay(gym.equipments);
   const primaryAddress = gym.address?.trim() ?? "";
+
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
   const addressLabel = primaryAddress || fallbackAddress || "所在地情報なし";
 
@@ -175,16 +163,6 @@ export function GymCard({
       >
         <div className="relative isolate overflow-hidden bg-muted">
           <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
-            {gym.category && (
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm",
-                  getCategoryColorClass(gym.category),
-                )}
-              >
-                {getCategoryLabel(gym.category)}
-              </span>
-            )}
             <FavoriteButton gymId={gym.id} />
           </div>
           <div className="aspect-[4/3] w-full" aria-hidden />
@@ -228,27 +206,24 @@ export function GymCard({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
-          {displayItems.length > 0 ? (
-            <div className="flex flex-wrap gap-2" data-testid="gym-equipments">
-              {displayItems.map(equipment => (
-                <span
-                  key={equipment}
-                  className="rounded-full bg-secondary/90 px-3 py-1 text-xs font-medium leading-none text-secondary-foreground shadow-sm"
-                >
-                  {equipment}
-                </span>
-              ))}
-              {remainingCount > 0 ? (
-                <span className="rounded-full border border-dashed border-secondary px-3 py-1 text-xs leading-none text-muted-foreground">
-                  +{remainingCount}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              設備情報はまだ登録されていません。
-            </p>
-          )}
+          <div className="flex flex-wrap gap-2" data-testid="gym-categories">
+            {(gym.categories && gym.categories.length > 0
+              ? gym.categories
+              : gym.category
+                ? [gym.category]
+                : ["gym"]
+            ).map(category => (
+              <span
+                key={category}
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm",
+                  getCategoryColorClass(category),
+                )}
+              >
+                {getCategoryLabel(category)}
+              </span>
+            ))}
+          </div>
 
           {gym.tags && gym.tags.length > 0 ? (
             <div className="mt-auto flex flex-wrap gap-1.5 border-t border-border/50 pt-3">
