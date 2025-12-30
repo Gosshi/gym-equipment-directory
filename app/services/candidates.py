@@ -240,7 +240,7 @@ def _apply_filters(
     if city:
         conditions.append(GymCandidate.city_slug == city.strip())
     if category:
-        conditions.append(GymCandidate.category == category.strip())
+        conditions.append(GymCandidate.categories.contains([category.strip()]))
     if has_coords is True:
         conditions.append(GymCandidate.latitude.isnot(None))
         conditions.append(GymCandidate.longitude.isnot(None))

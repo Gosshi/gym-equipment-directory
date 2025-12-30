@@ -103,14 +103,17 @@ class GymDetailDTO(BaseModel):
     score: float | None = Field(default=None, ge=0.0, le=1.0, description="0..1")
     tags: list[str] = Field(default_factory=list, description="タグ（利用条件など）")
 
-    # Category and category-specific fields
-    category: str | None = Field(
-        default=None, description="施設カテゴリ (legacy): gym, pool, court, hall, field, etc."
-    )
+    # Categories (unified) - single source of truth for facility types
     categories: list[str] = Field(
-        default_factory=list, description="施設カテゴリ配列 (複合施設対応)"
+        default_factory=list, description="施設カテゴリ配列 (gym, pool, court, hall, field)"
     )
     facility_meta: dict | None = Field(default=None, description="メタデータ")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def category(self) -> str | None:
+        """Backward compatible alias for categories[0]."""
+        return self.categories[0] if self.categories else None
 
     # Pool-specific fields
     pool_lanes: int | None = Field(default=None, description="プールレーン数")

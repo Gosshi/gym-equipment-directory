@@ -27,7 +27,8 @@ export interface AdminCandidateItem {
   city_slug?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  category?: string | null; // gym, pool, court, hall, field, martial_arts, archery
+  categories?: string[]; // gym, pool, court, hall, field, martial_arts, archery
+  category?: string | null; // Computed alias for categories[0], backward compat
   fetched_at?: string | null;
   updated_at?: string | null;
   source?: AdminCandidateSource | null;

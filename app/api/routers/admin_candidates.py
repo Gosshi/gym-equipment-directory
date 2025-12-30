@@ -68,7 +68,7 @@ def _to_item(row: CandidateRow) -> AdminCandidateItem:
         city_slug=candidate.city_slug,
         latitude=candidate.latitude,
         longitude=candidate.longitude,
-        category=candidate.category,
+        categories=candidate.categories or [],
         parsed_json=candidate.parsed_json,
         source=_to_source_ref(row),
         fetched_at=row.page.fetched_at,
