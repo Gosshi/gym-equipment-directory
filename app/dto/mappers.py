@@ -151,22 +151,17 @@ def assemble_gym_detail(
         elif isinstance(fee_data, str):
             fees = fee_data
 
-    # Extract category (legacy) and categories (new array)
-    category = meta.get("category") or getattr(gym, "category", None)
-
-    # Get categories array from gym model, parsed_json root, or meta
-    # Fallback to single category wrapped in list
-    # Priority: parsed_json.categories > meta.categories > gym.categories > [category]
+    # Extract categories - unified approach
+    # Priority: parsed_json.categories > gym.categories > meta.category wrapped in list
     categories_raw = getattr(gym, "categories", None)
     if parsed_json.get("categories") and isinstance(parsed_json.get("categories"), list):
-        # parsed_json の categories を最優先（最新の情報）
         categories = parsed_json.get("categories")
+    elif categories_raw and isinstance(categories_raw, list) and len(categories_raw) > 0:
+        categories = categories_raw
     elif meta.get("categories") and isinstance(meta.get("categories"), list):
         categories = meta.get("categories")
-    elif categories_raw and isinstance(categories_raw, list):
-        categories = categories_raw
-    elif category:
-        categories = [category]
+    elif meta.get("category"):
+        categories = [meta.get("category")]
     else:
         categories = []
 
@@ -183,8 +178,8 @@ def assemble_gym_detail(
     court_type = meta.get("court_type") or court_data.get("court_type")
     court_count = meta.get("courts") or court_data.get("courts")
     court_surface = meta.get("surface") or court_data.get("surface")
-    # Check if court is in categories list, not just if category == "court"
-    is_court_category = category == "court" or "court" in categories
+    # Check if court is in categories list
+    is_court_category = "court" in categories
     court_lighting = (
         meta.get("lighting")
         if is_court_category and meta.get("lighting") is not None
@@ -204,8 +199,8 @@ def assemble_gym_detail(
     field_data = meta.get("field") or parsed_json.get("field") or {}
     field_type = meta.get("field_type") or field_data.get("field_type")
     field_count = meta.get("fields") or field_data.get("fields")
-    # Check if field is in categories list, not just if category == "field"
-    is_field_category = category == "field" or "field" in categories
+    # Check if field is in categories list
+    is_field_category = "field" in categories
     field_lighting = (
         meta.get("lighting")
         if is_field_category and meta.get("lighting") is not None
@@ -236,8 +231,7 @@ def assemble_gym_detail(
         richness=richness,
         score=score,
         tags=list(parsed_json.get("tags", [])),
-        # Category-specific fields
-        category=category,
+        # Categories (unified field)
         categories=categories,
         facility_meta=meta,
         pool_lanes=pool_lanes,

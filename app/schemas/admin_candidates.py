@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from app.models.gym_candidate import CandidateStatus
 
@@ -35,13 +35,19 @@ class AdminCandidateItem(BaseModel):
     city_slug: str | None = None
     latitude: float | None = None
     longitude: float | None = None
-    category: str | None = None  # gym, pool, court, hall, field, martial_arts, archery
+    categories: list[str] = Field(default_factory=list)  # gym, pool, court, hall, field
     parsed_json: dict[str, Any] | None = None
     official_url: str | None = None
     source: AdminSourceRef
     fetched_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def category(self) -> str | None:
+        """Backward compatible alias for categories[0]."""
+        return self.categories[0] if self.categories else None
 
 
 class AdminCandidateDetail(AdminCandidateItem):

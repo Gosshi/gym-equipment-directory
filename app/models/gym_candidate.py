@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -45,8 +45,8 @@ class GymCandidate(Base):
     latitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     longitude: Mapped[float | None] = mapped_column(DOUBLE_PRECISION, nullable=True)
     parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    # Category: gym, pool, court, hall, field, martial_arts, archery
-    category: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Categories: array of category strings (gym, pool, court, hall, field, martial_arts, archery)
+    categories: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     status: Mapped[CandidateStatus] = mapped_column(
         SQLEnum(CandidateStatus, name="candidate_status"),
         nullable=False,

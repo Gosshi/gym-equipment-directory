@@ -29,7 +29,5 @@ class Gym(Base):
     latitude = Column(Float, nullable=True, index=True)
     longitude = Column(Float, nullable=True, index=True)
     parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    # Category: gym, pool, court, hall, field, martial_arts, archery (legacy single value)
-    category: Mapped[str | None] = mapped_column(String(32), nullable=True, default="gym")
-    # Categories: array of category strings for complex facilities
+    # Categories: array of category strings (gym, pool, court, hall, field, martial_arts, archery)
     categories: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
