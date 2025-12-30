@@ -47,6 +47,12 @@ type RawGymDetail = RawGymSummary & {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+  // Archery fields
+  archery_type?: string | null;
+  archery_rooms?: number | null;
+  // Categories and official URL
+  categories?: string[] | null;
+  official_url?: string | null;
 };
 
 export interface SearchGymsParams {
@@ -254,6 +260,12 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     fieldType: input.field_type ?? null,
     fieldCount: input.field_count ?? null,
     fieldLighting: input.field_lighting ?? null,
+    // Archery fields
+    archeryType: input.archery_type ?? null,
+    archeryRooms: input.archery_rooms ?? null,
+    // Categories and official URL
+    categories: input.categories ?? [],
+    officialUrl: input.official_url ?? null,
   };
 };
 

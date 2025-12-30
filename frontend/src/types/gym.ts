@@ -75,6 +75,11 @@ export interface GymDetail {
   fieldType?: string | null;
   fieldCount?: number | null;
   fieldLighting?: boolean | null;
+  // Archery
+  archeryType?: string | null;
+  archeryRooms?: number | null;
+  // Official URL
+  officialUrl?: string | null;
 }
 
 export interface NearbyGym {
