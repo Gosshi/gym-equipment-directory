@@ -295,11 +295,12 @@ export function GymDetailPage({
                     <dd>
                       {gym.website ? (
                         <a
-                          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
                           href={gym.website}
                           rel="noopener noreferrer"
                           target="_blank"
                         >
+                          <ExternalLink aria-hidden className="h-4 w-4" />
                           公式サイトを見る
                         </a>
                       ) : (
