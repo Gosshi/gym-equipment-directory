@@ -28,6 +28,9 @@ class GymSummaryDTO(BaseModel):
     category: str | None = Field(
         default=None, description="施設カテゴリ（gym, pool, court, hall, etc.）"
     )
+    categories: list[str] = Field(
+        default_factory=list, description="施設カテゴリ配列 (gym, pool, etc.)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
