@@ -82,6 +82,12 @@ export default async function GymDetailPage({ params }: PageProps) {
     field_type: gym.fieldType,
     field_count: gym.fieldCount,
     field_lighting: gym.fieldLighting,
+    // Archery fields
+    archery_type: gym.archeryType,
+    archery_rooms: gym.archeryRooms,
+    // Categories and official URL
+    categories: gym.categories,
+    official_url: gym.officialUrl,
   } as any; // Casting to any to avoid strict type matching for now
 
   const normalized = normalizeGymDetail(apiResponse, gym.slug);
