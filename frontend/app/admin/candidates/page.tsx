@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { AdminCandidateListParams } from "@/lib/adminApi";
@@ -52,7 +52,7 @@ const formatDateTime = (value: string | null | undefined) => {
   }
 };
 
-export default function AdminCandidatesPage() {
+function AdminCandidatesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<Filters>(() => parseFiltersFromParams(searchParams));
@@ -544,5 +544,13 @@ export default function AdminCandidatesPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function AdminCandidatesPage() {
+  return (
+    <Suspense fallback={<div className="p-4">読み込み中...</div>}>
+      <AdminCandidatesPageContent />
+    </Suspense>
   );
 }
