@@ -26,6 +26,34 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat()
 
 
+def _resolve_categories(gym: Gym) -> list[str]:
+    """Resolve categories with fallback logic for legacy fields."""
+    # 1. Primary source: categories column
+    categories = getattr(gym, "categories", None)
+    if categories and len(categories) > 0:
+        return categories
+
+    # 2. Secondary source: parsed_json.meta.categories
+    parsed = getattr(gym, "parsed_json", {}) or {}
+    meta = parsed.get("meta", {})
+    json_categories = meta.get("categories")
+    if json_categories and isinstance(json_categories, list) and len(json_categories) > 0:
+        return json_categories
+
+    # 3. Fallback: legacy category column
+    legacy_category = getattr(gym, "category", None)
+    if legacy_category:
+        return [legacy_category]
+
+    # 4. Fallback: legacy parsed_json.meta.category
+    meta_category = meta.get("category")
+    if meta_category:
+        return [meta_category]
+
+    # 5. Default empty (frontend defaults to "gym")
+    return []
+
+
 def map_gym_to_summary(
     gym: Gym,
     *,
@@ -55,7 +83,7 @@ def map_gym_to_summary(
         distance_km=distance_km,
         tags=list(getattr(gym, "parsed_json", {}).get("tags", [])),
         category=getattr(gym, "category", None),
-        categories=getattr(gym, "categories", []),
+        categories=_resolve_categories(gym),
     )
 
 
