@@ -31,7 +31,7 @@ export function SearchEmpty({ onResetFilters, className }: SearchEmptyProps) {
       {/* Main Message */}
       <div className="space-y-3">
         <h3 className="font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
-          該当するジムが見つかりませんでした
+          該当する施設が見つかりませんでした
         </h3>
         <p className="font-mono text-sm text-muted-foreground">
           条件を緩めるか、別のキーワードで検索してください

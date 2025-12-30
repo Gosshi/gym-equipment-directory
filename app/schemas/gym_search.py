@@ -121,6 +121,9 @@ class GymSearchQuery(BaseModel):
     equipments: str | None = Field(
         default=None, description="設備スラッグのCSV（例: squat-rack,dumbbell）"
     )
+    categories: str | None = Field(
+        default=None, description="施設カテゴリのCSV（例: gym,pool,court）"
+    )
     conditions: str | None = Field(
         default=None, description="条件スラッグのCSV（例: parking,late-night）"
     )
@@ -163,6 +166,15 @@ class GymSearchQuery(BaseModel):
             return None
         if not v.strip():
             raise HTTPException(status_code=400, detail="equipments must not be empty")
+        return v
+
+    @field_validator("categories")
+    @classmethod
+    def _check_categories_csv(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        if not v.strip():
+            raise HTTPException(status_code=400, detail="categories must not be empty")
         return v
 
     @field_validator("conditions")
@@ -224,6 +236,14 @@ class GymSearchQuery(BaseModel):
             str | None,
             Query(description="設備スラッグCSV（例: squat-rack,dumbbell）"),
         ] = None,
+        categories: Annotated[
+            str | None,
+            Query(description="施設カテゴリCSV（例: gym,pool,court）"),
+        ] = None,
+        cats: Annotated[
+            str | None,
+            Query(description="互換用: 施設カテゴリCSV（categories と同義）"),
+        ] = None,
         conditions: Annotated[
             str | None,
             Query(description="条件スラッグCSV（例: parking,late-night）"),
@@ -271,6 +291,7 @@ class GymSearchQuery(BaseModel):
                 "min_lng": min_lng,
                 "max_lng": max_lng,
                 "equipments": equipments,
+                "categories": categories or cats,
                 "conditions": conditions,
                 "equipment_match": equipment_match,
                 "sort": sort,

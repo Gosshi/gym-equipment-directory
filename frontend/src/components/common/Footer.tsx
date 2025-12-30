@@ -19,9 +19,9 @@ export function AppFooter() {
               </span>
             </div>
             <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-              公営ジム・トレーニングルームの設備情報を検索。
+              公営スポーツ施設の設備情報を検索。
               <br />
-              パワーラック、ダンベル、マシンなど設備でフィルタリング。
+              施設カテゴリや設備で絞り込みできます。
             </p>
             <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50">
               <span className="inline-block h-1.5 w-1.5 animate-pulse bg-accent" />
@@ -40,7 +40,7 @@ export function AppFooter() {
                   href="/gyms"
                   className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  ジム検索
+                  施設検索
                 </Link>
               </li>
               <li>

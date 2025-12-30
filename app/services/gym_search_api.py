@@ -132,6 +132,7 @@ async def search_gyms_api(
     min_lng: float | None,
     max_lng: float | None,
     required_slugs: list[str],
+    categories: list[str],
     conditions: list[str] | None,
     equipment_match: Literal["all", "any"],
     sort: Literal["freshness", "richness", "gym_name", "created_at", "score", "distance"],
@@ -217,6 +218,10 @@ async def search_gyms_api(
         base_ids = base_ids.where(Gym.longitude >= min_lng)
     if max_lng is not None:
         base_ids = base_ids.where(Gym.longitude <= max_lng)
+
+    # ---- 1.4) 施設カテゴリフィルタ ----
+    if categories:
+        base_ids = base_ids.where(Gym.categories.overlap(categories))
 
     # ---- 1.5) 条件フィルタ (parsed_json) ----
     if conditions:

@@ -81,6 +81,7 @@ def get_gym_search_api_service(
         min_lng: float | None,
         max_lng: float | None,
         required_slugs: list[str],
+        categories: list[str],
         conditions: list[str] | None,
         equipment_match: str,
         sort: str,
@@ -100,6 +101,7 @@ def get_gym_search_api_service(
             min_lng=min_lng,
             max_lng=max_lng,
             required_slugs=required_slugs,
+            categories=categories,
             conditions=conditions,
             equipment_match=equipment_match,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]

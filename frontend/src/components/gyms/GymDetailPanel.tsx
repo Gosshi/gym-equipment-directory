@@ -98,7 +98,7 @@ export function GymDetailPanel({ slug, onClose, className }: GymDetailPanelProps
               <Skeleton className="h-6 w-48" />
             ) : (
               <CardTitle className="text-lg font-semibold leading-tight">
-                {data?.name ?? "ジム詳細"}
+                {data?.name ?? "施設詳細"}
               </CardTitle>
             )}
           </div>
@@ -183,22 +183,27 @@ export function GymDetailPanel({ slug, onClose, className }: GymDetailPanelProps
 
                   <div className="flex items-start gap-3">
                     <Globe aria-hidden="true" className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <p className="text-xs font-medium uppercase text-muted-foreground">
                         公式サイト
                       </p>
                       {websiteUrl ? (
-                        <Link
-                          className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                          href={websiteUrl}
-                          rel="noopener noreferrer"
-                          target="_blank"
-                        >
-                          {data.website}
-                          <span aria-hidden="true" className="inline-flex">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </span>
-                        </Link>
+                        <div className="flex flex-col gap-2">
+                          <Button asChild size="sm">
+                            <Link href={websiteUrl} rel="noopener noreferrer" target="_blank">
+                              公式サイトを開く
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Link
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            href={websiteUrl}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            {data.website}
+                          </Link>
+                        </div>
                       ) : (
                         <p className="text-muted-foreground">
                           公式サイト情報が登録されていません。
@@ -217,7 +222,7 @@ export function GymDetailPanel({ slug, onClose, className }: GymDetailPanelProps
                     id="gym-equipments"
                     className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
                   >
-                    設備一覧
+                    設備・利用条件
                   </h2>
                   {equipmentItems.length > 0 ? (
                     <span className="text-xs text-muted-foreground">{equipmentItems.length}件</span>
@@ -242,9 +247,24 @@ export function GymDetailPanel({ slug, onClose, className }: GymDetailPanelProps
                   </ul>
                 ) : (
                   <p className="rounded-md border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-sm text-muted-foreground">
-                    設備情報は登録されていません。
+                    設備情報は登録されていません。駐車場などの付帯情報は下に表示します。
                   </p>
                 )}
+
+                {data.tags && data.tags.length > 0 ? (
+                  <div className="rounded-lg border border-border/70 bg-background/60 p-4">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                      付帯設備・利用条件
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {data.tags.map(tag => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </section>
             </div>
           ) : null}

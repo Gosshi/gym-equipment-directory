@@ -58,7 +58,7 @@ export function MapSearchPage() {
       <div className="absolute bottom-4 left-4 right-4 z-[1000] pointer-events-none">
         <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200 pointer-events-auto max-w-md mx-auto">
           <p className="text-sm font-medium text-gray-700">
-            {isInitialLoading ? "読み込み中..." : `${items.length}件のジムが見つかりました`}
+            {isInitialLoading ? "読み込み中..." : `${items.length}件の施設が見つかりました`}
           </p>
           <p className="text-xs text-gray-500 mt-1">地図を移動すると自動で再検索します</p>
         </div>

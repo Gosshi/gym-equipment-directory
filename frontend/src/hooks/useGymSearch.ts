@@ -84,6 +84,7 @@ type FormState = {
   prefecture: string;
   city: string;
   categories: string[];
+  equipments: string[];
   conditions: string[];
   sort: SortOption;
   order: SortOrder;
@@ -103,6 +104,7 @@ const toFormState = (filters: FilterState): FormState => ({
   prefecture: filters.pref ?? "",
   city: filters.city ?? "",
   categories: [...filters.categories],
+  equipments: [...filters.equipments],
   conditions: [...filters.conditions],
   sort: filters.sort,
   order: filters.order,
@@ -129,6 +131,7 @@ const areFormStatesEqual = (a: FormState, b: FormState) =>
   a.min_lng === b.min_lng &&
   a.max_lng === b.max_lng &&
   areCategoriesEqual(a.categories, b.categories) &&
+  areCategoriesEqual(a.equipments, b.equipments) &&
   areCategoriesEqual(a.conditions, b.conditions);
 
 const normalizeFormState = (state: FormState): FormState => ({
@@ -136,6 +139,7 @@ const normalizeFormState = (state: FormState): FormState => ({
   prefecture: state.prefecture.trim(),
   city: state.city.trim(),
   categories: normalizeCategories(state.categories),
+  equipments: normalizeCategories(state.equipments),
   conditions: normalizeCategories(state.conditions),
   sort: state.sort,
   order: normalizeSortOrder(state.sort, state.order),
@@ -157,6 +161,7 @@ const buildFilterStateFromForm = (
   pref: form.prefecture.trim() || null,
   city: form.city.trim() || null,
   categories: normalizeCategories(form.categories),
+  equipments: normalizeCategories(form.equipments),
   conditions: normalizeCategories(form.conditions),
   sort: form.sort,
   order: normalizeSortOrder(form.sort, form.order),
@@ -183,6 +188,7 @@ export interface UseGymSearchResult {
   updatePrefecture: (value: string) => void;
   updateCity: (value: string) => void;
   updateCategories: (values: string[]) => void;
+  updateEquipments: (values: string[]) => void;
   updateConditions: (values: string[]) => void;
   updateSort: (value: SortOption, order: SortOrder) => void;
   updateDistance: (value: number) => void;
@@ -554,6 +560,15 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     [scheduleApply],
   );
 
+  const updateEquipments = useCallback(
+    (values: string[]) =>
+      scheduleApply(prev => ({
+        ...prev,
+        equipments: values,
+      })),
+    [scheduleApply],
+  );
+
   const updateConditions = useCallback(
     (values: string[]) =>
       scheduleApply(prev => ({
@@ -857,6 +872,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           prefecture: filters.pref ?? undefined,
           city: filters.city ?? undefined,
           categories: filters.categories,
+          equipments: filters.equipments,
           sort: filters.sort,
           order: filters.order,
           page: filters.page,
@@ -915,11 +931,11 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
   let error: string | null = null;
   if (!missingLocationForDistance && gymsQuery.isError && queryError) {
     if (queryError instanceof ApiError) {
-      error = queryError.message || "ジムの取得に失敗しました";
+      error = queryError.message || "施設の取得に失敗しました";
     } else if (queryError instanceof Error) {
       error = queryError.message;
     } else {
-      error = "ジムの取得に失敗しました";
+      error = "施設の取得に失敗しました";
     }
   }
 
@@ -1092,6 +1108,7 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
     updatePrefecture,
     updateCity,
     updateCategories,
+    updateEquipments,
     updateConditions,
     updateSort,
     updateDistance,

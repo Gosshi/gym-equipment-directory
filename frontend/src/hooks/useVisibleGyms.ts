@@ -160,7 +160,7 @@ export function useVisibleGyms({
               return;
             }
             setStatus("error");
-            setError(err instanceof Error ? err.message : "地図のジム取得に失敗しました");
+            setError(err instanceof Error ? err.message : "地図の施設取得に失敗しました");
           });
       };
 

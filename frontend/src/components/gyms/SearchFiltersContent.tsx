@@ -5,6 +5,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { SearchDistanceBadge } from "@/components/search/SearchDistanceBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { FACILITY_CATEGORY_OPTIONS } from "@/lib/facilityCategories";
 import {
   DISTANCE_STEP_KM,
   MAX_DISTANCE_KM,
@@ -37,9 +38,7 @@ const SORT_SELECT_OPTIONS: Array<{
     label: "距離（近い順）",
     requiresLocation: true,
   },
-  { value: "name:asc", sort: "name", order: "asc", label: "名前（A→Z）" },
-  { value: "rating:desc", sort: "rating", order: "desc", label: "評価（高い順）" },
-  { value: "reviews:desc", sort: "reviews", order: "desc", label: "口コミ数（多い順）" },
+  { value: "name:asc", sort: "name", order: "asc", label: "名前順" },
 ];
 
 const DISTANCE_PRESET_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30];
@@ -50,6 +49,7 @@ export type SearchFiltersProps = {
     prefecture: string;
     city: string;
     categories: string[];
+    equipments: string[];
     conditions: string[];
     sort: SortOption;
     order: SortOrder;
@@ -57,7 +57,7 @@ export type SearchFiltersProps = {
   };
   prefectures: PrefectureOption[];
   cities: CityOption[];
-  categories: EquipmentOption[];
+  equipmentOptions: EquipmentOption[];
   isMetaLoading: boolean;
   isCityLoading: boolean;
   metaError: string | null;
@@ -68,6 +68,7 @@ export type SearchFiltersProps = {
   onPrefectureChange: (value: string) => void;
   onCityChange: (value: string) => void;
   onCategoriesChange: (values: string[]) => void;
+  onEquipmentsChange: (values: string[]) => void;
   onConditionsChange: (values: string[]) => void;
   onSortChange: (sort: SortOption, order: SortOrder) => void;
   onDistanceChange: (value: number) => void;
@@ -86,7 +87,7 @@ export function SearchFiltersContent({
   state,
   prefectures,
   cities,
-  categories,
+  equipmentOptions,
   isMetaLoading,
   isCityLoading,
   metaError,
@@ -97,6 +98,7 @@ export function SearchFiltersContent({
   onPrefectureChange,
   onCityChange,
   onCategoriesChange,
+  onEquipmentsChange,
   onConditionsChange,
   onSortChange,
   onDistanceChange,
@@ -250,9 +252,9 @@ export function SearchFiltersContent({
     () => [...prefectures].sort((a, b) => a.label.localeCompare(b.label, "ja")),
     [prefectures],
   );
-  const sortedCategories = useMemo(
-    () => [...categories].sort((a, b) => a.label.localeCompare(b.label, "ja")),
-    [categories],
+  const sortedEquipments = useMemo(
+    () => [...equipmentOptions].sort((a, b) => a.label.localeCompare(b.label, "ja")),
+    [equipmentOptions],
   );
   const sortedCities = useMemo(
     () => [...cities].sort((a, b) => a.label.localeCompare(b.label, "ja")),
@@ -293,6 +295,15 @@ export function SearchFiltersContent({
       onCategoriesChange(state.categories.filter(item => item !== value));
     } else {
       onCategoriesChange([...state.categories, value]);
+    }
+  };
+
+  const handleEquipmentToggle = (value: string) => {
+    const isSelected = state.equipments.includes(value);
+    if (isSelected) {
+      onEquipmentsChange(state.equipments.filter(item => item !== value));
+    } else {
+      onEquipmentsChange([...state.equipments, value]);
     }
   };
 
@@ -369,7 +380,7 @@ export function SearchFiltersContent({
           inputRef={keywordInputRef}
           label="キーワード"
           onChange={onKeywordChange}
-          placeholder="設備やジム名で検索"
+          placeholder="施設名やカテゴリで検索"
           value={state.q}
         >
           <p className="text-xs text-muted-foreground" id={keywordHelpTextId}>
@@ -484,54 +495,88 @@ export function SearchFiltersContent({
       </div>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">設備</legend>
-        {Object.entries(
-          sortedCategories.reduce(
-            (acc, category) => {
-              const group = category.category || "その他";
-              if (!acc[group]) {
-                acc[group] = [];
-              }
-              acc[group].push(category);
-              return acc;
-            },
-            {} as Record<string, typeof sortedCategories>,
-          ),
-        ).map(([groupName, groupCategories]) => (
-          <div key={groupName} className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">{groupName}</h4>
-            <div className="flex flex-wrap gap-2">
-              {groupCategories.map(category => {
-                const checked = state.categories.includes(category.value);
-                return (
-                  <label
-                    key={category.value}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
-                      "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
-                      checked
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-input bg-background",
-                    )}
-                  >
-                    <input
-                      checked={checked}
-                      className="sr-only"
-                      onChange={() => handleCategoryToggle(category.value)}
-                      type="checkbox"
-                      value={category.value}
-                    />
-                    <span>{category.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {sortedCategories.length === 0 ? (
-          <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
-        ) : null}
+        <legend className="text-sm font-medium">施設カテゴリ</legend>
+        <div className="flex flex-wrap gap-2">
+          {FACILITY_CATEGORY_OPTIONS.map(category => {
+            const checked = state.categories.includes(category.value);
+            return (
+              <label
+                key={category.value}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
+                  "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
+                  checked
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-input bg-background",
+                )}
+              >
+                <input
+                  checked={checked}
+                  className="sr-only"
+                  onChange={() => handleCategoryToggle(category.value)}
+                  type="checkbox"
+                  value={category.value}
+                />
+                <span>{category.label}</span>
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
+
+      <details className="rounded-lg border border-dashed border-border/70 bg-muted/10 p-4">
+        <summary className="cursor-pointer text-sm font-medium text-foreground">
+          トレーニング設備（詳細）
+        </summary>
+        <div className="mt-4 space-y-4">
+          {Object.entries(
+            sortedEquipments.reduce(
+              (acc, equipment) => {
+                const group = equipment.category || "その他";
+                if (!acc[group]) {
+                  acc[group] = [];
+                }
+                acc[group].push(equipment);
+                return acc;
+              },
+              {} as Record<string, typeof sortedEquipments>,
+            ),
+          ).map(([groupName, groupEquipments]) => (
+            <div key={groupName} className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground">{groupName}</h4>
+              <div className="flex flex-wrap gap-2">
+                {groupEquipments.map(equipment => {
+                  const checked = state.equipments.includes(equipment.value);
+                  return (
+                    <label
+                      key={equipment.value}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
+                        "focus-within:outline focus-within:outline-2 focus-within:outline-ring",
+                        checked
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-input bg-background",
+                      )}
+                    >
+                      <input
+                        checked={checked}
+                        className="sr-only"
+                        onChange={() => handleEquipmentToggle(equipment.value)}
+                        type="checkbox"
+                        value={equipment.value}
+                      />
+                      <span>{equipment.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {sortedEquipments.length === 0 ? (
+            <span className="text-xs text-muted-foreground">設備が読み込み中です…</span>
+          ) : null}
+        </div>
+      </details>
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-medium">利用条件</legend>

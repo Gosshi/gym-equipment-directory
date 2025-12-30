@@ -56,6 +56,7 @@ export interface GymDetail {
   phone?: string | null;
   website?: string | null;
   description?: string | null;
+  tags?: string[];
 
   // Category and category-specific fields
   category?: string | null;
