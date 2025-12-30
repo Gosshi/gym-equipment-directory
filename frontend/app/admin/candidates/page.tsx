@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { AdminCandidateListParams } from "@/lib/adminApi";
 import { toast } from "@/components/ui/use-toast";
@@ -14,14 +14,31 @@ import {
 
 type Filters = AdminCandidateListParams & { q: string };
 
-const DEFAULT_FILTERS: Filters = {
-  status: undefined,
-  source: "",
-  q: "",
-  pref: "",
-  city: "",
-  category: undefined,
-  has_coords: undefined,
+const parseFiltersFromParams = (params: URLSearchParams): Filters => ({
+  status: (params.get("status") as AdminCandidateListParams["status"]) || undefined,
+  source: params.get("source") || "",
+  q: params.get("q") || "",
+  pref: params.get("pref") || "",
+  city: params.get("city") || "",
+  category: params.get("category") || undefined,
+  has_coords:
+    params.get("has_coords") === "true"
+      ? true
+      : params.get("has_coords") === "false"
+        ? false
+        : undefined,
+});
+
+const buildQueryString = (filters: Filters): string => {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.source) params.set("source", filters.source);
+  if (filters.q) params.set("q", filters.q);
+  if (filters.pref) params.set("pref", filters.pref);
+  if (filters.city) params.set("city", filters.city);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.has_coords !== undefined) params.set("has_coords", String(filters.has_coords));
+  return params.toString();
 };
 
 const formatDateTime = (value: string | null | undefined) => {
@@ -37,7 +54,8 @@ const formatDateTime = (value: string | null | undefined) => {
 
 export default function AdminCandidatesPage() {
   const router = useRouter();
-  const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() => parseFiltersFromParams(searchParams));
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDryRun, setBulkDryRun] = useState(false);
@@ -91,9 +109,12 @@ export default function AdminCandidatesPage() {
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setCursor(undefined); // reset pagination
+      // Sync filters to URL
+      const queryString = buildQueryString(filters);
+      router.replace(queryString ? `?${queryString}` : "/admin/candidates", { scroll: false });
       void refetch();
     },
-    [refetch],
+    [filters, refetch, router],
   );
 
   const handleNext = () => {
