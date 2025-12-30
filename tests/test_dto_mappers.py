@@ -95,3 +95,60 @@ def test_map_equipment_master_from_mapping() -> None:
 
     assert dto.slug == "bike"
     assert dto.category == "cardio"
+
+
+def test_map_gym_to_summary_with_category_fallback() -> None:
+    # 1. categories column present
+    gym1 = SimpleNamespace(
+        id=1,
+        slug="g1",
+        name="G1",
+        categories=["pool", "gym"],
+        category="gym",
+        parsed_json={"meta": {"categories": ["other"], "category": "other"}},
+    )
+    dto1 = map_gym_to_summary(gym1, last_verified_at=None, score=None)
+    assert dto1.categories == ["pool", "gym"]
+
+    # 2. meta.categories present
+    gym2 = SimpleNamespace(
+        id=2,
+        slug="g2",
+        name="G2",
+        categories=None,
+        category="gym",
+        parsed_json={"meta": {"categories": ["court", "hall"], "category": "other"}},
+    )
+    dto2 = map_gym_to_summary(gym2, last_verified_at=None, score=None)
+    assert dto2.categories == ["court", "hall"]
+
+    # 3. category column present
+    gym3 = SimpleNamespace(
+        id=3,
+        slug="g3",
+        name="G3",
+        categories=None,
+        category="martial_arts",
+        parsed_json={"meta": {"category": "other"}},
+    )
+    dto3 = map_gym_to_summary(gym3, last_verified_at=None, score=None)
+    assert dto3.categories == ["martial_arts"]
+
+    # 4. meta.category present
+    gym4 = SimpleNamespace(
+        id=4,
+        slug="g4",
+        name="G4",
+        categories=None,
+        category=None,
+        parsed_json={"meta": {"category": "archery"}},
+    )
+    dto4 = map_gym_to_summary(gym4, last_verified_at=None, score=None)
+    assert dto4.categories == ["archery"]
+
+    # 5. Fallback to empty
+    gym5 = SimpleNamespace(
+        id=5, slug="g5", name="G5", categories=None, category=None, parsed_json={}
+    )
+    dto5 = map_gym_to_summary(gym5, last_verified_at=None, score=None)
+    assert dto5.categories == []
