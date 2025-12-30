@@ -211,7 +211,7 @@ async def parse_pages(source: str, limit: int | None) -> int:
                         address_raw=address_raw,
                         parsed_json=parsed_json,
                         status=CandidateStatus.new,
-                        category=category,
+                        categories=[category] if category else [],
                     )
                     session.add(candidate)
                     created += 1
@@ -227,8 +227,14 @@ async def parse_pages(source: str, limit: int | None) -> int:
                 if candidate.parsed_json != parsed_json:
                     candidate.parsed_json = parsed_json
                     has_change = True
-                if candidate.category != category:
-                    candidate.category = category
+                # Check for category changes (legacy category -> categories list)
+                new_categories = [category] if category else []
+                # Only update if current categories are None or explicitly different
+                # Note: This simple check replaces existing categories if parser returns a category.
+                # Ideally we might want to merge, but for now we follow the parser's output.
+                current_categories = candidate.categories or []
+                if new_categories and current_categories != new_categories:
+                    candidate.categories = new_categories
                     has_change = True
                 if has_change:
                     updated += 1

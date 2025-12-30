@@ -283,9 +283,13 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                 # Also check if category is set - this indicates LLM found a valid facility
                 # even if is_gym was not explicitly set to True
                 meta = parsed.get("meta", {})
-                category = meta.get("category") or cand.category
-                # Get categories array (new format) or fallback to single category
-                categories = meta.get("categories") or ([category] if category else [])
+                # Use categories from meta or fallback to candidate's categories
+                categories = meta.get("categories") or cand.categories or []
+
+                # If legacy single category exists in meta, include it
+                single_cat = meta.get("category")
+                if single_cat and single_cat not in categories:
+                    categories.append(single_cat)
                 valid_categories = {
                     "gym",
                     "pool",
@@ -319,7 +323,6 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                             slug=new_slug,
                             canonical_id=uuid.uuid4(),
                             created_at=cand.created_at,  # inherit
-                            category=category,  # Legacy: primary category
                             categories=categories,  # New: all categories
                         )
                         session.add(new_gym)
@@ -331,7 +334,7 @@ async def auto_approve_candidates(dry_run: bool = True) -> dict[str, int]:
                     # Leave as 'new' for manual review
                     reasons = []
                     if not is_valid_facility and not has_valid_category:
-                        reasons.append(f"No valid category (got: {category})")
+                        reasons.append(f"No valid category (got: {categories})")
                     if not has_addr:
                         reasons.append("Invalid address")
                     if not is_trusted:
