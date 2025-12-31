@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { KeyboardEvent, MouseEvent } from "react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FavoriteButton } from "@/components/gyms/FavoriteButton";
 import {
   getFacilityCategoryColorClass,
@@ -112,6 +112,23 @@ export function GymCard({
   const fallbackAddress = [gym.prefecture, gym.city].filter(Boolean).join(" ");
   const addressLabel = primaryAddress || fallbackAddress || "所在地情報なし";
   const categories = normalizeFacilityCategories(gym.categories, gym.category);
+  const categoryPriority = [
+    "gym",
+    "pool",
+    "court",
+    "field",
+    "hall",
+    "martial_arts",
+    "archery",
+    "facility",
+  ];
+  const prioritizedCategories = [...categories].sort((a, b) => {
+    const indexA = categoryPriority.indexOf(a);
+    const indexB = categoryPriority.indexOf(b);
+    const rankA = indexA === -1 ? categoryPriority.length : indexA;
+    const rankB = indexB === -1 ? categoryPriority.length : indexB;
+    return rankA - rankB;
+  });
 
   return (
     <Link
@@ -141,7 +158,7 @@ export function GymCard({
           <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
             <FavoriteButton gymId={gym.id} />
           </div>
-          <div className="aspect-[4/3] w-full" aria-hidden />
+          <div className="aspect-[16/9] w-full" aria-hidden />
           <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs text-muted-foreground">
             {gym.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -166,7 +183,7 @@ export function GymCard({
             )}
           </div>
         </div>
-        <CardHeader className="space-y-2 px-6 pb-4 pt-5 sm:pb-5">
+        <CardHeader className="space-y-3 px-6 pb-6 pt-5">
           <CardTitle
             className="text-lg font-semibold leading-tight tracking-tight group-hover:text-primary sm:text-xl"
             role="heading"
@@ -174,20 +191,13 @@ export function GymCard({
           >
             {gym.name}
           </CardTitle>
-          <CardDescription
-            className="text-sm leading-relaxed text-muted-foreground"
-            data-testid="gym-address"
-          >
-            {addressLabel}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
           <div className="flex flex-wrap gap-2" data-testid="gym-categories">
-            {categories.map(category => (
+            {prioritizedCategories.map(category => (
               <span
                 key={category}
                 className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm",
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                  "text-white shadow-sm",
                   getFacilityCategoryColorClass(category),
                 )}
               >
@@ -195,20 +205,28 @@ export function GymCard({
               </span>
             ))}
           </div>
-
           {gym.tags && gym.tags.length > 0 ? (
-            <div className="mt-auto flex flex-wrap gap-1.5 border-t border-border/50 pt-3">
+            <div className="flex flex-wrap gap-1.5">
               {gym.tags.map(tag => (
                 <span
                   key={tag}
-                  className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className={cn(
+                    "inline-flex items-center rounded-md border border-border/60",
+                    "bg-muted/80 px-2 py-0.5 text-[11px] font-medium text-foreground",
+                  )}
                 >
                   {tag}
                 </span>
               ))}
             </div>
           ) : null}
-        </CardContent>
+          <CardDescription
+            className="text-sm leading-relaxed text-muted-foreground"
+            data-testid="gym-address"
+          >
+            {addressLabel}
+          </CardDescription>
+        </CardHeader>
       </Card>
     </Link>
   );
