@@ -455,7 +455,7 @@ describe("Pagination integration", () => {
 
     expect(await screen.findByText("20件表示・アルファジム")).toBeInTheDocument();
 
-    const limitSelect = screen.getByLabelText("表示件数");
+    const limitSelect = screen.getByLabelText("1ページあたりの表示件数を変更");
     await userEvent.selectOptions(limitSelect, "10");
 
     await screen.findByText("10件表示・アルファジム");
