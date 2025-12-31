@@ -118,7 +118,7 @@ export function GymsPage() {
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-start">
+        <div className="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-stretch">
           {isDesktop ? (
             <aside className="sticky top-24 z-20 hidden lg:block">
               <SearchFilters
