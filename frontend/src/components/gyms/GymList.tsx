@@ -315,7 +315,6 @@ export function GymList({
             >
               {gyms.map((gym, index) => (
                 <div
-                  className="h-full"
                   data-gym-index={index}
                   data-gym-slug={gym.slug}
                   key={gym.id ?? gym.slug ?? index}
