@@ -88,7 +88,7 @@ export function GymsPage() {
       {/* Background Grid */}
       <div className="fixed inset-0 z-0 bg-grid-pattern opacity-10 pointer-events-none" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 pb-24 pt-8 sm:px-6 lg:pb-16 lg:px-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-4 pt-8 sm:px-6 lg:px-8">
         <a
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-accent focus:px-5 focus:py-2 focus:font-mono focus:text-sm focus:font-bold focus:text-accent-foreground"
           href="#gym-search-results"
@@ -118,7 +118,7 @@ export function GymsPage() {
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[320px_1fr] lg:h-[calc(100vh-16rem)]">
+        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[320px_1fr]">
           {isDesktop ? (
             <aside className="sticky top-24 z-20 hidden lg:block">
               <SearchFilters
