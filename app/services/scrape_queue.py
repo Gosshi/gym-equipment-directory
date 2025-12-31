@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
@@ -37,8 +37,8 @@ class ScrapeJobState:
     failure_count: int
     dry_run: bool
     items: dict[int, ScrapeJobItem] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -55,7 +55,7 @@ _worker_task: asyncio.Task[None] | None = None
 
 
 def _touch(job: ScrapeJobState) -> None:
-    job.updated_at = datetime.now(timezone.utc)
+    job.updated_at = datetime.now(UTC)
 
 
 async def start_scrape_worker() -> None:

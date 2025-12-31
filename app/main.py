@@ -25,8 +25,8 @@ from app.logging import setup_logging
 from app.middleware.rate_limit import rate_limit_middleware
 from app.middleware.request_id import request_id_middleware
 from app.middleware.security_headers import security_headers_middleware
-from app.services.scrape_queue import start_scrape_worker, stop_scrape_worker
 from app.services.scoring import validate_weights
+from app.services.scrape_queue import start_scrape_worker, stop_scrape_worker
 
 
 def create_app() -> FastAPI:

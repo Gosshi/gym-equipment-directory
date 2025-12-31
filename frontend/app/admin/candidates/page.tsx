@@ -106,11 +106,7 @@ function AdminCandidatesPageContent() {
     isLoading: rejectingBulk,
     error: rejectBulkError,
   } = useBulkRejectCandidates();
-  const {
-    bulkScrape,
-    isLoading: scrapingBulk,
-    error: scrapeBulkError,
-  } = useBulkScrapeCandidates();
+  const { bulkScrape, isLoading: scrapingBulk, error: scrapeBulkError } = useBulkScrapeCandidates();
   const { job: scrapeStatusJob } = useBulkScrapeStatus(bulkScrapeJobId, {
     enabled: Boolean(bulkScrapeJobId),
   });

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
-
 from dataclasses import dataclass
+from typing import Any
 
 from app.services.http_utils import fetch_url_checked
 
@@ -16,7 +15,6 @@ logger = logging.getLogger(__name__)
 class ScrapeOutcome:
     merged_data: dict[str, Any] | None
     failure_reason: str | None = None
-
 
 
 def merge_parsed_json(
