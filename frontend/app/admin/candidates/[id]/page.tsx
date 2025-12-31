@@ -576,6 +576,66 @@ export default function AdminCandidateDetailPage() {
     [],
   );
 
+  // デフォルトで展開すべき重要キー
+  const EXPANDED_BY_DEFAULT_KEYS = new Set([
+    "name",
+    "address",
+    "tel",
+    "phone",
+    "email",
+    "access",
+    "category",
+    "categories",
+    "url",
+    "official_url",
+    "description",
+  ]);
+
+  // デフォルトで閉じるべき長いキー
+  const COLLAPSED_BY_DEFAULT_KEYS = new Set([
+    "equipments_structured",
+    "equipments",
+    "opening_hours",
+    "hours",
+    "fees",
+    "fee_structure",
+    "schedule",
+    "pricing",
+    "amenities",
+    "facilities",
+  ]);
+
+  const getSummaryPreview = (entry: JsonValue, key: string): string => {
+    if (Array.isArray(entry)) {
+      const count = entry.length;
+      if (count === 0) return "空の配列";
+      const primitivesOnly = entry.every(isJsonPrimitive);
+      if (primitivesOnly && count <= 3) {
+        return entry.map(item => (item === null ? "null" : String(item))).join(", ");
+      }
+      return `${count}件`;
+    }
+    if (isJsonObject(entry)) {
+      const keys = Object.keys(entry);
+      if (keys.length === 0) return "空のオブジェクト";
+      if (keys.length <= 3) {
+        return keys.join(", ");
+      }
+      return `${keys.length}項目`;
+    }
+    return String(entry);
+  };
+
+  const shouldExpandByDefault = (key: string, entry: JsonValue): boolean => {
+    const lowerKey = key.toLowerCase();
+    if (COLLAPSED_BY_DEFAULT_KEYS.has(lowerKey)) return false;
+    if (EXPANDED_BY_DEFAULT_KEYS.has(lowerKey)) return true;
+    // 配列で3要素以下、またはオブジェクトで3キー以下は展開
+    if (Array.isArray(entry) && entry.length <= 3) return true;
+    if (isJsonObject(entry) && Object.keys(entry).length <= 3) return true;
+    return false;
+  };
+
   const renderJsonEditor = useCallback(
     (value: JsonValue, path: Array<string | number> = []) => {
       if (Array.isArray(value)) {
@@ -589,7 +649,7 @@ export default function AdminCandidateDetailPage() {
             .join(", ");
           return (
             <input
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
               value={inputValue}
               onChange={event => {
                 const raw = event.target.value;
@@ -628,8 +688,11 @@ export default function AdminCandidateDetailPage() {
         return (
           <div className="space-y-2">
             {value.map((entry, index) => (
-              <div key={`${path.join(".")}-${index}`} className="rounded border bg-gray-50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-500">[{index}]</p>
+              <div
+                key={`${path.join(".")}-${index}`}
+                className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
+              >
+                <p className="mb-2 text-xs font-semibold text-blue-600">[{index}]</p>
                 {renderJsonEditor(entry, [...path, index])}
               </div>
             ))}
@@ -639,39 +702,58 @@ export default function AdminCandidateDetailPage() {
 
       if (isJsonObject(value)) {
         return (
-          <div className="space-y-3">
-            {Object.entries(value).map(([key, entry]) => (
-              <div key={`${path.join(".")}-${key}`} className="space-y-2">
-                <div className="text-xs font-semibold text-gray-500">{key}</div>
-                <div className="pl-3">
-                  {isJsonObject(entry) || Array.isArray(entry) ? (
-                    <details className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
-                      <summary className="cursor-pointer text-xs font-medium text-gray-600">
-                        内容を表示
-                      </summary>
-                      <div className="mt-2 space-y-2">
-                        {renderJsonEditor(entry, [...path, key])}
-                      </div>
-                    </details>
-                  ) : (
-                    renderJsonEditor(entry, [...path, key])
-                  )}
+          <div className="space-y-4">
+            {Object.entries(value).map(([key, entry]) => {
+              const isComplex = isJsonObject(entry) || Array.isArray(entry);
+              const isImportant = EXPANDED_BY_DEFAULT_KEYS.has(key.toLowerCase());
+
+              return (
+                <div
+                  key={`${path.join(".")}-${key}`}
+                  className={`rounded-lg border p-3 ${
+                    isImportant ? "border-blue-200 bg-blue-50/50" : "border-gray-200 bg-gray-50/50"
+                  }`}
+                >
+                  <div
+                    className={`mb-2 text-xs font-bold ${
+                      isImportant ? "text-blue-700" : "text-gray-600"
+                    }`}
+                  >
+                    {key}
+                  </div>
+                  <div>
+                    {isComplex ? (
+                      <details open={shouldExpandByDefault(key, entry)}>
+                        <summary className="cursor-pointer select-none rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-100">
+                          <span className="ml-1 text-gray-500">
+                            {getSummaryPreview(entry, key)}
+                          </span>
+                        </summary>
+                        <div className="mt-3 pl-2">{renderJsonEditor(entry, [...path, key])}</div>
+                      </details>
+                    ) : (
+                      renderJsonEditor(entry, [...path, key])
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       }
 
       if (typeof value === "boolean") {
         return (
-          <label className="inline-flex items-center gap-2 text-sm">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-white px-3 py-2 text-sm shadow-sm">
             <input
               type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               checked={value}
               onChange={event => updateParsedJsonValue(path, event.target.checked)}
             />
-            {value ? "true" : "false"}
+            <span className={value ? "font-medium text-green-600" : "text-gray-500"}>
+              {value ? "true" : "false"}
+            </span>
           </label>
         );
       }
@@ -679,7 +761,7 @@ export default function AdminCandidateDetailPage() {
       const currentValue = value === null ? "" : String(value);
       return (
         <input
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
           value={currentValue}
           onChange={event => {
             const raw = event.target.value;
