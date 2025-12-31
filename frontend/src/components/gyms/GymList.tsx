@@ -369,7 +369,7 @@ export function GymList({
       aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
+      className="h-full rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
       id="gym-search-results"
       ref={resultSectionRef}
       tabIndex={-1}
