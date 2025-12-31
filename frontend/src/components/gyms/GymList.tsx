@@ -363,37 +363,39 @@ export function GymList({
   })();
 
   return (
-    <section
-      aria-busy={resultState.isLoading}
-      aria-describedby={headerDescriptionId}
-      aria-labelledby="gym-search-results-heading"
-      aria-live="polite"
-      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4"
-      id="gym-search-results"
-      ref={resultSectionRef}
-      tabIndex={-1}
-    >
-      <div className="flex items-center justify-between pb-2">
-        <h2
-          className="text-lg font-semibold tracking-tight"
-          id="gym-search-results-heading"
-          role="heading"
-          aria-level={2}
-        >
-          検索結果
-          {resultState.isSuccess ? (
-            <span className="ml-2 text-sm font-normal text-muted-foreground">{totalLabel}</span>
-          ) : null}
-        </h2>
-        <p className="sr-only" id={headerDescriptionId}>
-          {headerDescription}
-        </p>
-      </div>
+    <div className="flex h-full flex-col gap-2">
+      <section
+        aria-busy={resultState.isLoading}
+        aria-describedby={headerDescriptionId}
+        aria-labelledby="gym-search-results-heading"
+        aria-live="polite"
+        className="flex min-h-0 flex-1 flex-col rounded-3xl border border-border/80 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4"
+        id="gym-search-results"
+        ref={resultSectionRef}
+        tabIndex={-1}
+      >
+        <div className="flex items-center justify-between pb-2">
+          <h2
+            className="text-lg font-semibold tracking-tight"
+            id="gym-search-results-heading"
+            role="heading"
+            aria-level={2}
+          >
+            検索結果
+            {resultState.isSuccess ? (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">{totalLabel}</span>
+            ) : null}
+          </h2>
+          <p className="sr-only" id={headerDescriptionId}>
+            {headerDescription}
+          </p>
+        </div>
 
-      <div className="min-h-0 flex-1">{content}</div>
+        <div className="min-h-0 flex-1">{content}</div>
+      </section>
 
       {showPagination ? (
-        <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-2">
+        <div className="flex items-center justify-between rounded-xl border border-border/80 bg-card/95 px-3 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <p aria-live="polite" className="text-xs text-muted-foreground" id={paginationSummaryId}>
             {paginationSummary}
           </p>
@@ -430,6 +432,6 @@ export function GymList({
           </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }
