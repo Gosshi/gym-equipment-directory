@@ -222,7 +222,7 @@ describe("GymsPage", () => {
 
     renderWithClient(<GymsPage />);
 
-    await userEvent.selectOptions(screen.getByLabelText("表示件数"), "50");
+    await userEvent.selectOptions(screen.getByLabelText("1ページあたりの表示件数を変更"), "50");
 
     expect(setLimit).toHaveBeenCalledWith(50);
   });
