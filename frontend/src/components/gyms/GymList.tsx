@@ -301,13 +301,13 @@ export function GymList({
       break;
     default:
       content = (
-        <div className="relative h-full">
+        <div className="relative h-full overflow-y-auto">
           {shouldVirtualize ? (
             <VirtualizedGymGrid ref={virtualizedGridRef} gyms={gyms} renderCard={renderCard} />
           ) : (
             <div
               className={cn(
-                "grid h-full grid-cols-1 content-start gap-5",
+                "grid grid-cols-1 content-start gap-5",
                 "sm:grid-cols-2 sm:gap-6",
                 "lg:grid-cols-2",
                 "xl:grid-cols-3 xl:gap-7",
