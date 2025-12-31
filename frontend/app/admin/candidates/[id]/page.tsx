@@ -158,6 +158,47 @@ const hasPreview = (response: ApproveResponse): response is ApprovePreviewRespon
 const hasResult = (response: ApproveResponse): response is ApproveResultResponse =>
   "result" in response;
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+const isJsonObject = (value: JsonValue): value is { [key: string]: JsonValue } =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isJsonPrimitive = (value: JsonValue): value is string | number | boolean | null =>
+  typeof value === "string" ||
+  typeof value === "number" ||
+  typeof value === "boolean" ||
+  value === null;
+
+const updateJsonAtPath = (
+  value: JsonValue,
+  path: Array<string | number>,
+  nextValue: JsonValue,
+): JsonValue => {
+  if (path.length === 0) {
+    return nextValue;
+  }
+  const [head, ...rest] = path;
+  if (Array.isArray(value)) {
+    const next = [...value];
+    const index = Number(head);
+    next[index] = updateJsonAtPath(next[index] ?? null, rest, nextValue);
+    return next;
+  }
+  if (isJsonObject(value)) {
+    const next = { ...value };
+    next[String(head)] = updateJsonAtPath(next[String(head)] ?? null, rest, nextValue);
+    return next;
+  }
+  const fallback: JsonValue = typeof head === "number" ? [] : {};
+  return updateJsonAtPath(fallback, path, nextValue);
+};
+
+const parseCommaSeparated = (input: string) =>
+  input
+    .split(",")
+    .map(part => part.trim())
+    .filter(Boolean);
+
 export default function AdminCandidateDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -172,6 +213,36 @@ export default function AdminCandidateDetailPage() {
   const [overrideDialog, setOverrideDialog] =
     useState<OverrideDialogState>(INITIAL_OVERRIDE_DIALOG);
   const [isScraping, setIsScraping] = useState(false);
+  const [isParsedJsonExpanded, setIsParsedJsonExpanded] = useState(false);
+  const [isRawJsonVisible, setIsRawJsonVisible] = useState(false);
+
+  const parsedJsonError = useMemo(() => {
+    if (!formState?.parsed_json.trim()) {
+      return null;
+    }
+    try {
+      JSON.parse(formState.parsed_json);
+      return null;
+    } catch (jsonError) {
+      return jsonError instanceof Error ? jsonError.message : "JSONの解析に失敗しました";
+    }
+  }, [formState?.parsed_json]);
+
+  const parsedJsonValue = useMemo<JsonValue>(() => {
+    if (!formState?.parsed_json.trim()) {
+      return {};
+    }
+    try {
+      return JSON.parse(formState.parsed_json) as JsonValue;
+    } catch {
+      return {};
+    }
+  }, [formState?.parsed_json]);
+
+  const isParsedJsonEmpty = useMemo(
+    () => isJsonObject(parsedJsonValue) && Object.keys(parsedJsonValue).length === 0,
+    [parsedJsonValue],
+  );
 
   const loadCandidate = useCallback(async () => {
     if (Number.isNaN(candidateId)) {
@@ -481,6 +552,194 @@ export default function AdminCandidateDetailPage() {
     });
   }, [scrapePreview.data, closeScrapePreview]);
 
+  const updateParsedJsonValue = useCallback(
+    (path: Array<string | number>, nextValue: JsonValue) => {
+      setFormState(prev => {
+        if (!prev) {
+          return prev;
+        }
+        let base: JsonValue = {};
+        if (prev.parsed_json.trim()) {
+          try {
+            base = JSON.parse(prev.parsed_json) as JsonValue;
+          } catch {
+            return prev;
+          }
+        }
+        const updated = updateJsonAtPath(base, path, nextValue);
+        return {
+          ...prev,
+          parsed_json: JSON.stringify(updated, null, 2),
+        };
+      });
+    },
+    [],
+  );
+
+  const renderJsonEditor = useCallback(
+    (value: JsonValue, path: Array<string | number> = []) => {
+      if (Array.isArray(value)) {
+        const primitivesOnly = value.every(isJsonPrimitive);
+        if (primitivesOnly) {
+          const sample = value.find(item => item !== null);
+          const sampleType = typeof sample;
+          const inputValue = value
+            .map(item => (item === null ? "" : String(item)))
+            .filter(item => item.length > 0)
+            .join(", ");
+          return (
+            <input
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              value={inputValue}
+              onChange={event => {
+                const raw = event.target.value;
+                const parts = parseCommaSeparated(raw);
+                if (sampleType === "number") {
+                  updateParsedJsonValue(
+                    path,
+                    parts.map(part => {
+                      const parsed = Number(part);
+                      return Number.isNaN(parsed) ? part : parsed;
+                    }),
+                  );
+                  return;
+                }
+                if (sampleType === "boolean") {
+                  updateParsedJsonValue(
+                    path,
+                    parts.map(part => {
+                      if (part.toLowerCase() === "true") {
+                        return true;
+                      }
+                      if (part.toLowerCase() === "false") {
+                        return false;
+                      }
+                      return part;
+                    }),
+                  );
+                  return;
+                }
+                updateParsedJsonValue(path, parts);
+              }}
+              placeholder="カンマ区切りで入力"
+            />
+          );
+        }
+        return (
+          <div className="space-y-2">
+            {value.map((entry, index) => (
+              <div key={`${path.join(".")}-${index}`} className="rounded border bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-500">[{index}]</p>
+                {renderJsonEditor(entry, [...path, index])}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (isJsonObject(value)) {
+        return (
+          <div className="space-y-3">
+            {Object.entries(value).map(([key, entry]) => (
+              <div key={`${path.join(".")}-${key}`} className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500">{key}</div>
+                <div className="pl-3">
+                  {isJsonObject(entry) || Array.isArray(entry) ? (
+                    <details className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+                      <summary className="cursor-pointer text-xs font-medium text-gray-600">
+                        内容を表示
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {renderJsonEditor(entry, [...path, key])}
+                      </div>
+                    </details>
+                  ) : (
+                    renderJsonEditor(entry, [...path, key])
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (typeof value === "boolean") {
+        return (
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={value}
+              onChange={event => updateParsedJsonValue(path, event.target.checked)}
+            />
+            {value ? "true" : "false"}
+          </label>
+        );
+      }
+
+      const currentValue = value === null ? "" : String(value);
+      return (
+        <input
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          value={currentValue}
+          onChange={event => {
+            const raw = event.target.value;
+            if (typeof value === "number") {
+              if (!raw.trim()) {
+                updateParsedJsonValue(path, null);
+                return;
+              }
+              const parsed = Number(raw);
+              updateParsedJsonValue(path, Number.isNaN(parsed) ? value : parsed);
+              return;
+            }
+            updateParsedJsonValue(path, raw);
+          }}
+        />
+      );
+    },
+    [updateParsedJsonValue],
+  );
+
+  const handleFormatParsedJson = useCallback(() => {
+    if (!formState) {
+      return;
+    }
+    try {
+      const parsed = parseJsonInput(formState.parsed_json);
+      setFormState(prev =>
+        prev
+          ? {
+              ...prev,
+              parsed_json: parsed ? JSON.stringify(parsed, null, 2) : "",
+            }
+          : prev,
+      );
+      toast({ title: "JSONを整形しました" });
+    } catch (jsonError) {
+      toast({
+        title: "JSONの整形に失敗しました",
+        description: jsonError instanceof Error ? jsonError.message : "不明なエラーです",
+        variant: "destructive",
+      });
+    }
+  }, [formState]);
+
+  const handleCopyParsedJson = useCallback(async () => {
+    if (!formState?.parsed_json) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(formState.parsed_json);
+      toast({ title: "JSONをコピーしました" });
+    } catch (copyError) {
+      toast({
+        title: "コピーに失敗しました",
+        description: copyError instanceof Error ? copyError.message : "不明なエラーです",
+        variant: "destructive",
+      });
+    }
+  }, [formState?.parsed_json]);
+
   const handleOverrideFieldChange = useCallback(
     <T extends keyof OverrideFormValues>(key: T, value: OverrideFormValues[T]) => {
       setOverrideDialog(prev => ({
@@ -623,7 +882,7 @@ export default function AdminCandidateDetailPage() {
     }
     const { gym, equipments } = preview.summary;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4">
         <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md bg-white p-6 shadow-lg">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">承認結果プレビュー</h2>
@@ -670,7 +929,7 @@ export default function AdminCandidateDetailPage() {
       return null;
     }
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4">
         <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md bg-white p-6 shadow-lg">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">スクレイピング結果プレビュー</h2>
@@ -715,7 +974,7 @@ export default function AdminCandidateDetailPage() {
     }
     const isConflictMode = overrideDialog.mode === "conflict";
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4">
         <div className="w-full max-w-xl rounded-md bg-white p-6 shadow-lg">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
@@ -986,14 +1245,77 @@ export default function AdminCandidateDetailPage() {
               </div>
             </label>
           </div>
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium">解析済みJSON</span>
-            <textarea
-              className="h-52 rounded border border-gray-300 px-3 py-2 font-mono text-xs"
-              value={formState.parsed_json}
-              onChange={event => handleInputChange("parsed_json", event.target.value)}
-            />
-          </label>
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">解析済みJSON</span>
+              <button
+                type="button"
+                className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                onClick={() => setIsRawJsonVisible(prev => !prev)}
+              >
+                {isRawJsonVisible ? "JSONを隠す" : "JSONを直接編集"}
+              </button>
+            </div>
+            <div className="rounded border border-gray-200 bg-gray-50 p-3">
+              <p className="mb-2 text-xs text-gray-600">
+                項目ごとに編集できます。配列はカンマ区切りで入力してください。
+              </p>
+              {parsedJsonError ? (
+                <p className="text-xs text-red-600">
+                  JSONにエラーがあります。下のJSON編集で修正してください: {parsedJsonError}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {isParsedJsonEmpty ? (
+                    <p className="text-xs text-gray-500">
+                      まだJSONがありません。必要な項目があれば下のJSON編集で追加できます。
+                    </p>
+                  ) : null}
+                  {renderJsonEditor(parsedJsonValue)}
+                </div>
+              )}
+            </div>
+            {isRawJsonVisible ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50"
+                    onClick={() => setIsParsedJsonExpanded(prev => !prev)}
+                  >
+                    {isParsedJsonExpanded ? "縮小" : "拡大"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50"
+                    onClick={handleFormatParsedJson}
+                  >
+                    整形
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50"
+                    onClick={() => void handleCopyParsedJson()}
+                    disabled={!formState.parsed_json.trim()}
+                  >
+                    コピー
+                  </button>
+                </div>
+                <textarea
+                  className={`rounded border px-3 py-2 font-mono text-xs ${
+                    parsedJsonError ? "border-red-400" : "border-gray-300"
+                  } ${isParsedJsonExpanded ? "h-96" : "h-52"}`}
+                  value={formState.parsed_json}
+                  onChange={event => handleInputChange("parsed_json", event.target.value)}
+                />
+                {parsedJsonError ? (
+                  <p className="text-xs text-red-600">JSONエラー: {parsedJsonError}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">JSON形式は正常です</p>
+                )}
+              </div>
+            ) : null}
+          </div>
           <button
             type="submit"
             className="mt-2 rounded bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"

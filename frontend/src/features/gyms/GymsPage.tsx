@@ -71,7 +71,7 @@ export function GymsPage() {
       setSelectedSlug(null);
       setDetailModalOpen(false);
     }
-  }, [isLoading, items]);
+  }, [isLoading, items, selectedSlug]);
 
   const [isDesktop, setIsDesktop] = useState(false);
 
