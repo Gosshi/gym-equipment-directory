@@ -158,13 +158,7 @@ const hasPreview = (response: ApproveResponse): response is ApprovePreviewRespon
 const hasResult = (response: ApproveResponse): response is ApproveResultResponse =>
   "result" in response;
 
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 const isJsonObject = (value: JsonValue): value is { [key: string]: JsonValue } =>
   typeof value === "object" && value !== null && !Array.isArray(value);
