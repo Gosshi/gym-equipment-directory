@@ -65,7 +65,7 @@ class GymDetailResponse(BaseModel):
     court_surface: str | None = Field(default=None, description="コート表面")
     court_lighting: bool | None = Field(default=None, description="照明設備の有無")
     hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")
-    hall_area_sqm: int | None = Field(default=None, description="面積（平方メートル）")
+    hall_area_sqm: float | None = Field(default=None, description="面積（平方メートル）")
     field_type: str | None = Field(default=None, description="グラウンドタイプ")
     field_count: int | None = Field(default=None, description="グラウンド面数")
     field_lighting: bool | None = Field(default=None, description="照明設備の有無")

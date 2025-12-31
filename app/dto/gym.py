@@ -128,7 +128,7 @@ class GymDetailDTO(BaseModel):
 
     # Hall-specific fields
     hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")
-    hall_area_sqm: int | None = Field(default=None, description="面積（平方メートル）")
+    hall_area_sqm: float | None = Field(default=None, description="面積（平方メートル）")
 
     # Field-specific fields
     field_type: str | None = Field(default=None, description="グラウンドタイプ")
