@@ -3,12 +3,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import type { AdminCandidateListParams } from "@/lib/adminApi";
+import type { AdminCandidateListParams, BulkScrapeJobResponse } from "@/lib/adminApi";
 import { toast } from "@/components/ui/use-toast";
 import {
   useAdminCandidates,
   useBulkApproveCandidates,
   useBulkRejectCandidates,
+  useBulkScrapeCandidates,
+  useBulkScrapeStatus,
   type NormalizedError,
 } from "@/hooks/useAdminCandidates";
 
@@ -60,6 +62,8 @@ function AdminCandidatesPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDryRun, setBulkDryRun] = useState(false);
   const [bulkRejectReason, setBulkRejectReason] = useState("");
+  const [bulkScrapeJobId, setBulkScrapeJobId] = useState<string | null>(null);
+  const [bulkScrapeStatus, setBulkScrapeStatus] = useState<BulkScrapeJobResponse | null>(null);
 
   const params = useMemo<AdminCandidateListParams>(
     () => ({
@@ -96,14 +100,20 @@ function AdminCandidatesPageContent() {
     bulkApprove,
     isLoading: approvingBulk,
     error: approveBulkError,
-    data: approveBulkData,
   } = useBulkApproveCandidates();
   const {
     bulkReject,
     isLoading: rejectingBulk,
     error: rejectBulkError,
-    data: rejectBulkData,
   } = useBulkRejectCandidates();
+  const {
+    bulkScrape,
+    isLoading: scrapingBulk,
+    error: scrapeBulkError,
+  } = useBulkScrapeCandidates();
+  const { job: scrapeStatusJob } = useBulkScrapeStatus(bulkScrapeJobId, {
+    enabled: Boolean(bulkScrapeJobId),
+  });
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -192,7 +202,42 @@ function AdminCandidatesPageContent() {
     }
   }, [bulkReject, bulkDryRun, bulkRejectReason, clearSelection, selectedIds]);
 
-  const anyBulkLoading = approvingBulk || rejectingBulk;
+  const performBulkScrape = useCallback(async () => {
+    if (selectedIds.size === 0) {
+      toast({ title: "候補が選択されていません", variant: "destructive" });
+      return;
+    }
+    try {
+      const ids = Array.from(selectedIds);
+      const data = await bulkScrape({ ids, dry_run: bulkDryRun });
+      setBulkScrapeJobId(data.job_id);
+      setBulkScrapeStatus(data);
+      toast({
+        title: "一括スクレイプを開始しました",
+        description: `対象: ${data.total_count}件`,
+      });
+    } catch (err) {
+      const e = err as NormalizedError;
+      toast({ title: "一括スクレイプ失敗", description: e.message, variant: "destructive" });
+    }
+  }, [bulkScrape, bulkDryRun, selectedIds]);
+
+  const failureReasonLabel = useCallback((reason?: string | null) => {
+    if (!reason) return "不明な失敗";
+    const map: Record<string, string> = {
+      missing_official_url: "公式URLが未設定",
+      same_url: "公式URLが既存URLと同一",
+      robots_blocked: "robots.txtで拒否",
+      request_failed: "通信エラー",
+      http_status: "HTTPステータス異常",
+      fetch_failed: "取得失敗",
+      not_found: "候補が見つかりません",
+      unexpected_error: "予期しないエラー",
+    };
+    return map[reason] ?? reason;
+  }, []);
+
+  const anyBulkLoading = approvingBulk || rejectingBulk || scrapingBulk;
 
   const filterControls = useMemo(
     () => (
@@ -358,6 +403,14 @@ function AdminCandidatesPageContent() {
             </button>
             <button
               type="button"
+              onClick={performBulkScrape}
+              disabled={anyBulkLoading || selectedIds.size === 0}
+              className="rounded bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {scrapingBulk ? "スクレイプ中..." : `一括スクレイプ (${selectedIds.size})`}
+            </button>
+            <button
+              type="button"
               onClick={clearSelection}
               disabled={selectedIds.size === 0 || anyBulkLoading}
               className="rounded border border-gray-300 px-3 py-2 text-xs hover:bg-gray-50 disabled:opacity-50"
@@ -382,8 +435,10 @@ function AdminCandidatesPageContent() {
       handleSubmit,
       performBulkApprove,
       performBulkReject,
+      performBulkScrape,
       approvingBulk,
       rejectingBulk,
+      scrapingBulk,
       selectedIds.size,
       loading,
       anyBulkLoading,
@@ -420,10 +475,60 @@ function AdminCandidatesPageContent() {
     }
   }, [rejectBulkError]);
 
+  useEffect(() => {
+    if (scrapeBulkError) {
+      toast({
+        title: "一括スクレイプエラー",
+        description: scrapeBulkError.message,
+        variant: "destructive",
+      });
+    }
+  }, [scrapeBulkError]);
+
+  useEffect(() => {
+    if (!scrapeStatusJob) return;
+    setBulkScrapeStatus(scrapeStatusJob);
+    if (scrapeStatusJob.status !== "completed") return;
+    const failures = scrapeStatusJob.items.filter(item => item.status === "failed");
+    toast({
+      title: "一括スクレイプ完了",
+      description: `成功: ${scrapeStatusJob.success_count} / 失敗: ${failures.length}`,
+    });
+  }, [scrapeStatusJob]);
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Gym Candidates</h1>
       {filterControls}
+      {bulkScrapeStatus ? (
+        <div className="rounded-md border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">一括スクレイプ進捗</p>
+              <p className="text-xs text-blue-700">
+                {bulkScrapeStatus.completed_count}/{bulkScrapeStatus.total_count} 件処理済み
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-blue-800">
+              {bulkScrapeStatus.status === "completed" ? "完了" : "進行中"}
+            </span>
+          </div>
+          {bulkScrapeStatus.items.some(item => item.status === "failed") ? (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-blue-800">失敗理由</p>
+              <ul className="mt-2 space-y-1 text-xs text-blue-900">
+                {bulkScrapeStatus.items
+                  .filter(item => item.status === "failed")
+                  .map(item => (
+                    <li key={item.candidate_id}>
+                      #{item.candidate_id}: {failureReasonLabel(item.failure_reason)}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {loading && isInitialLoading ? (
         <p className="text-sm text-gray-600">読み込み中...</p>
       ) : queryError ? (

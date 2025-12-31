@@ -25,6 +25,7 @@ from app.logging import setup_logging
 from app.middleware.rate_limit import rate_limit_middleware
 from app.middleware.request_id import request_id_middleware
 from app.middleware.security_headers import security_headers_middleware
+from app.services.scrape_queue import start_scrape_worker, stop_scrape_worker
 from app.services.scoring import validate_weights
 
 
@@ -96,6 +97,14 @@ def create_app() -> FastAPI:
     app.include_router(me_favorites_router)
     app.include_router(me_history_router)
     api_errors.install(app)
+
+    @app.on_event("startup")
+    async def _start_scrape_worker() -> None:
+        await start_scrape_worker()
+
+    @app.on_event("shutdown")
+    async def _stop_scrape_worker() -> None:
+        await stop_scrape_worker()
 
     # Simple health for tests and uptime checks
     @app.get("/health")

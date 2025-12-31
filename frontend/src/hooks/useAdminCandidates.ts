@@ -12,10 +12,12 @@ import {
   approveCandidate,
   approveBulkCandidates,
   getCandidate,
+  getScrapeBulkStatus,
   listCandidates,
   patchCandidate,
   rejectBulkCandidates,
   rejectCandidate,
+  scrapeBulkCandidates,
 } from "@/lib/adminApi";
 
 // Query key helpers ---------------------------------------------------------
@@ -193,6 +195,37 @@ export function useBulkRejectCandidates() {
     isLoading: mutation.isPending,
     error: mutation.error ? toError(mutation.error) : null,
     data: mutation.data ?? null,
+  };
+}
+
+export function useBulkScrapeCandidates() {
+  const mutation = useMutation({
+    mutationFn: (vars: { ids: number[]; dry_run?: boolean }) =>
+      scrapeBulkCandidates(vars.ids, { dry_run: vars.dry_run }),
+  });
+  return {
+    bulkScrape: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+    error: mutation.error ? toError(mutation.error) : null,
+    data: mutation.data ?? null,
+  };
+}
+
+export function useBulkScrapeStatus(jobId: string | null, options?: { enabled?: boolean }) {
+  const enabled = (options?.enabled ?? true) && Boolean(jobId);
+  const query = useQuery({
+    queryKey: ["admin", "candidates", "scrape-bulk", jobId],
+    queryFn: () => getScrapeBulkStatus(jobId as string),
+    enabled,
+    refetchInterval: data => {
+      if (!data) return 2000;
+      return data.status === "completed" ? false : 2000;
+    },
+  });
+  return {
+    job: query.data ?? null,
+    isLoading: query.isLoading || query.isFetching,
+    error: query.error ? toError(query.error) : null,
   };
 }
 

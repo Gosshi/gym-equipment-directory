@@ -25,6 +25,8 @@ from app.schemas.admin_candidates import (
     BulkRejectItem,
     BulkRejectRequest,
     BulkRejectResult,
+    BulkScrapeJobStatus,
+    BulkScrapeRequest,
     RejectRequest,
     ScrapedPageInfo,
     SimilarGymInfo,
@@ -97,6 +99,10 @@ def _to_detail(row: CandidateDetailRow) -> AdminCandidateDetail:
         similar=similar,
         gym_id=row.gym_id,
     )
+
+
+def _to_bulk_scrape_status(payload: dict[str, object]) -> BulkScrapeJobStatus:
+    return BulkScrapeJobStatus(**payload)
 
 
 @router.post("", response_model=AdminCandidateItem, status_code=201)
@@ -446,3 +452,21 @@ async def bulk_reject_candidates(
         dry_run=payload.dry_run,
         audit_log_id=audit_id,
     )
+
+
+@router.post("/scrape-bulk", response_model=BulkScrapeJobStatus, status_code=202)
+async def bulk_scrape_candidates(payload: BulkScrapeRequest):
+    from app.services.scrape_queue import enqueue_scrape_job, serialize_job
+
+    job = await enqueue_scrape_job(payload.candidate_ids, dry_run=payload.dry_run)
+    return _to_bulk_scrape_status(serialize_job(job))
+
+
+@router.get("/scrape-bulk/{job_id}", response_model=BulkScrapeJobStatus)
+async def get_bulk_scrape_status(job_id: str):
+    from app.services.scrape_queue import get_scrape_job, serialize_job
+
+    job = await get_scrape_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="scrape job not found")
+    return _to_bulk_scrape_status(serialize_job(job))

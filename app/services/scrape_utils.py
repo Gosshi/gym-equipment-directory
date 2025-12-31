@@ -5,9 +5,18 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from dataclasses import dataclass
+
 from app.services.http_utils import fetch_url_checked
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ScrapeOutcome:
+    merged_data: dict[str, Any] | None
+    failure_reason: str | None = None
+
 
 
 def merge_parsed_json(
@@ -68,8 +77,22 @@ async def try_scrape_official_url(
     - robots.txt blocks scraping
     - HTTP fetch fails
     """
+    outcome = await scrape_official_url_with_reason(
+        official_url=official_url,
+        scraped_page_url=scraped_page_url,
+        existing_parsed_json=existing_parsed_json,
+    )
+    return outcome.merged_data
+
+
+async def scrape_official_url_with_reason(
+    official_url: str | None,
+    scraped_page_url: str | None,
+    existing_parsed_json: dict[str, Any] | None,
+) -> ScrapeOutcome:
+    """Scrape the official URL and return merged data with a failure reason."""
     if not official_url:
-        return None
+        return ScrapeOutcome(None, "missing_official_url")
 
     # Normalize URLs for comparison
     official_normalized = official_url.rstrip("/").lower()
@@ -77,7 +100,7 @@ async def try_scrape_official_url(
 
     if official_normalized == scraped_normalized:
         logger.debug("Official URL same as scraped URL, skipping: %s", official_url)
-        return None
+        return ScrapeOutcome(None, "same_url")
 
     logger.info(
         "Attempting to scrape official URL: %s (different from scraped: %s)",
@@ -86,10 +109,10 @@ async def try_scrape_official_url(
     )
 
     try:
-        html, status = await fetch_url_checked(official_url)
+        html, status, failure_reason = await fetch_url_checked(official_url)
         if html is None:
             logger.warning("Failed to fetch official URL: %s", official_url)
-            return None
+            return ScrapeOutcome(None, failure_reason or "fetch_failed")
 
         logger.info(
             "Successfully fetched official URL: %s (status=%s, %d bytes)",
@@ -133,8 +156,8 @@ async def try_scrape_official_url(
             # Proceed with just metadata if LLM fails
 
         # Merge with existing parsed_json
-        return merge_parsed_json(existing_parsed_json, new_data)
+        return ScrapeOutcome(merge_parsed_json(existing_parsed_json, new_data))
 
     except Exception as exc:
         logger.exception("Error scraping official URL %s: %s", official_url, exc)
-        return None
+        return ScrapeOutcome(None, "unexpected_error")

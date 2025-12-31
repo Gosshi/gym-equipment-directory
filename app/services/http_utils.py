@@ -184,7 +184,7 @@ async def fetch_url_checked(
     user_agent: str = DEFAULT_USER_AGENT,
     timeout: float = DEFAULT_TIMEOUT,
     respect_robots: bool = True,
-) -> tuple[str | None, int | None]:
+) -> tuple[str | None, int | None, str | None]:
     """Fetch a URL with robots.txt checking.
 
     Args:
@@ -194,7 +194,7 @@ async def fetch_url_checked(
         respect_robots: Whether to respect robots.txt
 
     Returns:
-        Tuple of (html_content, status_code) or (None, None) on failure
+        Tuple of (html_content, status_code, failure_reason) on failure
     """
     parsed = urlparse(url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
@@ -213,19 +213,19 @@ async def fetch_url_checked(
         )
         if not decision.proceed:
             logger.info("Scraping blocked by robots.txt policy for %s", url)
-            return None, None
+            return None, None, "robots_blocked"
 
         if not is_path_allowed(url, decision.rules):
             logger.info("URL path blocked by robots.txt: %s", url)
-            return None, None
+            return None, None, "robots_blocked"
 
         try:
             response = await request_with_retries(client, url, timeout=timeout)
         except httpx.HTTPError:
-            return None, None
+            return None, None, "request_failed"
 
         if response.status_code != 200:
             logger.warning("URL %s returned status %s", url, response.status_code)
-            return None, response.status_code
+            return None, response.status_code, "http_status"
 
-        return response.text, response.status_code
+        return response.text, response.status_code, None
