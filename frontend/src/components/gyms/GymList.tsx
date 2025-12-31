@@ -395,7 +395,7 @@ export function GymList({
         ) : null}
       </div>
 
-      <div className="flex-1">{content}</div>
+      <div className="min-h-0 flex-1">{content}</div>
 
       {showPagination ? (
         <div className="mt-4 border-t border-border/70 pt-4">

@@ -183,7 +183,7 @@ export function GymsPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-6 min-w-0">
+          <div className="flex min-h-0 min-w-0 flex-col gap-6">
             <GymList
               error={error}
               gyms={items}
