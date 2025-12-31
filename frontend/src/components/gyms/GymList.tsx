@@ -368,81 +368,65 @@ export function GymList({
       aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-6"
+      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4"
       id="gym-search-results"
       ref={resultSectionRef}
       tabIndex={-1}
     >
-      <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-        <div className="space-y-1.5">
-          <h2
-            className="text-2xl font-semibold tracking-tight"
-            id="gym-search-results-heading"
-            role="heading"
-            aria-level={2}
-          >
-            検索結果
-          </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground" id={headerDescriptionId}>
-            {headerDescription}
-          </p>
-        </div>
-        {resultState.isSuccess ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{totalLabel}</span>
-            <span className="hidden sm:inline">が見つかりました</span>
-          </div>
-        ) : null}
+      <div className="flex items-center justify-between pb-2">
+        <h2
+          className="text-lg font-semibold tracking-tight"
+          id="gym-search-results-heading"
+          role="heading"
+          aria-level={2}
+        >
+          検索結果
+          {resultState.isSuccess ? (
+            <span className="ml-2 text-sm font-normal text-muted-foreground">{totalLabel}</span>
+          ) : null}
+        </h2>
+        <p className="sr-only" id={headerDescriptionId}>
+          {headerDescription}
+        </p>
       </div>
 
       <div className="min-h-0 flex-1">{content}</div>
 
       {showPagination ? (
-        <div className="mt-4 border-t border-border/70 pt-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p
-              aria-live="polite"
-              className="text-sm text-muted-foreground"
-              id={paginationSummaryId}
+        <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-2">
+          <p aria-live="polite" className="text-xs text-muted-foreground" id={paginationSummaryId}>
+            {paginationSummary}
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="1ページあたりの表示件数を変更"
+              className={cn(
+                "h-7 rounded-md border border-input bg-background px-1.5 text-xs shadow-sm",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+              id="gym-search-limit"
+              onChange={event => {
+                const next = Number.parseInt(event.target.value, 10);
+                if (!Number.isNaN(next)) {
+                  onLimitChange(next);
+                }
+              }}
+              value={perPageValue}
             >
-              {paginationSummary}
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-muted-foreground" htmlFor="gym-search-limit">
-                  表示件数
-                </label>
-                <select
-                  aria-label="1ページあたりの表示件数を変更"
-                  className={cn(
-                    "h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  )}
-                  id="gym-search-limit"
-                  onChange={event => {
-                    const next = Number.parseInt(event.target.value, 10);
-                    if (!Number.isNaN(next)) {
-                      onLimitChange(next);
-                    }
-                  }}
-                  value={perPageValue}
-                >
-                  {perPageOptions.map(option => (
-                    <option key={option} value={option}>
-                      {option} 件
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Pagination
-                ariaDescribedBy={paginationSummaryId}
-                currentPage={currentPage}
-                totalPages={paginationTotalPages}
-                hasNextPage={hasMore}
-                onChange={onPageChange}
-                isLoading={isPageLoading}
-              />
-            </div>
+              {perPageOptions.map(option => (
+                <option key={option} value={option}>
+                  {option}件
+                </option>
+              ))}
+            </select>
+            <Pagination
+              ariaDescribedBy={paginationSummaryId}
+              currentPage={currentPage}
+              totalPages={paginationTotalPages}
+              hasNextPage={hasMore}
+              onChange={onPageChange}
+              isLoading={isPageLoading}
+            />
           </div>
         </div>
       ) : null}
