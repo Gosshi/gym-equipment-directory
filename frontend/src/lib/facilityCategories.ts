@@ -10,14 +10,14 @@ export const FACILITY_CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const FACILITY_CATEGORY_COLORS: Record<string, string> = {
-  gym: "bg-emerald-500",
-  pool: "bg-cyan-500",
-  court: "bg-amber-500",
-  field: "bg-orange-500",
-  hall: "bg-violet-500",
-  martial_arts: "bg-red-500",
-  archery: "bg-teal-500",
-  facility: "bg-slate-500",
+  gym: "bg-emerald-600",
+  pool: "bg-cyan-600",
+  court: "bg-amber-600",
+  field: "bg-orange-600",
+  hall: "bg-violet-600",
+  martial_arts: "bg-red-600",
+  archery: "bg-teal-600",
+  facility: "bg-slate-600",
 };
 
 const EXCLUDED_CATEGORIES = new Set(["all"]);
