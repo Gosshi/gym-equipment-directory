@@ -307,7 +307,7 @@ export function GymList({
           ) : (
             <div
               className={cn(
-                "grid grid-cols-1 content-start gap-5",
+                "grid grid-cols-1 auto-rows-min gap-5",
                 "sm:grid-cols-2 sm:gap-6",
                 "lg:grid-cols-2",
                 "xl:grid-cols-3 xl:gap-7",
