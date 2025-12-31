@@ -101,6 +101,7 @@ def _lv(dt: datetime | None) -> str | None:
 
 
 def _gym_summary_from_gym(g: Gym, *, distance_km: float | None) -> GymSummaryDTO:
+    categories = getattr(g, "categories", None) or []
     return GymSummaryDTO(
         id=int(getattr(g, "id", 0)),
         slug=str(getattr(g, "slug", "")),
@@ -116,6 +117,8 @@ def _gym_summary_from_gym(g: Gym, *, distance_km: float | None) -> GymSummaryDTO
         distance_km=distance_km,
         latitude=getattr(g, "latitude", None),
         longitude=getattr(g, "longitude", None),
+        categories=categories,
+        category=categories[0] if categories else None,
     )
 
 
@@ -601,6 +604,7 @@ async def search_gyms_api(
         for row in scored_rows or []:
             g = row[0]
             gid = int(getattr(g, "id", 0))
+            categories = getattr(g, "categories", None) or []
             items.append(
                 GymSummaryDTO(
                     id=gid,
@@ -617,6 +621,8 @@ async def search_gyms_api(
                     distance_km=distance_map.get(gid),
                     latitude=getattr(g, "latitude", None),
                     longitude=getattr(g, "longitude", None),
+                    categories=categories,
+                    category=categories[0] if categories else None,
                 )
             )
 

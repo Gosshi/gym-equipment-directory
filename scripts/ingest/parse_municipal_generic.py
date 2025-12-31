@@ -163,6 +163,7 @@ async def parse_municipal_page(
             page_type=page_type,
             page_title="",
             meta={"create_gym": False, "page_url": normalized_url},
+            categories=[],
         )
 
     title_text = _extract_primary_title(soup, selectors.get("title"))
@@ -206,7 +207,7 @@ async def parse_municipal_page(
                 page_type=page_type,
                 page_title=page_title,
                 meta={"create_gym": False, "page_url": normalized_url, "reason": "llm_rejection"},
-                category=None,
+                categories=[],
             )
         # Otherwise, continue processing as a non-gym facility
 

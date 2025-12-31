@@ -95,7 +95,7 @@ async def test_list_candidates_with_filters(app_client: AsyncClient, session: As
     )
     assert resp.status_code == 200
     payload = resp.json()
-    assert payload["count"] == 2
+    assert payload["count"] == 3  # Total count (not page count)
     assert payload["next_cursor"]
     first_batch_ids = [item["id"] for item in payload["items"]]
     assert first_batch_ids == sorted(first_batch_ids, reverse=True)
@@ -106,7 +106,7 @@ async def test_list_candidates_with_filters(app_client: AsyncClient, session: As
     )
     assert resp2.status_code == 200
     payload2 = resp2.json()
-    assert payload2["count"] == 1
+    assert payload2["count"] == 3  # Total count stays same across pages
     assert payload2["next_cursor"] is None
 
 
