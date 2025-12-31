@@ -301,13 +301,13 @@ export function GymList({
       break;
     default:
       content = (
-        <div className="relative">
+        <div className="relative h-full">
           {shouldVirtualize ? (
             <VirtualizedGymGrid ref={virtualizedGridRef} gyms={gyms} renderCard={renderCard} />
           ) : (
             <div
               className={cn(
-                "grid grid-cols-1 gap-5",
+                "grid h-full grid-cols-1 content-start gap-5",
                 "sm:grid-cols-2 sm:gap-6",
                 "lg:grid-cols-2",
                 "xl:grid-cols-3 xl:gap-7",
@@ -369,7 +369,7 @@ export function GymList({
       aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="h-full rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
+      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
       id="gym-search-results"
       ref={resultSectionRef}
       tabIndex={-1}
@@ -396,7 +396,7 @@ export function GymList({
         ) : null}
       </div>
 
-      {content}
+      <div className="flex-1">{content}</div>
 
       {showPagination ? (
         <div className="mt-10 border-t border-border/70 pt-6">
