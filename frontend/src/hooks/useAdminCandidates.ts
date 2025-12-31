@@ -217,7 +217,8 @@ export function useBulkScrapeStatus(jobId: string | null, options?: { enabled?: 
     queryKey: ["admin", "candidates", "scrape-bulk", jobId],
     queryFn: () => getScrapeBulkStatus(jobId as string),
     enabled,
-    refetchInterval: data => {
+    refetchInterval: queryInstance => {
+      const data = queryInstance.state.data;
       if (!data) return 2000;
       return data.status === "completed" ? false : 2000;
     },
