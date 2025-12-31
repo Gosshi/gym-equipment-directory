@@ -368,12 +368,12 @@ export function GymList({
       aria-describedby={headerDescriptionId}
       aria-labelledby="gym-search-results-heading"
       aria-live="polite"
-      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-8"
+      className="flex h-full flex-col rounded-3xl border border-border/80 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-6"
       id="gym-search-results"
       ref={resultSectionRef}
       tabIndex={-1}
     >
-      <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+      <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="space-y-1.5">
           <h2
             className="text-2xl font-semibold tracking-tight"
@@ -398,7 +398,7 @@ export function GymList({
       <div className="flex-1">{content}</div>
 
       {showPagination ? (
-        <div className="mt-10 border-t border-border/70 pt-6">
+        <div className="mt-4 border-t border-border/70 pt-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <p
               aria-live="polite"
