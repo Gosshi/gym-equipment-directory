@@ -265,10 +265,30 @@ async def list_candidates(
     has_coords: bool | None = None,
     limit: int,
     cursor: str | None,
-) -> tuple[list[CandidateRow], str | None]:
+) -> tuple[list[CandidateRow], str | None, int]:
+    from sqlalchemy import func
+
     if limit < 1 or limit > 100:
         raise CandidateServiceError("limit must be between 1 and 100")
     decoded_cursor = _decode_cursor(cursor) if cursor else None
+
+    # Count total matching records (without cursor/pagination)
+    count_stmt = await _base_query(session)
+    count_stmt = _apply_filters(
+        count_stmt,
+        status=status,
+        source=source,
+        q=q,
+        pref=pref,
+        city=city,
+        category=category,
+        has_coords=has_coords,
+        cursor=None,  # No cursor for count query
+    )
+    count_result = await session.execute(select(func.count()).select_from(count_stmt.subquery()))
+    total_count = count_result.scalar() or 0
+
+    # Fetch paginated results
     stmt = await _base_query(session)
     stmt = _apply_filters(
         stmt,
@@ -289,7 +309,7 @@ async def list_candidates(
     next_cursor = None
     if has_next and items:
         next_cursor = _encode_cursor({"id": int(items[-1].candidate.id)})
-    return items, next_cursor
+    return items, next_cursor, total_count
 
 
 async def _fetch_candidate_row(session: AsyncSession, candidate_id: int) -> CandidateRow:

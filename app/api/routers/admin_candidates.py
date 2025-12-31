@@ -130,7 +130,7 @@ async def list_candidates(
         except ValueError as exc:  # pragma: no cover - FastAPI validation usually catches
             raise HTTPException(status_code=400, detail="invalid status") from exc
     try:
-        rows, next_cursor = await candidate_service.list_candidates(
+        rows, next_cursor, total_count = await candidate_service.list_candidates(
             session,
             status=status_enum,
             source=source,
@@ -145,7 +145,7 @@ async def list_candidates(
     except CandidateServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     items = [_to_item(row) for row in rows]
-    return AdminCandidateListResponse(items=items, next_cursor=next_cursor, count=len(items))
+    return AdminCandidateListResponse(items=items, next_cursor=next_cursor, count=total_count)
 
 
 @router.get("/{candidate_id}", response_model=AdminCandidateDetail)
