@@ -301,7 +301,7 @@ export function GymList({
       break;
     default:
       content = (
-        <div className="relative h-full overflow-y-auto">
+        <div className="relative">
           {shouldVirtualize ? (
             <VirtualizedGymGrid ref={virtualizedGridRef} gyms={gyms} renderCard={renderCard} />
           ) : (
@@ -369,12 +369,12 @@ export function GymList({
         aria-describedby={headerDescriptionId}
         aria-labelledby="gym-search-results-heading"
         aria-live="polite"
-        className="flex min-h-0 flex-1 flex-col rounded-3xl border border-border/80 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4"
+        className="min-h-0 flex-1 overflow-y-auto rounded-3xl border border-border/80 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4"
         id="gym-search-results"
         ref={resultSectionRef}
         tabIndex={-1}
       >
-        <div className="flex items-center justify-between pb-2">
+        <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-2 flex items-center justify-between bg-card/95 px-3 pb-2 pt-3 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:-mx-4 sm:-mt-4 sm:px-4 sm:pt-4">
           <h2
             className="text-lg font-semibold tracking-tight"
             id="gym-search-results-heading"
@@ -391,7 +391,7 @@ export function GymList({
           </p>
         </div>
 
-        <div className="min-h-0 flex-1">{content}</div>
+        {content}
       </section>
 
       {showPagination ? (
