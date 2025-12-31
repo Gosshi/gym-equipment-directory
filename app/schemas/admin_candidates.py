@@ -223,3 +223,25 @@ class BulkRejectResult(BaseModel):
     failure_count: int
     dry_run: bool
     audit_log_id: int | None = None
+
+
+class BulkScrapeRequest(BaseModel):
+    candidate_ids: list[int] = Field(min_length=1)
+    dry_run: bool = False
+
+
+class BulkScrapeItem(BaseModel):
+    candidate_id: int
+    status: Literal["queued", "success", "failed"]
+    failure_reason: str | None = None
+
+
+class BulkScrapeJobStatus(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "completed"]
+    total_count: int
+    completed_count: int
+    success_count: int
+    failure_count: int
+    dry_run: bool
+    items: list[BulkScrapeItem]

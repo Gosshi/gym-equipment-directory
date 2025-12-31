@@ -130,6 +130,23 @@ export interface BulkRejectResponse {
   dry_run: boolean;
 }
 
+export interface BulkScrapeItem {
+  candidate_id: number;
+  status: "queued" | "success" | "failed";
+  failure_reason?: string | null;
+}
+
+export interface BulkScrapeJobResponse {
+  job_id: string;
+  status: "queued" | "running" | "completed";
+  total_count: number;
+  completed_count: number;
+  success_count: number;
+  failure_count: number;
+  dry_run: boolean;
+  items: BulkScrapeItem[];
+}
+
 const wrapError = (error: unknown): never => {
   if (error instanceof AdminApiError) {
     throw error;
@@ -341,4 +358,30 @@ export async function scrapeCandidateOfficialUrl(
     wrapError(err);
   }
   throw new AdminApiError("Failed to scrape candidate official URL: unreachable state");
+}
+
+export async function scrapeBulkCandidates(
+  candidateIds: number[],
+  options: { dry_run?: boolean } = {},
+): Promise<BulkScrapeJobResponse> {
+  try {
+    return await apiRequest<BulkScrapeJobResponse>(`/admin/candidates/scrape-bulk`, {
+      method: "POST",
+      body: JSON.stringify({ candidate_ids: candidateIds, ...options }),
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to bulk scrape candidates: unreachable state");
+}
+
+export async function getScrapeBulkStatus(jobId: string): Promise<BulkScrapeJobResponse> {
+  try {
+    return await apiRequest<BulkScrapeJobResponse>(`/admin/candidates/scrape-bulk/${jobId}`, {
+      method: "GET",
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to fetch bulk scrape status: unreachable state");
 }
