@@ -142,7 +142,7 @@ export function AppFooter() {
             </a>
              */}
             <a
-              href="mailto:info@spomapjp.com"
+              href="mailto:spomapjp@gmail.com"
               className="text-muted-foreground/60 transition-colors hover:text-foreground"
               aria-label="Email"
             >

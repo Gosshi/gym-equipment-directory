@@ -30,10 +30,10 @@ export default function ContactPage() {
           <h2 className="mb-2 text-xl font-bold text-foreground">メールでのお問い合わせ</h2>
           <p className="mb-6 text-sm text-muted-foreground">通常24時間以内に返信いたします。</p>
           <a
-            href="mailto:info@spomapjp.com"
+            href="mailto:spomapjp@gmail.com"
             className="inline-flex items-center justify-center rounded-md bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            info@spomapjp.com
+            spomapjp@gmail.com
           </a>
         </div>
 
