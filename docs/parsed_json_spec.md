@@ -114,19 +114,30 @@
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `court_type` | string | コート種別 (庭球場、バスケットコート等) |
-| `courts` | int | 面数 |
+| `courts` | array | 複数コートタイプ配列 (下記参照) |
+| `court_type` | string | コート種別 (単一の場合, 旧形式) |
 | `surface` | string | 表面素材 (クレー、人工芝等) |
 | `lighting` | boolean | 照明設備有無 |
 
+#### courts 配列アイテム
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `court_type` | string | コート種別 (バスケットボールコート、バドミントンコート等) |
+| `count` | int | 面数 |
+
 ```json
 {
-  "court_type": "庭球場",
-  "courts": 4,
-  "surface": "クレー",
+  "courts": [
+    {"court_type": "バスケットボールコート", "count": 1},
+    {"court_type": "バレーボールコート", "count": 1},
+    {"court_type": "バドミントンコート", "count": 4}
+  ],
+  "surface": "床",
   "lighting": true
 }
 ```
+
 
 ### field オブジェクト
 
@@ -196,8 +207,9 @@
     "lighting": true
   },
   "court": {
-    "court_type": "庭球場",
-    "courts": 4,
+    "courts": [
+      {"court_type": "庭球場", "count": 4}
+    ],
     "surface": null,
     "lighting": false
   },

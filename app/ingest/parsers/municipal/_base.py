@@ -448,7 +448,10 @@ async def _extract_facility_with_llm(
         "**Category-specific fields (include for ALL applicable categories):**\n"
         "Return category-specific data as NESTED OBJECTS under each category key:\n"
         '- pool: {"lanes": int, "length_m": int, "heated": bool}\n'
-        '- court: {"court_type": string, "courts": int, "surface": string, "lighting": bool}\n'
+        '- court: {"courts": array of {"court_type": string, "count": int}, '
+        '"surface": string, "lighting": bool}. '
+        "If multiple court types exist (e.g., バスケ1面、バレー1面、バドミントン4面), "
+        "return each as separate items in the courts array.\n"
         '- hall: {"sports": string array, "area_sqm": int}\n'
         '- field: {"field_type": string, "fields": int, "lighting": bool}\n'
         '- archery: {"archery_type": string, "rooms": int}\n'

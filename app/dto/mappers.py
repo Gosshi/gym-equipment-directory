@@ -242,6 +242,9 @@ def assemble_gym_detail(
     court_list = _normalize_to_list(court_raw)
     court_type = meta.get("court_type") or court_data.get("court_type")
     court_count = meta.get("courts") or court_data.get("courts")
+    # Handle court_count that might be an array (new LLM format)
+    if isinstance(court_count, list):
+        court_count = None  # Will be derived from courts array
     court_surface = meta.get("surface") or court_data.get("surface")
     # Check if court is in categories list
     is_court_category = "court" in categories
@@ -252,16 +255,31 @@ def assemble_gym_detail(
         if is_court_category
         else None
     )
-    # Build courts array
-    courts = [
-        CourtItemDTO(
-            court_type=c.get("court_type"),
-            courts=c.get("courts"),
-            surface=c.get("surface"),
-            lighting=c.get("lighting"),
-        )
-        for c in court_list
-    ]
+    # Build courts array - check for new format (court_data.courts is array) first
+    courts_inner = court_data.get("courts")
+    if isinstance(courts_inner, list) and len(courts_inner) > 0:
+        # New format: court.courts is array of {court_type, count}
+        courts = [
+            CourtItemDTO(
+                court_type=c.get("court_type"),
+                courts=c.get("count") or c.get("courts"),  # Support both 'count' and 'courts'
+                surface=court_data.get("surface"),  # Shared surface from parent
+                lighting=court_data.get("lighting"),  # Shared lighting from parent
+            )
+            for c in courts_inner
+            if isinstance(c, dict)
+        ]
+    else:
+        # Old format: court_list is array of court objects
+        courts = [
+            CourtItemDTO(
+                court_type=c.get("court_type"),
+                courts=c.get("courts") or c.get("count"),
+                surface=c.get("surface"),
+                lighting=c.get("lighting"),
+            )
+            for c in court_list
+        ]
 
     # Hall - may be a dict or a list of dicts
     hall_raw = meta.get("hall") or parsed_json.get("hall")
