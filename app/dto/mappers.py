@@ -258,14 +258,15 @@ def assemble_gym_detail(
     # Build courts array - check for new format (court_data.courts is array) first
     courts_inner = court_data.get("courts")
     parent_surface = court_data.get("surface")  # Fallback for courts without surface
+    parent_lighting = court_data.get("lighting")  # Fallback for courts without lighting
     if isinstance(courts_inner, list) and len(courts_inner) > 0:
-        # New format: court.courts is array of {court_type, count, surface?}
+        # New format: court.courts is array of {court_type, count, surface?, lighting?}
         courts = [
             CourtItemDTO(
                 court_type=c.get("court_type"),
                 courts=c.get("count") or c.get("courts"),  # Support both 'count' and 'courts'
                 surface=c.get("surface") or parent_surface,  # Per-court or fallback
-                lighting=court_data.get("lighting"),  # Shared lighting from parent
+                lighting=c.get("lighting") if c.get("lighting") is not None else parent_lighting,
             )
             for c in courts_inner
             if isinstance(c, dict)
