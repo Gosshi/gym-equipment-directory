@@ -199,16 +199,27 @@ def assemble_gym_detail(
     else:
         categories = []
 
+    # Helper to normalize data that could be a list or dict
+    def _normalize_to_dict(data: Any) -> dict[str, Any]:
+        """Normalize data to a dict, taking first element if it's a list."""
+        if isinstance(data, list) and len(data) > 0:
+            return data[0] if isinstance(data[0], dict) else {}
+        if isinstance(data, dict):
+            return data
+        return {}
+
     # Extract category-specific fields from meta or parsed_json root
     # Try meta first, then fallback to parsed_json root for category-specific objects
-    # Pool
-    pool_data = meta.get("pool") or parsed_json.get("pool") or {}
+    # Pool - may be a dict or a list of dicts
+    pool_raw = meta.get("pool") or parsed_json.get("pool")
+    pool_data = _normalize_to_dict(pool_raw)
     pool_lanes = meta.get("lanes") or pool_data.get("lanes")
     pool_length_m = meta.get("length_m") or pool_data.get("length_m")
     pool_heated = meta.get("heated") if meta.get("heated") is not None else pool_data.get("heated")
 
-    # Court
-    court_data = meta.get("court") or parsed_json.get("court") or {}
+    # Court - may be a dict or a list of dicts
+    court_raw = meta.get("court") or parsed_json.get("court")
+    court_data = _normalize_to_dict(court_raw)
     court_type = meta.get("court_type") or court_data.get("court_type")
     court_count = meta.get("courts") or court_data.get("courts")
     court_surface = meta.get("surface") or court_data.get("surface")
@@ -222,15 +233,17 @@ def assemble_gym_detail(
         else None
     )
 
-    # Hall
-    hall_data = meta.get("hall") or parsed_json.get("hall") or {}
+    # Hall - may be a dict or a list of dicts
+    hall_raw = meta.get("hall") or parsed_json.get("hall")
+    hall_data = _normalize_to_dict(hall_raw)
     hall_sports = meta.get("sports") or hall_data.get("sports", [])
     if not isinstance(hall_sports, list):
         hall_sports = []
     hall_area_sqm = meta.get("area_sqm") or hall_data.get("area_sqm")
 
-    # Field
-    field_data = meta.get("field") or parsed_json.get("field") or {}
+    # Field - may be a dict or a list of dicts
+    field_raw = meta.get("field") or parsed_json.get("field")
+    field_data = _normalize_to_dict(field_raw)
     field_type = meta.get("field_type") or field_data.get("field_type")
     field_count = meta.get("fields") or field_data.get("fields")
     # Check if field is in categories list
@@ -243,8 +256,10 @@ def assemble_gym_detail(
         else None
     )
 
-    # Archery
-    archery_data = meta.get("archery") or parsed_json.get("archery") or {}
+    # Archery / Martial Arts - may be a dict or a list of dicts
+    archery_raw = meta.get("archery") or parsed_json.get("archery")
+    martial_arts_raw = meta.get("martial_arts") or parsed_json.get("martial_arts")
+    archery_data = _normalize_to_dict(archery_raw) or _normalize_to_dict(martial_arts_raw)
     archery_type = archery_data.get("archery_type")
     archery_rooms = archery_data.get("rooms")
 
