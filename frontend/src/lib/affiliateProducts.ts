@@ -279,7 +279,7 @@ export function buildRakutenSearchUrl(keyword: string): string | null {
     return null;
   }
   const encodedKeyword = encodeURIComponent(keyword);
-  return `https://hb.afl.rakuten.co.jp/hgc/${affiliateId}/?pc=https://search.rakuten.co.jp/search/mall/${encodedKeyword}/`;
+  return `https://hb.afl.rakuten.co.jp/ichiba/${affiliateId}/?pc=https://search.rakuten.co.jp/search/mall/${encodedKeyword}/`;
 }
 
 /**
