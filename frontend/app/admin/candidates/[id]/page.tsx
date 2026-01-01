@@ -22,6 +22,138 @@ import {
 } from "@/lib/adminApi";
 
 import GymMap from "@/components/gym/GymMap";
+import { getPrefectures, getCities } from "@/services/meta";
+import type { PrefectureOption, CityOption } from "@/types/meta";
+
+// JSONキー名の日本語翻訳マップ
+const JSON_KEY_LABELS: Record<string, string> = {
+  // 基本情報
+  name: "名称",
+  address: "住所",
+  tel: "電話番号",
+  phone: "電話番号",
+  email: "メールアドレス",
+  access: "アクセス",
+  description: "説明",
+  official_url: "公式URL",
+  url: "URL",
+  website: "ウェブサイト",
+
+  // カテゴリ
+  category: "カテゴリ",
+  categories: "カテゴリ一覧",
+
+  // 設備
+  equipments: "設備",
+  equipments_structured: "設備（構造化）",
+  amenities: "アメニティ",
+  facilities: "施設設備",
+
+  // 営業時間・料金
+  opening_hours: "営業時間",
+  hours: "営業時間",
+  fees: "料金",
+  fee_structure: "料金体系",
+  pricing: "料金",
+  schedule: "スケジュール",
+
+  // プール
+  pool: "プール",
+  pool_lanes: "レーン数",
+  pool_length_m: "レーン長(m)",
+  pool_heated: "温水",
+
+  // コート
+  court: "コート",
+  court_type: "コート種別",
+  court_count: "コート数",
+  court_surface: "サーフェス",
+  court_lighting: "照明",
+
+  // 体育館
+  hall: "体育館",
+  hall_sports: "対応スポーツ",
+  hall_area_sqm: "面積(㎡)",
+
+  // グラウンド
+  field: "グラウンド",
+  field_type: "グラウンド種別",
+  field_count: "面数",
+  field_lighting: "照明",
+
+  // 弓道場
+  archery: "弓道場",
+  archery_type: "種別",
+  archery_rooms: "室数",
+};
+
+// キー名を日本語に変換するヘルパー
+const getKeyLabel = (key: string): string => {
+  return JSON_KEY_LABELS[key] ?? key;
+};
+
+// オブジェクトテンプレート定義（JsonValue型は後方で定義済み）
+type TemplateJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | TemplateJsonValue[]
+  | { [key: string]: TemplateJsonValue };
+
+const OBJECT_TEMPLATES: Record<string, { label: string; default: TemplateJsonValue }> = {
+  pool: {
+    label: "プール",
+    default: {
+      pool_lanes: null,
+      pool_length_m: null,
+      pool_heated: false,
+    },
+  },
+  court: {
+    label: "コート",
+    default: {
+      court_type: "",
+      court_count: null,
+      court_surface: "",
+      court_lighting: false,
+    },
+  },
+  hall: {
+    label: "体育館",
+    default: {
+      hall_sports: [],
+      hall_area_sqm: null,
+    },
+  },
+  field: {
+    label: "グラウンド",
+    default: {
+      field_type: "",
+      field_count: null,
+      field_lighting: false,
+    },
+  },
+  archery: {
+    label: "弓道場",
+    default: {
+      archery_type: "",
+      archery_rooms: null,
+    },
+  },
+  opening_hours: {
+    label: "営業時間",
+    default: "",
+  },
+  fees: {
+    label: "料金",
+    default: "",
+  },
+  access: {
+    label: "アクセス",
+    default: "",
+  },
+};
 
 const formatDateTime = (value: string | undefined | null) => {
   if (!value) {
@@ -215,6 +347,49 @@ export default function AdminCandidateDetailPage() {
   const [isScraping, setIsScraping] = useState(false);
   const [isParsedJsonExpanded, setIsParsedJsonExpanded] = useState(false);
   const [isRawJsonVisible, setIsRawJsonVisible] = useState(false);
+
+  // 都道府県・市区町村の選択肢
+  const [prefectures, setPrefectures] = useState<PrefectureOption[]>([]);
+  const [cities, setCities] = useState<CityOption[]>([]);
+  const [isPrefLoading, setIsPrefLoading] = useState(false);
+  const [isCityLoading, setIsCityLoading] = useState(false);
+
+  // 都道府県一覧を取得
+  useEffect(() => {
+    const loadPrefectures = async () => {
+      setIsPrefLoading(true);
+      try {
+        const data = await getPrefectures();
+        setPrefectures(data);
+      } catch (err) {
+        console.error("Failed to load prefectures:", err);
+      } finally {
+        setIsPrefLoading(false);
+      }
+    };
+    void loadPrefectures();
+  }, []);
+
+  // 市区町村一覧を取得（都道府県変更時）
+  useEffect(() => {
+    const prefSlug = formState?.pref_slug;
+    if (!prefSlug) {
+      setCities([]);
+      return;
+    }
+    const loadCities = async () => {
+      setIsCityLoading(true);
+      try {
+        const data = await getCities(prefSlug);
+        setCities(data);
+      } catch (err) {
+        console.error("Failed to load cities:", err);
+      } finally {
+        setIsCityLoading(false);
+      }
+    };
+    void loadCities();
+  }, [formState?.pref_slug]);
 
   const parsedJsonError = useMemo(() => {
     if (!formState?.parsed_json.trim()) {
@@ -718,8 +893,9 @@ export default function AdminCandidateDetailPage() {
                     className={`mb-2 text-xs font-bold ${
                       isImportant ? "text-blue-700" : "text-gray-600"
                     }`}
+                    title={key}
                   >
-                    {key}
+                    {getKeyLabel(key)}
                   </div>
                   <div>
                     {isComplex ? (
@@ -781,6 +957,47 @@ export default function AdminCandidateDetailPage() {
     },
     [updateParsedJsonValue],
   );
+
+  // オブジェクトテンプレートを追加
+  const handleAddObjectTemplate = useCallback((templateKey: string) => {
+    const template = OBJECT_TEMPLATES[templateKey];
+    if (!template) {
+      return;
+    }
+    setFormState(prev => {
+      if (!prev) {
+        return prev;
+      }
+      let base: Record<string, unknown> = {};
+      if (prev.parsed_json.trim()) {
+        try {
+          base = JSON.parse(prev.parsed_json) as Record<string, unknown>;
+        } catch {
+          toast({
+            title: "JSONの解析に失敗しました",
+            description: "先にJSONエラーを修正してください",
+            variant: "destructive",
+          });
+          return prev;
+        }
+      }
+      // 既存のキーがあれば上書き確認
+      if (templateKey in base) {
+        if (!window.confirm(`「${getKeyLabel(templateKey)}」は既に存在します。上書きしますか？`)) {
+          return prev;
+        }
+      }
+      const updated = {
+        ...base,
+        [templateKey]: template.default,
+      };
+      return {
+        ...prev,
+        parsed_json: JSON.stringify(updated, null, 2),
+      };
+    });
+    toast({ title: `${template.label}を追加しました` });
+  }, []);
 
   const handleFormatParsedJson = useCallback(() => {
     if (!formState) {
@@ -1266,20 +1483,42 @@ export default function AdminCandidateDetailPage() {
           </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium">都道府県スラッグ</span>
-              <input
+              <span className="font-medium">都道府県</span>
+              <select
                 className="rounded border border-gray-300 px-3 py-2"
                 value={formState.pref_slug}
-                onChange={event => handleInputChange("pref_slug", event.target.value)}
-              />
+                onChange={event => {
+                  handleInputChange("pref_slug", event.target.value);
+                  // 都道府県変更時は市区町村をリセット
+                  handleInputChange("city_slug", "");
+                }}
+                disabled={isPrefLoading}
+              >
+                <option value="">選択してください</option>
+                {prefectures.map(pref => (
+                  <option key={pref.value} value={pref.value}>
+                    {pref.label}
+                  </option>
+                ))}
+              </select>
+              {isPrefLoading && <span className="text-xs text-gray-500">読み込み中...</span>}
             </label>
             <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium">市区町村スラッグ</span>
-              <input
+              <span className="font-medium">市区町村</span>
+              <select
                 className="rounded border border-gray-300 px-3 py-2"
                 value={formState.city_slug}
                 onChange={event => handleInputChange("city_slug", event.target.value)}
-              />
+                disabled={isCityLoading || !formState.pref_slug}
+              >
+                <option value="">選択してください</option>
+                {cities.map(city => (
+                  <option key={city.value} value={city.value}>
+                    {city.label}
+                  </option>
+                ))}
+              </select>
+              {isCityLoading && <span className="text-xs text-gray-500">読み込み中...</span>}
             </label>
           </div>
 
@@ -1330,13 +1569,32 @@ export default function AdminCandidateDetailPage() {
           <div className="flex flex-col gap-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">解析済みJSON</span>
-              <button
-                type="button"
-                className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
-                onClick={() => setIsRawJsonVisible(prev => !prev)}
-              >
-                {isRawJsonVisible ? "JSONを隠す" : "JSONを直接編集"}
-              </button>
+              <div className="flex items-center gap-2">
+                <select
+                  className="rounded border border-gray-300 px-2 py-1 text-xs"
+                  defaultValue=""
+                  onChange={event => {
+                    if (event.target.value) {
+                      handleAddObjectTemplate(event.target.value);
+                      event.target.value = "";
+                    }
+                  }}
+                >
+                  <option value="">項目を追加...</option>
+                  {Object.entries(OBJECT_TEMPLATES).map(([key, template]) => (
+                    <option key={key} value={key}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                  onClick={() => setIsRawJsonVisible(prev => !prev)}
+                >
+                  {isRawJsonVisible ? "JSONを隠す" : "JSONを直接編集"}
+                </button>
+              </div>
             </div>
             <div className="rounded border border-gray-200 bg-gray-50 p-3">
               <p className="mb-2 text-xs text-gray-600">
