@@ -125,15 +125,15 @@
 |---|---|---|
 | `court_type` | string | コート種別 (バスケットボールコート、バドミントンコート等) |
 | `count` | int | 面数 |
+| `surface` | string | コート素材 (床、砂入り人工芝、クレー等) - コートタイプごとに指定可能 |
 
 ```json
 {
   "courts": [
-    {"court_type": "バスケットボールコート", "count": 1},
-    {"court_type": "バレーボールコート", "count": 1},
-    {"court_type": "バドミントンコート", "count": 4}
+    {"court_type": "バスケットボールコート", "count": 1, "surface": "床"},
+    {"court_type": "バレーボールコート", "count": 1, "surface": "床"},
+    {"court_type": "テニスコート", "count": 4, "surface": "砂入り人工芝"}
   ],
-  "surface": "床",
   "lighting": true
 }
 ```

@@ -263,7 +263,7 @@ function CourtInfo({
                 {court.courtType || `コート ${index + 1}`}
               </p>
               <InfoRow label="面数" value={court.courts ? `${court.courts}面` : null} />
-              {court.surface && <InfoRow label="サーフェス" value={court.surface} />}
+              {court.surface && <InfoRow label="コート素材" value={court.surface} />}
               <InfoRow label="照明" value={court.lighting === true ? "あり" : null} />
             </div>
           );
@@ -280,7 +280,7 @@ function CourtInfo({
     <div>
       <InfoRow label="コートタイプ" value={courtType} />
       <InfoRow label="面数" value={courtCount ? `${courtCount}面` : null} />
-      <InfoRow label="表面" value={courtSurface} />
+      <InfoRow label="コート素材" value={courtSurface} />
       <InfoRow label="照明" value={courtLighting === true ? "あり" : null} />
     </div>
   );
