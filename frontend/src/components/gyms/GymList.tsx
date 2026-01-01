@@ -30,7 +30,7 @@ const VirtualizedGymGrid = dynamic<VirtualizedGymGridProps>(
   {
     ssr: false,
     loading: () => (
-      <div className="max-h-[70vh] overflow-y-hidden">
+      <div className="min-h-0 flex-1 overflow-y-hidden">
         <SearchSkeleton announce={false} />
       </div>
     ),

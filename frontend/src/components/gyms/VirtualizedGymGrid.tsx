@@ -111,7 +111,7 @@ export const VirtualizedGymGrid = forwardRef<VirtualizedGymGridHandle, Virtualiz
       <div
         ref={scrollRef}
         className={cn(
-          "relative max-h-[70vh] overflow-y-auto pr-1",
+          "relative h-full min-h-0 overflow-y-auto pr-1",
           "supports-[overflow:overlay]:pr-3",
           className,
         )}
