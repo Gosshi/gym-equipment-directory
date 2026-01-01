@@ -40,6 +40,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
+  // Category landing pages for SEO
+  const categoryPages = [
+    { path: "/pool", name: "プール" },
+    { path: "/tennis", name: "テニスコート" },
+    { path: "/hall", name: "体育館" },
+    { path: "/martial-arts", name: "武道場" },
+    { path: "/archery", name: "弓道場" },
+  ].map(category => ({
+    url: `${baseUrl}${category.path}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.85,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -59,6 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
+    ...categoryPages,
     {
       url: `${baseUrl}/map`,
       lastModified: new Date(),
