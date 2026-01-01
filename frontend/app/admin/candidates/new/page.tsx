@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { toast } from "@/components/ui/use-toast";
-import { AdminApiError, createCandidate, approveCandidate } from "@/lib/adminApi";
+import { AdminApiError, createCandidate, approveCandidate, ingestUrls } from "@/lib/adminApi";
 import type {
   AdminCandidateCreatePayload,
   AdminCandidateItem,
@@ -12,6 +12,7 @@ import type {
   ApproveResponse,
   ApproveResultResponse,
   ApproveSummary,
+  IngestUrlsResponse,
 } from "@/lib/adminApi";
 
 const hasPreview = (response: ApproveResponse): response is ApprovePreviewResponse =>
@@ -83,6 +84,19 @@ const INITIAL_PREVIEW_STATE: PreviewState = {
   error: null,
 };
 
+// URL Ingestion types
+type IngestFormState = {
+  urls: string;
+  pref_slug: string;
+  city_slug: string;
+};
+
+const INITIAL_INGEST_STATE: IngestFormState = {
+  urls: "",
+  pref_slug: "",
+  city_slug: "",
+};
+
 export default function AdminCandidateNewPage() {
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>({ ...INITIAL_FORM_STATE });
@@ -90,6 +104,11 @@ export default function AdminCandidateNewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [approveImmediately, setApproveImmediately] = useState(false);
   const [previewState, setPreviewState] = useState<PreviewState>(INITIAL_PREVIEW_STATE);
+
+  // URL Ingestion state
+  const [ingestForm, setIngestForm] = useState<IngestFormState>({ ...INITIAL_INGEST_STATE });
+  const [ingestSubmitting, setIngestSubmitting] = useState(false);
+  const [ingestResult, setIngestResult] = useState<IngestUrlsResponse | null>(null);
 
   const handleFieldChange = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -163,6 +182,79 @@ export default function AdminCandidateNewPage() {
       setPreviewState(prev => ({ ...prev, approving: false }));
     }
   }, [previewState.candidate, router]);
+
+  // URL Ingestion handler
+  const handleIngestSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setIngestResult(null);
+
+      const urlLines = ingestForm.urls
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && line.startsWith("http"));
+
+      if (urlLines.length === 0) {
+        toast({
+          title: "URLを入力してください",
+          description: "1行に1つのURLを入力してください",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!ingestForm.pref_slug.trim()) {
+        toast({
+          title: "都道府県スラッグは必須です",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!ingestForm.city_slug.trim()) {
+        toast({
+          title: "市区町村スラッグは必須です",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIngestSubmitting(true);
+      try {
+        const response = await ingestUrls({
+          urls: urlLines,
+          pref_slug: ingestForm.pref_slug.trim(),
+          city_slug: ingestForm.city_slug.trim(),
+        });
+        setIngestResult(response);
+        toast({
+          title: "URL取り込み完了",
+          description: `成功: ${response.success_count}件, 失敗: ${response.failure_count}件`,
+        });
+        if (response.success_count > 0) {
+          setIngestForm({ ...INITIAL_INGEST_STATE });
+        }
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          const detail = typeof err.detail === "string" ? err.detail : err.message;
+          toast({
+            title: "URL取り込みに失敗しました",
+            description: detail,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "URL取り込みに失敗しました",
+            description: err instanceof Error ? err.message : "不明なエラーです",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIngestSubmitting(false);
+      }
+    },
+    [ingestForm],
+  );
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -378,15 +470,121 @@ export default function AdminCandidateNewPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold">候補の手動入稿</h1>
+        <h1 className="text-2xl font-semibold">候補の入稿</h1>
         <p className="mt-2 text-sm text-gray-600">
-          必須項目を入力して候補を作成してください。作成後は詳細ページに遷移します。
+          複数URLからの一括取り込み、または手動入稿を選択できます。
         </p>
       </div>
+
+      {/* URL一括取り込みセクション */}
+      <div className="rounded-md border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold">複数URLから取り込み</h2>
+        <p className="mb-4 text-sm text-gray-600">
+          施設ページのURLを1行に1つずつ入力してください。各URLからタイトルを取得し候補として登録します。
+        </p>
+        <form onSubmit={handleIngestSubmit} className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="ingest_pref_slug">
+                都道府県スラッグ (必須)
+              </label>
+              <input
+                id="ingest_pref_slug"
+                className="rounded border border-gray-300 px-3 py-2"
+                placeholder="tokyo"
+                value={ingestForm.pref_slug}
+                onChange={e => setIngestForm(prev => ({ ...prev, pref_slug: e.target.value }))}
+                disabled={ingestSubmitting}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="ingest_city_slug">
+                市区町村スラッグ (必須)
+              </label>
+              <input
+                id="ingest_city_slug"
+                className="rounded border border-gray-300 px-3 py-2"
+                placeholder="shinagawa"
+                value={ingestForm.city_slug}
+                onChange={e => setIngestForm(prev => ({ ...prev, city_slug: e.target.value }))}
+                disabled={ingestSubmitting}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-gray-700" htmlFor="ingest_urls">
+              URL一覧 (1行に1つ)
+            </label>
+            <textarea
+              id="ingest_urls"
+              className="h-40 rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+              placeholder="https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/tennis/hpg000006477.html
+https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sprots/tennis/hpg000006478.html"
+              value={ingestForm.urls}
+              onChange={e => setIngestForm(prev => ({ ...prev, urls: e.target.value }))}
+              disabled={ingestSubmitting}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded bg-green-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-green-300"
+              disabled={ingestSubmitting}
+            >
+              {ingestSubmitting ? "取り込み中..." : "URLを取り込む"}
+            </button>
+          </div>
+        </form>
+
+        {/* 取り込み結果表示 */}
+        {ingestResult ? (
+          <div className="mt-4 rounded border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-2 font-semibold">取り込み結果</h3>
+            <p className="text-sm">
+              成功:{" "}
+              <span className="font-medium text-green-600">{ingestResult.success_count}件</span>
+              {" / "}
+              失敗: <span className="font-medium text-red-600">{ingestResult.failure_count}件</span>
+            </p>
+            <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm">
+              {ingestResult.items.map((item, index) => (
+                <li
+                  key={index}
+                  className={`flex items-start gap-2 ${item.status === "success" ? "text-green-700" : "text-red-700"}`}
+                >
+                  <span className="shrink-0">{item.status === "success" ? "✓" : "✗"}</span>
+                  <span className="break-all">
+                    {item.url}
+                    {item.candidate_id ? (
+                      <a
+                        href={`/admin/candidates/${item.candidate_id}`}
+                        className="ml-2 text-blue-600 underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        #{item.candidate_id}
+                      </a>
+                    ) : null}
+                    {item.error ? <span className="ml-2 text-red-500">({item.error})</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+
+      {/* 手動入稿セクション */}
       <form
         className="grid gap-4 rounded-md border border-gray-200 bg-white p-6 shadow-sm"
         onSubmit={handleSubmit}
       >
+        <h2 className="text-lg font-semibold">手動入稿</h2>
+        <p className="text-sm text-gray-600">
+          必須項目を入力して候補を作成してください。作成後は詳細ページに遷移します。
+        </p>
         <div className="grid gap-2">
           <label className="text-sm font-medium text-gray-700" htmlFor="name_raw">
             名称 (必須)
