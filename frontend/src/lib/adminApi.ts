@@ -385,3 +385,39 @@ export async function getScrapeBulkStatus(jobId: string): Promise<BulkScrapeJobR
   }
   throw new AdminApiError("Failed to fetch bulk scrape status: unreachable state");
 }
+
+// --- URL Ingestion API ---
+
+export interface IngestUrlItem {
+  url: string;
+  status: "success" | "failed";
+  candidate_id: number | null;
+  error: string | null;
+}
+
+export interface IngestUrlsResponse {
+  items: IngestUrlItem[];
+  success_count: number;
+  failure_count: number;
+  dry_run: boolean;
+}
+
+export interface IngestUrlsPayload {
+  urls: string[];
+  pref_slug: string;
+  city_slug: string;
+  dry_run?: boolean;
+}
+
+export async function ingestUrls(payload: IngestUrlsPayload): Promise<IngestUrlsResponse> {
+  try {
+    return await apiRequest<IngestUrlsResponse>(`/admin/candidates/ingest-urls`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      timeoutMs: 120000, // 2 minutes for batch operation
+    });
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to ingest URLs: unreachable state");
+}

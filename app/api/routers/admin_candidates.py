@@ -27,6 +27,9 @@ from app.schemas.admin_candidates import (
     BulkRejectResult,
     BulkScrapeJobStatus,
     BulkScrapeRequest,
+    IngestUrlItem,
+    IngestUrlsRequest,
+    IngestUrlsResponse,
     RejectRequest,
     ScrapedPageInfo,
     SimilarGymInfo,
@@ -470,3 +473,43 @@ async def get_bulk_scrape_status(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="scrape job not found")
     return _to_bulk_scrape_status(serialize_job(job))
+
+
+@router.post("/ingest-urls", response_model=IngestUrlsResponse)
+async def ingest_urls(
+    payload: IngestUrlsRequest,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Ingest multiple URLs and create candidates from them.
+
+    Fetches each URL, extracts the page title as facility name,
+    and creates a candidate. The user should edit the candidate
+    details after creation.
+    """
+    results = await candidate_service.ingest_urls(
+        session,
+        payload.urls,
+        payload.pref_slug,
+        payload.city_slug,
+        dry_run=payload.dry_run,
+    )
+
+    items = [
+        IngestUrlItem(
+            url=r.url,
+            status="success" if r.success else "failed",
+            candidate_id=r.candidate_id,
+            error=r.error,
+        )
+        for r in results
+    ]
+
+    success_count = sum(1 for r in results if r.success)
+    failure_count = len(results) - success_count
+
+    return IngestUrlsResponse(
+        items=items,
+        success_count=success_count,
+        failure_count=failure_count,
+        dry_run=payload.dry_run,
+    )

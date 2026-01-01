@@ -799,3 +799,171 @@ async def reject_candidate(session: AsyncSession, candidate_id: int, reason: str
     await session.flush()
     await session.commit()
     return await _fetch_candidate_row(session, candidate_id)
+
+
+@dataclass
+class IngestResult:
+    """Result of ingesting a single URL."""
+
+    url: str
+    success: bool
+    candidate_id: int | None = None
+    error: str | None = None
+
+
+def _extract_title_from_html(html: str) -> str | None:
+    """Extract the page title from HTML."""
+    import re
+
+    # Try to find <title> tag
+    title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
+    if title_match:
+        title = title_match.group(1).strip()
+        # Clean up common suffixes
+        for suffix in [" - ", " | ", " – ", "｜"]:
+            if suffix in title:
+                title = title.split(suffix)[0].strip()
+        return title if title else None
+
+    # Try to find <h1> tag
+    h1_match = re.search(r"<h1[^>]*>([^<]+)</h1>", html, re.IGNORECASE)
+    if h1_match:
+        return h1_match.group(1).strip() or None
+
+    return None
+
+
+async def ingest_urls(
+    session: AsyncSession,
+    urls: list[str],
+    pref_slug: str,
+    city_slug: str,
+    *,
+    dry_run: bool = False,
+) -> list[IngestResult]:
+    """Ingest multiple URLs and create candidates from them.
+
+    For each URL:
+    1. Fetch the URL
+    2. Extract page title as facility name
+    3. Create a ScrapedPage and GymCandidate
+
+    Note: The user should edit the candidate details after creation
+    to provide more accurate information.
+
+    Args:
+        session: Database session
+        urls: List of URLs to ingest
+        pref_slug: Prefecture slug for all candidates
+        city_slug: City slug for all candidates
+        dry_run: If True, don't commit to database
+
+    Returns:
+        List of IngestResult objects with status for each URL
+    """
+    from app.services.http_utils import fetch_url_checked
+
+    # Get or create the "url_ingest" source
+    source_stmt = select(Source).where(
+        Source.source_type == SourceType.user_submission,
+        Source.title == "url_ingest",
+    )
+    source_result = await session.execute(source_stmt)
+    source = source_result.scalars().first()
+    if source is None:
+        source = Source(source_type=SourceType.user_submission, title="url_ingest", url=None)
+        session.add(source)
+        await session.flush()
+
+    results: list[IngestResult] = []
+
+    for url in urls:
+        try:
+            # Fetch the URL
+            html, status_code, failure_reason = await fetch_url_checked(url)
+            if html is None or failure_reason:
+                results.append(
+                    IngestResult(
+                        url=url,
+                        success=False,
+                        error=failure_reason or "Failed to fetch URL",
+                    )
+                )
+                continue
+
+            # Extract page title as facility name
+            facility_name = _extract_title_from_html(html)
+            if not facility_name:
+                # Use URL path as fallback
+                from urllib.parse import urlparse
+
+                path = urlparse(url).path
+                facility_name = path.split("/")[-1] or path.split("/")[-2] or "Unknown"
+                facility_name = facility_name.replace("-", " ").replace("_", " ").title()
+
+            if dry_run:
+                results.append(
+                    IngestResult(
+                        url=url,
+                        success=True,
+                        candidate_id=None,
+                    )
+                )
+                continue
+
+            # Create ScrapedPage
+            now = datetime.now(UTC)
+            page = ScrapedPage(
+                source_id=int(source.id),
+                url=url,
+                fetched_at=now,
+                http_status=status_code or 200,
+                response_meta={"kind": "url_ingest"},
+            )
+            session.add(page)
+            await session.flush()
+
+            # Prepare parsed_json
+            parsed_json: dict[str, object] = {
+                "official_url": url,
+                "facility_name": facility_name,
+            }
+
+            # Create GymCandidate
+            candidate = GymCandidate(
+                source_page_id=int(page.id),
+                name_raw=str(facility_name),
+                address_raw=None,
+                pref_slug=pref_slug,
+                city_slug=city_slug,
+                latitude=None,
+                longitude=None,
+                parsed_json=parsed_json,
+                status=CandidateStatus.new,
+            )
+            session.add(candidate)
+            await session.flush()
+
+            results.append(
+                IngestResult(
+                    url=url,
+                    success=True,
+                    candidate_id=int(candidate.id),
+                )
+            )
+
+        except Exception as exc:
+            results.append(
+                IngestResult(
+                    url=url,
+                    success=False,
+                    error=str(exc),
+                )
+            )
+
+    if not dry_run:
+        await session.commit()
+    else:
+        await session.rollback()
+
+    return results

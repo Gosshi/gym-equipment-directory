@@ -245,3 +245,30 @@ class BulkScrapeJobStatus(BaseModel):
     failure_count: int
     dry_run: bool
     items: list[BulkScrapeItem]
+
+
+class IngestUrlsRequest(BaseModel):
+    """Request to ingest multiple URLs and create candidates from them."""
+
+    urls: list[str] = Field(min_length=1, max_length=50, description="URLs to ingest")
+    pref_slug: str = Field(description="Prefecture slug for all candidates")
+    city_slug: str = Field(description="City slug for all candidates")
+    dry_run: bool = False
+
+
+class IngestUrlItem(BaseModel):
+    """Status of a single URL ingestion."""
+
+    url: str
+    status: Literal["success", "failed"]
+    candidate_id: int | None = None
+    error: str | None = None
+
+
+class IngestUrlsResponse(BaseModel):
+    """Response from ingesting multiple URLs."""
+
+    items: list[IngestUrlItem]
+    success_count: int
+    failure_count: int
+    dry_run: bool
