@@ -6,6 +6,19 @@ import type {
   GymLocationApiResponse,
 } from "@/types/api";
 
+export interface PoolItem {
+  lanes?: number;
+  lengthM?: number;
+  heated?: boolean;
+}
+
+export interface CourtItem {
+  courtType?: string;
+  courts?: number;
+  surface?: string;
+  lighting?: boolean;
+}
+
 export interface NormalizedGymDetail {
   id: number;
   slug: string;
@@ -28,10 +41,12 @@ export interface NormalizedGymDetail {
   poolLanes?: number;
   poolLengthM?: number;
   poolHeated?: boolean;
+  pools?: PoolItem[];
   courtType?: string;
   courtCount?: number;
   courtSurface?: string;
   courtLighting?: boolean;
+  courts?: CourtItem[];
   hallSports?: string[];
   hallAreaSqm?: number;
   fieldType?: string;
@@ -353,10 +368,25 @@ export const normalizeGymDetail = (
     poolLanes: pickNumber(data.pool_lanes ?? gymRecord.pool_lanes),
     poolLengthM: pickNumber(data.pool_length_m ?? gymRecord.pool_length_m),
     poolHeated: data.pool_heated ?? (gymRecord.pool_heated as boolean | undefined),
+    pools: Array.isArray(data.pools)
+      ? data.pools.map((p: Record<string, unknown>) => ({
+          lanes: pickNumber(p.lanes),
+          lengthM: pickNumber(p.length_m ?? p.lengthM),
+          heated: p.heated as boolean | undefined,
+        }))
+      : [],
     courtType: sanitizeText(data.court_type ?? gymRecord.court_type),
     courtCount: pickNumber(data.court_count ?? gymRecord.court_count),
     courtSurface: sanitizeText(data.court_surface ?? gymRecord.court_surface),
     courtLighting: data.court_lighting ?? (gymRecord.court_lighting as boolean | undefined),
+    courts: Array.isArray(data.courts)
+      ? data.courts.map((c: Record<string, unknown>) => ({
+          courtType: sanitizeText(c.court_type ?? c.courtType),
+          courts: pickNumber(c.courts),
+          surface: sanitizeText(c.surface),
+          lighting: c.lighting as boolean | undefined,
+        }))
+      : [],
     hallSports: Array.isArray(data.hall_sports)
       ? data.hall_sports
       : Array.isArray(gymRecord.hall_sports)

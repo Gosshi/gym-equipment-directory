@@ -38,6 +38,19 @@ export interface GymEquipmentDetail {
   description?: string | null;
 }
 
+export interface PoolItem {
+  lanes?: number | null;
+  lengthM?: number | null;
+  heated?: boolean | null;
+}
+
+export interface CourtItem {
+  courtType?: string | null;
+  courts?: number | null;
+  surface?: string | null;
+  lighting?: boolean | null;
+}
+
 export interface GymDetail {
   id: number;
   slug: string;
@@ -65,11 +78,13 @@ export interface GymDetail {
   poolLanes?: number | null;
   poolLengthM?: number | null;
   poolHeated?: boolean | null;
+  pools?: PoolItem[];
   // Court
   courtType?: string | null;
   courtCount?: number | null;
   courtSurface?: string | null;
   courtLighting?: boolean | null;
+  courts?: CourtItem[];
   // Hall
   hallSports?: string[];
   hallAreaSqm?: number | null;

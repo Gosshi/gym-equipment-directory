@@ -8,7 +8,13 @@ import {
   type RawGymSummary,
 } from "@/lib/api";
 import type { SortOption, SortOrder } from "@/lib/searchParams";
-import type { GymDetail, GymEquipmentDetail, GymSearchResponse } from "@/types/gym";
+import type {
+  CourtItem,
+  GymDetail,
+  GymEquipmentDetail,
+  GymSearchResponse,
+  PoolItem,
+} from "@/types/gym";
 
 type RawGymDetail = RawGymSummary & {
   description?: string | null;
@@ -39,10 +45,21 @@ type RawGymDetail = RawGymSummary & {
   pool_lanes?: number | null;
   pool_length_m?: number | null;
   pool_heated?: boolean | null;
+  pools?: Array<{
+    lanes?: number | null;
+    length_m?: number | null;
+    heated?: boolean | null;
+  }> | null;
   court_type?: string | null;
   court_count?: number | null;
   court_surface?: string | null;
   court_lighting?: boolean | null;
+  courts?: Array<{
+    court_type?: string | null;
+    courts?: number | null;
+    surface?: string | null;
+    lighting?: boolean | null;
+  }> | null;
   hall_sports?: string[] | null;
   hall_area_sqm?: number | null;
   field_type?: string | null;
@@ -253,10 +270,23 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     poolLanes: input.pool_lanes ?? null,
     poolLengthM: input.pool_length_m ?? null,
     poolHeated: input.pool_heated ?? null,
+    pools:
+      input.pools?.map(p => ({
+        lanes: p.lanes ?? null,
+        lengthM: p.length_m ?? null,
+        heated: p.heated ?? null,
+      })) ?? [],
     courtType: input.court_type ?? null,
     courtCount: input.court_count ?? null,
     courtSurface: input.court_surface ?? null,
     courtLighting: input.court_lighting ?? null,
+    courts:
+      input.courts?.map(c => ({
+        courtType: c.court_type ?? null,
+        courts: c.courts ?? null,
+        surface: c.surface ?? null,
+        lighting: c.lighting ?? null,
+      })) ?? [],
     hallSports: input.hall_sports ?? [],
     hallAreaSqm: input.hall_area_sqm ?? null,
     fieldType: input.field_type ?? null,

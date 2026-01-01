@@ -7,6 +7,23 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
+class PoolItemDTO(BaseModel):
+    """Individual pool information."""
+
+    lanes: int | None = Field(default=None, description="レーン数")
+    length_m: int | None = Field(default=None, description="長さ（メートル）")
+    heated: bool | None = Field(default=None, description="温水プールか")
+
+
+class CourtItemDTO(BaseModel):
+    """Individual court information."""
+
+    court_type: str | None = Field(default=None, description="コート種別")
+    courts: int | None = Field(default=None, description="面数")
+    surface: str | None = Field(default=None, description="サーフェス")
+    lighting: bool | None = Field(default=None, description="照明の有無")
+
+
 class GymBasicDTO(BaseModel):
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
@@ -115,16 +132,20 @@ class GymDetailDTO(BaseModel):
         """Backward compatible alias for categories[0]."""
         return self.categories[0] if self.categories else None
 
-    # Pool-specific fields
+    # Pool-specific fields (legacy single item)
     pool_lanes: int | None = Field(default=None, description="プールレーン数")
     pool_length_m: int | None = Field(default=None, description="プール長さ（メートル）")
     pool_heated: bool | None = Field(default=None, description="温水プールか")
+    # Pool array for multiple pools
+    pools: list[PoolItemDTO] = Field(default_factory=list, description="プール一覧")
 
-    # Court-specific fields
+    # Court-specific fields (legacy single item)
     court_type: str | None = Field(default=None, description="コートタイプ（テニス、バスケ等）")
     court_count: int | None = Field(default=None, description="コート面数")
     court_surface: str | None = Field(default=None, description="コート表面（クレー、人工芝等）")
     court_lighting: bool | None = Field(default=None, description="照明設備の有無")
+    # Court array for multiple courts
+    courts: list[CourtItemDTO] = Field(default_factory=list, description="コート一覧")
 
     # Hall-specific fields
     hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")

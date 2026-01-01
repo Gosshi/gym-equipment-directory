@@ -14,6 +14,7 @@ from app.dto import (
     GymImageDTO,
     GymSummaryDTO,
 )
+from app.dto.gym import CourtItemDTO, PoolItemDTO
 from app.models import Equipment, Gym, GymImage
 
 
@@ -208,18 +209,37 @@ def assemble_gym_detail(
             return data
         return {}
 
+    def _normalize_to_list(data: Any) -> list[dict[str, Any]]:
+        """Normalize data to a list of dicts."""
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(data, dict):
+            return [data]
+        return []
+
     # Extract category-specific fields from meta or parsed_json root
     # Try meta first, then fallback to parsed_json root for category-specific objects
     # Pool - may be a dict or a list of dicts
     pool_raw = meta.get("pool") or parsed_json.get("pool")
     pool_data = _normalize_to_dict(pool_raw)
+    pool_list = _normalize_to_list(pool_raw)
     pool_lanes = meta.get("lanes") or pool_data.get("lanes")
     pool_length_m = meta.get("length_m") or pool_data.get("length_m")
     pool_heated = meta.get("heated") if meta.get("heated") is not None else pool_data.get("heated")
+    # Build pools array
+    pools = [
+        PoolItemDTO(
+            lanes=p.get("lanes"),
+            length_m=p.get("length_m"),
+            heated=p.get("heated"),
+        )
+        for p in pool_list
+    ]
 
     # Court - may be a dict or a list of dicts
     court_raw = meta.get("court") or parsed_json.get("court")
     court_data = _normalize_to_dict(court_raw)
+    court_list = _normalize_to_list(court_raw)
     court_type = meta.get("court_type") or court_data.get("court_type")
     court_count = meta.get("courts") or court_data.get("courts")
     court_surface = meta.get("surface") or court_data.get("surface")
@@ -232,6 +252,16 @@ def assemble_gym_detail(
         if is_court_category
         else None
     )
+    # Build courts array
+    courts = [
+        CourtItemDTO(
+            court_type=c.get("court_type"),
+            courts=c.get("courts"),
+            surface=c.get("surface"),
+            lighting=c.get("lighting"),
+        )
+        for c in court_list
+    ]
 
     # Hall - may be a dict or a list of dicts
     hall_raw = meta.get("hall") or parsed_json.get("hall")
@@ -291,10 +321,12 @@ def assemble_gym_detail(
         pool_lanes=pool_lanes,
         pool_length_m=pool_length_m,
         pool_heated=pool_heated,
+        pools=pools,
         court_type=court_type,
         court_count=court_count,
         court_surface=court_surface,
         court_lighting=court_lighting,
+        courts=courts,
         hall_sports=hall_sports,
         hall_area_sqm=hall_area_sqm,
         field_type=field_type,

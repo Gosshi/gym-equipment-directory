@@ -2,6 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Waves, LayoutGrid, Building, TreeDeciduous, Dumbbell } from "lucide-react";
 
+interface PoolItem {
+  lanes?: number | null;
+  lengthM?: number | null;
+  heated?: boolean | null;
+}
+
+interface CourtItem {
+  courtType?: string | null;
+  courts?: number | null;
+  surface?: string | null;
+  lighting?: boolean | null;
+}
+
 interface CategoryInfoProps {
   category?: string | null;
   categories?: string[];
@@ -9,11 +22,13 @@ interface CategoryInfoProps {
   poolLanes?: number | null;
   poolLengthM?: number | null;
   poolHeated?: boolean | null;
+  pools?: PoolItem[];
   // Court
   courtType?: string | null;
   courtCount?: number | null;
   courtSurface?: string | null;
   courtLighting?: boolean | null;
+  courts?: CourtItem[];
   // Hall
   hallSports?: string[];
   hallAreaSqm?: number | null;
@@ -190,7 +205,39 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function PoolInfo({ poolLanes, poolLengthM, poolHeated }: CategoryInfoProps) {
+function PoolInfo({ poolLanes, poolLengthM, poolHeated, pools }: CategoryInfoProps) {
+  // If we have multiple pools, display them
+  if (pools && pools.length > 0) {
+    return (
+      <div className="space-y-4">
+        {pools.map((pool, index) => {
+          const hasPoolData = pool.lanes || pool.lengthM || pool.heated !== undefined;
+          if (!hasPoolData) return null;
+
+          const label = pools.length > 1 ? `プール ${index + 1}` : null;
+          return (
+            <div key={index} className={pools.length > 1 ? "border-l-2 border-border/50 pl-3" : ""}>
+              {label && <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>}
+              <InfoRow label="レーン数" value={pool.lanes ? `${pool.lanes}レーン` : null} />
+              <InfoRow label="長さ" value={pool.lengthM ? `${pool.lengthM}m` : null} />
+              <InfoRow
+                label="温水"
+                value={
+                  pool.heated !== undefined && pool.heated !== null
+                    ? pool.heated
+                      ? "あり"
+                      : "なし"
+                    : null
+                }
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback to single pool data
   const hasData = poolLanes || poolLengthM || poolHeated !== undefined;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
@@ -208,7 +255,47 @@ function PoolInfo({ poolLanes, poolLengthM, poolHeated }: CategoryInfoProps) {
   );
 }
 
-function CourtInfo({ courtType, courtCount, courtSurface, courtLighting }: CategoryInfoProps) {
+function CourtInfo({
+  courtType,
+  courtCount,
+  courtSurface,
+  courtLighting,
+  courts,
+}: CategoryInfoProps) {
+  // If we have multiple courts, display them
+  if (courts && courts.length > 0) {
+    return (
+      <div className="space-y-4">
+        {courts.map((court, index) => {
+          const hasCourtData =
+            court.courtType || court.courts || court.surface || court.lighting !== undefined;
+          if (!hasCourtData) return null;
+
+          return (
+            <div key={index} className="border-l-2 border-border/50 pl-3">
+              <p className="text-sm font-medium text-foreground mb-2">
+                {court.courtType || `コート ${index + 1}`}
+              </p>
+              <InfoRow label="面数" value={court.courts ? `${court.courts}面` : null} />
+              {court.surface && <InfoRow label="サーフェス" value={court.surface} />}
+              <InfoRow
+                label="照明"
+                value={
+                  court.lighting !== undefined && court.lighting !== null
+                    ? court.lighting
+                      ? "あり"
+                      : "なし"
+                    : null
+                }
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback to single court data
   const hasData = courtType || courtCount || courtSurface || courtLighting !== undefined;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
