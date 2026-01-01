@@ -48,8 +48,7 @@ export default function TermsPage() {
 
           <h3>5. お問い合わせ</h3>
           <p>
-            本規約に関するお問い合わせは、<a href="mailto:spomapjp@gmail.com">spomapjp@gmail.com</a>
-            までお願いいたします。
+            本規約に関するお問い合わせは、spomapjp[at]gmail.com（[at]を@に変えてください）までお願いいたします。
           </p>
         </div>
       </div>

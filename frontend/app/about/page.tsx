@@ -84,7 +84,7 @@ export default function AboutPage() {
               </div>
               <div className="space-y-1">
                 <dt className="font-medium text-muted-foreground">連絡先</dt>
-                <dd className="font-semibold">spomapjp@gmail.com</dd>
+                <dd className="font-semibold">spomapjp[at]gmail.com</dd>
               </div>
             </dl>
           </section>

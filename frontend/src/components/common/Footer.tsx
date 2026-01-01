@@ -141,13 +141,13 @@ export function AppFooter() {
               <Twitter className="h-4 w-4" />
             </a>
              */}
-            <a
-              href="mailto:spomapjp@gmail.com"
+            <Link
+              href="/contact"
               className="text-muted-foreground/60 transition-colors hover:text-foreground"
-              aria-label="Email"
+              aria-label="Contact"
             >
               <Mail className="h-4 w-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>

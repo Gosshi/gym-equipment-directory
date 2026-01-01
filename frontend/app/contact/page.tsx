@@ -29,12 +29,10 @@ export default function ContactPage() {
           </div>
           <h2 className="mb-2 text-xl font-bold text-foreground">メールでのお問い合わせ</h2>
           <p className="mb-6 text-sm text-muted-foreground">通常24時間以内に返信いたします。</p>
-          <a
-            href="mailto:spomapjp@gmail.com"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            spomapjp@gmail.com
-          </a>
+          <div className="inline-flex items-center justify-center rounded-md bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow">
+            spomapjp[at]gmail.com
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">※ [at]を@に変えて送信してください</p>
         </div>
 
         <p className="text-sm text-muted-foreground">
