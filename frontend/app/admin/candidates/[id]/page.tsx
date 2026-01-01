@@ -67,7 +67,7 @@ const JSON_KEY_LABELS: Record<string, string> = {
   court: "コート",
   court_type: "コート種別",
   court_count: "コート数",
-  court_surface: "サーフェス",
+  court_surface: "コート素材",
   court_lighting: "照明",
 
   // 体育館

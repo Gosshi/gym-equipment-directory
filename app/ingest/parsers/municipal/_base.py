@@ -448,10 +448,14 @@ async def _extract_facility_with_llm(
         "**Category-specific fields (include for ALL applicable categories):**\n"
         "Return category-specific data as NESTED OBJECTS under each category key:\n"
         '- pool: {"lanes": int, "length_m": int, "heated": bool}\n'
-        '- court: {"courts": array of {"court_type": string, "count": int}, '
-        '"surface": string, "lighting": bool}. '
-        "If multiple court types exist (e.g., バスケ1面、バレー1面、バドミントン4面), "
-        "return each as separate items in the courts array.\n"
+        '- court: {"courts": array of {"court_type": string, "count": int, '
+        '"surface": string|null}, "lighting": bool}. '
+        "If multiple court types exist (e.g., バスケ1面、バレー1面、テニス4面), "
+        "return each as separate items in the courts array. "
+        "IMPORTANT: Set 'surface' per court type (床, クレー, 砂入り人工芝, ハードコート, etc.). "
+        "Indoor courts (バスケ, バレー, バドミントン) typically have surface '床'. "
+        "Outdoor tennis courts may have '砂入り人工芝', 'クレー', or 'ハードコート'. "
+        "Set to null if unknown.\n"
         '- hall: {"sports": string array, "area_sqm": int}\n'
         '- field: {"field_type": string, "fields": int, "lighting": bool}\n'
         '- archery: {"archery_type": string, "rooms": int}\n'

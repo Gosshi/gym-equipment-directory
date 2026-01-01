@@ -20,7 +20,7 @@ class CourtItemDTO(BaseModel):
 
     court_type: str | None = Field(default=None, description="コート種別")
     courts: int | None = Field(default=None, description="面数")
-    surface: str | None = Field(default=None, description="サーフェス")
+    surface: str | None = Field(default=None, description="コート素材")
     lighting: bool | None = Field(default=None, description="照明の有無")
 
 
