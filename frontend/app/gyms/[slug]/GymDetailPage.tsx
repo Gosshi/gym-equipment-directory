@@ -8,6 +8,7 @@ import { BookmarkCheck, BookmarkPlus, ExternalLink } from "lucide-react";
 import { CategoryInfo } from "@/components/gym/CategoryInfo";
 import { GymFacilities, type FacilityGroup } from "@/components/gym/GymFacilities";
 import { GymHeader } from "@/components/gym/GymHeader";
+import { RecommendedProducts } from "@/components/gym/RecommendedProducts";
 import { ReportIssueButton } from "@/components/gym/ReportIssueButton";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -335,6 +336,8 @@ export function GymDetailPage({
             />
 
             <GymFacilities facilities={gym.facilities} />
+
+            <RecommendedProducts categories={gym.categories} />
           </div>
 
           <div className="space-y-6">
