@@ -78,6 +78,14 @@ export function AppFooter() {
             <ul className="space-y-2">
               <li>
                 <Link
+                  href="/about"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  運営者情報
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/terms"
                   className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
@@ -113,6 +121,7 @@ export function AppFooter() {
             &copy; {currentYear} SPOMAP. ALL RIGHTS RESERVED.
           </p>
           <div className="flex items-center gap-4">
+            {/* 
             <a
               href="https://github.com"
               target="_blank"
@@ -131,8 +140,9 @@ export function AppFooter() {
             >
               <Twitter className="h-4 w-4" />
             </a>
+             */}
             <a
-              href="mailto:contact@example.com"
+              href="mailto:info@spomapjp.com"
               className="text-muted-foreground/60 transition-colors hover:text-foreground"
               aria-label="Email"
             >
