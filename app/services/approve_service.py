@@ -514,6 +514,22 @@ class ApproveService:
                     FieldChange(field="parsed_json", before=None, after=candidate.parsed_json)
                 )
 
+            # Append new source URLs to existing source_urls
+            new_source_urls: list[str] = []
+            if candidate.source_page and candidate.source_page.url:
+                new_source_urls.append(candidate.source_page.url)
+            if official_url and official_url not in new_source_urls:
+                new_source_urls.append(official_url)
+            if new_source_urls:
+                existing_urls = list(getattr(target_gym, "source_urls", None) or [])
+                urls_to_add = [url for url in new_source_urls if url not in existing_urls]
+                if urls_to_add:
+                    updated_urls = existing_urls + urls_to_add
+                    updates["source_urls"] = updated_urls
+                    changes.append(
+                        FieldChange(field="source_urls", before=existing_urls, after=updated_urls)
+                    )
+
             action = "update" if updates else "reuse"
             return GymPlan(
                 action=action,
@@ -526,6 +542,12 @@ class ApproveService:
 
         slug_base = _build_slug(name, address, city, pref)
         slug = await self._generate_unique_slug(slug_base)
+        # Collect source URLs from candidate's source page
+        source_urls: list[str] = []
+        if candidate.source_page and candidate.source_page.url:
+            source_urls.append(candidate.source_page.url)
+        if official_url and official_url not in source_urls:
+            source_urls.append(official_url)
         create_kwargs: dict[str, Any] = {
             "slug": slug,
             "canonical_id": canonical_id,
@@ -537,6 +559,7 @@ class ApproveService:
             "longitude": candidate.longitude,
             "official_url": official_url,
             "parsed_json": candidate.parsed_json,
+            "source_urls": source_urls if source_urls else None,
         }
         changes = [
             FieldChange(field=key, before=None, after=value)
