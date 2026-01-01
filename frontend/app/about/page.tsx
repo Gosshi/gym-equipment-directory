@@ -17,9 +17,9 @@ export default function AboutPage() {
             SPOMAPについて
           </h1>
           <p className="text-lg text-muted-foreground">
-            SPOMAP（スポマップ）は、東京都内の公営ジム・スポーツセンターの
+            SPOMAP（スポマップ）は、東京都内の公営スポーツ施設
             <br className="hidden sm:inline" />
-            設備情報を網羅したデータベースサイトです。
+            （ジム・プール・テニスコート・体育館など）の情報を網羅したデータベースサイトです。
           </p>
         </div>
 
@@ -28,14 +28,16 @@ export default function AboutPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-foreground">サイトの目的</h2>
             <p className="leading-relaxed text-muted-foreground">
-              「近所の公営ジムにパワーラックはあるかな？」「ダンベルは何キロまであるんだろう？」
+              「近所の公営ジムにパワーラックはあるかな？」「プールは何レーンあるんだろう？」
+              <br />
+              「オムニコートのテニス場を探したい」
               <br />
               そんな疑問を持ったことはありませんか？
             </p>
             <p className="leading-relaxed text-muted-foreground">
-              一般的な地図アプリや公式サイトでは、マシンの詳細なラインナップまでは分からないことがほとんどです。
-              SPOMAPは、実際にトレーニングを行うユーザーの視点で、各施設の設備情報を詳細に収集・公開することで、
-              「自分に合ったジム探し」をサポートします。
+              一般的な地図アプリや公式サイトでは、設備の詳細なスペックや器具のラインナップまでは分からないことがほとんどです。
+              SPOMAPは、実際に施設を利用するユーザーの視点で詳細な情報を収集・公開することで、
+              「目的に合ったスポーツ施設探し」をサポートします。
             </p>
           </section>
 
@@ -47,7 +49,7 @@ export default function AboutPage() {
               </div>
               <h3 className="mb-2 font-bold">詳細な設備検索</h3>
               <p className="text-xs text-muted-foreground">
-                パワーラックの有無、ダンベルの重さなど、細かい条件で検索可能。
+                パワーラックの有無、プールのレーン数、コートの種類など、細かい条件で検索可能。
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-6 text-center">
@@ -56,7 +58,7 @@ export default function AboutPage() {
               </div>
               <h3 className="mb-2 font-bold">地図から探す</h3>
               <p className="text-xs text-muted-foreground">
-                自宅や職場の近くにある公営ジムを地図上で直感的に探せます。
+                自宅や職場の近くにあるスポーツ施設を地図上で直感的に探せます。
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-6 text-center">
@@ -102,7 +104,7 @@ export default function AboutPage() {
               href="/gyms"
               className="inline-flex h-10 items-center justify-center rounded-md bg-accent px-8 text-sm font-medium text-accent-foreground shadow transition-colors hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              ジムを探しにいく
+              施設を探しにいく
             </Link>
           </section>
         </div>
