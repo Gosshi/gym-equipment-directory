@@ -808,12 +808,149 @@ class IngestResult:
     url: str
     success: bool
     candidate_id: int | None = None
+    facility_name: str | None = None
     error: str | None = None
+
+
+@dataclass
+class ExtractedFacility:
+    """Extracted facility information from HTML."""
+
+    name: str
+    address: str | None = None
+    phone: str | None = None
+    extra: dict[str, object] | None = None
+
+
+def _extract_facilities_from_html(html: str) -> list[ExtractedFacility]:
+    """Extract multiple facilities from HTML table structure.
+
+    This function parses HTML looking for table structures that contain
+    facility listings (common in Japanese government websites).
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    facilities: list[ExtractedFacility] = []
+
+    # Common patterns for facility listing tables
+    # Pattern 1: Look for tables with facility-like rows
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        if len(rows) < 2:
+            continue
+
+        # Check if this looks like a facility listing table
+        # by examining the first row (header) or content patterns
+        for row in rows:
+            cells = row.find_all(["td", "th"])
+            if not cells:
+                continue
+
+            # Get text from first cell - potential facility name
+            first_cell_text = cells[0].get_text(strip=True)
+            if not first_cell_text:
+                continue
+
+            # Skip header rows (common header keywords)
+            header_keywords = ["施設名", "名称", "場所", "コート", "種別", "設備"]
+            if any(kw in first_cell_text for kw in header_keywords) and len(cells) > 1:
+                # Could be a header row, skip
+                second_cell = cells[1].get_text(strip=True) if len(cells) > 1 else ""
+                if any(kw in second_cell for kw in ["所在地", "住所", "電話", "種別"]):
+                    continue
+
+            # Look for facility name patterns
+            # Japanese facility names often end with 公園, 体育館, センター, etc.
+            facility_keywords = [
+                "公園",
+                "体育館",
+                "センター",
+                "プール",
+                "コート",
+                "広場",
+                "グラウンド",
+                "野球場",
+                "テニス",
+                "スポーツ",
+                "運動",
+                "スタジアム",
+                "アリーナ",
+            ]
+
+            # Check if first cell contains a facility name
+            is_facility_name = any(kw in first_cell_text for kw in facility_keywords)
+
+            # Also check if it starts with Japanese characters (likely a name)
+            has_japanese = bool(
+                re.search(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]", first_cell_text)
+            )
+
+            if is_facility_name or (has_japanese and len(first_cell_text) < 50):
+                # Extract facility name (may include phone number)
+                name = first_cell_text
+                phone = None
+                address = None
+
+                # Try to extract phone number from name if present
+                phone_match = re.search(r"[（(]?([\d\-－]+)[）)]?$", name)
+                if phone_match:
+                    phone = phone_match.group(1).replace("－", "-")
+                    name = re.sub(r"[（(]?[\d\-－]+[）)]?$", "", name).strip()
+
+                # Look for address in other cells
+                for cell in cells[1:]:
+                    cell_text = cell.get_text(strip=True)
+                    # Address patterns (contains 区, 市, 町, 丁目, etc.)
+                    if re.search(r"[都道府県市区町村]|丁目|番地|号", cell_text):
+                        address = cell_text
+                        break
+                    # Phone pattern in separate cell
+                    if not phone and re.search(r"^[\d\-－]+$", cell_text):
+                        phone = cell_text.replace("－", "-")
+
+                # Skip if name is too short or looks like a number
+                if len(name) >= 2 and not name.isdigit():
+                    # Skip non-facility names (common administrative terms)
+                    skip_keywords = [
+                        "受付",
+                        "窓口",
+                        "時間",
+                        "料金",
+                        "注意",
+                        "申込",
+                        "利用",
+                        "ご案内",
+                        "お知らせ",
+                        "備考",
+                        "その他",
+                        "休場",
+                        "開設",
+                    ]
+                    if any(kw in name for kw in skip_keywords):
+                        continue
+
+                    facilities.append(
+                        ExtractedFacility(
+                            name=name,
+                            address=address,
+                            phone=phone,
+                        )
+                    )
+
+    # Deduplicate by name
+    seen_names: set[str] = set()
+    unique_facilities: list[ExtractedFacility] = []
+    for f in facilities:
+        if f.name not in seen_names:
+            seen_names.add(f.name)
+            unique_facilities.append(f)
+
+    return unique_facilities
 
 
 def _extract_title_from_html(html: str) -> str | None:
     """Extract the page title from HTML."""
-    import re
 
     # Try to find <title> tag
     title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
@@ -841,15 +978,16 @@ async def ingest_urls(
     *,
     dry_run: bool = False,
 ) -> list[IngestResult]:
-    """Ingest multiple URLs and create candidates from them.
+    """Ingest URLs and create candidates from them.
 
     For each URL:
     1. Fetch the URL
-    2. Extract page title as facility name
-    3. Create a ScrapedPage and GymCandidate
+    2. Try to extract multiple facilities from HTML tables
+    3. If multiple facilities found, create a candidate for each
+    4. If no facilities found, fall back to page title
 
-    Note: The user should edit the candidate details after creation
-    to provide more accurate information.
+    This is useful for pages that list multiple facilities in a table,
+    such as Japanese government websites listing sports facilities.
 
     Args:
         session: Database session
@@ -859,7 +997,7 @@ async def ingest_urls(
         dry_run: If True, don't commit to database
 
     Returns:
-        List of IngestResult objects with status for each URL
+        List of IngestResult objects with status for each URL/facility
     """
     from app.services.http_utils import fetch_url_checked
 
@@ -891,66 +1029,78 @@ async def ingest_urls(
                 )
                 continue
 
-            # Extract page title as facility name
-            facility_name = _extract_title_from_html(html)
-            if not facility_name:
-                # Use URL path as fallback
-                from urllib.parse import urlparse
+            # Try to extract multiple facilities from HTML tables
+            facilities = _extract_facilities_from_html(html)
 
-                path = urlparse(url).path
-                facility_name = path.split("/")[-1] or path.split("/")[-2] or "Unknown"
-                facility_name = facility_name.replace("-", " ").replace("_", " ").title()
+            # If no facilities found, fall back to page title
+            if not facilities:
+                facility_name = _extract_title_from_html(html)
+                if not facility_name:
+                    # Use URL path as fallback
+                    from urllib.parse import urlparse
 
-            if dry_run:
-                results.append(
-                    IngestResult(
-                        url=url,
-                        success=True,
-                        candidate_id=None,
-                    )
-                )
-                continue
+                    path = urlparse(url).path
+                    facility_name = path.split("/")[-1] or path.split("/")[-2] or "Unknown"
+                    facility_name = facility_name.replace("-", " ").replace("_", " ").title()
+                facilities = [ExtractedFacility(name=facility_name)]
 
-            # Create ScrapedPage
+            # Create ScrapedPage (shared by all facilities from this URL)
             now = datetime.now(UTC)
             page = ScrapedPage(
                 source_id=int(source.id),
                 url=url,
                 fetched_at=now,
                 http_status=status_code or 200,
-                response_meta={"kind": "url_ingest"},
+                response_meta={"kind": "url_ingest", "facility_count": len(facilities)},
             )
-            session.add(page)
-            await session.flush()
+            if not dry_run:
+                session.add(page)
+                await session.flush()
 
-            # Prepare parsed_json
-            parsed_json: dict[str, object] = {
-                "official_url": url,
-                "facility_name": facility_name,
-            }
+            # Create a candidate for each facility
+            for facility in facilities:
+                if dry_run:
+                    results.append(
+                        IngestResult(
+                            url=url,
+                            success=True,
+                            candidate_id=None,
+                            facility_name=facility.name,
+                        )
+                    )
+                    continue
 
-            # Create GymCandidate
-            candidate = GymCandidate(
-                source_page_id=int(page.id),
-                name_raw=str(facility_name),
-                address_raw=None,
-                pref_slug=pref_slug,
-                city_slug=city_slug,
-                latitude=None,
-                longitude=None,
-                parsed_json=parsed_json,
-                status=CandidateStatus.new,
-            )
-            session.add(candidate)
-            await session.flush()
+                # Prepare parsed_json
+                parsed_json: dict[str, object] = {
+                    "source_url": url,
+                    "facility_name": facility.name,
+                }
+                if facility.phone:
+                    parsed_json["phone"] = facility.phone
 
-            results.append(
-                IngestResult(
-                    url=url,
-                    success=True,
-                    candidate_id=int(candidate.id),
+                # Create GymCandidate
+                candidate = GymCandidate(
+                    source_page_id=int(page.id),
+                    name_raw=str(facility.name),
+                    address_raw=facility.address,
+                    pref_slug=pref_slug,
+                    city_slug=city_slug,
+                    latitude=None,
+                    longitude=None,
+                    parsed_json=parsed_json,
+                    status=CandidateStatus.new,
                 )
-            )
+                session.add(candidate)
+                await session.flush()
+
+                results.append(
+                    IngestResult(
+                        url=url,
+                        success=True,
+                        candidate_id=int(candidate.id),
+                        facility_name=facility.name,
+                    )
+                )
 
         except Exception as exc:
             results.append(
