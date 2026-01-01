@@ -382,7 +382,7 @@ export const normalizeGymDetail = (
     courts: Array.isArray(data.courts)
       ? data.courts.map((c: Record<string, unknown>) => ({
           courtType: sanitizeText(c.court_type ?? c.courtType),
-          courts: pickNumber(c.courts),
+          courts: pickNumber(c.courts ?? c.count),
           surface: sanitizeText(c.surface),
           lighting: c.lighting as boolean | undefined,
         }))
