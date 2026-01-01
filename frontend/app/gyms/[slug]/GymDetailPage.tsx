@@ -320,10 +320,12 @@ export function GymDetailPage({
               poolLanes={gym.poolLanes}
               poolLengthM={gym.poolLengthM}
               poolHeated={gym.poolHeated}
+              pools={gym.pools}
               courtType={gym.courtType}
               courtCount={gym.courtCount}
               courtSurface={gym.courtSurface}
               courtLighting={gym.courtLighting}
+              courts={gym.courts}
               hallSports={gym.hallSports}
               hallAreaSqm={gym.hallAreaSqm}
               fieldType={gym.fieldType}
