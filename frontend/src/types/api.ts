@@ -100,10 +100,21 @@ export interface GymDetailApiResponse {
   pool_lanes?: number | null;
   pool_length_m?: number | null;
   pool_heated?: boolean | null;
+  pools?: Array<{
+    lanes?: number | null;
+    length_m?: number | null;
+    heated?: boolean | null;
+  }> | null;
   court_type?: string | null;
   court_count?: number | null;
   court_surface?: string | null;
   court_lighting?: boolean | null;
+  courts?: Array<{
+    court_type?: string | null;
+    courts?: number | null;
+    surface?: string | null;
+    lighting?: boolean | null;
+  }> | null;
   hall_sports?: string[] | null;
   hall_area_sqm?: number | null;
   field_type?: string | null;
