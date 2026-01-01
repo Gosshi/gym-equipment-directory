@@ -10,7 +10,7 @@ export function AppFooter() {
     <footer className="border-t border-border bg-background">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Main Grid */}
-        <div className="grid gap-8 lg:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand Section */}
           <div className="space-y-4 lg:col-span-2">
             <div className="flex items-center gap-2">
@@ -65,6 +65,55 @@ export function AppFooter() {
                   className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   お気に入り
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Categories Section */}
+          <div className="space-y-4">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+              CATEGORIES
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/pool"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  プール
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/tennis"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  テニスコート
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/hall"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  体育館
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/martial-arts"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  武道場
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/archery"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  弓道場
                 </Link>
               </li>
             </ul>
