@@ -20,9 +20,20 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "gym_candidates", sa.Column("categories", postgresql.ARRAY(sa.Text()), nullable=True)
+    # Check if column already exists (may have been added manually)
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            """
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name='gym_candidates' AND column_name='categories'
+            """
+        )
     )
+    if result.fetchone() is None:
+        op.add_column(
+            "gym_candidates", sa.Column("categories", postgresql.ARRAY(sa.Text()), nullable=True)
+        )
 
 
 def downgrade() -> None:
