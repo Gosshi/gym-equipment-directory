@@ -20,6 +20,11 @@ INGEST_LIMIT_ARG = $(if $(LIMIT),--limit $(LIMIT))
 INGEST_DSN_ARG = $(if $(DSN),--dsn "$(DSN)")
 
 
+dev:
+	@echo "🚀 Starting backend + frontend..."
+	docker compose --env-file $(ENV_FILE) up -d
+	cd frontend && npm run dev
+
 up:
 	docker compose --env-file $(ENV_FILE) up -d
 
@@ -77,7 +82,7 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
-.PHONY: up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
+.PHONY: dev up down logs bash db-bash migrate rev freshness sync-all test seed-equip \
 seed-minimal \
 geocode-gyms geocode-candidates geocode-and-freshness \
 pre-commit-install pre-commit-run curl-admin-candidates \
