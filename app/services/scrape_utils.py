@@ -17,6 +17,53 @@ class ScrapeOutcome:
     failure_reason: str | None = None
 
 
+def _merge_structured_array(
+    existing: list[dict[str, Any]],
+    new_items: list[dict[str, Any]],
+    key_field: str,
+) -> list[dict[str, Any]]:
+    """Merge structured arrays by key field, preserving existing and updating with new.
+
+    - Items are matched by key_field (e.g., 'court_type', 'slug')
+    - Existing items are preserved
+    - New items update existing with additional non-null fields
+    - Items only in new data are added
+    """
+    # Index existing items by key
+    result_map: dict[str, dict[str, Any]] = {}
+    for item in existing:
+        if isinstance(item, dict):
+            key = item.get(key_field)
+            if key:
+                result_map[key] = item.copy()
+
+    # Merge new items
+    for item in new_items:
+        if not isinstance(item, dict):
+            continue
+        key = item.get(key_field)
+        if key:
+            if key in result_map:
+                # Update existing with new non-null fields
+                for field, value in item.items():
+                    if value is not None and value != "":
+                        result_map[key][field] = value
+            else:
+                # Add new item
+                result_map[key] = item.copy()
+
+    return list(result_map.values())
+
+
+# Mapping of array keys to their unique identifier field
+_ARRAY_KEY_FIELDS: dict[str, str] = {
+    "courts": "court_type",
+    "equipments": "slug",
+    "pools": "length_m",  # Use length as identifier for pools
+    "sports": None,  # Simple string array, uses dedup
+}
+
+
 def merge_parsed_json(
     existing: dict[str, Any] | None,
     new_data: dict[str, Any],
@@ -24,7 +71,8 @@ def merge_parsed_json(
     """Merge new parsed data into existing parsed_json.
 
     - New non-empty values overwrite existing values
-    - Arrays are concatenated and deduplicated
+    - Structured arrays (courts, equipments) are smart-merged by key field
+    - Simple tag-like arrays are concatenated and deduplicated
     - Nested dicts are recursively merged
     """
     if existing is None:
@@ -41,20 +89,25 @@ def merge_parsed_json(
         if isinstance(new_value, dict) and isinstance(existing_value, dict):
             result[key] = merge_parsed_json(existing_value, new_value)
         elif isinstance(new_value, list) and isinstance(existing_value, list):
-            # Concatenate and deduplicate
-            combined = existing_value + new_value
-            # Try to deduplicate if items are hashable
-            try:
-                seen: set[Any] = set()
-                deduped = []
-                for item in combined:
-                    if item not in seen:
-                        seen.add(item)
-                        deduped.append(item)
-                result[key] = deduped
-            except TypeError:
-                # Items not hashable, just concatenate
-                result[key] = combined
+            # Check if this is a structured array with a known key field
+            key_field = _ARRAY_KEY_FIELDS.get(key)
+            if key_field and all(isinstance(item, dict) for item in new_value):
+                # Smart merge by key field
+                result[key] = _merge_structured_array(existing_value, new_value, key_field)
+            else:
+                # For simple arrays (tags, categories), concatenate and deduplicate
+                combined = existing_value + new_value
+                try:
+                    seen: set[Any] = set()
+                    deduped = []
+                    for item in combined:
+                        if item not in seen:
+                            seen.add(item)
+                            deduped.append(item)
+                    result[key] = deduped
+                except TypeError:
+                    # Items not hashable (unknown dicts), prefer new data
+                    result[key] = new_value
         else:
             # Overwrite with new value
             result[key] = new_value
