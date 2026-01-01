@@ -211,7 +211,7 @@ function PoolInfo({ poolLanes, poolLengthM, poolHeated, pools }: CategoryInfoPro
     return (
       <div className="space-y-4">
         {pools.map((pool, index) => {
-          const hasPoolData = pool.lanes || pool.lengthM || pool.heated !== undefined;
+          const hasPoolData = pool.lanes || pool.lengthM || pool.heated === true;
           if (!hasPoolData) return null;
 
           const label = pools.length > 1 ? `プール ${index + 1}` : null;
@@ -220,16 +220,7 @@ function PoolInfo({ poolLanes, poolLengthM, poolHeated, pools }: CategoryInfoPro
               {label && <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>}
               <InfoRow label="レーン数" value={pool.lanes ? `${pool.lanes}レーン` : null} />
               <InfoRow label="長さ" value={pool.lengthM ? `${pool.lengthM}m` : null} />
-              <InfoRow
-                label="温水"
-                value={
-                  pool.heated !== undefined && pool.heated !== null
-                    ? pool.heated
-                      ? "あり"
-                      : "なし"
-                    : null
-                }
-              />
+              <InfoRow label="温水" value={pool.heated === true ? "あり" : null} />
             </div>
           );
         })}
@@ -238,19 +229,14 @@ function PoolInfo({ poolLanes, poolLengthM, poolHeated, pools }: CategoryInfoPro
   }
 
   // Fallback to single pool data
-  const hasData = poolLanes || poolLengthM || poolHeated !== undefined;
+  const hasData = poolLanes || poolLengthM || poolHeated === true;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
   return (
     <div>
       <InfoRow label="レーン数" value={poolLanes ? `${poolLanes}レーン` : null} />
       <InfoRow label="長さ" value={poolLengthM ? `${poolLengthM}m` : null} />
-      <InfoRow
-        label="温水"
-        value={
-          poolHeated !== undefined && poolHeated !== null ? (poolHeated ? "あり" : "なし") : null
-        }
-      />
+      <InfoRow label="温水" value={poolHeated === true ? "あり" : null} />
     </div>
   );
 }
@@ -268,7 +254,7 @@ function CourtInfo({
       <div className="space-y-4">
         {courts.map((court, index) => {
           const hasCourtData =
-            court.courtType || court.courts || court.surface || court.lighting !== undefined;
+            court.courtType || court.courts || court.surface || court.lighting === true;
           if (!hasCourtData) return null;
 
           return (
@@ -278,16 +264,7 @@ function CourtInfo({
               </p>
               <InfoRow label="面数" value={court.courts ? `${court.courts}面` : null} />
               {court.surface && <InfoRow label="サーフェス" value={court.surface} />}
-              <InfoRow
-                label="照明"
-                value={
-                  court.lighting !== undefined && court.lighting !== null
-                    ? court.lighting
-                      ? "あり"
-                      : "なし"
-                    : null
-                }
-              />
+              <InfoRow label="照明" value={court.lighting === true ? "あり" : null} />
             </div>
           );
         })}
@@ -296,7 +273,7 @@ function CourtInfo({
   }
 
   // Fallback to single court data
-  const hasData = courtType || courtCount || courtSurface || courtLighting !== undefined;
+  const hasData = courtType || courtCount || courtSurface || courtLighting === true;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
   return (
@@ -304,16 +281,7 @@ function CourtInfo({
       <InfoRow label="コートタイプ" value={courtType} />
       <InfoRow label="面数" value={courtCount ? `${courtCount}面` : null} />
       <InfoRow label="表面" value={courtSurface} />
-      <InfoRow
-        label="照明"
-        value={
-          courtLighting !== undefined && courtLighting !== null
-            ? courtLighting
-              ? "あり"
-              : "なし"
-            : null
-        }
-      />
+      <InfoRow label="照明" value={courtLighting === true ? "あり" : null} />
     </div>
   );
 }
@@ -342,23 +310,14 @@ function HallInfo({ hallSports, hallAreaSqm }: CategoryInfoProps) {
 }
 
 function FieldInfo({ fieldType, fieldCount, fieldLighting }: CategoryInfoProps) {
-  const hasData = fieldType || fieldCount || fieldLighting !== undefined;
+  const hasData = fieldType || fieldCount || fieldLighting === true;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
   return (
     <div>
       <InfoRow label="グラウンドタイプ" value={fieldType} />
       <InfoRow label="面数" value={fieldCount ? `${fieldCount}面` : null} />
-      <InfoRow
-        label="照明"
-        value={
-          fieldLighting !== undefined && fieldLighting !== null
-            ? fieldLighting
-              ? "あり"
-              : "なし"
-            : null
-        }
-      />
+      <InfoRow label="照明" value={fieldLighting === true ? "あり" : null} />
     </div>
   );
 }
