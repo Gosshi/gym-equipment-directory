@@ -1,7 +1,7 @@
 "use client";
 
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
-import L, { type LatLngExpression } from "leaflet";
+import { useEffect, useRef } from "react";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const icon = L.icon({
@@ -22,28 +22,40 @@ export type LeafletClientMapProps = {
 };
 
 export function LeafletClientMap({ lat, lng, name, address }: LeafletClientMapProps) {
-  const center: LatLngExpression = [lat, lng];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
-  return (
-    <MapContainer
-      center={center}
-      scrollWheelZoom={false}
-      style={{ height: "100%", width: "100%" }}
-      zoom={16}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Marker icon={icon} position={center}>
-        <Popup>
-          <strong>{name}</strong>
-          <br />
-          {address}
-        </Popup>
-      </Marker>
-    </MapContainer>
-  );
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Clean up any existing map instance on this container
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    // Create new map
+    const map = L.map(containerRef.current, {
+      scrollWheelZoom: false,
+    }).setView([lat, lng], 16);
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    }).addTo(map);
+
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    marker.bindPopup(`<strong>${name}</strong><br />${address}`);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [lat, lng, name, address]);
+
+  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
 }
 
 export default LeafletClientMap;
