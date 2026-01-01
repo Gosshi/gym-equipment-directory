@@ -31,3 +31,5 @@ class Gym(Base):
     parsed_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Categories: array of category strings (gym, pool, court, hall, field, martial_arts, archery)
     categories: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    # Source URLs: list of URLs that were used to scrape data for this POI
+    source_urls: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)

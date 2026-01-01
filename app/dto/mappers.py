@@ -333,6 +333,7 @@ def assemble_gym_detail(
         richness=richness,
         score=score,
         tags=list(parsed_json.get("tags", [])),
+        source_urls=list(getattr(gym, "source_urls", None) or []),
         # Categories (unified field)
         categories=categories,
         facility_meta=meta,
