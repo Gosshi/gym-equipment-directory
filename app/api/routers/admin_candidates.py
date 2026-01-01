@@ -499,6 +499,7 @@ async def ingest_urls(
             url=r.url,
             status="success" if r.success else "failed",
             candidate_id=r.candidate_id,
+            facility_name=r.facility_name,
             error=r.error,
         )
         for r in results

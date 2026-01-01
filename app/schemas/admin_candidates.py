@@ -257,11 +257,12 @@ class IngestUrlsRequest(BaseModel):
 
 
 class IngestUrlItem(BaseModel):
-    """Status of a single URL ingestion."""
+    """Status of a single URL/facility ingestion."""
 
     url: str
     status: Literal["success", "failed"]
     candidate_id: int | None = None
+    facility_name: str | None = None
     error: str | None = None
 
 

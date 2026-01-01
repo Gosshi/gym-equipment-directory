@@ -548,7 +548,7 @@ https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sp
               {" / "}
               失敗: <span className="font-medium text-red-600">{ingestResult.failure_count}件</span>
             </p>
-            <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm">
+            <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-sm">
               {ingestResult.items.map((item, index) => (
                 <li
                   key={index}
@@ -556,7 +556,11 @@ https://www.city.shinagawa.tokyo.jp/PC/shisetsu/shisetsu-bunka/shisetsu-bunka-sp
                 >
                   <span className="shrink-0">{item.status === "success" ? "✓" : "✗"}</span>
                   <span className="break-all">
-                    {item.url}
+                    {item.facility_name ? (
+                      <span className="font-medium">{item.facility_name}</span>
+                    ) : (
+                      <span className="text-gray-500">{item.url}</span>
+                    )}
                     {item.candidate_id ? (
                       <a
                         href={`/admin/candidates/${item.candidate_id}`}

@@ -392,6 +392,7 @@ export interface IngestUrlItem {
   url: string;
   status: "success" | "failed";
   candidate_id: number | null;
+  facility_name: string | null;
   error: string | null;
 }
 
