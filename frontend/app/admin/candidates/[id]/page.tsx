@@ -29,6 +29,7 @@ import type { PrefectureOption, CityOption } from "@/types/meta";
 const JSON_KEY_LABELS: Record<string, string> = {
   // 基本情報
   name: "名称",
+  facility_name: "施設名称",
   address: "住所",
   tel: "電話番号",
   phone: "電話番号",
@@ -53,6 +54,7 @@ const JSON_KEY_LABELS: Record<string, string> = {
   opening_hours: "営業時間",
   hours: "営業時間",
   fees: "料金",
+  fee: "料金",
   fee_structure: "料金体系",
   pricing: "料金",
   schedule: "スケジュール",
@@ -62,29 +64,49 @@ const JSON_KEY_LABELS: Record<string, string> = {
   pool_lanes: "レーン数",
   pool_length_m: "レーン長(m)",
   pool_heated: "温水",
+  lanes: "レーン数",
+  length_m: "長さ(m)",
+  heated: "温水",
 
   // コート
   court: "コート",
+  courts: "コート一覧",
   court_type: "コート種別",
   court_count: "コート数",
   court_surface: "コート素材",
   court_lighting: "照明",
+  surface: "コート素材",
+  lighting: "照明",
+  count: "面数",
 
   // 体育館
   hall: "体育館",
   hall_sports: "対応スポーツ",
   hall_area_sqm: "面積(㎡)",
+  sports: "対応スポーツ",
+  area_sqm: "面積(㎡)",
 
   // グラウンド
   field: "グラウンド",
   field_type: "グラウンド種別",
   field_count: "面数",
   field_lighting: "照明",
+  fields: "面数",
 
   // 弓道場
   archery: "弓道場",
   archery_type: "種別",
   archery_rooms: "室数",
+  rooms: "室数",
+
+  // メタ情報
+  meta: "メタ情報",
+  is_gym: "ジム判定",
+  is_multi_facility: "複合施設",
+  create_gym: "ジム作成対象",
+  page_url: "取得元URL",
+  page_type: "ページ種別",
+  tags: "タグ",
 };
 
 // キー名を日本語に変換するヘルパー
@@ -751,34 +773,69 @@ export default function AdminCandidateDetailPage() {
     [],
   );
 
-  // デフォルトで展開すべき重要キー
+  // デフォルトで展開すべき重要キー（施設情報、カテゴリ詳細）
   const EXPANDED_BY_DEFAULT_KEYS = new Set([
+    // 基本情報
+    "facility_name",
     "name",
     "address",
-    "tel",
-    "phone",
-    "email",
-    "access",
-    "category",
     "categories",
-    "url",
+    "category",
     "official_url",
-    "description",
+    // カテゴリ詳細オブジェクト
+    "court",
+    "courts",
+    "pool",
+    "hall",
+    "field",
+    "archery",
+    "gym",
+    // その他重要
+    "fee",
+    "hours",
+    "meta",
   ]);
 
-  // デフォルトで閉じるべき長いキー
+  // デフォルトで閉じるべき長いキー（スクレイピング結果など）
   const COLLAPSED_BY_DEFAULT_KEYS = new Set([
     "equipments_structured",
-    "equipments",
-    "opening_hours",
-    "hours",
-    "fees",
-    "fee_structure",
+    "equipments_slotted",
+    "equipments_raw",
+    "equipments_slugs",
     "schedule",
-    "pricing",
     "amenities",
     "facilities",
   ]);
+
+  // 表示順序の優先度（小さい番号が上に表示）
+  const KEY_DISPLAY_ORDER: Record<string, number> = {
+    // 最優先: 施設基本情報
+    facility_name: 1,
+    name: 2,
+    address: 3,
+    categories: 4,
+    category: 5,
+    official_url: 6,
+    // カテゴリ詳細オブジェクト
+    court: 10,
+    pool: 11,
+    hall: 12,
+    field: 13,
+    archery: 14,
+    gym: 15,
+    // 料金・時間
+    fee: 20,
+    hours: 21,
+    // メタ情報
+    meta: 50,
+    tags: 51,
+    // 低優先
+    is_gym: 90,
+    is_multi_facility: 91,
+  };
+
+  // キーの表示順序を取得
+  const getKeyOrder = (key: string): number => KEY_DISPLAY_ORDER[key] ?? 100;
 
   const getSummaryPreview = (entry: JsonValue, key: string): string => {
     if (Array.isArray(entry)) {
@@ -876,9 +933,14 @@ export default function AdminCandidateDetailPage() {
       }
 
       if (isJsonObject(value)) {
+        // 重要なキーを上部に表示するためソート
+        const sortedEntries = Object.entries(value).sort(
+          ([a], [b]) => getKeyOrder(a) - getKeyOrder(b),
+        );
+
         return (
           <div className="space-y-4">
-            {Object.entries(value).map(([key, entry]) => {
+            {sortedEntries.map(([key, entry]) => {
               const isComplex = isJsonObject(entry) || Array.isArray(entry);
               const isImportant = EXPANDED_BY_DEFAULT_KEYS.has(key.toLowerCase());
 
