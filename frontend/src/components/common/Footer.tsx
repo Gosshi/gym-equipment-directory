@@ -78,6 +78,14 @@ export function AppFooter() {
             <ul className="space-y-2">
               <li>
                 <Link
+                  href="/gym"
+                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  ジム
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/pool"
                   className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
@@ -102,18 +110,10 @@ export function AppFooter() {
               </li>
               <li>
                 <Link
-                  href="/martial-arts"
+                  href="/field"
                   className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  武道場
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/archery"
-                  className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  弓道場
+                  グラウンド
                 </Link>
               </li>
             </ul>

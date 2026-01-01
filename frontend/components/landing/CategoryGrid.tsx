@@ -3,7 +3,7 @@ import Link from "next/link";
 const CATEGORIES = [
   {
     slug: "gym",
-    path: "/search?cats=gym",
+    path: "/gym",
     name: "ジム",
     en: "GYM",
     description: "トレーニングジム・フィットネス",
@@ -38,6 +38,15 @@ const CATEGORIES = [
     accentClass: "group-hover:border-violet-500",
   },
   {
+    slug: "field",
+    path: "/field",
+    name: "グラウンド",
+    en: "FIELD",
+    description: "野球場・サッカー場",
+    colorClass: "group-hover:border-orange-500 group-hover:text-orange-500",
+    accentClass: "group-hover:border-orange-500",
+  },
+  {
     slug: "martial_arts",
     path: "/martial-arts",
     name: "武道場",
@@ -70,7 +79,7 @@ export function CategoryGrid() {
         <div className="mt-4 h-1 w-24 bg-accent" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
         {CATEGORIES.map(category => (
           <Link
             key={category.slug}

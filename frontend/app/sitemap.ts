@@ -42,9 +42,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Category landing pages for SEO
   const categoryPages = [
+    { path: "/gym", name: "ジム" },
     { path: "/pool", name: "プール" },
     { path: "/tennis", name: "テニスコート" },
     { path: "/hall", name: "体育館" },
+    { path: "/field", name: "グラウンド" },
     { path: "/martial-arts", name: "武道場" },
     { path: "/archery", name: "弓道場" },
   ].map(category => ({
