@@ -5,12 +5,23 @@ import { getGymBySlug } from "@/services/gyms";
 import { GymDetailClient } from "./GymDetailClient";
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string[] }>;
+}
+
+/**
+ * Join slug segments into a single path string.
+ * Supports hierarchical URLs like /tokyo/suginami/tac-kamiigusa
+ */
+function joinSlug(slugParts: string[]): string {
+  return slugParts.join("/");
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://spomap.jp";
+
   try {
-    const { slug } = await params;
+    const { slug: slugParts } = await params;
+    const slug = joinSlug(slugParts);
     const gym = await getGymBySlug(slug);
 
     if (!gym) {
@@ -24,6 +35,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       gym.equipments.length > 0 ? `主な設備: ${gym.equipments.slice(0, 5).join(", ")}など。` : ""
     }`;
 
+    // Use API route for OG image generation (required for catch-all routes)
+    const ogImageUrl = `${baseUrl}/api/og?slug=${encodeURIComponent(slug)}`;
+
     return {
       title,
       description,
@@ -31,6 +45,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         title,
         description,
         type: "website",
+        images: [
+          {
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: `${gym.name} - SPOMAP`,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [ogImageUrl],
       },
     };
   } catch {
@@ -43,7 +71,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 import { normalizeGymDetail } from "./normalization";
 
 export default async function GymDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug: slugParts } = await params;
+  const slug = joinSlug(slugParts);
   const gym = await getGymBySlug(slug);
 
   if (!gym) {
