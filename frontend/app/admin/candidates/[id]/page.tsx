@@ -369,6 +369,7 @@ export default function AdminCandidateDetailPage() {
     useState<OverrideDialogState>(INITIAL_OVERRIDE_DIALOG);
   const [isScraping, setIsScraping] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [generatedDescription, setGeneratedDescription] = useState<string | null>(null);
   const [isParsedJsonExpanded, setIsParsedJsonExpanded] = useState(false);
   const [isRawJsonVisible, setIsRawJsonVisible] = useState(false);
 
@@ -465,6 +466,10 @@ export default function AdminCandidateDetailPage() {
   useEffect(() => {
     void loadCandidate();
   }, [loadCandidate]);
+
+  useEffect(() => {
+    setGeneratedDescription(null);
+  }, [candidateId]);
 
   const updateCandidateState = (item: AdminCandidateItem) => {
     setCandidate(prev => {
@@ -1103,6 +1108,22 @@ export default function AdminCandidateDetailPage() {
     }
   }, [formState?.parsed_json]);
 
+  const handleCopyGeneratedDescription = useCallback(async () => {
+    if (!generatedDescription) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(generatedDescription);
+      toast({ title: "紹介文をコピーしました" });
+    } catch (copyError) {
+      toast({
+        title: "コピーに失敗しました",
+        description: copyError instanceof Error ? copyError.message : "不明なエラーです",
+        variant: "destructive",
+      });
+    }
+  }, [generatedDescription]);
+
   const handleOverrideFieldChange = useCallback(
     <T extends keyof OverrideFormValues>(key: T, value: OverrideFormValues[T]) => {
       setOverrideDialog(prev => ({
@@ -1170,6 +1191,7 @@ export default function AdminCandidateDetailPage() {
     setIsGeneratingDescription(true);
     try {
       const response = await generateGymDescription(candidate.gym_id);
+      setGeneratedDescription(response.description);
       toast({
         title: "紹介文を生成しました",
         description: response.description,
@@ -1819,6 +1841,30 @@ export default function AdminCandidateDetailPage() {
                 <dd>{candidate.scraped_page.http_status ?? "-"}</dd>
               </div>
             </dl>
+          </section>
+          <section className="rounded border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-lg font-semibold">紹介文</h2>
+              <button
+                type="button"
+                className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => void handleCopyGeneratedDescription()}
+                disabled={!generatedDescription}
+              >
+                コピー
+              </button>
+            </div>
+            <div className="mt-3 text-sm">
+              {isGeneratingDescription ? (
+                <p className="text-gray-500">紹介文を生成中です...</p>
+              ) : generatedDescription ? (
+                <p className="whitespace-pre-wrap leading-relaxed text-gray-800">
+                  {generatedDescription}
+                </p>
+              ) : (
+                <p className="text-gray-500">紹介文を生成するとここに表示されます。</p>
+              )}
+            </div>
           </section>
           <section className="rounded border border-gray-200 p-4 shadow-sm">
             <h2 className="text-lg font-semibold">類似ジム</h2>
