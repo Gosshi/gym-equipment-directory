@@ -322,6 +322,7 @@ def assemble_gym_detail(
         pref=str(getattr(gym, "pref", "")),
         address=getattr(gym, "address", None),
         official_url=getattr(gym, "official_url", None) or parsed_json.get("official_url"),
+        description=getattr(gym, "description", None),
         opening_hours=opening_hours,
         fees=fees,
         latitude=getattr(gym, "latitude", None),

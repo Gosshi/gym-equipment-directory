@@ -33,3 +33,5 @@ class Gym(Base):
     categories: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     # Source URLs: list of URLs that were used to scrape data for this POI
     source_urls: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    # LLM-generated description for SEO
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
