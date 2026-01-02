@@ -23,7 +23,7 @@ async def test_run_batch_dry_run(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _classify(session, *, source: str, candidate_ids):  # noqa: D401
         from scripts.ingest.diff import DiffSummary
 
-        return DiffSummary(new_ids=(1, 2), updated_ids=(), duplicate_ids=())
+        return DiffSummary(new_ids=(1, 2), updated_ids=(), duplicate_ids=(), reviewing_ids=())
 
     monkeypatch.setattr("scripts.ingest.pipeline.fetch_http_pages", _ok)
     monkeypatch.setattr("scripts.ingest.pipeline.parse_pages", _ok)
@@ -56,7 +56,7 @@ async def test_run_batch_return_metrics(monkeypatch: pytest.MonkeyPatch) -> None
     async def _classify(session, *, source: str, candidate_ids):  # noqa: D401
         from scripts.ingest.diff import DiffSummary
 
-        return DiffSummary(new_ids=(42,), updated_ids=(), duplicate_ids=())
+        return DiffSummary(new_ids=(42,), updated_ids=(), duplicate_ids=(), reviewing_ids=())
 
     monkeypatch.setattr("scripts.ingest.pipeline.fetch_http_pages", _ok)
     monkeypatch.setattr("scripts.ingest.pipeline.parse_pages", _ok)

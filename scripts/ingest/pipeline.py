@@ -124,6 +124,7 @@ async def run_batch(
         metrics.add("diff_new", len(diff_summary.new_ids))
         metrics.add("diff_updated", len(diff_summary.updated_ids))
         metrics.add("diff_duplicates", len(diff_summary.duplicate_ids))
+        metrics.add("diff_reviewing", len(diff_summary.reviewing_ids))
 
     # 5. approve (skip duplicates; updatedは現時点 new 同等扱い)
     approve_target_ids = list(diff_summary.new_ids) + list(diff_summary.updated_ids)
