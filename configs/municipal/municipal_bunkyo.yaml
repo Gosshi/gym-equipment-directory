@@ -2,13 +2,14 @@ name: 文京区
 pref: tokyo
 city: bunkyo
 start_urls:
+  - "https://www.city.bunkyo.lg.jp/bunkakankou/sports/shisetsu/index.html"
   - "https://www.city.bunkyo.lg.jp/b015/p004391.html"
   - "https://www.city.bunkyo.lg.jp/b015/p004392.html"
   - "https://www.shisetsu-tds.jp/tokyo-bunkyo-sportscenter/"
   - "https://www.shisetsu-tds.jp/tokyo-bunkyo-sogotaiikukan/"
 url_patterns:
-  intro_top: "/b015/.*\\.html$"
-  detail_article: "/b015/p00\\d+\\.html$|/tokyo-bunkyo-.*/equipment/training.*/?$"
+  intro_top: "/b015/.*\\.html$|/bunkakankou/sports/shisetsu/.*\\.html$"
+  detail_article: "/b015/p00\\d+\\.html$|/tokyo-bunkyo-.*/equipment/training.*/?$|/bunkakankou/sports/shisetsu/.+\\.html$"
   skip: []
 selectors:
   title:

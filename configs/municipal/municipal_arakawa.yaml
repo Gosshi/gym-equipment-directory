@@ -3,10 +3,11 @@ pref: tokyo
 city: arakawa
 start_urls:
   - "https://www.city.arakawa.tokyo.jp/shisetsuannai/koukyoushisetsu/index.html"
+  - "https://www.city.arakawa.tokyo.jp/a017/shisetsuannai/sisetuyoyaku/supotsusisetsu.html"
   - "https://www.city.arakawa.tokyo.jp/a017/sport/shisetsuriyou/s-centerriyou.html"
 url_patterns:
-  intro_top: "/a017/sport/.*\\.html$"
-  detail_article: "/a017/sport/shisetsuriyou/.*\\.html$"
+  intro_top: "/a017/sport/.*\\.html$|/a017/shisetsuannai/sisetuyoyaku/.*\\.html$"
+  detail_article: "/a017/sport/shisetsuriyou/.*\\.html$|/a017/shisetsuannai/sisetuyoyaku/.*\\.html$"
   skip: []
 selectors:
   title:

@@ -2,10 +2,11 @@ name: 中央区
 pref: tokyo
 city: chuo
 start_urls:
+  - "https://www.chuo-sports.jp/"
   - "https://www.city.chuo.lg.jp/bunkakankou/index.html"
 url_patterns:
-  intro_top: "/bunkakankou/.*\\.html$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  intro_top: "/bunkakankou/.*\\.html$|/facility/.*|/guide/.*|/about/.*"
+  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$|/facility/[^/]+/?$"
   skip: []
 selectors:
   title:

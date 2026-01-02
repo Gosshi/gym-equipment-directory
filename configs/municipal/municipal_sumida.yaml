@@ -2,6 +2,7 @@ name: 墨田区
 pref: tokyo
 city: sumida
 start_urls:
+  - "https://sumida-sports.gr.jp/facility/"
   - "https://www.city.sumida.lg.jp/sisetu_info/setsubi_kinou/okunaisports.html"
   - "https://www.city.sumida.lg.jp/sisetu_info/sports/umewaka.html"
   - "https://www.city.sumida.lg.jp/sisetu_info/sports/sumidasportcenter.html"
@@ -9,8 +10,8 @@ start_urls:
   - "https://www.city.sumida.lg.jp/sisetu_info/tamokuteki/midori_communityc.html"
   - "https://www.sumispo.com/facility/training/"
 url_patterns:
-  intro_top: '/sisetu_info/.+/(index\.html|[^/]+\.html)$'
-  detail_article: '/sisetu_info/.+/(post_\d+\.html|detail\.html)$'
+  intro_top: '/sisetu_info/.+/(index\.html|[^/]+\.html)$|/facility/?$'
+  detail_article: '/sisetu_info/.+/(post_\d+\.html|detail\.html)$|/facility/[^/]+/?$'
   skip: []
 selectors:
   title:

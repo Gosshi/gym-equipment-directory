@@ -2,11 +2,13 @@ name: 杉並区
 pref: tokyo
 city: suginami
 start_urls:
+  - "https://www.city.suginami.tokyo.jp/documents/6274/05shisetuhakusyo2018.pdf"
   - "https://www.city.suginami.tokyo.jp/shisetsu/sports/index.html"
 url_patterns:
   intro_top: "/kusei/gaiyou/shisetsu/genre/sports/.*\\.html$"
   detail_article: "/kusei/gaiyou/shisetsu/genre/sports/.*\\.html$|/s032/shisetsu/.*\\.html$"
-  skip: []
+  skip:
+    - "\\.pdf$"
 selectors:
   title:
     - "h1"
