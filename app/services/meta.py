@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Any
 
+import yaml
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -48,6 +50,35 @@ def _cache_get(key: str) -> Any | None:
 
 def _cache_set(key: str, value: Any) -> None:
     _META_CACHE[key] = (time.time(), value)
+
+
+# ---- Municipal config directory ----
+_MUNICIPAL_CONFIG_DIR = Path(__file__).resolve().parents[1] / "ingest" / "parsers" / "municipal"
+# Fallback to configs/municipal in project root
+if not _MUNICIPAL_CONFIG_DIR.exists():
+    _MUNICIPAL_CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs" / "municipal"
+
+
+def _load_cities_from_configs(pref: str) -> set[str]:
+    """Load city slugs from municipal config files for a given prefecture."""
+    cities: set[str] = set()
+    config_dir = Path(__file__).resolve().parents[2] / "configs" / "municipal"
+    if not config_dir.exists():
+        return cities
+
+    for yaml_file in config_dir.glob("municipal_*.yaml"):
+        try:
+            with yaml_file.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if isinstance(data, dict):
+                file_pref = data.get("pref", "").lower()
+                file_city = data.get("city", "")
+                if file_pref == pref and file_city:
+                    cities.add(file_city)
+        except Exception:
+            continue  # Skip malformed files
+
+    return cities
 
 
 class MetaService:
@@ -84,12 +115,7 @@ class MetaService:
         if cached is not None:
             return cached
         try:
-            exists_count = await self._session.scalar(
-                select(func.count()).select_from(Gym).where(Gym.pref == pref_norm)
-            )
-            if not exists_count:
-                raise HTTPException(status_code=404, detail="pref not found")
-
+            # 1. Get gym counts from DB
             stmt = (
                 select(
                     Gym.city.label("city"),
@@ -100,7 +126,27 @@ class MetaService:
                 .order_by(func.count().desc(), Gym.city.asc())
             )
             rows = (await self._session.execute(stmt)).mappings().all()
-            out = [{"key": r["city"], "label": r["city"], "count": int(r["count"])} for r in rows]
+            db_cities = {r["city"]: int(r["count"]) for r in rows}
+
+            # 2. Load cities from municipal config files
+            config_cities = _load_cities_from_configs(pref_norm)
+
+            # 3. Merge: include all config cities + any DB cities not in config
+            all_cities: dict[str, int] = {}
+            for city in config_cities:
+                all_cities[city] = db_cities.get(city, 0)
+            for city, count in db_cities.items():
+                if city not in all_cities:
+                    all_cities[city] = count
+
+            # 4. Sort by count descending, then alphabetically
+            sorted_items = sorted(all_cities.items(), key=lambda x: (-x[1], x[0]))
+            out = [{"key": city, "label": city, "count": count} for city, count in sorted_items]
+
+            # Allow empty results if configs provide cities
+            if not out and not config_cities:
+                raise HTTPException(status_code=404, detail="pref not found")
+
             _cache_set(cache_key, out)
             return out
         except HTTPException:

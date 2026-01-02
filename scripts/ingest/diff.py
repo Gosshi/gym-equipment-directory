@@ -17,9 +17,15 @@ class DiffSummary:
     new_ids: tuple[int, ...]
     updated_ids: tuple[int, ...]
     duplicate_ids: tuple[int, ...]
+    reviewing_ids: tuple[int, ...]  # 既存Gymと一致し手動レビューが必要な候補
 
     def total(self) -> int:  # 小さな補助関数
-        return len(self.new_ids) + len(self.updated_ids) + len(self.duplicate_ids)
+        return (
+            len(self.new_ids)
+            + len(self.updated_ids)
+            + len(self.duplicate_ids)
+            + len(self.reviewing_ids)
+        )
 
 
 def _similarity(a: str, b: str) -> float:
@@ -34,17 +40,18 @@ async def classify_candidates(
 ) -> DiffSummary:
     """候補を分類して `DiffSummary` を返す。
 
-    1. URL完全一致 -> duplicate
-    2. 住所一致かつ名前類似度高 -> duplicate
+    1. URL完全一致 -> reviewing (既存Gymとの差分レビュー用)
+    2. 住所一致かつ名前類似度高 -> reviewing
     3. それ以外 -> new
     """
     if not candidate_ids:
-        return DiffSummary(new_ids=(), updated_ids=(), duplicate_ids=())
+        return DiffSummary(new_ids=(), updated_ids=(), duplicate_ids=(), reviewing_ids=())
 
     ids = list(candidate_ids)
     new_ids: list[int] = []
-    updated_ids: list[int] = []  # 今回は未使用
-    duplicate_ids: list[int] = []
+    updated_ids: list[int] = []  # parsed_json backfill用
+    duplicate_ids: list[int] = []  # 将来の完全重複検出用（現在未使用）
+    reviewing_ids: list[int] = []  # 既存Gymと一致し手動レビューが必要
 
     # Load candidates with source_page to access URL
     stmt = (
@@ -56,7 +63,7 @@ async def classify_candidates(
     candidates = result.scalars().all()
 
     for candidate in candidates:
-        is_dup = False
+        matched_gym: Gym | None = None
         url = candidate.source_page.url
 
         # 1. URL Match in Gym
@@ -65,36 +72,34 @@ async def classify_candidates(
         )
         existing_gym = (await session.execute(stmt_url)).scalar_one_or_none()
         if existing_gym:
-            # Check if we need to backfill parsed_json
-            if not existing_gym.parsed_json and candidate.parsed_json:
-                updated_ids.append(candidate.id)
-                continue
+            matched_gym = existing_gym
 
-            duplicate_ids.append(candidate.id)
-            candidate.status = CandidateStatus.rejected
-            continue
-
-        # 2. Address & Name Match
-        if candidate.address_raw:
-            # 住所が完全一致するジムを検索
-            # Note: 住所の正規化が不十分だとヒットしない可能性があるが、
-            # パイプライン側で正規化されていることを期待する。
+        # 2. Address & Name Match (if no URL match)
+        if not matched_gym and candidate.address_raw:
             stmt_addr = select(Gym).where(Gym.address == candidate.address_raw)
             gyms_with_addr = (await session.execute(stmt_addr)).scalars().all()
 
             for gym in gyms_with_addr:
-                # 名前が類似していれば重複とみなす (閾値 0.8)
                 if _similarity(gym.name, candidate.name_raw) > 0.8:
-                    duplicate_ids.append(candidate.id)
-                    is_dup = True
+                    matched_gym = gym
                     break
 
-        if is_dup:
-            candidate.status = CandidateStatus.rejected
-            # We use 'rejected' for duplicates as 'duplicate' status is not in DB Enum.
-            continue
+        # 3. Classify based on match result
+        if matched_gym:
+            # Mark as reviewing and record linked_gym_id
+            reviewing_ids.append(candidate.id)
+            candidate.status = CandidateStatus.reviewing
 
-        new_ids.append(candidate.id)
+            # Add linked_gym_id to parsed_json for admin UI
+            if candidate.parsed_json is None:
+                candidate.parsed_json = {}
+            # Create a new dict to trigger SQLAlchemy change detection
+            updated_json = dict(candidate.parsed_json)
+            updated_json["linked_gym_id"] = matched_gym.id
+            updated_json["linked_gym_slug"] = matched_gym.slug
+            candidate.parsed_json = updated_json
+        else:
+            new_ids.append(candidate.id)
 
     await session.commit()
 
@@ -102,6 +107,7 @@ async def classify_candidates(
         new_ids=tuple(new_ids),
         updated_ids=tuple(updated_ids),
         duplicate_ids=tuple(duplicate_ids),
+        reviewing_ids=tuple(reviewing_ids),
     )
 
 
