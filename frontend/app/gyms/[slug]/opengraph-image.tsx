@@ -29,7 +29,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
             justifyContent: "center",
           }}
         >
-          IRON MAP
+          SPOMAP
         </div>
       ),
       {
@@ -72,7 +72,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
               borderRadius: "50%",
             }}
           />
-          <div style={{ fontSize: 24, fontWeight: "bold", color: "#FFD700" }}>IRON MAP</div>
+          <div style={{ fontSize: 24, fontWeight: "bold", color: "#FFD700" }}>SPOMAP</div>
         </div>
         <div
           style={{
