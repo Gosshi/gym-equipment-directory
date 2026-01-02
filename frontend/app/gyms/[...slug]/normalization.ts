@@ -350,7 +350,7 @@ export const normalizeGymDetail = (
     id: gymRecord.id as number,
     slug: canonicalSlug,
     name: resolvedName,
-    description: sanitizeText(data.description),
+    description: sanitizeText(data.description) ?? sanitizeText(gymRecord.description),
     address: resolvedAddress,
     prefecture: formatRegion(resolvedPref),
     city: formatRegion(resolvedCity),
