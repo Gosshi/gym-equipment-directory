@@ -44,6 +44,7 @@ class GymDetailResponse(BaseModel):
     city: str = Field(description="市区町村スラッグ")
     pref: str = Field(description="都道府県スラッグ")
     official_url: str | None = Field(default=None, description="公式サイトURL（任意）")
+    description: str | None = Field(default=None, description="施設紹介文（LLM生成）")
     opening_hours: str | None = Field(default=None, description="営業時間（任意）")
     fees: str | None = Field(default=None, description="料金情報（任意）")
 
