@@ -11,9 +11,7 @@ interface PageProps {
 
 export default async function GymReportPage({ params }: PageProps) {
   const { slug: slugParts } = await params;
-  // Remove "report" from the end if present (catch-all route includes it)
-  const gymSlugParts = slugParts.filter(part => part !== "report");
-  const slug = gymSlugParts.join("/");
+  const slug = slugParts.join("/");
   let gymName: string | undefined;
 
   try {
