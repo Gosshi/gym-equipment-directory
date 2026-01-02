@@ -18,7 +18,7 @@ services:
     runtime: docker
     region: singapore
     plan: standard
-    schedule: "0 19 * * *"
+    schedule: "0 19 * * *"  # 04:00 JST = 19:00 UTC
     dockerfilePath: ./backend/Dockerfile.render
     dockerCommand: python -m scripts.ingest.run_nightly
     envVars:

@@ -2,32 +2,37 @@ name: 世田谷区
 pref: tokyo
 city: setagaya
 start_urls:
-  - "https://www.city.setagaya.lg.jp/bunkasports/sportsrecreation/category/11820.html"
+  - "https://www.city.setagaya.lg.jp/01041/3511.html"
+  - "https://www.se-sports.or.jp/facility/"
+  - "https://www.se-sports.or.jp/facilityinfo/sougou-training-room/"
 url_patterns:
-  intro_top: "/bunkasports/.*\\.html$"
-  detail_article: "/bunkasports/.*\\.html$"
+  intro_top: "/01041/.*\\.html$|/facility/?$|/facilityinfo/?$"
+  detail_article: "/01041/\\d+\\.html$|/facility/[^/]+/?$|/facilityinfo/[^/]+/?$"
   skip: []
 selectors:
   title:
     - "h1"
-    - "#main h1"
+    - ".page-title"
   body:
     - "main"
-    - "#main"
-    - "#contents"
+    - ".content"
+    - "#content"
   address_hint:
     - ".address"
     - ".location"
   equipment_blocks:
     - "table"
-    - ".entry-content"
+    - ".facility-info"
 address_patterns:
   - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
-  - "東京都[^\\n]+区[^\\n]+"
+  - "世田谷区[^\\n]+"
 keywords:
   training:
     - "トレーニング"
     - "トレーニングルーム"
+    - "ジム"
   facility:
-    - "スポーツセンター"
-    - "総合体育館"
+    - "総合運動場"
+    - "体育館"
+    - "プール"
+    - "運動場"

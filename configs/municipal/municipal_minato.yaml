@@ -2,32 +2,36 @@ name: 港区
 pref: tokyo
 city: minato
 start_urls:
-  - "https://www.city.minato.tokyo.jp/map/top.html"
+  - "https://www.city.minato.tokyo.jp/kodomo/sports/sports/index.html"
+  - "https://minatoku-sports.com/"
+  - "https://minatoku-sports.com/facility/"
 url_patterns:
-  intro_top: "/map/.*\\.html$|/shisetsu/sports/.*\\.html$"
-  detail_article: "/introduction/(post_.*\\.html|tr_detail\\.html|trainingmachine\\.html|notes\\.html)$"
+  intro_top: "/kodomo/sports/sports/.*\\.html$|/facility/?$|/guide.*/?$"
+  detail_article: "/kodomo/sports/sports/[^/]+\\.html$|/facility/[^/]+/?$"
   skip: []
 selectors:
   title:
     - "h1"
-    - "#main h1"
+    - ".page-title"
   body:
     - "main"
-    - "#main"
-    - "#contents"
+    - ".content"
+    - "#content"
   address_hint:
     - ".address"
     - ".location"
   equipment_blocks:
     - "table"
-    - ".entry-content"
+    - ".facility-info"
 address_patterns:
   - "〒\\s*\\d{3}-\\d{4}[^\\n\\r<]*"
-  - "東京都[^\\n]+区[^\\n]+"
+  - "港区[^\\n]+"
 keywords:
   training:
     - "トレーニング"
-    - "トレーニングルーム"
+    - "トレーニングパーク"
+    - "ジム"
   facility:
     - "スポーツセンター"
-    - "総合体育館"
+    - "体育館"
+    - "プール"
