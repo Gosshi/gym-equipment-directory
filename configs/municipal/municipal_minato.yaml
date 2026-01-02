@@ -2,11 +2,12 @@ name: 港区
 pref: tokyo
 city: minato
 start_urls:
+  - "https://www.city.minato.tokyo.jp/kodomo/sports/sports/index.html"
   - "https://minatoku-sports.com/"
   - "https://minatoku-sports.com/facility/"
 url_patterns:
-  intro_top: "/facility/?$|/guide.*/?$"
-  detail_article: "/facility/[^/]+/?$"
+  intro_top: "/kodomo/sports/sports/.*\\.html$|/facility/?$|/guide.*/?$"
+  detail_article: "/kodomo/sports/sports/[^/]+\\.html$|/facility/[^/]+/?$"
   skip: []
 selectors:
   title:

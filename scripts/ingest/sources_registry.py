@@ -464,22 +464,27 @@ SOURCES["municipal_chuo"] = MunicipalSource(
 
 SOURCES["municipal_minato"] = MunicipalSource(
     title="municipal_minato",
-    base_url="https://minatoku-sports.com/",
+    base_url="https://www.city.minato.tokyo.jp/",
     intro_patterns=[
-        r"/facility/?$",
-        r"/guide.*/?$",
+        r"/kodomo/sports/sports/.*\.html$",  # City official sports section
+        r"/shisetsu/.*\.html$",  # Facility pages
+        r"/facility/?$",  # minatoku-sports.com
+        r"/guide.*/?$",  # minatoku-sports.com
     ],
     article_patterns=[
-        r"/facility/[^/]+/?$",  # e.g., /facility/gym/, /facility/pool/
-        r"/guide[^/]*/?$",
+        r"/kodomo/sports/sports/[^/]+\.html$",  # Individual facility pages
+        r"/shisetsu/[^/]+\.html$",  # Facility detail pages
+        r"/facility/[^/]+/?$",  # minatoku-sports.com facility pages
+        r"/guide[^/]*/?$",  # minatoku-sports.com guide pages
     ],
     list_seeds=[
-        "https://minatoku-sports.com/",
+        "https://www.city.minato.tokyo.jp/kodomo/sports/sports/index.html",  # City official list
+        "https://minatoku-sports.com/",  # Sports Center official site
         "https://minatoku-sports.com/facility/",
     ],
     pref_slug="tokyo",
     city_slug="minato",
-    allowed_hosts=["minatoku-sports.com", "www.city.minato.tokyo.jp"],
+    allowed_hosts=["www.city.minato.tokyo.jp", "minatoku-sports.com"],
 )
 
 SOURCES["municipal_shinjuku"] = MunicipalSource(
