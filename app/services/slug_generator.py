@@ -1,7 +1,7 @@
 """SEO-optimized slug generation for gym URLs.
 
-Generates hierarchical slugs in the format: {pref}/{city}/{facility-name}
-Example: tokyo/suginami/tac-kamiigusa-sports-center
+Generates hierarchical slugs in the format: {pref}-{city}-{facility-name}
+Example: tokyo-suginami-kamiigusa-sports-center
 """
 
 from __future__ import annotations
@@ -228,7 +228,7 @@ def build_hierarchical_slug(
     pref: str | None,
     city: str | None,
 ) -> str:
-    """Build a hierarchical slug: {pref}/{city}/{facility-name}.
+    """Build a hierarchical slug: {pref}-{city}-{facility-name}.
 
     Args:
         name: Facility name (required)
@@ -236,7 +236,7 @@ def build_hierarchical_slug(
         city: City/ward name (e.g., "杉並区")
 
     Returns:
-        Hierarchical slug like "tokyo/suginami/kamiigusa-sports-center"
+        Hierarchical slug like "tokyo-suginami-kamiigusa-sports-center"
         Falls back to flat slug if pref/city not available.
 
     Raises:
@@ -257,7 +257,7 @@ def build_hierarchical_slug(
         parts.append(city_slug)
     parts.append(name_slug)
 
-    return "/".join(parts)
+    return "-".join(parts)
 
 
 def build_flat_slug(

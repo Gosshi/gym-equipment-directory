@@ -6,12 +6,11 @@ import { getGymBySlug } from "@/services/gyms";
 import { ReportGymForm } from "./ReportGymForm";
 
 interface PageProps {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function GymReportPage({ params }: PageProps) {
-  const { slug: slugParts } = await params;
-  const slug = slugParts.join("/");
+  const { slug } = await params;
   let gymName: string | undefined;
 
   try {

@@ -5,21 +5,12 @@ import { getGymBySlug } from "@/services/gyms";
 import { GymDetailClient } from "./GymDetailClient";
 
 interface PageProps {
-  params: Promise<{ slug: string[] }>;
-}
-
-/**
- * Join slug segments into a single string.
- * Supports both hierarchical (tokyo/suginami/facility) and legacy flat slugs.
- */
-function joinSlug(slugParts: string[]): string {
-  return slugParts.join("/");
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   try {
-    const { slug: slugParts } = await params;
-    const slug = joinSlug(slugParts);
+    const { slug } = await params;
     const gym = await getGymBySlug(slug);
 
     if (!gym) {
@@ -52,8 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 import { normalizeGymDetail } from "./normalization";
 
 export default async function GymDetailPage({ params }: PageProps) {
-  const { slug: slugParts } = await params;
-  const slug = joinSlug(slugParts);
+  const { slug } = await params;
   const gym = await getGymBySlug(slug);
 
   if (!gym) {
