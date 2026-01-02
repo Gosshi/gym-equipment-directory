@@ -136,33 +136,6 @@ async def gyms_nearby(
 
 
 @router.get(
-    "/{slug}",
-    response_model=GymDetailDTO,
-    summary="ジム詳細を取得",
-    description=(
-        "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
-    ),
-    responses={
-        404: {"model": ErrorResponse, "description": "ジムが見つかりません"},
-        422: {"model": ErrorResponse, "description": "validation error"},
-    },
-)
-async def get_gym_detail(
-    slug: str,
-    include: str | None = Query(default=None, description="例: include=score"),
-    svc: GymDetailService = Depends(get_gym_detail_api_service),
-):
-    if include not in (None, "score"):
-        raise HTTPException(status_code=422, detail="Unprocessable Entity")
-
-    # サービスに委譲。見つからない場合は router 側で 404 を返す。
-    detail = await svc.get_opt(slug, include)
-    if detail is None:
-        raise HTTPException(status_code=404, detail="gym not found")
-    return detail
-
-
-@router.get(
     "/by-id/{canonical_id}",
     response_model=GymDetailDTO,
     summary="ジム詳細を canonical_id で取得",
@@ -195,7 +168,7 @@ async def get_gym_detail_by_id(
 
 
 @router.post(
-    "/{slug}/report",
+    "/{slug:path}/report",
     status_code=201,
     summary="誤り報告を送信",
 )
@@ -210,3 +183,30 @@ async def report_gym(
         return r
     except ValueError:
         raise HTTPException(status_code=404, detail="gym not found")
+
+
+@router.get(
+    "/{slug:path}",
+    response_model=GymDetailDTO,
+    summary="ジム詳細を取得",
+    description=(
+        "ジム詳細を返却します。`include=score` を指定すると freshness/richness/score を同梱します。"
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "ジムが見つかりません"},
+        422: {"model": ErrorResponse, "description": "validation error"},
+    },
+)
+async def get_gym_detail(
+    slug: str,
+    include: str | None = Query(default=None, description="例: include=score"),
+    svc: GymDetailService = Depends(get_gym_detail_api_service),
+):
+    if include not in (None, "score"):
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
+    # サービスに委譲。見つからない場合は router 側で 404 を返す。
+    detail = await svc.get_opt(slug, include)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="gym not found")
+    return detail
