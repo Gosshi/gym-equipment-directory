@@ -496,8 +496,97 @@ async def _extract_facility_with_llm(
     except Exception:
         return None
 
+
+async def extract_facility_links(
+    html: str,
+    base_url: str,
+) -> list[str]:
+    """Extract facility links from an index/list page using LLM.
+
+    This function analyzes an HTML page that lists multiple facilities
+    (e.g., a sports facility index page) and extracts the URLs to
+    individual facility detail pages.
+
+    Args:
+        html: The HTML content of the page
+        base_url: The base URL for resolving relative links
+
+    Returns:
+        A list of absolute URLs to facility detail pages.
+        Returns an empty list if no facility links are found or if
+        the page doesn't appear to be an index page.
+    """
+    from urllib.parse import urljoin
+
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or "", "html.parser")
+
+    # Extract all links from the page
+    links_data = []
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag.get("href", "")
+        text = sanitize_text(a_tag.get_text(" ", strip=True))
+        if href and text and len(text) < 100:  # Skip very long link texts
+            # Resolve relative URLs
+            absolute_url = urljoin(base_url, href)
+            links_data.append({"url": absolute_url, "text": text})
+
+    if not links_data:
+        return []
+
+    # Prepare the links for LLM analysis (limit to first 100 to avoid token limits)
+    links_summary = "\n".join([f"- {link['text']}: {link['url']}" for link in links_data[:100]])
+
+    prompt_content = (
+        "Analyze the following list of links extracted from a webpage. "
+        "Identify which links point to individual sports facility detail pages. "
+        "Sports facilities include: スポーツセンター, 体育館, トレーニングルーム, プール, "
+        "テニスコート, 野球場, 運動広場, グラウンド, 庭球場, 武道場, 弓道場, etc.\n\n"
+        "Return a JSON object with:\n"
+        "- is_index_page: Boolean. True if this appears to be a list/index of facilities.\n"
+        "- facility_urls: Array of URLs that point to facility detail pages.\n\n"
+        "Only include URLs that are clearly links to specific facility pages. "
+        "Exclude:\n"
+        "- Navigation links (home, sitemap, contact)\n"
+        "- Category/genre listing links\n"
+        "- External links (unless they are to facility-related sites)\n"
+        "- PDF or document downloads\n\n"
+        "Links to analyze:\n"
+        f"{links_summary}\n\n"
+        "Return ONLY the JSON object."
+    )
+
+    try:
+        client = OpenAIClientWrapper()
+        response = await client.chat_completion(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": prompt_content,
+                },
+                {
+                    "role": "user",
+                    "content": "Extract facility URLs from the links above.",
+                },
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content.strip()
+        data = json.loads(content)
+
+        if not data.get("is_index_page"):
+            return []
+
+        facility_urls = data.get("facility_urls", [])
+        # Filter to ensure we only return valid URLs from our original list
+        valid_urls = {link["url"] for link in links_data}
+        return [url for url in facility_urls if url in valid_urls]
+
     except Exception:
-        return None
+        return []
 
 
 def extract_equipments(
@@ -653,6 +742,7 @@ __all__ = [
     "detect_create_gym",
     "extract_address_one_line",
     "extract_equipments",
+    "extract_facility_links",
     "sanitize_text",
     "_extract_facility_with_llm",
 ]
