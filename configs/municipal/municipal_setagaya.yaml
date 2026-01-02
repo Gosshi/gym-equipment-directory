@@ -2,11 +2,12 @@ name: 世田谷区
 pref: tokyo
 city: setagaya
 start_urls:
+  - "https://www.city.setagaya.lg.jp/01041/3511.html"
   - "https://www.se-sports.or.jp/facility/"
   - "https://www.se-sports.or.jp/facilityinfo/sougou-training-room/"
 url_patterns:
-  intro_top: "/facility/?$|/facilityinfo/?$"
-  detail_article: "/facility/[^/]+/?$|/facilityinfo/[^/]+/?$"
+  intro_top: "/01041/.*\\.html$|/facility/?$|/facilityinfo/?$"
+  detail_article: "/01041/\\d+\\.html$|/facility/[^/]+/?$|/facilityinfo/[^/]+/?$"
   skip: []
 selectors:
   title:

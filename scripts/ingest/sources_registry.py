@@ -260,23 +260,27 @@ SOURCES["municipal_ota"] = MunicipalSource(
 
 SOURCES["municipal_setagaya"] = MunicipalSource(
     title="municipal_setagaya",
-    base_url="https://www.se-sports.or.jp",
+    base_url="https://www.city.setagaya.lg.jp",
     intro_patterns=[
-        r"/facility/?$",
-        r"/facilityinfo/?$",
+        r"/01041/.*\.html$",  # Sports facilities section
+        r"/mokuji/kusei/012/015/.*\.html$",  # Alternative path
+        r"/facility/?$",  # se-sports.or.jp
+        r"/facilityinfo/?$",  # se-sports.or.jp
     ],
     article_patterns=[
-        r"/facility/[^/]+/?$",  # e.g., /facility/sougou/, /facility/chitose/
-        r"/facilityinfo/[^/]+-training-room/?$",  # Training room detail pages
-        r"/facilityinfo/[^/]+/?$",  # General facility info pages
+        r"/01041/\d+\.html$",  # Individual facility pages on city site
+        r"/mokuji/kusei/012/015/002/d\d+\.html$",  # Facility detail pages
+        r"/facility/[^/]+/?$",  # se-sports.or.jp facility pages
+        r"/facilityinfo/[^/]+/?$",  # se-sports.or.jp facility info pages
     ],
     list_seeds=[
-        "https://www.se-sports.or.jp/facility/",
+        "https://www.city.setagaya.lg.jp/01041/3511.html",  # Sports facility list
+        "https://www.se-sports.or.jp/facility/",  # Setagaya Sports Foundation
         "https://www.se-sports.or.jp/facilityinfo/sougou-training-room/",
     ],
     pref_slug="tokyo",
     city_slug="setagaya",
-    allowed_hosts=["www.se-sports.or.jp", "www.city.setagaya.lg.jp"],
+    allowed_hosts=["www.city.setagaya.lg.jp", "www.se-sports.or.jp"],
 )
 
 SOURCES["municipal_shibuya"] = MunicipalSource(
