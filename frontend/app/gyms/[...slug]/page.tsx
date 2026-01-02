@@ -5,21 +5,30 @@ import { getGymBySlug } from "@/services/gyms";
 import { GymDetailClient } from "./GymDetailClient";
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string[] }>;
+}
+
+/**
+ * Join slug segments into a single string.
+ * Supports both hierarchical (tokyo/suginami/facility) and legacy flat slugs.
+ */
+function joinSlug(slugParts: string[]): string {
+  return slugParts.join("/");
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   try {
-    const { slug } = await params;
+    const { slug: slugParts } = await params;
+    const slug = joinSlug(slugParts);
     const gym = await getGymBySlug(slug);
 
     if (!gym) {
       return {
-        title: "ジム詳細 | IRON MAP",
+        title: "ジム詳細 | SPOMAP",
       };
     }
 
-    const title = `${gym.name} | IRON MAP`;
+    const title = `${gym.name} | SPOMAP`;
     const description = `${gym.prefecture}${gym.city}にある「${gym.name}」の設備情報。${
       gym.equipments.length > 0 ? `主な設備: ${gym.equipments.slice(0, 5).join(", ")}など。` : ""
     }`;
@@ -35,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   } catch {
     return {
-      title: "ジム詳細 | IRON MAP",
+      title: "ジム詳細 | SPOMAP",
     };
   }
 }
@@ -43,7 +52,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 import { normalizeGymDetail } from "./normalization";
 
 export default async function GymDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug: slugParts } = await params;
+  const slug = joinSlug(slugParts);
   const gym = await getGymBySlug(slug);
 
   if (!gym) {
@@ -106,7 +116,7 @@ export default async function GymDetailPage({ params }: PageProps) {
       addressRegion: gym.prefecture ?? undefined,
       addressCountry: "JP",
     },
-    url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://ironmap.app"}/gyms/${gym.slug}`,
+    url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://spomap.jp"}/gyms/${gym.slug}`,
     ...(gym.latitude && gym.longitude
       ? {
           geo: {

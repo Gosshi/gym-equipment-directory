@@ -11,8 +11,9 @@ export const size = {
 
 export const contentType = "image/png";
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const { slug } = await params;
+export default async function Image({ params }: { params: { slug: string[] } }) {
+  const { slug: slugParts } = await params;
+  const slug = slugParts.join("/");
   const gym = await getGymBySlug(slug);
 
   if (!gym) {
@@ -29,7 +30,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
             justifyContent: "center",
           }}
         >
-          IRON MAP
+          SPOMAP
         </div>
       ),
       {
@@ -72,7 +73,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
               borderRadius: "50%",
             }}
           />
-          <div style={{ fontSize: 24, fontWeight: "bold", color: "#FFD700" }}>IRON MAP</div>
+          <div style={{ fontSize: 24, fontWeight: "bold", color: "#FFD700" }}>SPOMAP</div>
         </div>
         <div
           style={{

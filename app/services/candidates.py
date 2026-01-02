@@ -39,6 +39,7 @@ from app.schemas.admin_candidates import (
 )
 from app.services.canonical import make_canonical_id
 from app.services.scrape_utils import try_scrape_official_url
+from app.services.slug_generator import build_hierarchical_slug
 from app.services.slug_history import set_current_slug
 
 _ARTICLE_PAT = re.compile(
@@ -133,30 +134,15 @@ def _is_generic_title(name: str) -> bool:
     return any(compact.startswith(title.replace(" ", "")) for title in _GENERIC_TITLES)
 
 
-def _should_use_address_in_slug(address: str) -> bool:
-    if len(address) > 40:
-        return False
-    if ">>>" in address:
-        return False
-    if re.search(r"[。、「」、.!?]", address):
-        return False
-    return True
-
-
 def _build_slug(name: str, address: str | None, city: str | None, pref: str | None) -> str:
-    parts = [name]
-    if city:
-        parts.append(city)
-    if pref:
-        parts.append(pref)
-    if address:
-        cleaned_address = re.sub(r"\b\d{3}-\d{4}\b", "", address).strip()
-        if cleaned_address and _should_use_address_in_slug(cleaned_address):
-            parts.append(cleaned_address)
-    slug = _slugify("-".join(parts))
-    if not slug:
-        raise CandidateServiceError("failed to generate slug")
-    return slug
+    """Build a hierarchical slug: {pref}/{city}/{facility-name}.
+
+    Example: tokyo/suginami/tac-kamiigusa-sports-center
+    """
+    try:
+        return build_hierarchical_slug(name=name, pref=pref, city=city)
+    except ValueError as e:
+        raise CandidateServiceError(str(e)) from e
 
 
 def _extract_center_no(url: str | None) -> int | None:

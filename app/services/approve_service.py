@@ -15,6 +15,7 @@ from app.models import Equipment, Gym, GymCandidate, GymEquipment
 from app.models.gym_candidate import CandidateStatus
 from app.models.gym_equipment import Availability, VerificationStatus
 from app.services.canonical import make_canonical_id
+from app.services.slug_generator import build_hierarchical_slug
 
 logger = logging.getLogger(__name__)
 
@@ -240,40 +241,15 @@ def _sanitize_text(value: Any) -> str:
     return text.strip()
 
 
-def _slugify(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value)
-    cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\s-]", "", normalized)
-    lowered = cleaned.lower()
-    tokens = re.split(r"[\s_-]+", lowered)
-    slug = "-".join(filter(None, tokens))
-    return slug[:64].strip("-")
-
-
-def _should_use_address_in_slug(address: str) -> bool:
-    if len(address) > 40:
-        return False
-    if ">>>" in address:
-        return False
-    if re.search(r"[。、「」、.!?]", address):
-        return False
-    return True
-
-
 def _build_slug(name: str, address: str | None, city: str | None, pref: str | None) -> str:
-    parts = [name]
-    if city:
-        parts.append(city)
-    if pref:
-        parts.append(pref)
-    if address:
-        cleaned_address = re.sub(r"\b\d{3}-\d{4}\b", "", address).strip()
-        if cleaned_address and _should_use_address_in_slug(cleaned_address):
-            parts.append(cleaned_address)
-    slug = _slugify("-".join(parts))
-    if not slug:
-        msg = f"failed to generate slug from name='{name}'"
-        raise InvalidCandidatePayloadError(msg)
-    return slug
+    """Build a hierarchical slug: {pref}/{city}/{facility-name}.
+
+    Example: tokyo/suginami/tac-kamiigusa-sports-center
+    """
+    try:
+        return build_hierarchical_slug(name=name, pref=pref, city=city)
+    except ValueError as e:
+        raise InvalidCandidatePayloadError(str(e)) from e
 
 
 def _parse_center_no(value: Any) -> int | None:
