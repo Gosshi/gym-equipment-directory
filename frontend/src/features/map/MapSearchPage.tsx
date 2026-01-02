@@ -19,6 +19,7 @@ const SearchMap = dynamic(() => import("./SearchMap"), {
 export function MapSearchPage() {
   const { items, updateBoundingBox, location, isInitialLoading, appliedFilters } = useGymSearch({
     debounceMs: 500,
+    defaultLimit: 100,
   });
   const [initialCenter, setInitialCenter] = useState<{ lat: number; lng: number } | undefined>(
     undefined,
