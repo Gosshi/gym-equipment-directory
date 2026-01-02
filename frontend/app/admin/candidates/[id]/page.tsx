@@ -19,6 +19,7 @@ import {
   rejectCandidate,
   geocodeCandidate,
   scrapeCandidateOfficialUrl,
+  generateGymDescription,
 } from "@/lib/adminApi";
 
 import GymMap from "@/components/gym/GymMap";
@@ -367,6 +368,7 @@ export default function AdminCandidateDetailPage() {
   const [overrideDialog, setOverrideDialog] =
     useState<OverrideDialogState>(INITIAL_OVERRIDE_DIALOG);
   const [isScraping, setIsScraping] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isParsedJsonExpanded, setIsParsedJsonExpanded] = useState(false);
   const [isRawJsonVisible, setIsRawJsonVisible] = useState(false);
 
@@ -1156,6 +1158,41 @@ export default function AdminCandidateDetailPage() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    if (!candidate?.gym_id) {
+      toast({
+        title: "紹介文を生成できません",
+        description: "ジムIDが登録されていません",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsGeneratingDescription(true);
+    try {
+      const response = await generateGymDescription(candidate.gym_id);
+      toast({
+        title: "紹介文を生成しました",
+        description: response.description,
+      });
+    } catch (err) {
+      if (err instanceof AdminApiError) {
+        toast({
+          title: "紹介文の生成に失敗しました",
+          description: typeof err.detail === "string" ? err.detail : err.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "紹介文の生成に失敗しました",
+          description: err instanceof Error ? err.message : "不明なエラーです",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const handleOverrideSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -1826,6 +1863,15 @@ export default function AdminCandidateDetailPage() {
       <section className="mt-6 rounded border border-gray-200 p-4 shadow-sm">
         <h2 className="text-lg font-semibold">アクション</h2>
         <div className="mt-3 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="rounded border border-gray-300 px-4 py-2 text-sm"
+            onClick={handleGenerateDescription}
+            disabled={actionState !== "idle" || isGeneratingDescription || !candidate.gym_id}
+            title={candidate.gym_id ? "紹介文を生成" : "承認後に利用できます"}
+          >
+            {isGeneratingDescription ? "生成中..." : "紹介文生成"}
+          </button>
           <button
             type="button"
             className="rounded border border-gray-300 px-4 py-2 text-sm"
