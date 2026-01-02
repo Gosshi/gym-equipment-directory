@@ -3,7 +3,7 @@ import { MetadataRoute } from "next";
 import { fetchGyms } from "@/lib/api";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://ironmap.app"; // Fallback URL
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://spomap.jp"; // Fallback URL
   const limit = 100;
   const maxPages = 10; // Fetch up to 1000 gyms for now
   let allGyms: { slug: string; lastVerifiedAt?: string }[] = [];
