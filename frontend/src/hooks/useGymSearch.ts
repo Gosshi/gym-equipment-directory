@@ -179,6 +179,7 @@ const buildFilterStateFromForm = (
 
 export interface UseGymSearchOptions {
   debounceMs?: number;
+  defaultLimit?: number;
 }
 
 export interface UseGymSearchResult {
@@ -225,7 +226,7 @@ export interface UseGymSearchResult {
 }
 
 export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchResult {
-  const { debounceMs = DEFAULT_DEBOUNCE_MS } = options;
+  const { debounceMs = DEFAULT_DEBOUNCE_MS, defaultLimit } = options;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -863,8 +864,10 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
 
   const filterQueryString = useMemo(() => filterStateToQueryString(filters), [filters]);
 
+  const effectiveLimit = defaultLimit ?? filters.limit;
+
   const gymsQuery = useQuery<GymSearchResponse>({
-    queryKey: ["gyms", filterQueryString, refreshIndex],
+    queryKey: ["gyms", filterQueryString, refreshIndex, defaultLimit],
     queryFn: ({ signal }) =>
       searchGyms(
         {
@@ -876,8 +879,8 @@ export function useGymSearch(options: UseGymSearchOptions = {}): UseGymSearchRes
           sort: filters.sort,
           order: filters.order,
           page: filters.page,
-          limit: filters.limit,
-          perPage: filters.limit,
+          limit: effectiveLimit,
+          perPage: effectiveLimit,
           ...(filters.lat != null && filters.lng != null
             ? {
                 lat: filters.lat,
