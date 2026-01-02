@@ -322,7 +322,7 @@ async def parse_municipal_page(
 
             # Re-clean/validate address if it came from LLM
             if address:
-                cleaned_addr = _clean_address(address)
+                cleaned_addr = await _clean_address(address)
                 if not cleaned_addr:
                     print(f"DEBUG: Rejected Invalid Address: {address}")
                     address = None  # Clear invalid address
