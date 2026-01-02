@@ -1,18 +1,48 @@
 import { ImageResponse } from "next/og";
+import { type NextRequest } from "next/server";
+
 import { getGymBySlug } from "@/services/gyms";
 
 export const runtime = "edge";
 
-export const alt = "Gym Details";
-export const size = {
+const size = {
   width: 1200,
   height: 630,
 };
 
-export const contentType = "image/png";
+/**
+ * OG Image generation API endpoint.
+ * Accepts a `slug` query parameter (supports hierarchical slugs like "tokyo/suginami/gym-name").
+ *
+ * Example: /api/og?slug=tokyo/suginami/tac-kamiigusa
+ */
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const slug = searchParams.get("slug");
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const { slug } = await params;
+  if (!slug) {
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            fontSize: 48,
+            background: "white",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          SPOMAP
+        </div>
+      ),
+      {
+        ...size,
+      },
+    );
+  }
+
   const gym = await getGymBySlug(slug);
 
   if (!gym) {
@@ -90,7 +120,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
         {gym.equipments.length > 0 && (
           <div
             style={{
-              display: "flex", // Note: flex-wrap is not strictly supported in satori basic, but row is
+              display: "flex",
               marginTop: "40px",
               gap: "10px",
               justifyContent: "center",

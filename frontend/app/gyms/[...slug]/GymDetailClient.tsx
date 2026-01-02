@@ -25,7 +25,7 @@ export function GymDetailClient({ gym }: { gym: NormalizedGymDetail }) {
           <Link
             aria-label="このジムの情報を報告する"
             className="mt-6 inline-flex text-sm font-medium text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            href={`/gyms/report/${canonicalSlug}`}
+            href={`/report/gyms/${canonicalSlug}`}
           >
             このジム情報に問題がありますか？報告する
           </Link>
