@@ -161,7 +161,11 @@ async def _discover_municipal_pages(
     respect_robots: bool,
     robots: RobotsRules | None,
     timeout: float,
+    use_llm_link_extraction: bool = True,
 ) -> list[MunicipalDiscoveredPage]:
+    # Import here to avoid circular imports
+    from app.ingest.parsers.municipal._base import extract_facility_links
+
     parsed_base = urlparse(source.base_url)
     allowed_hosts = set(source.allowed_hosts) if source.allowed_hosts else {parsed_base.netloc}
     # Universal Support: Always allow global external hosts
@@ -218,7 +222,11 @@ async def _discover_municipal_pages(
         if depth >= MUNICIPAL_MAX_DEPTH:
             continue
 
-        for href in _iter_links(response.text or ""):
+        html_content = response.text or ""
+
+        # Standard link extraction via patterns
+        pattern_matched_links = 0
+        for href in _iter_links(html_content):
             resolved = _resolve_absolute_url(href, current_url)
             parsed_resolved = urlparse(resolved)
             if parsed_resolved.netloc not in allowed_hosts:
@@ -227,8 +235,45 @@ async def _discover_municipal_pages(
                 continue
             if resolved in seen:
                 continue
-            # logger.info(f"Found link: {resolved} (depth {depth+1})")
+
+            # Check if link matches article patterns
+            link_classification = _classify_municipal_url(
+                resolved,
+                source=source,
+                intro_patterns=intro_patterns,
+                article_patterns=article_patterns,
+                intro_seed_paths=intro_seed_paths,
+            )
+            if link_classification == "article":
+                pattern_matched_links += 1
+
             queue.append((resolved, depth + 1))
+
+        # If this is an intro/index page and few links matched article patterns,
+        # try LLM-based extraction to find facility links
+        if (
+            use_llm_link_extraction
+            and classification == "intro"
+            and pattern_matched_links < 3
+            and depth < MUNICIPAL_MAX_DEPTH
+        ):
+            logger.info(
+                f"Intro page {current_url} had only {pattern_matched_links} pattern matches. "
+                "Trying LLM link extraction..."
+            )
+            try:
+                llm_links = await extract_facility_links(html_content, current_url)
+                for link_url in llm_links:
+                    parsed_link = urlparse(link_url)
+                    if parsed_link.netloc not in allowed_hosts:
+                        continue
+                    if respect_robots and robots and not robots.allows(parsed_link.path):
+                        continue
+                    if link_url not in seen:
+                        logger.info(f"LLM extracted facility link: {link_url}")
+                        queue.append((link_url, depth + 1))
+            except Exception as exc:
+                logger.warning(f"LLM link extraction failed for {current_url}: {exc}")
 
     logger.info(f"Discovery complete. Found {len(results)} pages.")
     return results
