@@ -2,10 +2,11 @@ name: 目黒区
 pref: tokyo
 city: meguro
 start_urls:
+  - "https://www.city.meguro.tokyo.jp/sports/kusei/faq/290301-1-1.html"
   - "https://www.city.meguro.tokyo.jp/shisetsu/shisetsu/sports_shisetsu/index.html"
 url_patterns:
-  intro_top: "/shisetsu/shisetsu/sports_shisetsu/.*\\.html$|/sports/shisetsu/sports/.*\\.html$"
-  detail_article: "/sports/shisetsu/sports/.+\\.html$"
+  intro_top: "/shisetsu/shisetsu/sports_shisetsu/.*\\.html$|/sports/shisetsu/sports/.*\\.html$|/sports/kusei/faq/.*\\.html$"
+  detail_article: "/sports/shisetsu/sports/.+\\.html$|/sports/kusei/faq/.*\\.html$"
   skip: []
 selectors:
   title:
