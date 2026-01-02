@@ -71,6 +71,12 @@ GLOBAL_ALLOWED_HOSTS = [
     "www.shisetsu-tokyo.jp",
     "www.sumispo.com",  # Sumida existing
     "www.taitogeibun.net",  # Taito existing
+    "www.shisetsu-tds.jp",  # TDS managed facilities (Bunkyo, Toshima, etc.)
+    "shisetsu.mizuno.jp",  # Mizuno managed facilities
+    "www.se-sports.or.jp",  # Setagaya Sports Foundation
+    "minatoku-sports.com",  # Minato Sports Center
+    "www.shinjuku-sportscenter.jp",  # Shinjuku Sports Center
+    "www.arakawa-sposen.com",  # Arakawa Sports Center
 ]
 
 GLOBAL_ARTICLE_PATTERNS = [
@@ -139,15 +145,23 @@ SOURCES["municipal_koto"] = MunicipalSource(
 
 SOURCES["municipal_arakawa"] = MunicipalSource(
     title="municipal_arakawa",
-    base_url="https://www.city.arakawa.tokyo.jp/",
-    intro_patterns=[r"/a017/sport/.*\.html$"],
-    article_patterns=ARTICLE_PAT_DEFAULT,
+    base_url="https://www.arakawa-sposen.com/",
+    intro_patterns=[
+        r"/$",  # Top page
+        r"/facility/?$",
+    ],
+    article_patterns=[
+        r"/facility/[^/]+/?$",  # Facility detail pages
+        r"/guide/?$",
+        r"/price/?$",
+    ],
     list_seeds=[
-        "https://www.city.arakawa.tokyo.jp/shisetsuannai/koukyoushisetsu/index.html",
+        "https://www.arakawa-sposen.com/",
         "https://www.city.arakawa.tokyo.jp/a017/sport/shisetsuriyou/s-centerriyou.html",
     ],
     pref_slug="tokyo",
     city_slug="arakawa",
+    allowed_hosts=["www.arakawa-sposen.com", "www.city.arakawa.tokyo.jp"],
 )
 
 SOURCES["municipal_adachi"] = MunicipalSource(
@@ -246,19 +260,23 @@ SOURCES["municipal_ota"] = MunicipalSource(
 
 SOURCES["municipal_setagaya"] = MunicipalSource(
     title="municipal_setagaya",
-    base_url="https://www.city.setagaya.lg.jp",
+    base_url="https://www.se-sports.or.jp",
     intro_patterns=[
-        r"/bunkakankou/.*\.html$",
-        r"/bunkasports/sportsrecreation/.*\.html$",
+        r"/facility/?$",
+        r"/facilityinfo/?$",
     ],
     article_patterns=[
-        r"/bunkasports/sportsrecreation/.+\.html$",
+        r"/facility/[^/]+/?$",  # e.g., /facility/sougou/, /facility/chitose/
+        r"/facilityinfo/[^/]+-training-room/?$",  # Training room detail pages
+        r"/facilityinfo/[^/]+/?$",  # General facility info pages
     ],
     list_seeds=[
-        "https://www.city.setagaya.lg.jp/bunkasports/sportsrecreation/category/11820.html",
+        "https://www.se-sports.or.jp/facility/",
+        "https://www.se-sports.or.jp/facilityinfo/sougou-training-room/",
     ],
     pref_slug="tokyo",
     city_slug="setagaya",
+    allowed_hosts=["www.se-sports.or.jp", "www.city.setagaya.lg.jp"],
 )
 
 SOURCES["municipal_shibuya"] = MunicipalSource(
@@ -442,38 +460,62 @@ SOURCES["municipal_chuo"] = MunicipalSource(
 
 SOURCES["municipal_minato"] = MunicipalSource(
     title="municipal_minato",
-    base_url="https://www.city.minato.tokyo.jp/",
-    intro_patterns=[r"/map/.*\.html$", r"/shisetsu/sports/.*\.html$"],
-    article_patterns=ARTICLE_PAT_DEFAULT,
+    base_url="https://minatoku-sports.com/",
+    intro_patterns=[
+        r"/facility/?$",
+        r"/guide.*/?$",
+    ],
+    article_patterns=[
+        r"/facility/[^/]+/?$",  # e.g., /facility/gym/, /facility/pool/
+        r"/guide[^/]*/?$",
+    ],
     list_seeds=[
-        "https://www.city.minato.tokyo.jp/map/top.html",
+        "https://minatoku-sports.com/",
+        "https://minatoku-sports.com/facility/",
     ],
     pref_slug="tokyo",
     city_slug="minato",
+    allowed_hosts=["minatoku-sports.com", "www.city.minato.tokyo.jp"],
 )
 
 SOURCES["municipal_shinjuku"] = MunicipalSource(
     title="municipal_shinjuku",
     base_url="https://www.city.shinjuku.lg.jp/",
-    intro_patterns=[r"/kenkou/.*\.html$", r"/shisetsu/.*\.html$"],
-    article_patterns=ARTICLE_PAT_DEFAULT,
+    intro_patterns=[
+        r"/kusei/shisetu_sports\.html$",
+        r"/shisetsu/index05\.html$",
+    ],
+    article_patterns=[
+        r"/shisetsu/map7-\d+\.html$",  # Individual facility pages: map7-1.html to map7-15.html
+    ],
     list_seeds=[
-        "https://www.city.shinjuku.lg.jp/kenkou/index.html",
+        "https://www.city.shinjuku.lg.jp/kusei/shisetu_sports.html",
     ],
     pref_slug="tokyo",
     city_slug="shinjuku",
+    allowed_hosts=["www.city.shinjuku.lg.jp", "www.shinjuku-sportscenter.jp"],
 )
 
 SOURCES["municipal_bunkyo"] = MunicipalSource(
     title="municipal_bunkyo",
     base_url="https://www.city.bunkyo.lg.jp/",
-    intro_patterns=[r"/kuseijouhou/shisetsu/.*\.html$"],
-    article_patterns=ARTICLE_PAT_DEFAULT,
+    intro_patterns=[
+        r"/b015/.*\.html$",  # Sports section
+    ],
+    article_patterns=[
+        r"/b015/p00\d+\.html$",  # Individual facility pages: p004391.html, p004392.html, etc.
+        r"/tokyo-bunkyo-.*/equipment/training.*/?$",  # shisetsu-tds.jp training rooms
+        r"/tokyo-bunkyo-.*/fee/?$",  # shisetsu-tds.jp fee pages
+    ],
     list_seeds=[
-        "https://www.city.bunkyo.lg.jp/kuseijouhou/shisetsu/index.html",
+        "https://www.city.bunkyo.lg.jp/b015/p004391.html",  # Sports Center
+        "https://www.city.bunkyo.lg.jp/b015/p004392.html",  # Comprehensive Gymnasium
+        "https://www.shisetsu-tds.jp/tokyo-bunkyo-sportscenter/",
+        "https://www.shisetsu-tds.jp/tokyo-bunkyo-sogotaiikukan/",
     ],
     pref_slug="tokyo",
     city_slug="bunkyo",
+    allowed_hosts=["www.city.bunkyo.lg.jp", "www.shisetsu-tds.jp"],
 )
 
 SOURCES["municipal_taito"] = MunicipalSource(
