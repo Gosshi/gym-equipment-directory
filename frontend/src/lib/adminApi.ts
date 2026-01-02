@@ -325,6 +325,12 @@ export interface ScrapeOfficialUrlResponse {
   message: string;
 }
 
+export interface GenerateDescriptionResponse {
+  gym_id: number;
+  description: string;
+  saved: boolean;
+}
+
 export async function scrapeGymOfficialUrl(
   gymId: number,
   officialUrl: string,
@@ -338,6 +344,29 @@ export async function scrapeGymOfficialUrl(
     wrapError(err);
   }
   throw new AdminApiError("Failed to scrape official URL: unreachable state");
+}
+
+export async function generateGymDescription(
+  gymId: number,
+  options?: { max_length?: number },
+): Promise<GenerateDescriptionResponse> {
+  try {
+    const body =
+      options && typeof options.max_length === "number"
+        ? JSON.stringify({ max_length: options.max_length })
+        : undefined;
+    return await apiRequest<GenerateDescriptionResponse>(
+      `/admin/gyms/${gymId}/generate-description`,
+      {
+        method: "POST",
+        body,
+        timeoutMs: 60000,
+      },
+    );
+  } catch (err) {
+    wrapError(err);
+  }
+  throw new AdminApiError("Failed to generate description: unreachable state");
 }
 
 export async function scrapeCandidateOfficialUrl(
