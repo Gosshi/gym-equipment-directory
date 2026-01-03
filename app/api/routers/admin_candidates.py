@@ -216,7 +216,7 @@ async def geocode_candidate(
 class ScrapeRequest(BaseModel):
     official_url: str | None = None
     dry_run: bool = False
-    scrape_subpages: bool = False  # If True, detect and scrape facility subpages (max 5)
+    scrape_subpages: bool = False  # If True, detect and scrape facility subpages (max 20)
 
 
 @router.post("/{candidate_id}/scrape", response_model=AdminCandidateItem)

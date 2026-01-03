@@ -165,7 +165,7 @@ async def try_scrape_official_url(
         official_url: The URL to scrape
         scraped_page_url: The URL that was originally scraped (to avoid duplicates)
         existing_parsed_json: Existing data to merge with
-        scrape_subpages: If True, detect and scrape facility subpages (max 5)
+        scrape_subpages: If True, detect and scrape facility subpages (max 20)
 
     Returns the merged parsed_json if scraping was successful, or None if:
     - official_url is None or empty
@@ -194,7 +194,7 @@ async def scrape_official_url_with_reason(
         official_url: The URL to scrape
         scraped_page_url: The URL that was originally scraped
         existing_parsed_json: Existing data to merge with
-        scrape_subpages: If True, detect and scrape facility subpages (max 5)
+        scrape_subpages: If True, detect and scrape facility subpages (max 20)
     """
     if not official_url:
         return ScrapeOutcome(None, "missing_official_url")
@@ -273,10 +273,10 @@ async def scrape_official_url_with_reason(
 
                 if subpage_urls:
                     logger.info(
-                        "Found %d facility subpages, scraping (max 5)...", len(subpage_urls)
+                        "Found %d facility subpages, scraping (max 20)...", len(subpage_urls)
                     )
-                    # Limit to 5 subpages to avoid excessive scraping
-                    for subpage_url in subpage_urls[:5]:
+                    # Limit to 20 subpages to avoid excessive scraping
+                    for subpage_url in subpage_urls[:20]:
                         logger.info("Scraping subpage: %s", subpage_url)
                         try:
                             subpage_html, subpage_status, _ = await fetch_url_checked(subpage_url)
