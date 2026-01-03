@@ -37,6 +37,61 @@ _EQUIPMENT_PATTERNS = (
     ["squat-rack", "dumbbell"],
 )
 
+# Fields that should never be overwritten by re-scraping
+# This prevents detail page data from being overwritten by top page scraping
+_PROTECTED_FIELDS = frozenset(
+    {
+        # Manual curation fields
+        "linked_gym_id",
+        "approved_gym_slug",
+        # Facility structure data (court, pool, field, etc.)
+        "court",
+        "pool",
+        "field",
+        # LLM-extracted structured data that should be preserved
+        "lanes",  # Pool lanes count
+        "length_m",  # Pool length
+        "heated",  # Pool heating
+        "court_type",  # Court type
+        "courts",  # Court details array
+        "surface",  # Court surface
+        "lighting",  # Court lighting
+        "sports",  # Sports types
+        "area_sqm",  # Hall/field area
+        "field_type",  # Field type
+        "fields",  # Field details array
+        "hours",  # Operating hours
+        "fee",  # Usage fee
+    }
+)
+
+
+def _deep_merge_json(
+    existing: dict[str, Any],
+    new: dict[str, Any],
+    *,
+    protected_fields: frozenset[str] = _PROTECTED_FIELDS,
+) -> dict[str, Any]:
+    """Deep merge two dicts, with new values taking priority except for protected fields.
+
+    - Protected fields in existing are preserved and never overwritten
+    - Nested dicts are recursively merged
+    - Lists and other values are replaced by new values
+    """
+    result = dict(existing)
+    for key, new_value in new.items():
+        if key in protected_fields and key in result:
+            # Keep existing protected field
+            continue
+        if key in result and isinstance(result[key], dict) and isinstance(new_value, dict):
+            # Recursively merge nested dicts
+            result[key] = _deep_merge_json(
+                result[key], new_value, protected_fields=protected_fields
+            )
+        else:
+            result[key] = new_value
+    return result
+
 
 def _extract_dummy_name(raw_html: str | None, url: str) -> str:
     if raw_html:
@@ -226,8 +281,12 @@ async def parse_pages(source: str, limit: int | None) -> int:
                     candidate.address_raw = address_raw
                     has_change = True
                 if candidate.parsed_json != parsed_json:
-                    candidate.parsed_json = parsed_json
-                    has_change = True
+                    # Merge new data with existing, preserving protected fields
+                    existing = candidate.parsed_json or {}
+                    merged = _deep_merge_json(existing, parsed_json)
+                    if candidate.parsed_json != merged:
+                        candidate.parsed_json = merged
+                        has_change = True
                 # Update categories if changed
                 current_categories = candidate.categories or []
                 if categories and current_categories != categories:
