@@ -120,9 +120,12 @@ export interface GymDetailApiResponse {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+  /** Field items array (new format). Supports both 'count' (new) and 'fields' (legacy) for backward compatibility. */
   fields?: Array<{
     field_type?: string | null;
+    /** Field count (new format) */
     count?: number | null;
+    /** Field count (legacy format, deprecated) */
     fields?: number | null;
     lighting?: boolean | null;
   }> | null;
