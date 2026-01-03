@@ -114,6 +114,7 @@ export default async function GymDetailPage({ params }: PageProps) {
     field_type: gym.fieldType,
     field_count: gym.fieldCount,
     field_lighting: gym.fieldLighting,
+    fields: gym.fields,
     // Archery fields
     archery_type: gym.archeryType,
     archery_rooms: gym.archeryRooms,
