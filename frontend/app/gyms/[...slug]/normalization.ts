@@ -19,6 +19,12 @@ export interface CourtItem {
   lighting?: boolean;
 }
 
+export interface FieldItem {
+  fieldType?: string;
+  fields?: number;
+  lighting?: boolean;
+}
+
 export interface NormalizedGymDetail {
   id: number;
   slug: string;
@@ -52,6 +58,7 @@ export interface NormalizedGymDetail {
   fieldType?: string;
   fieldCount?: number;
   fieldLighting?: boolean;
+  fields?: FieldItem[];
   archeryType?: string;
   archeryRooms?: number;
   facility_meta?: Record<string, unknown>;
@@ -396,6 +403,13 @@ export const normalizeGymDetail = (
     fieldType: sanitizeText(data.field_type ?? gymRecord.field_type),
     fieldCount: pickNumber(data.field_count ?? gymRecord.field_count),
     fieldLighting: data.field_lighting ?? (gymRecord.field_lighting as boolean | undefined),
+    fields: Array.isArray(data.fields)
+      ? data.fields.map((f: Record<string, unknown>) => ({
+          fieldType: sanitizeText(f.field_type ?? f.fieldType),
+          fields: pickNumber(f.count ?? f.fields),
+          lighting: f.lighting as boolean | undefined,
+        }))
+      : [],
     archeryType: sanitizeText(data.archery_type ?? gymRecord.archery_type),
     archeryRooms: pickNumber(data.archery_rooms ?? gymRecord.archery_rooms),
   };

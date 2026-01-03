@@ -120,6 +120,12 @@ export interface GymDetailApiResponse {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+  fields?: Array<{
+    field_type?: string | null;
+    count?: number | null;
+    fields?: number | null;
+    lighting?: boolean | null;
+  }> | null;
 
   // Archery-specific fields
   archery_type?: string | null;
