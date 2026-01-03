@@ -458,7 +458,8 @@ async def _extract_facility_with_llm(
         "Outdoor tennis courts may have '砂入り人工芝', 'クレー', or 'ハードコート'. "
         "Set lighting to true if the court has night lighting.\n"
         '- hall: {"sports": string array, "area_sqm": int}\n'
-        '- field: {"field_type": string, "fields": int, "lighting": bool}\n'
+        '- field: {"fields": array of {"field_type": string, "count": int, '
+        '"lighting": bool|null}}\n'
         '- archery: {"archery_type": string, "rooms": int}\n'
         '- gym: {"equipments": array of {slug, count}}. Map to these slugs:\n'
         f"  {', '.join(standard_names)}\n"
