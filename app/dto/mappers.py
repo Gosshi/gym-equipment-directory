@@ -217,12 +217,25 @@ def assemble_gym_detail(
             return [data]
         return []
 
+    def _extract_facility_list(raw_data: Any, array_key: str) -> list[dict[str, Any]]:
+        """Extract facility items, handling single object, nested array, and direct list formats."""
+        if isinstance(raw_data, list):
+            return [item for item in raw_data if isinstance(item, dict)]
+        if isinstance(raw_data, dict):
+            # Check if it's the new format with a nested array (e.g., {"pools": [...]})
+            nested_list = raw_data.get(array_key)
+            if isinstance(nested_list, list):
+                return [item for item in nested_list if isinstance(item, dict)]
+            # It might also be that the object itself is the data
+            return [raw_data]
+        return []
+
     # Extract category-specific fields from meta or parsed_json root
     # Try meta first, then fallback to parsed_json root for category-specific objects
-    # Pool - may be a dict or a list of dicts
+    # Pool - handle both single object and nested list {"pools": [...]}
     pool_raw = meta.get("pool") or parsed_json.get("pool")
     pool_data = _normalize_to_dict(pool_raw)
-    pool_list = _normalize_to_list(pool_raw)
+    pool_list = _extract_facility_list(pool_raw, "pools")
     pool_lanes = meta.get("lanes") or pool_data.get("lanes")
     pool_length_m = meta.get("length_m") or pool_data.get("length_m")
     pool_heated = meta.get("heated") if meta.get("heated") is not None else pool_data.get("heated")
@@ -234,17 +247,18 @@ def assemble_gym_detail(
             heated=p.get("heated"),
         )
         for p in pool_list
+        if p.get("lanes") or p.get("length_m") or p.get("heated") is not None
     ]
 
-    # Court - may be a dict or a list of dicts
+    # Court - handle both single object and nested list {"courts": [...]}
     court_raw = meta.get("court") or parsed_json.get("court")
     court_data = _normalize_to_dict(court_raw)
-    court_list = _normalize_to_list(court_raw)
+    court_list = _extract_facility_list(court_raw, "courts")
+
     court_type = meta.get("court_type") or court_data.get("court_type")
-    court_count = meta.get("courts") or court_data.get("courts")
-    # Handle court_count that might be an array (new LLM format)
-    if isinstance(court_count, list):
-        court_count = None  # Will be derived from courts array
+    court_count_raw = meta.get("courts") or court_data.get("courts")
+    # Determine summary count (int or None if array/null)
+    court_count = court_count_raw if isinstance(court_count_raw, int) else None
     court_surface = meta.get("surface") or court_data.get("surface")
     # Check if court is in categories list
     is_court_category = "court" in categories
@@ -255,33 +269,25 @@ def assemble_gym_detail(
         if is_court_category
         else None
     )
-    # Build courts array - check for new format (court_data.courts is array) first
-    courts_inner = court_data.get("courts")
-    parent_surface = court_data.get("surface")  # Fallback for courts without surface
-    parent_lighting = court_data.get("lighting")  # Fallback for courts without lighting
-    if isinstance(courts_inner, list) and len(courts_inner) > 0:
-        # New format: court.courts is array of {court_type, count, surface?, lighting?}
-        courts = [
-            CourtItemDTO(
-                court_type=c.get("court_type"),
-                courts=c.get("count") or c.get("courts"),  # Support both 'count' and 'courts'
-                surface=c.get("surface") or parent_surface,  # Per-court or fallback
-                lighting=c.get("lighting") if c.get("lighting") is not None else parent_lighting,
-            )
-            for c in courts_inner
-            if isinstance(c, dict)
-        ]
-    else:
-        # Old format: court_list is array of court objects
-        courts = [
-            CourtItemDTO(
-                court_type=c.get("court_type"),
-                courts=c.get("courts") or c.get("count"),
-                surface=c.get("surface"),
-                lighting=c.get("lighting"),
-            )
-            for c in court_list
-        ]
+
+    # Build courts array
+    parent_surface = court_data.get("surface")
+    parent_lighting = court_data.get("lighting")
+    courts = [
+        CourtItemDTO(
+            court_type=c.get("court_type"),
+            courts=c.get("count") or c.get("courts"),
+            surface=c.get("surface") or parent_surface,
+            lighting=c.get("lighting") if c.get("lighting") is not None else parent_lighting,
+        )
+        for c in court_list
+        if c.get("court_type") or c.get("count") or c.get("courts")
+    ]
+    # Ensure lighting info moves to individual items if missing but present at parent
+    if parent_lighting is not None and any(c.lighting is None for c in courts):
+        for c in courts:
+            if c.lighting is None:
+                c.lighting = parent_lighting
 
     # Hall - may be a dict or a list of dicts
     hall_raw = meta.get("hall") or parsed_json.get("hall")
@@ -291,13 +297,13 @@ def assemble_gym_detail(
         hall_sports = []
     hall_area_sqm = meta.get("area_sqm") or hall_data.get("area_sqm")
 
-    # Field - may be a dict or a list of dicts
+    # Field - handle both single object and nested list {"fields": [...]}
     field_raw = meta.get("field") or parsed_json.get("field")
     field_data = _normalize_to_dict(field_raw)
-    field_list = _normalize_to_list(field_raw)
+    field_list = _extract_facility_list(field_raw, "fields")
+
     field_type = meta.get("field_type") or field_data.get("field_type")
     field_count_raw = meta.get("fields") or field_data.get("fields")
-    # In new format, fields is an array, not an int - set to None and use fields array instead
     field_count = field_count_raw if isinstance(field_count_raw, int) else None
     # Check if field is in categories list
     is_field_category = "field" in categories
@@ -308,30 +314,18 @@ def assemble_gym_detail(
         if is_field_category
         else None
     )
-    # Build fields array - check for new format (field_data.fields is array) first
-    fields_inner = field_data.get("fields")
-    parent_lighting = field_data.get("lighting")  # Fallback for fields without lighting
-    if isinstance(fields_inner, list) and len(fields_inner) > 0:
-        # New format: field.fields is array of {field_type, count, lighting?}
-        fields = [
-            FieldItemDTO(
-                field_type=f.get("field_type"),
-                fields=f.get("count") or f.get("fields"),  # Support both 'count' and 'fields'
-                lighting=f.get("lighting") if f.get("lighting") is not None else parent_lighting,
-            )
-            for f in fields_inner
-            if isinstance(f, dict)
-        ]
-    else:
-        # Old format: field_list is array of field objects
-        fields = [
-            FieldItemDTO(
-                field_type=f.get("field_type"),
-                fields=f.get("fields") or f.get("count"),
-                lighting=f.get("lighting"),
-            )
-            for f in field_list
-        ]
+
+    # Build fields array
+    parent_lighting = field_data.get("lighting")
+    fields = [
+        FieldItemDTO(
+            field_type=f.get("field_type"),
+            fields=f.get("count") or f.get("fields"),
+            lighting=f.get("lighting") if f.get("lighting") is not None else parent_lighting,
+        )
+        for f in field_list
+        if f.get("field_type") or f.get("count") or f.get("fields")
+    ]
 
     # Archery / Martial Arts - may be a dict or a list of dicts
     archery_raw = meta.get("archery") or parsed_json.get("archery")
