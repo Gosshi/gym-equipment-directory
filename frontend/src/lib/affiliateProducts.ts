@@ -258,6 +258,8 @@ export const CATEGORY_PRODUCTS: Record<string, CategoryProducts> = {
   },
 };
 
+import { AFFILIATE_LINKS } from "@/config/affiliate";
+
 /**
  * カテゴリ配列から最初にマッチするおすすめ商品を取得
  */
@@ -342,6 +344,7 @@ type PartnerLinkConfig = {
   label: string;
   url: string;
   utmContent: string;
+  isAffiliate?: boolean;
 };
 
 type AffiliateItemConfig = {
@@ -380,20 +383,15 @@ const CONTEXTUAL_AD_CONFIG: Record<GroupKey, ContextualAdGroupConfig> = {
   },
   gym: {
     key: "gym",
-    title: "待ち時間なしでトレーニングしたい方へ",
-    description: "近隣の民間24hジムをチェック",
+    title: "スポーツウェア・用品を揃える",
+    description: "人気のスポーツブランドや機能性ウェアをチェック",
     links: [
       {
-        id: "chocozap",
-        label: "チョコザップを探す",
-        url: "https://chocozap.jp/",
-        utmContent: "chocozap",
-      },
-      {
-        id: "anytime",
-        label: "24時間ジム一覧を見る",
-        url: "https://www.anytimefitness.co.jp/",
-        utmContent: "anytime",
+        id: "xebio",
+        label: "ゼビオオンラインストアで探す",
+        url: AFFILIATE_LINKS.XEBIO,
+        utmContent: "xebio",
+        isAffiliate: true,
       },
     ],
   },
@@ -405,14 +403,16 @@ const CONTEXTUAL_AD_CONFIG: Record<GroupKey, ContextualAdGroupConfig> = {
       {
         id: "spacemarket",
         label: "スペースマーケットで探す",
-        url: "https://www.spacemarket.com/",
+        url: AFFILIATE_LINKS.SPACEMARKET,
         utmContent: "spacemarket",
+        isAffiliate: true,
       },
       {
         id: "instabase",
         label: "インスタベースで探す",
-        url: "https://www.instabase.jp/",
+        url: AFFILIATE_LINKS.INSTABASE,
         utmContent: "instabase",
+        isAffiliate: true,
       },
     ],
   },
@@ -453,11 +453,14 @@ const buildPartnerLinks = (key: GroupKey, links: PartnerLinkConfig[]): Contextua
   return links.map(link => ({
     id: link.id,
     label: link.label,
-    href: applyUtm(link.url, {
-      ...BASE_UTM,
-      campaign: key,
-      content: link.utmContent,
-    }),
+    href: link.isAffiliate
+      ? link.url // アフィリエイトリンクはUTM付与せずそのまま使う
+      : applyUtm(link.url, {
+          ...BASE_UTM,
+          campaign: key,
+          content: link.utmContent,
+        }),
+    isAffiliate: link.isAffiliate,
   }));
 };
 
