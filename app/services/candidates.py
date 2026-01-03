@@ -411,6 +411,16 @@ async def patch_candidate(
     if not candidate:
         raise LookupError("candidate not found")
     data = patch.dict(exclude_unset=True)
+
+    # Handle official_url separately since it's stored in parsed_json
+    official_url = data.pop("official_url", None)
+    if official_url is not None:
+        # Update official_url within parsed_json
+        parsed_json = candidate.parsed_json or {}
+        parsed_json["official_url"] = official_url
+        candidate.parsed_json = parsed_json
+
+    # Update remaining fields directly on the model
     for field, value in data.items():
         setattr(candidate, field, value)
     await session.flush()
