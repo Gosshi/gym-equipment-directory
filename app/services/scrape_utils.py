@@ -64,26 +64,23 @@ _ARRAY_KEY_FIELDS: dict[str, str | None] = {
     "sports": None,  # Simple string array, uses dedup
 }
 
-# Fields that should never be overwritten during scrape merge
-# These are typically manually curated or come from detail pages
+# Fields that should be MERGED (recursively) rather than overwritten during scrape
+# These are category-specific nested objects that contain detailed facility data
+_CATEGORY_FIELDS_TO_MERGE: frozenset[str] = frozenset(
+    {
+        "pool",  # Pool data object: {lanes, length_m, heated}
+        "court",  # Court data object: {courts: [...]}
+        "hall",  # Hall data object: {sports, area_sqm}
+        "field",  # Field data object: {fields: [...]}
+        "archery",  # Archery data object: {archery_type, rooms}
+    }
+)
+
+# Legacy scalar fields that should be preserved if they already exist
+# These are typically manually curated values from detail pages
 _PROTECTED_SCRAPE_FIELDS: frozenset[str] = frozenset(
     {
-        # Facility structure data - preserve manually curated data
-        "court",
-        "pool",
-        "field",
-        # LLM-extracted structured data that should be preserved
-        "lanes",  # Pool lanes count
-        "length_m",  # Pool length
-        "heated",  # Pool heating
-        "court_type",  # Court type
-        "courts",  # Court details array
-        "surface",  # Court surface
-        "lighting",  # Court lighting
-        "sports",  # Sports types
-        "area_sqm",  # Hall/field area
-        "field_type",  # Field type
-        "fields",  # Field details array
+        # Scalar values that should not be overwritten if already set
         "hours",  # Operating hours
         "fee",  # Usage fee
     }
@@ -112,7 +109,17 @@ def merge_parsed_json(
 
         existing_value = result.get(key)
 
-        if isinstance(new_value, dict) and isinstance(existing_value, dict):
+        # Category fields (pool, court, hall, field, archery) should be recursively merged
+        if key in _CATEGORY_FIELDS_TO_MERGE:
+            if isinstance(new_value, dict) and isinstance(existing_value, dict):
+                # Recursively merge category objects
+                result[key] = merge_parsed_json(existing_value, new_value)
+            elif new_value and not existing_value:
+                # No existing data, use new value
+                result[key] = new_value
+            # else: existing_value is set and new_value is not a dict - keep existing
+        elif isinstance(new_value, dict) and isinstance(existing_value, dict):
+            # Generic dict merge
             result[key] = merge_parsed_json(existing_value, new_value)
         elif isinstance(new_value, list) and isinstance(existing_value, list):
             # Check if this is a structured array with a known key field

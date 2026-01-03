@@ -416,9 +416,9 @@ async def _extract_facility_with_llm(
         "Analyze the text and extract facility information. "
         "Return a JSON object with the following fields:\n\n"
         "**Core fields:**\n"
-        "- is_gym: Boolean. Set to true if this page describes a SINGLE facility's "
-        "details. Set to false if it's an announcement, index/list of facilities, "
-        "or irrelevant content.\n"
+        "- is_gym: Boolean. Set to true if this page describes a SINGLE facility OR "
+        "a MULTI-FACILITY COMPLEX (sports center, gym with pool, etc.). "
+        "Set to false ONLY if it's an announcement, pure index/list page, or irrelevant content.\n"
         "- is_multi_facility: Boolean. Set to true if this page describes a "
         "COMPLEX with MULTIPLE different facility types (e.g., pool + gym + field). "
         "This is common for 'スポーツセンター' or '総合体育館'.\n"
@@ -432,10 +432,12 @@ async def _extract_facility_with_llm(
         "  - archery: 弓道場, アーチェリー\n"
         "  For complex facilities (is_multi_facility=true), include ALL applicable types.\n"
         "  Example: ['gym', 'pool', 'hall'] for a sports center.\n"
-        "  Return empty array if is_gym is false.\n"
-        "- name: The specific facility name in Japanese. Return null if is_gym is false.\n"
+        "  Return empty array ONLY if is_gym is false.\n"
+        "- name: The specific facility name in Japanese (e.g., '新宿コズミックセンター'). "
+        "Return null ONLY if is_gym is false AND is_multi_facility is false.\n"
         "- address: The full postal address of the physical facility. "
-        "Do NOT extract City Hall or footer addresses. Return null if is_gym is false.\n\n"
+        "Do NOT extract City Hall or footer addresses. "
+        "Return null ONLY if is_gym is false AND is_multi_facility is false.\n\n"
         "**Structured data:**\n"
         "- hours: Object with 'open' and 'close' as integers (24h format without colon). "
         'Example: 9:00-21:00 → {"open": 900, "close": 2100}. '
@@ -445,9 +447,13 @@ async def _extract_facility_with_llm(
         '  - Object {"adult": 500, "child": 200} if age-separated\n'
         '  - Object {"per_hour": 1200} if hourly rate\n'
         "  Return null if not found.\n\n"
-        "**Category-specific fields (include for ALL applicable categories):**\n"
-        "Return category-specific data as NESTED OBJECTS under each category key:\n"
-        '- pool: {"lanes": int, "length_m": int, "heated": bool}\n'
+        "**Category-specific fields:**\n"
+        "IMPORTANT: If is_gym OR is_multi_facility is true, extract detailed data "
+        "for ALL categories listed above.\n"
+        "Return category-specific data as NESTED OBJECTS under each category key:\n\n"
+        '- pool: {"lanes": int, "length_m": int, "heated": bool|null}\n'
+        "  Example: If text mentions '25mプール 8コース', extract: "
+        '{"pool": {"length_m": 25, "lanes": 8, "heated": null}}\n\n'
         '- court: {"courts": array of {"court_type": string, "count": int, '
         '"surface": string|null, "lighting": bool|null}}. '
         "Each court item represents a different court type with its own surface and lighting. "
@@ -456,11 +462,13 @@ async def _extract_facility_with_llm(
         "IMPORTANT: Set 'surface' per court type (床, クレー, 砂入り人工芝, ハードコート, etc.). "
         "Indoor courts (バスケ, バレー, バドミントン) typically have surface '床'. "
         "Outdoor tennis courts may have '砂入り人工芝', 'クレー', or 'ハードコート'. "
-        "Set lighting to true if the court has night lighting.\n"
+        "Set lighting to true if the court has night lighting.\n\n"
         '- hall: {"sports": string array, "area_sqm": int}\n'
+        "  Example: For '大体育室 42m×29m バレー・バスケ可', extract: "
+        '{"hall": {"sports": ["バレーボール", "バスケットボール"], "area_sqm": 1218}}\n\n'
         '- field: {"fields": array of {"field_type": string, "count": int, '
-        '"lighting": bool|null}}. IMPORTANT: "fields" must be an ARRAY, not an integer.\n'
-        '- archery: {"archery_type": string, "rooms": int}\n'
+        '"lighting": bool|null}}. IMPORTANT: "fields" must be an ARRAY, not an integer.\n\n'
+        '- archery: {"archery_type": string, "rooms": int}\n\n'
         '- gym: {"equipments": array of {slug, count}}. Map to these slugs:\n'
         f"  {', '.join(standard_names)}\n"
         "  Use English slug in parentheses, not Japanese name.\n\n"
