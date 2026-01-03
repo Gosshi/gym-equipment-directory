@@ -62,6 +62,7 @@ _ARRAY_KEY_FIELDS: dict[str, str | None] = {
     "pools": "length_m",  # Use length as identifier for pools
     "fields": "field_type",  # Field arrays keyed by type
     "sports": None,  # Simple string array, uses dedup
+    "source_urls": None,  # Simple URL array, uses dedup
 }
 
 # Fields that should be MERGED (recursively) rather than overwritten during scrape
@@ -83,6 +84,7 @@ _PROTECTED_SCRAPE_FIELDS: frozenset[str] = frozenset(
         # Scalar values that should not be overwritten if already set
         "hours",  # Operating hours
         "fee",  # Usage fee
+        "official_url",  # Manually entered official URL (scrape uses source_urls)
     }
 )
 
@@ -225,11 +227,18 @@ async def scrape_official_url_with_reason(
         )
 
         # Basic metadata
+        # Note: We don't set "official_url" here to preserve manually entered URLs
+        # Instead, we add the scraped URL to source_urls array
         new_data: dict[str, Any] = {
             "official_url_scraped": True,
             "official_url_status": status,
-            "official_url": official_url,
+            "scraped_url": official_url,  # Track what was scraped
         }
+
+        # Add to source_urls array (will be merged with existing)
+        existing_source_urls = (existing_parsed_json or {}).get("source_urls", [])
+        if official_url not in existing_source_urls:
+            new_data["source_urls"] = existing_source_urls + [official_url]
 
         # Extract text and use LLM
         try:
