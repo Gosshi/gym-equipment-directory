@@ -7,6 +7,7 @@
 export const AFFILIATE_LINKS = {
   // スポーツウェア・用品
   XEBIO: "https://px.a8.net/svt/ejp?a8mat=4AUX4V+AAX2NM+4ABU+6G4HD",
+  MURASAKI_SPORTS: "https://px.a8.net/svt/ejp?a8mat=4AUX4W+11IBW2+5MZI+609HT",
 
   // レンタルスペース・コート
   SPACEMARKET: "https://px.a8.net/svt/ejp?a8mat=4AUX4V+ADAT2Q+5SHA+5Z6WX",
