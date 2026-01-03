@@ -35,3 +35,5 @@ class Gym(Base):
     source_urls: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     # LLM-generated description for SEO
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Fields: array of field items (similar to courts/pools)
+    fields: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)

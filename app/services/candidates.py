@@ -533,6 +533,7 @@ async def _apply_gym_upsert(
         await session.flush()
         return gym
     gym = existing
+    gym.slug = slug  # Update slug to new hierarchical format
     gym.name = name
     gym.canonical_id = canonical_id
     gym.pref = pref_slug
