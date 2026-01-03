@@ -14,7 +14,7 @@ from app.dto import (
     GymImageDTO,
     GymSummaryDTO,
 )
-from app.dto.gym import CourtItemDTO, PoolItemDTO
+from app.dto.gym import CourtItemDTO, FieldItemDTO, PoolItemDTO
 from app.models import Equipment, Gym, GymImage
 
 
@@ -294,6 +294,7 @@ def assemble_gym_detail(
     # Field - may be a dict or a list of dicts
     field_raw = meta.get("field") or parsed_json.get("field")
     field_data = _normalize_to_dict(field_raw)
+    field_list = _normalize_to_list(field_raw)
     field_type = meta.get("field_type") or field_data.get("field_type")
     field_count = meta.get("fields") or field_data.get("fields")
     # Check if field is in categories list
@@ -305,6 +306,30 @@ def assemble_gym_detail(
         if is_field_category
         else None
     )
+    # Build fields array - check for new format (field_data.fields is array) first
+    fields_inner = field_data.get("fields")
+    parent_lighting = field_data.get("lighting")  # Fallback for fields without lighting
+    if isinstance(fields_inner, list) and len(fields_inner) > 0:
+        # New format: field.fields is array of {field_type, count, lighting?}
+        fields = [
+            FieldItemDTO(
+                field_type=f.get("field_type"),
+                fields=f.get("count") or f.get("fields"),  # Support both 'count' and 'fields'
+                lighting=f.get("lighting") if f.get("lighting") is not None else parent_lighting,
+            )
+            for f in fields_inner
+            if isinstance(f, dict)
+        ]
+    else:
+        # Old format: field_list is array of field objects
+        fields = [
+            FieldItemDTO(
+                field_type=f.get("field_type"),
+                fields=f.get("fields") or f.get("count"),
+                lighting=f.get("lighting"),
+            )
+            for f in field_list
+        ]
 
     # Archery / Martial Arts - may be a dict or a list of dicts
     archery_raw = meta.get("archery") or parsed_json.get("archery")
@@ -354,6 +379,7 @@ def assemble_gym_detail(
         field_type=field_type,
         field_count=field_count,
         field_lighting=field_lighting,
+        fields=fields,
         archery_type=archery_type,
         archery_rooms=archery_rooms,
     )

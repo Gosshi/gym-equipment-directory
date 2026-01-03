@@ -70,6 +70,7 @@ class GymDetailResponse(BaseModel):
     field_type: str | None = Field(default=None, description="グラウンドタイプ")
     field_count: int | None = Field(default=None, description="グラウンド面数")
     field_lighting: bool | None = Field(default=None, description="照明設備の有無")
+    fields: list[dict] | None = Field(default=None, description="グラウンド一覧（配列）")
 
     equipments: list[GymEquipmentLine] = Field(description="設備一覧（JOIN済み）")
 
