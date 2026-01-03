@@ -354,6 +354,80 @@ const parseCommaSeparated = (input: string) =>
     .map(part => part.trim())
     .filter(Boolean);
 
+// デフォルトで展開すべき重要キー（施設情報、カテゴリ詳細）
+const EXPANDED_BY_DEFAULT_KEYS = new Set([
+  // 基本情報
+  "facility_name",
+  "name",
+  "address",
+  "categories",
+  "category",
+  "official_url",
+  // カテゴリ詳細オブジェクト
+  "court",
+  "courts",
+  "pool",
+  "hall",
+  "field",
+  "archery",
+  "gym",
+  // その他重要
+  "fee",
+  "hours",
+  "meta",
+]);
+
+// デフォルトで閉じるべき長いキー（スクレイピング結果など）
+const COLLAPSED_BY_DEFAULT_KEYS = new Set([
+  "equipments_structured",
+  "equipments_slotted",
+  "equipments_raw",
+  "equipments_slugs",
+  "schedule",
+  "amenities",
+  "facilities",
+]);
+
+// 表示順序の優先度（小さい番号が上に表示）
+const KEY_DISPLAY_ORDER: Record<string, number> = {
+  // 最優先: 施設基本情報
+  facility_name: 1,
+  name: 2,
+  address: 3,
+  categories: 4,
+  category: 5,
+  official_url: 6,
+  // カテゴリ詳細オブジェクト
+  court: 10,
+  pool: 11,
+  hall: 12,
+  field: 13,
+  archery: 14,
+  gym: 15,
+  // 料金・時間
+  fee: 20,
+  hours: 21,
+  // メタ情報
+  meta: 50,
+  tags: 51,
+  // 低優先
+  is_gym: 90,
+  is_multi_facility: 91,
+};
+
+// キーの表示順序を取得
+const getKeyOrder = (key: string): number => KEY_DISPLAY_ORDER[key] ?? 100;
+
+const shouldExpandByDefault = (key: string, entry: JsonValue): boolean => {
+  const lowerKey = key.toLowerCase();
+  if (COLLAPSED_BY_DEFAULT_KEYS.has(lowerKey)) return false;
+  if (EXPANDED_BY_DEFAULT_KEYS.has(lowerKey)) return true;
+  // 配列で3要素以下、またはオブジェクトで3キー以下は展開
+  if (Array.isArray(entry) && entry.length <= 3) return true;
+  if (isJsonObject(entry) && Object.keys(entry).length <= 3) return true;
+  return false;
+};
+
 export default function AdminCandidateDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -780,70 +854,6 @@ export default function AdminCandidateDetailPage() {
     [],
   );
 
-  // デフォルトで展開すべき重要キー（施設情報、カテゴリ詳細）
-  const EXPANDED_BY_DEFAULT_KEYS = new Set([
-    // 基本情報
-    "facility_name",
-    "name",
-    "address",
-    "categories",
-    "category",
-    "official_url",
-    // カテゴリ詳細オブジェクト
-    "court",
-    "courts",
-    "pool",
-    "hall",
-    "field",
-    "archery",
-    "gym",
-    // その他重要
-    "fee",
-    "hours",
-    "meta",
-  ]);
-
-  // デフォルトで閉じるべき長いキー（スクレイピング結果など）
-  const COLLAPSED_BY_DEFAULT_KEYS = new Set([
-    "equipments_structured",
-    "equipments_slotted",
-    "equipments_raw",
-    "equipments_slugs",
-    "schedule",
-    "amenities",
-    "facilities",
-  ]);
-
-  // 表示順序の優先度（小さい番号が上に表示）
-  const KEY_DISPLAY_ORDER: Record<string, number> = {
-    // 最優先: 施設基本情報
-    facility_name: 1,
-    name: 2,
-    address: 3,
-    categories: 4,
-    category: 5,
-    official_url: 6,
-    // カテゴリ詳細オブジェクト
-    court: 10,
-    pool: 11,
-    hall: 12,
-    field: 13,
-    archery: 14,
-    gym: 15,
-    // 料金・時間
-    fee: 20,
-    hours: 21,
-    // メタ情報
-    meta: 50,
-    tags: 51,
-    // 低優先
-    is_gym: 90,
-    is_multi_facility: 91,
-  };
-
-  // キーの表示順序を取得
-  const getKeyOrder = (key: string): number => KEY_DISPLAY_ORDER[key] ?? 100;
-
   const getSummaryPreview = (entry: JsonValue, key: string): string => {
     if (Array.isArray(entry)) {
       const count = entry.length;
@@ -863,16 +873,6 @@ export default function AdminCandidateDetailPage() {
       return `${keys.length}項目`;
     }
     return String(entry);
-  };
-
-  const shouldExpandByDefault = (key: string, entry: JsonValue): boolean => {
-    const lowerKey = key.toLowerCase();
-    if (COLLAPSED_BY_DEFAULT_KEYS.has(lowerKey)) return false;
-    if (EXPANDED_BY_DEFAULT_KEYS.has(lowerKey)) return true;
-    // 配列で3要素以下、またはオブジェクトで3キー以下は展開
-    if (Array.isArray(entry) && entry.length <= 3) return true;
-    if (isJsonObject(entry) && Object.keys(entry).length <= 3) return true;
-    return false;
   };
 
   const renderJsonEditor = useCallback(
