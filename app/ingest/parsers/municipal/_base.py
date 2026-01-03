@@ -458,13 +458,15 @@ async def _extract_facility_with_llm(
         "Outdoor tennis courts may have '砂入り人工芝', 'クレー', or 'ハードコート'. "
         "Set lighting to true if the court has night lighting.\n"
         '- hall: {"sports": string array, "area_sqm": int}\n'
-        '- field: {"field_type": string, "fields": int, "lighting": bool}\n'
+        '- field: {"fields": array of {"field_type": string, "count": int, '
+        '"lighting": bool|null}}. IMPORTANT: "fields" must be an ARRAY, not an integer.\n'
         '- archery: {"archery_type": string, "rooms": int}\n'
         '- gym: {"equipments": array of {slug, count}}. Map to these slugs:\n'
         f"  {', '.join(standard_names)}\n"
         "  Use English slug in parentheses, not Japanese name.\n\n"
-        "Example for a pool facility:\n"
-        '{"pool": {"lanes": 6, "length_m": 25, "heated": true}}\n\n'
+        "Examples:\n"
+        '{"pool": {"lanes": 6, "length_m": 25, "heated": true}}\n'
+        '{"field": {"fields": [{"field_type": "野球場", "count": 2, "lighting": true}]}}\n\n'
         "Return ONLY the JSON object."
     )
 
