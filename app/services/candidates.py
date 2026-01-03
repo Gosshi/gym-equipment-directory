@@ -683,6 +683,7 @@ async def approve_candidate(
         elif preview_cached:
             target_gym.last_verified_at_cached = preview_cached
         candidate.status = CandidateStatus.approved
+        candidate.gym_id = target_gym.id  # Link candidate to approved gym
         await session.flush()
         await session.commit()
         return ApproveResult(
@@ -770,6 +771,7 @@ async def approve_candidate(
     elif preview_cached:
         gym.last_verified_at_cached = preview_cached
     candidate.status = CandidateStatus.approved
+    candidate.gym_id = gym.id  # Link candidate to approved gym
     await session.flush()
     await session.commit()
     return ApproveResult(result=ApproveSummary(gym=_gym_to_preview(gym), equipments=summary))

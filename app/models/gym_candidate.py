@@ -58,6 +58,12 @@ class GymCandidate(Base):
         ForeignKey("gym_candidates.id", ondelete="SET NULL"),
         nullable=True,
     )
+    gym_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("gyms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
