@@ -453,13 +453,11 @@ const buildPartnerLinks = (key: GroupKey, links: PartnerLinkConfig[]): Contextua
   return links.map(link => ({
     id: link.id,
     label: link.label,
-    href: link.isAffiliate
-      ? link.url // アフィリエイトリンクはUTM付与せずそのまま使う
-      : applyUtm(link.url, {
-          ...BASE_UTM,
-          campaign: key,
-          content: link.utmContent,
-        }),
+    href: applyUtm(link.url, {
+      ...BASE_UTM,
+      campaign: key,
+      content: link.utmContent,
+    }),
     isAffiliate: link.isAffiliate,
   }));
 };
