@@ -155,8 +155,15 @@ async def try_scrape_official_url(
     official_url: str | None,
     scraped_page_url: str | None,
     existing_parsed_json: dict[str, Any] | None,
+    scrape_subpages: bool = False,
 ) -> dict[str, Any] | None:
     """Try to scrape the official URL and merge with existing parsed_json.
+
+    Args:
+        official_url: The URL to scrape
+        scraped_page_url: The URL that was originally scraped (to avoid duplicates)
+        existing_parsed_json: Existing data to merge with
+        scrape_subpages: If True, detect and scrape facility subpages (max 20)
 
     Returns the merged parsed_json if scraping was successful, or None if:
     - official_url is None or empty
@@ -168,6 +175,7 @@ async def try_scrape_official_url(
         official_url=official_url,
         scraped_page_url=scraped_page_url,
         existing_parsed_json=existing_parsed_json,
+        scrape_subpages=scrape_subpages,
     )
     return outcome.merged_data
 
@@ -176,8 +184,16 @@ async def scrape_official_url_with_reason(
     official_url: str | None,
     scraped_page_url: str | None,
     existing_parsed_json: dict[str, Any] | None,
+    scrape_subpages: bool = False,
 ) -> ScrapeOutcome:
-    """Scrape the official URL and return merged data with a failure reason."""
+    """Scrape the official URL and return merged data with a failure reason.
+
+    Args:
+        official_url: The URL to scrape
+        scraped_page_url: The URL that was originally scraped
+        existing_parsed_json: Existing data to merge with
+        scrape_subpages: If True, detect and scrape facility subpages (max 20)
+    """
     if not official_url:
         return ScrapeOutcome(None, "missing_official_url")
 
@@ -220,7 +236,10 @@ async def scrape_official_url_with_reason(
             from bs4 import BeautifulSoup
 
             from app.ingest.normalizers.equipment_aliases import EQUIPMENT_ALIASES
-            from app.ingest.parsers.municipal._base import _extract_facility_with_llm
+            from app.ingest.parsers.municipal._base import (
+                _extract_facility_with_llm,
+                extract_facility_links,
+            )
 
             soup = BeautifulSoup(html, "html.parser")
             # Remove scripts and styles
@@ -237,6 +256,41 @@ async def scrape_official_url_with_reason(
                 new_data.update(llm_result)
             else:
                 logger.warning("LLM extraction returned None for %s", official_url)
+
+            # If scrape_subpages is enabled, detect and scrape facility links
+            if scrape_subpages:
+                logger.info("Detecting facility subpages for %s", official_url)
+                subpage_urls = await extract_facility_links(html, official_url)
+
+                if subpage_urls:
+                    logger.info(
+                        "Found %d facility subpages, scraping (max 20)...", len(subpage_urls)
+                    )
+                    # Limit to 20 subpages to avoid excessive scraping
+                    for subpage_url in subpage_urls[:20]:
+                        logger.info("Scraping subpage: %s", subpage_url)
+                        try:
+                            subpage_html, subpage_status, _ = await fetch_url_checked(subpage_url)
+                            if subpage_html:
+                                # Extract text from subpage
+                                subpage_soup = BeautifulSoup(subpage_html, "html.parser")
+                                for script in subpage_soup(
+                                    ["script", "style", "noscript", "iframe"]
+                                ):
+                                    script.decompose()
+                                subpage_text = subpage_soup.get_text(separator="\n", strip=True)
+
+                                # Extract data with LLM
+                                subpage_result = await _extract_facility_with_llm(
+                                    subpage_text, EQUIPMENT_ALIASES
+                                )
+                                if subpage_result:
+                                    logger.info("Subpage extraction successful: %s", subpage_url)
+                                    # Merge subpage data into new_data
+                                    new_data = merge_parsed_json(new_data, subpage_result)
+                        except Exception as e:
+                            logger.warning("Failed to scrape subpage %s: %s", subpage_url, e)
+                            # Continue with other subpages
 
         except Exception as e:
             logger.error("Error during LLM extraction for %s: %s", official_url, e)
