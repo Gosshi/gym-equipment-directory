@@ -302,3 +302,258 @@ export function isAffiliateEnabled(): boolean {
     process.env.NEXT_PUBLIC_RAKUTEN_AFFILIATE_ID || process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG,
   );
 }
+
+export type ContextualGym = {
+  category?: string | null;
+  categories?: string[];
+  equipments?: string[];
+  poolLanes?: number | null;
+  pools?: Array<{ lanes?: number | null }>;
+  hallSports?: string[];
+  hallAreaSqm?: number | null;
+};
+
+export type ContextualAdLink = {
+  id: string;
+  label: string;
+  href: string;
+  isAffiliate?: boolean;
+};
+
+export type ContextualAdGroup = {
+  key: string;
+  title: string;
+  description: string;
+  links: ContextualAdLink[];
+};
+
+type GroupKey = "pool" | "gym" | "hall" | "dojo";
+
+type UtmParams = {
+  source: string;
+  medium: string;
+  campaign: string;
+  content?: string;
+  term?: string;
+};
+
+type PartnerLinkConfig = {
+  id: string;
+  label: string;
+  url: string;
+  utmContent: string;
+};
+
+type AffiliateItemConfig = {
+  id: string;
+  label: string;
+  keyword: string;
+};
+
+type ContextualAdGroupConfig = {
+  key: GroupKey;
+  title: string;
+  description: string;
+  links?: PartnerLinkConfig[];
+  affiliateItems?: AffiliateItemConfig[];
+};
+
+const MAX_CONTEXTUAL_AD_GROUPS = 2;
+const BASE_UTM: Pick<UtmParams, "source" | "medium"> = {
+  source: "spomap",
+  medium: "contextual_ad",
+};
+
+const CONTEXTUAL_AD_CONFIG: Record<GroupKey, ContextualAdGroupConfig> = {
+  pool: {
+    key: "pool",
+    title: "プール利用に必要なもの",
+    description: "当日忘れてもすぐに探せる定番アイテム",
+    affiliateItems: [
+      { id: "swimcap", label: "スイムキャップ", keyword: "スイムキャップ シリコン" },
+      {
+        id: "goggles",
+        label: "スイミングゴーグル",
+        keyword: "スイミングゴーグル 曇り止め",
+      },
+    ],
+  },
+  gym: {
+    key: "gym",
+    title: "待ち時間なしでトレーニングしたい方へ",
+    description: "近隣の民間24hジムをチェック",
+    links: [
+      {
+        id: "chocozap",
+        label: "チョコザップを探す",
+        url: "https://chocozap.jp/",
+        utmContent: "chocozap",
+      },
+      {
+        id: "anytime",
+        label: "24時間ジム一覧を見る",
+        url: "https://www.anytimefitness.co.jp/",
+        utmContent: "anytime",
+      },
+    ],
+  },
+  hall: {
+    key: "hall",
+    title: "貸切コートを探す",
+    description: "抽選に外れたら民間レンタルコートを検討",
+    links: [
+      {
+        id: "spacemarket",
+        label: "スペースマーケットで探す",
+        url: "https://www.spacemarket.com/",
+        utmContent: "spacemarket",
+      },
+      {
+        id: "instabase",
+        label: "インスタベースで探す",
+        url: "https://www.instabase.jp/",
+        utmContent: "instabase",
+      },
+    ],
+  },
+  dojo: {
+    key: "dojo",
+    title: "子ども向けスポーツスクールの体験",
+    description: "近くの教室を比較して予約",
+    links: [
+      {
+        id: "kodomo_booster",
+        label: "体験教室を探す",
+        url: "https://kodomo-booster.com/",
+        utmContent: "kodomo_booster",
+      },
+    ],
+  },
+};
+
+const applyUtm = (url: string, params: UtmParams): string => {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("utm_source", params.source);
+    parsed.searchParams.set("utm_medium", params.medium);
+    parsed.searchParams.set("utm_campaign", params.campaign);
+    if (params.content) {
+      parsed.searchParams.set("utm_content", params.content);
+    }
+    if (params.term) {
+      parsed.searchParams.set("utm_term", params.term);
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+};
+
+const buildPartnerLinks = (key: GroupKey, links: PartnerLinkConfig[]): ContextualAdLink[] => {
+  return links.map(link => ({
+    id: link.id,
+    label: link.label,
+    href: applyUtm(link.url, {
+      ...BASE_UTM,
+      campaign: key,
+      content: link.utmContent,
+    }),
+  }));
+};
+
+const buildAffiliateLinks = (items: AffiliateItemConfig[]): ContextualAdLink[] => {
+  if (!isAffiliateEnabled()) {
+    return [];
+  }
+
+  const links: ContextualAdLink[] = [];
+  for (const item of items) {
+    const rakutenUrl = buildRakutenSearchUrl(item.keyword);
+    const amazonUrl = buildAmazonSearchUrl(item.keyword);
+
+    if (rakutenUrl) {
+      links.push({
+        id: `${item.id}-rakuten`,
+        label: `${item.label}を楽天で探す`,
+        href: rakutenUrl,
+        isAffiliate: true,
+      });
+    }
+    if (amazonUrl) {
+      links.push({
+        id: `${item.id}-amazon`,
+        label: `${item.label}をAmazonで探す`,
+        href: amazonUrl,
+        isAffiliate: true,
+      });
+    }
+  }
+
+  return links;
+};
+
+const collectCategories = (gym: ContextualGym) => {
+  const values = new Set<string>();
+  const add = (value?: string | null) => {
+    if (!value) {
+      return;
+    }
+    values.add(value.trim().toLowerCase());
+  };
+  add(gym.category);
+  gym.categories?.forEach(add);
+  return values;
+};
+
+export const resolveContextualAdGroups = (gym: ContextualGym): ContextualAdGroup[] => {
+  const categories = collectCategories(gym);
+  const hasCategory = categories.size > 0 || Boolean(gym.category);
+
+  const hasPool =
+    categories.has("pool") ||
+    (typeof gym.poolLanes === "number" && gym.poolLanes > 0) ||
+    (gym.pools?.length ?? 0) > 0;
+  const hasGym = categories.has("gym") || (!hasCategory && (gym.equipments?.length ?? 0) > 0);
+  const hasHall =
+    categories.has("hall") ||
+    categories.has("arena") ||
+    (gym.hallSports?.length ?? 0) > 0 ||
+    (typeof gym.hallAreaSqm === "number" && gym.hallAreaSqm > 0);
+  const hasDojo =
+    categories.has("martial_arts") || categories.has("dojo") || categories.has("archery");
+
+  const groups: ContextualAdGroup[] = [];
+  const pushGroup = (key: GroupKey) => {
+    const config = CONTEXTUAL_AD_CONFIG[key];
+    const links = [
+      ...(config.links ? buildPartnerLinks(key, config.links) : []),
+      ...(config.affiliateItems ? buildAffiliateLinks(config.affiliateItems) : []),
+    ];
+
+    if (links.length === 0) {
+      return;
+    }
+
+    groups.push({
+      key: config.key,
+      title: config.title,
+      description: config.description,
+      links,
+    });
+  };
+
+  if (hasPool) {
+    pushGroup("pool");
+  }
+  if (hasGym) {
+    pushGroup("gym");
+  }
+  if (hasHall) {
+    pushGroup("hall");
+  }
+  if (hasDojo) {
+    pushGroup("dojo");
+  }
+
+  return groups.slice(0, MAX_CONTEXTUAL_AD_GROUPS);
+};

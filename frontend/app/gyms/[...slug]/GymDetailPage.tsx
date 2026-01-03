@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdBanner } from "@/components/ads/AdBanner";
+import { ContextualAds } from "@/components/ads/ContextualAds";
 import { useToast } from "@/components/ui/use-toast";
 import { ApiError, apiRequest } from "@/lib/apiClient";
 import { encodeOnce } from "@/lib/url";
@@ -336,6 +337,8 @@ export function GymDetailPage({
             />
 
             <GymFacilities facilities={gym.facilities} />
+
+            <ContextualAds gym={gym} />
 
             <RecommendedProducts categories={gym.categories} />
           </div>
