@@ -24,6 +24,14 @@ class CourtItemDTO(BaseModel):
     lighting: bool | None = Field(default=None, description="照明の有無")
 
 
+class FieldItemDTO(BaseModel):
+    """Individual field information."""
+
+    field_type: str | None = Field(default=None, description="グラウンド種別")
+    fields: int | None = Field(default=None, description="面数")
+    lighting: bool | None = Field(default=None, description="照明の有無")
+
+
 class GymBasicDTO(BaseModel):
     id: int = Field(description="ジムID")
     slug: str = Field(description="ジムスラッグ")
@@ -155,10 +163,12 @@ class GymDetailDTO(BaseModel):
     hall_sports: list[str] = Field(default_factory=list, description="対応スポーツ一覧")
     hall_area_sqm: float | None = Field(default=None, description="面積（平方メートル）")
 
-    # Field-specific fields
+    # Field-specific fields (legacy single item)
     field_type: str | None = Field(default=None, description="グラウンドタイプ")
     field_count: int | None = Field(default=None, description="グラウンド面数")
     field_lighting: bool | None = Field(default=None, description="照明設備の有無")
+    # Field array for multiple fields
+    fields: list[FieldItemDTO] = Field(default_factory=list, description="グラウンド一覧")
 
     # Archery-specific fields
     archery_type: str | None = Field(default=None, description="弓道場タイプ")
