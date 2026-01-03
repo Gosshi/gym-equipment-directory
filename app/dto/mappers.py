@@ -296,7 +296,9 @@ def assemble_gym_detail(
     field_data = _normalize_to_dict(field_raw)
     field_list = _normalize_to_list(field_raw)
     field_type = meta.get("field_type") or field_data.get("field_type")
-    field_count = meta.get("fields") or field_data.get("fields")
+    field_count_raw = meta.get("fields") or field_data.get("fields")
+    # In new format, fields is an array, not an int - set to None and use fields array instead
+    field_count = field_count_raw if isinstance(field_count_raw, int) else None
     # Check if field is in categories list
     is_field_category = "field" in categories
     field_lighting = (
