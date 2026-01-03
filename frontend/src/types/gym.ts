@@ -51,6 +51,12 @@ export interface CourtItem {
   lighting?: boolean | null;
 }
 
+export interface FieldItem {
+  fieldType?: string | null;
+  fields?: number | null;
+  lighting?: boolean | null;
+}
+
 export interface GymDetail {
   id: number;
   slug: string;
@@ -92,6 +98,7 @@ export interface GymDetail {
   fieldType?: string | null;
   fieldCount?: number | null;
   fieldLighting?: boolean | null;
+  fields?: FieldItem[];
   // Archery
   archeryType?: string | null;
   archeryRooms?: number | null;

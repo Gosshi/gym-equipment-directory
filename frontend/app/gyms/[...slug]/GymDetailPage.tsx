@@ -333,6 +333,7 @@ export function GymDetailPage({
               fieldType={gym.fieldType}
               fieldCount={gym.fieldCount}
               fieldLighting={gym.fieldLighting}
+              fields={gym.fields}
               facility_meta={gym.facility_meta}
             />
 

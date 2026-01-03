@@ -65,6 +65,12 @@ type RawGymDetail = RawGymSummary & {
   field_type?: string | null;
   field_count?: number | null;
   field_lighting?: boolean | null;
+  fields?: Array<{
+    field_type?: string | null;
+    count?: number | null;
+    fields?: number | null;
+    lighting?: boolean | null;
+  }> | null;
   // Archery fields
   archery_type?: string | null;
   archery_rooms?: number | null;
@@ -292,6 +298,12 @@ const normalizeGymDetail = (input: RawGymDetail): GymDetail => {
     fieldType: input.field_type ?? null,
     fieldCount: input.field_count ?? null,
     fieldLighting: input.field_lighting ?? null,
+    fields:
+      input.fields?.map(f => ({
+        fieldType: f.field_type ?? null,
+        fields: f.count ?? f.fields ?? null,
+        lighting: f.lighting ?? null,
+      })) ?? [],
     // Archery fields
     archeryType: input.archery_type ?? null,
     archeryRooms: input.archery_rooms ?? null,

@@ -15,6 +15,12 @@ interface CourtItem {
   lighting?: boolean | null;
 }
 
+interface FieldItem {
+  fieldType?: string | null;
+  fields?: number | null;
+  lighting?: boolean | null;
+}
+
 interface CategoryInfoProps {
   category?: string | null;
   categories?: string[];
@@ -36,6 +42,7 @@ interface CategoryInfoProps {
   fieldType?: string | null;
   fieldCount?: number | null;
   fieldLighting?: boolean | null;
+  fields?: FieldItem[];
   // Archery
   archeryType?: string | null;
   archeryRooms?: number | null;
@@ -309,7 +316,30 @@ function HallInfo({ hallSports, hallAreaSqm }: CategoryInfoProps) {
   );
 }
 
-function FieldInfo({ fieldType, fieldCount, fieldLighting }: CategoryInfoProps) {
+function FieldInfo({ fieldType, fieldCount, fieldLighting, fields }: CategoryInfoProps) {
+  // If we have multiple fields, display them
+  if (fields && fields.length > 0) {
+    return (
+      <div className="space-y-4">
+        {fields.map((field, index) => {
+          const hasFieldData = field.fieldType || field.fields || field.lighting === true;
+          if (!hasFieldData) return null;
+
+          return (
+            <div key={index} className="border-l-2 border-border/50 pl-3">
+              <p className="text-sm font-medium text-foreground mb-2">
+                {field.fieldType || `グラウンド ${index + 1}`}
+              </p>
+              <InfoRow label="面数" value={field.fields ? `${field.fields}面` : null} />
+              <InfoRow label="照明" value={field.lighting === true ? "あり" : null} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback to single field data
   const hasData = fieldType || fieldCount || fieldLighting === true;
   if (!hasData) return <p className="text-sm text-muted-foreground">情報なし</p>;
 
