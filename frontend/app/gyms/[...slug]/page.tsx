@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { getGymBySlug } from "@/services/gyms";
 import { GymDetailClient } from "./GymDetailClient";
+import { generateSeoTitle, generateSeoDescription } from "./seo";
 
 interface PageProps {
   params: Promise<{ slug: string[] }>;
@@ -30,10 +31,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    const title = `${gym.name} | SPOMAP`;
-    const description = `${gym.prefecture}${gym.city}にある「${gym.name}」の設備情報。${
-      gym.equipments.length > 0 ? `主な設備: ${gym.equipments.slice(0, 5).join(", ")}など。` : ""
-    }`;
+    // Generate optimized title with facility type and sports
+    const title = generateSeoTitle(gym);
+    const description = generateSeoDescription(gym);
 
     // Use API route for OG image generation (required for catch-all routes)
     const ogImageUrl = `${baseUrl}/api/og?slug=${encodeURIComponent(slug)}`;
@@ -69,6 +69,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 import { normalizeGymDetail } from "./normalization";
+import { generateBreadcrumbJsonLd } from "./seo";
 
 export default async function GymDetailPage({ params }: PageProps) {
   const { slug: slugParts } = await params;
@@ -123,8 +124,10 @@ export default async function GymDetailPage({ params }: PageProps) {
 
   const normalized = normalizeGymDetail(apiResponse, gym.slug);
 
-  // Structured data for Google rich snippets
-  const jsonLd = {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://spomap.jp";
+
+  // Structured data for Google rich snippets - SportsActivityLocation
+  const sportsLocationJsonLd = {
     "@context": "https://schema.org",
     "@type": "SportsActivityLocation",
     name: gym.name,
@@ -135,7 +138,7 @@ export default async function GymDetailPage({ params }: PageProps) {
       addressRegion: gym.prefecture ?? undefined,
       addressCountry: "JP",
     },
-    url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://spomap.jp"}/gyms/${gym.slug}`,
+    url: `${baseUrl}/gyms/${gym.slug}`,
     ...(gym.latitude && gym.longitude
       ? {
           geo: {
@@ -148,11 +151,18 @@ export default async function GymDetailPage({ params }: PageProps) {
     ...(gym.website ? { sameAs: gym.website } : {}),
   };
 
+  // Breadcrumb structured data for search result rich snippets
+  const breadcrumbJsonLd = generateBreadcrumbJsonLd(gym, baseUrl);
+
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(sportsLocationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <GymDetailClient gym={normalized} />
     </>
