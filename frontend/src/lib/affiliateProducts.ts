@@ -393,6 +393,13 @@ const CONTEXTUAL_AD_CONFIG: Record<GroupKey, ContextualAdGroupConfig> = {
         utmContent: "xebio",
         isAffiliate: true,
       },
+      {
+        id: "murasaki",
+        label: "ムラサキスポーツで探す",
+        url: AFFILIATE_LINKS.MURASAKI_SPORTS,
+        utmContent: "murasaki",
+        isAffiliate: true,
+      },
     ],
   },
   hall: {
@@ -420,14 +427,7 @@ const CONTEXTUAL_AD_CONFIG: Record<GroupKey, ContextualAdGroupConfig> = {
     key: "dojo",
     title: "子ども向けスポーツスクールの体験",
     description: "近くの教室を比較して予約",
-    links: [
-      {
-        id: "kodomo_booster",
-        label: "体験教室を探す",
-        url: "https://kodomo-booster.com/",
-        utmContent: "kodomo_booster",
-      },
-    ],
+    links: [], // アフィリエイトがないため一時的に非表示
   },
 };
 
