@@ -56,12 +56,38 @@ def _merge_structured_array(
 
 
 # Mapping of array keys to their unique identifier field
-_ARRAY_KEY_FIELDS: dict[str, str] = {
+_ARRAY_KEY_FIELDS: dict[str, str | None] = {
     "courts": "court_type",
     "equipments": "slug",
     "pools": "length_m",  # Use length as identifier for pools
+    "fields": "field_type",  # Field arrays keyed by type
     "sports": None,  # Simple string array, uses dedup
 }
+
+# Fields that should never be overwritten during scrape merge
+# These are typically manually curated or come from detail pages
+_PROTECTED_SCRAPE_FIELDS: frozenset[str] = frozenset(
+    {
+        # Facility structure data - preserve manually curated data
+        "court",
+        "pool",
+        "field",
+        # LLM-extracted structured data that should be preserved
+        "lanes",  # Pool lanes count
+        "length_m",  # Pool length
+        "heated",  # Pool heating
+        "court_type",  # Court type
+        "courts",  # Court details array
+        "surface",  # Court surface
+        "lighting",  # Court lighting
+        "sports",  # Sports types
+        "area_sqm",  # Hall/field area
+        "field_type",  # Field type
+        "fields",  # Field details array
+        "hours",  # Operating hours
+        "fee",  # Usage fee
+    }
+)
 
 
 def merge_parsed_json(
@@ -108,6 +134,9 @@ def merge_parsed_json(
                 except TypeError:
                     # Items not hashable (unknown dicts), prefer new data
                     result[key] = new_value
+        elif key in _PROTECTED_SCRAPE_FIELDS and existing_value is not None:
+            # Protected field already has a value - don't overwrite
+            pass
         else:
             # Overwrite with new value
             result[key] = new_value
