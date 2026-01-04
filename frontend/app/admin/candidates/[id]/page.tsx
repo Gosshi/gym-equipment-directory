@@ -198,6 +198,7 @@ type FormState = {
   longitude: string;
   parsed_json: string;
   official_url: string;
+  scrape_url: string;
 };
 
 const toFormState = (candidate: AdminCandidateDetail): FormState => ({
@@ -215,6 +216,8 @@ const toFormState = (candidate: AdminCandidateDetail): FormState => ({
       : "",
   parsed_json: candidate.parsed_json ? JSON.stringify(candidate.parsed_json, null, 2) : "",
   official_url: candidate.official_url ?? "",
+  // scrape_url: scraped_pageのURLがあればそれを使用、なければofficial_urlをフォールバック
+  scrape_url: candidate.scraped_page?.url ?? candidate.official_url ?? "",
 });
 
 const parseJsonInput = (input: string): Record<string, unknown> | null => {
@@ -1140,10 +1143,10 @@ export default function AdminCandidateDetailPage() {
     if (!candidate) {
       return;
     }
-    if (!formState?.official_url) {
+    if (!formState?.scrape_url) {
       toast({
         title: "エラー",
-        description: "URLを入力してください",
+        description: "スクレイプURLを入力してください",
         variant: "destructive",
       });
       return;
@@ -1151,7 +1154,7 @@ export default function AdminCandidateDetailPage() {
 
     setIsScraping(true);
     try {
-      const result = await scrapeCandidateOfficialUrl(candidate.id, formState.official_url, true);
+      const result = await scrapeCandidateOfficialUrl(candidate.id, formState.scrape_url, true);
 
       if (result.parsed_json) {
         setScrapePreview({
@@ -1565,12 +1568,12 @@ export default function AdminCandidateDetailPage() {
         >
           <h2 className="text-lg font-semibold">編集</h2>
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium">公式サイトURL</span>
+            <span className="font-medium">スクレイプURL</span>
             <div className="flex items-center gap-2">
               <input
                 className="flex-1 rounded border border-gray-300 px-3 py-2"
-                value={formState.official_url}
-                onChange={event => handleInputChange("official_url", event.target.value)}
+                value={formState.scrape_url}
+                onChange={event => handleInputChange("scrape_url", event.target.value)}
                 placeholder="https://..."
               />
               {candidate && (
@@ -1579,12 +1582,23 @@ export default function AdminCandidateDetailPage() {
                   onClick={handleScrapeOfficialUrl}
                   disabled={isScraping}
                   className="whitespace-nowrap rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-50"
-                  title="公式URLから情報を再取得"
+                  title="スクレイプURLから情報を再取得"
                 >
                   {isScraping ? "取得中..." : "スクレイプ"}
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-500">スクレイピング対象のURL（保存されます）</p>
+          </label>
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium">公式サイトURL</span>
+            <input
+              className="rounded border border-gray-300 px-3 py-2"
+              value={formState.official_url}
+              onChange={event => handleInputChange("official_url", event.target.value)}
+              placeholder="https://..."
+            />
+            <p className="text-xs text-gray-500">施設の公式サイトURL</p>
           </label>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">名称</span>
