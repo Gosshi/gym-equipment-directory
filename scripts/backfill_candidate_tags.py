@@ -14,17 +14,25 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def backfill_tags():
-    logger.info("Starting backfill of tags for GymCandidates...")
+async def backfill_tags(days: int = 1):
+    logger.info(f"Starting backfill of tags for GymCandidates (Last {days} days)...")
+
+    from datetime import datetime, timedelta
+
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
 
     async with SessionLocal() as session:
-        # 1. Fetch ALL Candidate IDs first (lightweight)
-        stmt_ids = select(GymCandidate.id).order_by(GymCandidate.id)
+        # 1. Fetch Candidate IDs updated recently
+        stmt_ids = (
+            select(GymCandidate.id)
+            .where(GymCandidate.updated_at >= cutoff_date)
+            .order_by(GymCandidate.id)
+        )
         result_ids = await session.execute(stmt_ids)
         all_ids = result_ids.scalars().all()
 
         total_candidates = len(all_ids)
-        logger.info(f"Found {total_candidates} candidates to process.")
+        logger.info(f"Found {total_candidates} candidates to process (updated >= {cutoff_date}).")
 
         BATCH_SIZE = 50
         updated_count = 0
@@ -131,4 +139,4 @@ async def backfill_tags():
 
 if __name__ == "__main__":
     configure_engine()
-    asyncio.run(backfill_tags())
+    asyncio.run(backfill_tags(days=365))  # Default local run: allow 1 year
