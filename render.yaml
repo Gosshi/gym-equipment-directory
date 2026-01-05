@@ -38,3 +38,5 @@ services:
         sync: false
       - key: DISCORD_WEBHOOK_URL
         sync: false
+      - key: TARGET_WARDS
+        sync: false

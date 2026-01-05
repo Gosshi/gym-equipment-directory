@@ -3,21 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import logging
 import os
 import subprocess
 import sys
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
-# Schedule definition: Day of week (0=Mon, 6=Sun) -> List of targets
-# INTENSIVE 3-DAY SCHEDULE (2025-12-29 ~ 2025-12-31)
-# Goal: Re-scrape all 23 wards with new multi-category LLM prompt
+# Schedule definition: Master Data for Ward Configurations
+# Used to look up configuration by city name.
 SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
-    # Day 0 (Monday Dec 29, 22:00 JST start): 8 wards
     "mon": (
         {"source": "municipal_chiyoda", "pref": "tokyo", "city": "chiyoda"},
         {"source": "municipal_chuo", "pref": "tokyo", "city": "chuo"},
@@ -28,7 +27,6 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_sumida", "pref": "tokyo", "city": "sumida"},
         {"source": "municipal_koto", "pref": "tokyo", "city": "koto"},
     ),
-    # Day 1 (Tuesday Dec 30): 8 wards
     "tue": (
         {"source": "municipal_shinagawa", "pref": "tokyo", "city": "shinagawa"},
         {"source": "municipal_meguro", "pref": "tokyo", "city": "meguro"},
@@ -39,7 +37,6 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
         {"source": "municipal_suginami", "pref": "tokyo", "city": "suginami"},
         {"source": "municipal_toshima", "pref": "tokyo", "city": "toshima"},
     ),
-    # Day 2 (Wednesday Dec 31): 7 wards + Tokyo Metropolitan
     "wed": (
         {"source": "municipal_kita", "pref": "tokyo", "city": "kita"},
         {"source": "municipal_arakawa", "pref": "tokyo", "city": "arakawa"},
@@ -56,22 +53,23 @@ SCHEDULE: dict[str, tuple[Mapping[str, str], ...]] = {
     ),
 }
 
+# Flatten SCHEDULE to create a Master Lookup Dict: city -> config
+WARD_CONFIGS: dict[str, dict[str, str]] = {}
+for batch in SCHEDULE.values():
+    for target in batch:
+        WARD_CONFIGS[target["city"]] = target
+
 ASYNC_TIMEOUT = 300.0
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run nightly ingest pipeline")
     parser.add_argument(
-        "--worker-index",
-        type=int,
-        help="Index of the target to process (worker mode)",
-    )
-    parser.add_argument(
-        "--day",
+        "--worker-target",
         type=str,
-        choices=["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-        help="Force run for a specific day of the week (orchestrator mode)",
+        help="City name of the target to process (worker mode)",
     )
+    # Kept for backward compatibility if needed, but primary mode is now ENV based
     parser.add_argument(
         "--discovery-ward",
         type=str,
@@ -86,7 +84,6 @@ def run_discovery_worker(ward: str) -> int:
     load_dotenv()
 
     import asyncio
-    from datetime import datetime
 
     from sqlalchemy import select
 
@@ -157,7 +154,7 @@ def run_discovery_worker(ward: str) -> int:
         return 1
 
 
-def run_worker(worker_index: int, day_key: str) -> int:
+def run_worker(target_city: str) -> int:
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -169,14 +166,10 @@ def run_worker(worker_index: int, day_key: str) -> int:
     from .fetch_http import DEFAULT_MAX_DELAY, DEFAULT_MIN_DELAY, DEFAULT_USER_AGENT
     from .pipeline import run_batch
 
-    targets = SCHEDULE.get(day_key)
-    if not targets:
-        logger.error(f"No targets found for day: {day_key}")
+    target = WARD_CONFIGS.get(target_city)
+    if not target:
+        logger.error(f"No configuration found for city: {target_city}")
         return 1
-
-    if worker_index < 0 or worker_index >= len(targets):
-        msg = f"worker_index must be between 0 and {len(targets) - 1}"
-        raise ValueError(msg)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -187,9 +180,8 @@ def run_worker(worker_index: int, day_key: str) -> int:
     if db_url:
         configure_engine(db_url)
 
-    target = targets[worker_index]
     source = target["source"]
-    logger.info("--- Worker started for %s (index=%s) ---", source, worker_index)
+    logger.info("--- Worker started for %s (city=%s) ---", source, target_city)
 
     try:
         asyncio.run(
@@ -216,65 +208,46 @@ def run_worker(worker_index: int, day_key: str) -> int:
         return 1
 
 
-async def run_orchestrator(force_day: str | None = None) -> int:
+async def run_orchestrator() -> int:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 
-    # Calculate current day in JST (UTC+9)
-    # jst = timezone(timedelta(hours=9))  <-- unused
-
-    current_day = "accelerated"  # Dummy value for logging
-
-    # --- ACCELERATED SCHEDULE ---
-    # Run all 23 wards in 8 batches (every 3 hours)
-    # Flatten all targets
-    ALL_TARGETS = []
-    for day_targets in SCHEDULE.values():
-        ALL_TARGETS.extend(day_targets)
-
-    # Sort to ensure deterministic order (by city code or name)
-    ALL_TARGETS.sort(key=lambda x: x["city"])
-
-    current_hour = datetime.now(UTC).hour
-    # Runs at 0, 3, 6, 9, 12, 15, 18, 21 UTC
-    # 0 -> Batch 0
-    # 3 -> Batch 1
-    # ...
-    # 21 -> Batch 7
-    batch_index = current_hour // 3
-
-    # 23 wards / 8 batches = ~3 wards per batch
-    BATCH_SIZE = 3
-    start_idx = batch_index * BATCH_SIZE
-    end_idx = start_idx + BATCH_SIZE
-
-    # Handle overflow
-    if start_idx >= len(ALL_TARGETS):
-        # Should not happen if cron is correct, but safe fallback
-        logger.info(f"Batch index {batch_index} out of range (Completed?)")
-        targets = ()
-    else:
-        targets = tuple(ALL_TARGETS[start_idx:end_idx])
-
-    logger.info(f"--- ACCELERATED RUN (UTC Hour: {current_hour}) ---")
-    logger.info(f"Batch {batch_index + 1}/8: Processing {len(targets)} targets")
-
-    if not targets:
-        logger.info("No targets for today/time.")
+    # 1. Check Payload (Environment Variable)
+    target_wards_str = os.getenv("TARGET_WARDS", "").strip()
+    if not target_wards_str:
+        logger.info("TARGET_WARDS env var is empty. Exiting without action.")
         return 0
 
-    # Regular logic follows... (spawning workers)
+    target_cities = [w.strip() for w in target_wards_str.split(",") if w.strip()]
+    if not target_cities:
+        logger.info("No valid wards found in TARGET_WARDS. Exiting.")
+        return 0
+
+    logger.info(f"Manual Execution Started. Targets: {target_cities}")
+
+    # Validate targets
+    valid_configs = []
+    for city in target_cities:
+        if city in WARD_CONFIGS:
+            valid_configs.append(WARD_CONFIGS[city])
+        else:
+            logger.warning(f"Skipping unknown city: {city}")
+
+    if not valid_configs:
+        logger.error("No valid configurations found for requested wards.")
+        return 0
+
     had_failures = False
 
-    # Run discovery for each target ward
-    logger.info("Starting discovery phase...")
+    # 2. Run Discovery (Sequential / Parallel)
     api_key = os.getenv("GOOGLE_SEARCH_API_KEY")
     cx = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
 
     if api_key and cx:
-        for target in targets:
+        logger.info("Starting discovery phase...")
+        for target in valid_configs:
             # Skip if not a municipal target
             if "municipal" not in target["source"]:
                 continue
@@ -284,9 +257,6 @@ async def run_orchestrator(force_day: str | None = None) -> int:
                 continue
 
             logger.info(f"Discovering URLs for {ward}...")
-            # Run discovery in SUBPROCESS to avoid async loop conflict/pollution
-            # Discovery uses its own asyncio.run internally if called as script
-            # Keep it as subprocess for isolation
             subprocess.run(
                 [
                     sys.executable,
@@ -302,97 +272,69 @@ async def run_orchestrator(force_day: str | None = None) -> int:
             "Skipping discovery: GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set"
         )
 
-    # Run workers in parallel (Subprocesses)
-    import concurrent.futures
-
+    # 3. Run Workers (Parallel)
     max_workers = 2
     logger.info(f"Spawning workers with max_workers={max_workers}...")
 
-    # Workers are also subprocesses, so they don't share our event loop
-    # Reverse lookup map for worker arguments to handle accelerated batches
-    # (pref, city) -> (day, index)
-    target_lookup = {}
-    for d, t_list in SCHEDULE.items():
-        for idx, t in enumerate(t_list):
-            key = (t["pref"], t["city"])
-            target_lookup[key] = (d, idx)
-
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_target = {}
-        for index, target in enumerate(targets):
-            # find original args
-            t_key = (target["pref"], target["city"])
-            if t_key not in target_lookup:
-                logger.error(f"Target {t_key} not found in SCHEDULE")
-                continue
-
-            orig_day, orig_idx = target_lookup[t_key]
-
-            logger.info(
-                "Scheduling worker for %s (Original Day: %s, Idx: %s)",
-                target["source"],
-                orig_day,
-                orig_idx,
-            )
+        future_to_city = {}
+        for target in valid_configs:
+            city = target["city"]
+            logger.info(f"Scheduling worker for {city}...")
             future = executor.submit(
                 subprocess.run,
                 [
                     sys.executable,
                     "-m",
                     "scripts.ingest.run_nightly",
-                    "--worker-index",
-                    str(orig_idx),
-                    "--day",
-                    orig_day,
+                    "--worker-target",
+                    city,
                 ],
                 check=False,
                 capture_output=False,
             )
-            future_to_target[future] = (index, target)
+            future_to_city[future] = city
 
-        for future in concurrent.futures.as_completed(future_to_target):
-            index, target = future_to_target[future]
-            source = target["source"]
+        for future in concurrent.futures.as_completed(future_to_city):
+            city = future_to_city[future]
             try:
                 result = future.result()
                 if result.returncode != 0:
-                    logger.error(
-                        "Worker index=%s (target=%s) failed with exit code %s",
-                        index,
-                        source,
+                    # Log as warning to avoid double-error log confusion,
+                    # since worker already logged the exception.
+                    logger.warning(
+                        "Worker for city=%s failed with exit code %s",
+                        city,
                         result.returncode,
                     )
                     had_failures = True
                 else:
                     logger.info(
-                        "Worker index=%s (target=%s) completed successfully",
-                        index,
-                        source,
+                        "Worker for city=%s completed successfully",
+                        city,
                     )
             except Exception as exc:
                 logger.error(
-                    "Worker index=%s (target=%s) generated an exception: %s",
-                    index,
-                    source,
+                    "Worker execution for city=%s generated an exception: %s",
+                    city,
                     exc,
                 )
                 had_failures = True
 
-    # Collect summary
-    summary_lines = [f"**Nightly Run Report ({current_day})**"]
+    # 4. Cleanup & Summary
+    summary_lines = ["**Manual Run Report**"]
+    summary_lines.append(f"Targets: {', '.join(target_cities)}")
     if had_failures:
         summary_lines.append("🔴 **Status:** Failed (Check logs)")
     else:
         summary_lines.append("🟢 **Status:** Success")
 
-    summary_lines.append(f"\n**Targets:** {len(targets)}")
-
-    # Run backfill of tags (Avoid nested asyncio.run)
+    # Run backfill of tags
     try:
         logger.info("Starting backfill of candidate tags...")
         from scripts.backfill_candidate_tags import backfill_tags
 
-        # Await directly
+        # Process recent entries (default behavior or adjusted if needed)
         await backfill_tags()
 
         logger.info("Backfill completed.")
@@ -401,12 +343,11 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         logger.error(f"Backfill failed: {e}")
         summary_lines.append(f"\n**Backfill:** Failed ({e})")
 
-    # Deduplication (Avoid nested asyncio.run)
+    # Deduplication
     try:
         logger.info("Starting candidate deduplication...")
         from scripts.deduplicate_candidates import deduplicate_candidates
 
-        # Await directly
         await deduplicate_candidates()
 
         logger.info("Deduplication completed.")
@@ -415,12 +356,11 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         logger.error(f"Deduplication failed: {e}")
         summary_lines.append(f"\n**Deduplication:** Failed ({e})")
 
-    # Auto-Approval (New Step)
+    # Auto-Approval
     try:
         logger.info("Starting candidate auto-approval...")
         from scripts.auto_approve_candidates import auto_approve_candidates
 
-        # Await directly (dry_run=True to only log, not apply)
         stats = await auto_approve_candidates(dry_run=True)
 
         merged = stats.get("merged", 0)
@@ -436,29 +376,16 @@ async def run_orchestrator(force_day: str | None = None) -> int:
         logger.error(f"Auto-approval failed: {e}")
         summary_lines.append(f"\n**Auto-Approval:** Failed ({e})")
 
-    # Cost Report (New Step)
-    try:
-        from scripts.check_budget import get_cost_report
-
-        cost_report = await get_cost_report(days=1)
-        summary_lines.append(f"\n{cost_report}")
-    except Exception as e:
-        logger.error(f"Cost report generation failed: {e}")
-        summary_lines.append(f"\n**Cost Report:** Failed ({e})")
-
-    message = "\n".join(summary_lines)
-
-    # Send notification (Avoid nested asyncio.run)
+    # Send notification
     try:
         from app.services.notification import send_notification
 
-        # Await directly
-        await send_notification(message)
+        await send_notification("\n".join(summary_lines))
 
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
 
-    # Dispose of the engine to close all connections cleanly
+    # clean up engine
     from app.db import engine
 
     await engine.dispose()
@@ -469,30 +396,12 @@ async def run_orchestrator(force_day: str | None = None) -> int:
 if __name__ == "__main__":
     args = parse_args()
     if args.discovery_ward:
-        # Discovery worker uses its own asyncio.run inside
         raise SystemExit(run_discovery_worker(args.discovery_ward))
 
-    if args.worker_index is None:
-        # Orchestrator is now async
+    if args.worker_target:
+        raise SystemExit(run_worker(args.worker_target))
+    else:
+        # Orchestrator
         import asyncio
 
-        raise SystemExit(asyncio.run(run_orchestrator(force_day=args.day)))
-    else:
-        # Worker is sync wrapper around async run_batch (inside run_worker)
-        # run_worker uses asyncio.run internally, which is fine as it is a separate process
-        raise SystemExit(run_worker(args.worker_index, args.day))
-    # Worker mode needs to know which day's schedule to use to look up the target by index
-    # But wait, worker_index relies on the TARGETS list which is now dynamic.
-    # We must pass the day to the worker as well.
-    if not args.day:
-        # If day is not passed to worker, it cannot know which list to use.
-        # We need to calculate it again or require it.
-        # Calculating it again is risky if the day changes mid-run
-        # (rare but possible around midnight).
-        # Better to require it or default to current day.
-        jst = timezone(timedelta(hours=9))
-        weekday_idx = datetime.now(jst).weekday()
-        days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-        args.day = days[weekday_idx]
-
-    raise SystemExit(run_worker(args.worker_index, args.day))
+        raise SystemExit(asyncio.run(run_orchestrator()))
